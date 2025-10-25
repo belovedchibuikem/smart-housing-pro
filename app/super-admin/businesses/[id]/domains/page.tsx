@@ -48,12 +48,13 @@ export default function BusinessDomainsPage({ params }: { params: Promise<{ id: 
       })
       setNewDomain("")
       // Reload domains
-      loadData(async () => {
+      await loadData(async () => {
         const response = await apiFetch<{ domains: Domain[] }>(`/super-admin/businesses/${resolvedParams.id}/domains`)
         return response
       })
     } catch (error) {
       console.error('Failed to add domain:', error)
+      alert(`Failed to add domain: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsAdding(false)
     }
@@ -65,12 +66,13 @@ export default function BusinessDomainsPage({ params }: { params: Promise<{ id: 
         method: 'POST'
       })
       // Reload domains
-      loadData(async () => {
+      await loadData(async () => {
         const response = await apiFetch<{ domains: Domain[] }>(`/super-admin/businesses/${resolvedParams.id}/domains`)
         return response
       })
     } catch (error) {
       console.error('Failed to verify domain:', error)
+      alert(`Failed to verify domain: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 
@@ -82,12 +84,13 @@ export default function BusinessDomainsPage({ params }: { params: Promise<{ id: 
         method: 'DELETE'
       })
       // Reload domains
-      loadData(async () => {
+      await loadData(async () => {
         const response = await apiFetch<{ domains: Domain[] }>(`/super-admin/businesses/${resolvedParams.id}/domains`)
         return response
       })
     } catch (error) {
       console.error('Failed to delete domain:', error)
+      alert(`Failed to delete domain: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
   }
 

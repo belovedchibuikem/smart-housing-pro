@@ -21,6 +21,8 @@ interface BusinessFormData {
   address: string
   primary_color: string
   secondary_color: string
+  logo_url?: string
+  custom_domain?: string
 }
 
 export default function EditBusinessPage({ params }: { params: Promise<{ id: string }> }) {
@@ -34,8 +36,12 @@ export default function EditBusinessPage({ params }: { params: Promise<{ id: str
     address: "",
     primary_color: "#000000",
     secondary_color: "#000000",
+    logo_url: "",
+    custom_domain: "",
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [submitSuccess, setSubmitSuccess] = useState(false)
 
   useEffect(() => {
     loadData(async () => {
@@ -53,16 +59,23 @@ export default function EditBusinessPage({ params }: { params: Promise<{ id: str
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsSubmitting(true)
+    setSubmitError(null)
+    setSubmitSuccess(false)
     
     try {
-      await apiFetch(`/super-admin/businesses/${resolvedParams.id}`, {
+      const response = await apiFetch(`/super-admin/businesses/${resolvedParams.id}`, {
         method: 'PUT',
         body: formData
       })
-      // Redirect back to business details
-      window.location.href = `/super-admin/businesses/${resolvedParams.id}`
+      
+      setSubmitSuccess(true)
+      // Redirect back to business details after a short delay
+      setTimeout(() => {
+        window.location.href = `/super-admin/businesses/${resolvedParams.id}`
+      }, 1500)
     } catch (error) {
       console.error('Failed to update business:', error)
+      setSubmitError(error instanceof Error ? error.message : 'Failed to update business')
     } finally {
       setIsSubmitting(false)
     }
@@ -86,6 +99,18 @@ export default function EditBusinessPage({ params }: { params: Promise<{ id: str
       </div>
 
       <Card className="p-6">
+        {submitSuccess && (
+          <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <p className="text-green-800">Business updated successfully! Redirecting...</p>
+          </div>
+        )}
+        
+        {submitError && (
+          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <p className="text-red-800">{submitError}</p>
+          </div>
+        )}
+        
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="name">Business Name</Label>
@@ -142,6 +167,29 @@ export default function EditBusinessPage({ params }: { params: Promise<{ id: str
               value={formData.address}
               onChange={(e) => setFormData({ ...formData, address: e.target.value })}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="logo_url">Logo URL</Label>
+            <Input
+              id="logo_url"
+              placeholder="https://example.com/logo.png"
+              value={formData.logo_url || ""}
+              onChange={(e) => setFormData({ ...formData, logo_url: e.target.value })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="custom_domain">Custom Domain</Label>
+            <Input
+              id="custom_domain"
+              placeholder="business.com"
+              value={formData.custom_domain || ""}
+              onChange={(e) => setFormData({ ...formData, custom_domain: e.target.value })}
+            />
+            <p className="text-sm text-muted-foreground">
+              Optional custom domain for this business
+            </p>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">

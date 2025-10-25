@@ -64,8 +64,13 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
 
   useEffect(() => {
     loadData(async () => {
-      const response = await apiFetch<{ business: BusinessDetail }>(`/super-admin/businesses/${resolvedParams.id}`)
-      return response
+      try {
+        const response = await apiFetch<{ business: BusinessDetail }>(`/super-admin/businesses/${resolvedParams.id}`)
+        return response
+      } catch (error) {
+        console.error('Failed to load business details:', error)
+        throw error
+      }
     })
   }, [loadData, resolvedParams.id])
 
@@ -78,29 +83,16 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
     { label: "Members", current: business.members_count || 0, limit: 500, percentage: Math.min(((business.members_count || 0) / 500) * 100, 100) },
     { label: "Properties", current: business.properties_count || 0, limit: 100, percentage: Math.min(((business.properties_count || 0) / 100) * 100, 100) },
     { label: "Loan Products", current: business.loans_count || 0, limit: 20, percentage: Math.min(((business.loans_count || 0) / 20) * 100, 100) },
-    { label: "Storage", current: 18.5, limit: 25, unit: "GB", percentage: 74 },
+    { label: "Storage", current: 0, limit: 25, unit: "GB", percentage: 0 },
   ]
 
-  const recentActivity = [
-    {
-      id: "1",
-      action: "New member registered",
-      details: "John Doe joined the cooperative",
-      timestamp: "2025-01-22 14:30",
-    },
-    {
-      id: "2",
-      action: "Property added",
-      details: "3-bedroom apartment in Abuja",
-      timestamp: "2025-01-22 12:15",
-    },
-    {
-      id: "3",
-      action: "Loan approved",
-      details: "₦5,000,000 housing loan for Jane Smith",
-      timestamp: "2025-01-22 10:45",
-    },
-  ]
+  // Recent activity would be fetched from API in a real implementation
+  const recentActivity: Array<{
+    id: string
+    action: string
+    details: string
+    timestamp: string
+  }> = []
 
   return (
     <div className="space-y-8">
@@ -274,7 +266,7 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
                 </div>
                 <div className="p-4 border rounded-lg">
                   <p className="text-sm text-muted-foreground">Payment Method</p>
-                  <p className="font-semibold mt-1">Card ending in 4242</p>
+                  <p className="font-semibold mt-1">Not configured</p>
                 </div>
               </div>
             </div>

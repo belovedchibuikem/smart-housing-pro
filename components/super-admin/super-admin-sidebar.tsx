@@ -79,7 +79,22 @@ export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAd
     const Icon = item.icon
     const hasSubItems = item.subItems && item.subItems.length > 0
     const isOpen = isMenuOpen(item.label)
-    const isActive = item.href ? pathname === item.href || pathname.startsWith(item.href + "/") : false
+    
+    // Enhanced active state logic
+    const isActive = item.href ? (() => {
+      // Exact match
+      if (pathname === item.href) {
+        return true
+      }
+      
+      // For dashboard, only match exact path (not sub-paths)
+      if (item.href === "/super-admin") {
+        return pathname === "/super-admin"
+      }
+      
+      // For other routes, match if pathname starts with the href
+      return pathname.startsWith(item.href + "/")
+    })() : false
 
     if (hasSubItems) {
       return (
@@ -104,7 +119,13 @@ export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAd
             <div className="ml-4 mt-1 space-y-1">
               {item.subItems?.map((subItem) => {
                 const SubIcon = subItem.icon
-                const isSubActive = pathname === subItem.href || pathname.startsWith(subItem.href! + "/")
+                const isSubActive = subItem.href ? (() => {
+                  // Exact match
+                  if (pathname === subItem.href) return true
+                  
+                  // Match if pathname starts with the href
+                  return pathname.startsWith(subItem.href + "/")
+                })() : false
                 return (
                   <Link
                     key={subItem.href}
@@ -116,6 +137,7 @@ export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAd
                         ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
+                    title={`${subItem.label} - ${isSubActive ? 'ACTIVE' : 'inactive'} (${pathname})`}
                   >
                     <SubIcon className="h-4 w-4" />
                     {subItem.label}
@@ -139,6 +161,7 @@ export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAd
             ? "bg-primary text-primary-foreground"
             : "text-muted-foreground hover:bg-muted hover:text-foreground",
         )}
+        title={`${item.label} - ${isActive ? 'ACTIVE' : 'inactive'} (${pathname})`}
       >
         <Icon className="h-5 w-5" />
         {item.label}
