@@ -62,22 +62,38 @@ export async function apiFetch<T = unknown>(
 		}
 	}
 
-	const response = await fetch(url, {
-		method: options.method || "GET",
-		headers,
-		body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-	})
+	try {
+		const response = await fetch(url, {
+			method: options.method || "GET",
+			headers,
+			body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+		})
 
-	// Attempt to parse JSON; if not JSON, throw generic error on non-OK
-	const isJson = response.headers.get("content-type")?.includes("application/json")
-	const data = isJson ? await response.json() : (undefined as unknown as T)
+		// Attempt to parse JSON; if not JSON, throw generic error on non-OK
+		const isJson = response.headers.get("content-type")?.includes("application/json")
+		const data = isJson ? await response.json() : (undefined as unknown as T)
 
-	if (!response.ok) {
-		const message = (data as any)?.message || `Request failed with ${response.status}`
-		throw new Error(message)
+		if (!response.ok) {
+			const message = (data as any)?.message || `Request failed with ${response.status}`
+			throw new Error(message)
+		}
+
+		return data as T
+	} catch (error) {
+		// Enhanced error logging for debugging
+		console.error('API Fetch Error:', {
+			url,
+			method: options.method || "GET",
+			error: error instanceof Error ? error.message : String(error),
+			timestamp: new Date().toISOString()
+		})
+		
+		// Re-throw the error with more context
+		if (error instanceof Error) {
+			throw new Error(`Failed to fetch ${url}: ${error.message}`)
+		}
+		throw new Error(`Failed to fetch ${url}: Network error`)
 	}
-
-	return data as T
 }
 
 export async function loginRequest(payload: { email: string; password: string }) {

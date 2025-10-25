@@ -5,311 +5,449 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { User, Mail, Phone, Calendar, Shield, Edit, Save, X } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
+import { User, Mail, Shield, Calendar, Save, AlertCircle, CheckCircle } from "lucide-react"
 import { apiFetch } from "@/lib/api/client"
 import { toast } from "sonner"
 
-interface UserData {
+interface UserProfile {
   id: string
   first_name: string
   last_name: string
   email: string
   phone?: string
-  avatar_url?: string
   role: string
+  roles: string[]
+  permissions: string[]
   status: string
-  email_verified_at?: string
   last_login?: string
   created_at: string
   updated_at: string
 }
 
 export default function SuperAdminProfilePage() {
-  const [userData, setUserData] = useState<UserData | null>(null)
+  const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
-  const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState({
-    first_name: '',
-    last_name: '',
-    email: '',
-    phone: ''
+    first_name: "",
+    last_name: "",
+    email: "",
+    phone: "",
   })
+  const [passwordData, setPasswordData] = useState({
+    current_password: "",
+    new_password: "",
+    new_password_confirmation: "",
+  })
+  const [showPasswordForm, setShowPasswordForm] = useState(false)
 
   useEffect(() => {
-    // Get user data from localStorage (set during login)
-    const storedUserData = localStorage.getItem('user_data')
-    if (storedUserData) {
-      try {
-        const user = JSON.parse(storedUserData)
-        setUserData(user)
-        setFormData({
-          first_name: user.first_name || '',
-          last_name: user.last_name || '',
-          email: user.email || '',
-          phone: user.phone || ''
-        })
-      } catch (error) {
-        console.error('Failed to parse user data:', error)
-        toast.error('Failed to load user data')
-      }
-    }
-    setLoading(false)
+    loadProfile()
   }, [])
 
-  const handleEdit = () => {
-    setEditing(true)
-  }
-
-  const handleCancel = () => {
-    setEditing(false)
-    if (userData) {
-      setFormData({
-        first_name: userData.first_name || '',
-        last_name: userData.last_name || '',
-        email: userData.email || '',
-        phone: userData.phone || ''
-      })
+  const loadProfile = async () => {
+    try {
+      setLoading(true)
+      // Get user data from API
+      const response = await apiFetch('/super-admin/profile')
+      if (response.success) {
+        const user = response.user
+        setProfile(user)
+        setFormData({
+          first_name: user.first_name || "",
+          last_name: user.last_name || "",
+          email: user.email || "",
+          phone: user.phone || "",
+        })
+      } else {
+        // Fallback to localStorage if API fails
+        const storedUserData = localStorage.getItem('user_data')
+        if (storedUserData) {
+          const user = JSON.parse(storedUserData)
+          setProfile(user)
+          setFormData({
+            first_name: user.first_name || "",
+            last_name: user.last_name || "",
+            email: user.email || "",
+            phone: user.phone || "",
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error)
+      // Fallback to localStorage if API fails
+      const storedUserData = localStorage.getItem('user_data')
+      if (storedUserData) {
+        const user = JSON.parse(storedUserData)
+        setProfile(user)
+        setFormData({
+          first_name: user.first_name || "",
+          last_name: user.last_name || "",
+          email: user.email || "",
+          phone: user.phone || "",
+        })
+      }
+      toast.error('Failed to load profile')
+    } finally {
+      setLoading(false)
     }
   }
 
   const handleSave = async () => {
-    if (!userData) return
-
-    setSaving(true)
     try {
-      const response = await apiFetch(`/super-admin/admins/${userData.id}`, {
+      setSaving(true)
+      
+      // Update profile via API
+      const response = await apiFetch('/super-admin/profile', {
         method: 'PUT',
-        body: {
-          first_name: formData.first_name,
-          last_name: formData.last_name,
-          email: formData.email,
-          phone: formData.phone
-        }
+        body: JSON.stringify(formData)
       })
 
       if (response.success) {
-        // Update local storage
-        const updatedUserData = { ...userData, ...formData }
-        localStorage.setItem('user_data', JSON.stringify(updatedUserData))
-        setUserData(updatedUserData)
-        setEditing(false)
+        // Update localStorage with new data
+        const updatedProfile = { ...profile, ...response.user }
+        localStorage.setItem('user_data', JSON.stringify(updatedProfile))
+        setProfile(updatedProfile)
+        
         toast.success('Profile updated successfully')
       } else {
         toast.error(response.message || 'Failed to update profile')
       }
     } catch (error: any) {
-      console.error('Update profile error:', error)
+      console.error('Error updating profile:', error)
       toast.error(error.message || 'Failed to update profile')
     } finally {
       setSaving(false)
     }
   }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }))
   }
 
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
+  const handlePasswordChange = (field: string, value: string) => {
+    setPasswordData(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
+  const handleChangePassword = async () => {
+    try {
+      setSaving(true)
+      
+      // Validate passwords match
+      if (passwordData.new_password !== passwordData.new_password_confirmation) {
+        toast.error('New passwords do not match')
+        return
+      }
+
+      // Change password via API
+      const response = await apiFetch('/super-admin/profile/change-password', {
+        method: 'POST',
+        body: JSON.stringify({
+          current_password: passwordData.current_password,
+          new_password: passwordData.new_password,
+          new_password_confirmation: passwordData.new_password_confirmation
+        })
+      })
+
+      if (response.success) {
+        toast.success('Password changed successfully')
+        setPasswordData({
+          current_password: "",
+          new_password: "",
+          new_password_confirmation: "",
+        })
+        setShowPasswordForm(false)
+      } else {
+        toast.error(response.message || 'Failed to change password')
+      }
+    } catch (error: any) {
+      console.error('Error changing password:', error)
+      toast.error(error.message || 'Failed to change password')
+    } finally {
+      setSaving(false)
+    }
   }
 
   if (loading) {
     return (
-      <div className="space-y-6">
-        <div className="animate-pulse">
-          <div className="h-8 bg-muted rounded w-1/3 mb-2"></div>
-          <div className="h-4 bg-muted rounded w-1/2"></div>
-        </div>
-        <div className="grid gap-6">
-          <div className="h-64 bg-muted rounded animate-pulse"></div>
-        </div>
-      </div>
-    )
-  }
-
-  if (!userData) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <User className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium">No user data found</h3>
-          <p className="text-muted-foreground">Please log in again</p>
+      <div className="container mx-auto py-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading profile...</p>
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto py-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Profile</h1>
-          <p className="text-muted-foreground mt-2">Manage your super admin profile</p>
+          <p className="text-muted-foreground">Manage your super admin profile</p>
         </div>
-        <div className="flex gap-2">
-          {editing ? (
-            <>
-              <Button onClick={handleCancel} variant="outline" disabled={saving}>
-                <X className="h-4 w-4 mr-2" />
-                Cancel
-              </Button>
-              <Button onClick={handleSave} disabled={saving}>
-                <Save className="h-4 w-4 mr-2" />
-                {saving ? 'Saving...' : 'Save Changes'}
-              </Button>
-            </>
-          ) : (
-            <Button onClick={handleEdit}>
-              <Edit className="h-4 w-4 mr-2" />
-              Edit Profile
-            </Button>
-          )}
-        </div>
+        <Badge variant={profile?.status === 'active' ? 'default' : 'secondary'}>
+          {profile?.status || 'Unknown'}
+        </Badge>
       </div>
 
-      <div className="grid gap-6">
-        {/* Profile Overview */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Profile Overview</CardTitle>
-            <CardDescription>Your account information and status</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="flex items-center gap-4">
-              <Avatar className="h-20 w-20">
-                <AvatarImage src={userData.avatar_url} />
-                <AvatarFallback className="text-lg">
-                  {getInitials(userData.first_name, userData.last_name)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="space-y-2">
-                <div>
-                  <h3 className="text-xl font-semibold">
-                    {userData.first_name} {userData.last_name}
-                  </h3>
-                  <p className="text-muted-foreground">{userData.email}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant={userData.status === 'active' ? 'default' : 'secondary'}>
-                    <Shield className="h-3 w-3 mr-1" />
-                    {userData.status}
-                  </Badge>
-                  <Badge variant="outline" className="capitalize">
-                    {userData.role}
-                  </Badge>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
+      <div className="grid gap-6 md:grid-cols-2">
         {/* Personal Information */}
         <Card>
           <CardHeader>
-            <CardTitle>Personal Information</CardTitle>
-            <CardDescription>Update your personal details</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Personal Information
+            </CardTitle>
+            <CardDescription>
+              Update your personal details
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
                 <Label htmlFor="first_name">First Name</Label>
                 <Input
                   id="first_name"
                   value={formData.first_name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
-                  disabled={!editing}
+                  onChange={(e) => handleInputChange('first_name', e.target.value)}
+                  placeholder="Enter first name"
                 />
               </div>
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="last_name">Last Name</Label>
                 <Input
                   id="last_name"
                   value={formData.last_name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
-                  disabled={!editing}
-                />
-              </div>
-              <div>
-                <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                  disabled={!editing}
-                />
-              </div>
-              <div>
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  value={formData.phone}
-                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                  disabled={!editing}
+                  onChange={(e) => handleInputChange('last_name', e.target.value)}
+                  placeholder="Enter last name"
                 />
               </div>
             </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="email">Email Address</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+                placeholder="Enter email address"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="phone">Phone Number</Label>
+              <Input
+                id="phone"
+                value={formData.phone}
+                onChange={(e) => handleInputChange('phone', e.target.value)}
+                placeholder="Enter phone number"
+              />
+            </div>
+
+            <Button onClick={handleSave} disabled={saving} className="w-full">
+              {saving ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Changes
+                </>
+              )}
+            </Button>
           </CardContent>
         </Card>
 
         {/* Account Information */}
         <Card>
           <CardHeader>
-            <CardTitle>Account Information</CardTitle>
-            <CardDescription>Account details and activity</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              Account Information
+            </CardTitle>
+            <CardDescription>
+              Your account details and permissions
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-center gap-3">
-                <Mail className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">Email Status</p>
-                  <p className="text-sm text-muted-foreground">
-                    {userData.email_verified_at ? 'Verified' : 'Not verified'}
-                  </p>
-                </div>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">User ID</span>
+                <span className="text-sm text-muted-foreground font-mono">{profile?.id}</span>
               </div>
-              <div className="flex items-center gap-3">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">Last Login</p>
-                  <p className="text-sm text-muted-foreground">
-                    {userData.last_login ? formatDate(userData.last_login) : 'Never'}
-                  </p>
-                </div>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Role</span>
+                <Badge variant="outline">{profile?.role || 'Super Admin'}</Badge>
               </div>
-              <div className="flex items-center gap-3">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">Member Since</p>
-                  <p className="text-sm text-muted-foreground">
-                    {formatDate(userData.created_at)}
-                  </p>
-                </div>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Permissions</span>
+                <span className="text-sm text-muted-foreground">{profile?.permissions?.length || 0} permissions</span>
               </div>
-              <div className="flex items-center gap-3">
-                <Shield className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">Account Type</p>
-                  <p className="text-sm text-muted-foreground capitalize">
-                    {userData.role}
-                  </p>
-                </div>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Last Login</span>
+                <span className="text-sm text-muted-foreground">
+                  {profile?.last_login ? new Date(profile.last_login).toLocaleDateString() : 'Never'}
+                </span>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Member Since</span>
+                <span className="text-sm text-muted-foreground">
+                  {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'Unknown'}
+                </span>
               </div>
             </div>
+
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Your account has full super admin privileges with access to all platform features.
+              </AlertDescription>
+            </Alert>
           </CardContent>
         </Card>
       </div>
+
+      {/* Change Password */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Change Password
+          </CardTitle>
+          <CardDescription>
+            Update your account password for security
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {!showPasswordForm ? (
+            <Button onClick={() => setShowPasswordForm(true)} variant="outline">
+              Change Password
+            </Button>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="current_password">Current Password</Label>
+                <Input
+                  id="current_password"
+                  type="password"
+                  value={passwordData.current_password}
+                  onChange={(e) => handlePasswordChange('current_password', e.target.value)}
+                  placeholder="Enter current password"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="new_password">New Password</Label>
+                <Input
+                  id="new_password"
+                  type="password"
+                  value={passwordData.new_password}
+                  onChange={(e) => handlePasswordChange('new_password', e.target.value)}
+                  placeholder="Enter new password"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="new_password_confirmation">Confirm New Password</Label>
+                <Input
+                  id="new_password_confirmation"
+                  type="password"
+                  value={passwordData.new_password_confirmation}
+                  onChange={(e) => handlePasswordChange('new_password_confirmation', e.target.value)}
+                  placeholder="Confirm new password"
+                />
+              </div>
+              
+              <div className="flex gap-2">
+                <Button onClick={handleChangePassword} disabled={saving}>
+                  {saving ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Changing...
+                    </>
+                  ) : (
+                    'Change Password'
+                  )}
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setShowPasswordForm(false)
+                    setPasswordData({
+                      current_password: "",
+                      new_password: "",
+                      new_password_confirmation: "",
+                    })
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Security Information */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Security & Access
+          </CardTitle>
+          <CardDescription>
+            Your security settings and access permissions
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-3">
+              <h4 className="font-medium">Account Status</h4>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                <span className="text-sm">Account Active</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-green-500" />
+                <span className="text-sm">Email Verified</span>
+              </div>
+            </div>
+            
+            <div className="space-y-3">
+              <h4 className="font-medium">Permissions Summary</h4>
+              <div className="text-sm text-muted-foreground">
+                You have access to all platform management features including:
+              </div>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• Business management</li>
+                <li>• User administration</li>
+                <li>• System configuration</li>
+                <li>• Analytics and reporting</li>
+                <li>• Platform settings</li>
+              </ul>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

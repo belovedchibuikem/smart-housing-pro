@@ -25,6 +25,28 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
+interface Role {
+  id: string
+  name: string
+  slug: string
+  description: string
+  is_active: boolean
+  user_count: number
+  created_at: string
+  updated_at: string
+}
+
+interface RolesResponse {
+  success: boolean
+  roles: Role[]
+  pagination: {
+    current_page: number
+    last_page: number
+    per_page: number
+    total: number
+  }
+}
+
 interface SuperAdmin {
   id: string
   name: string
@@ -47,28 +69,42 @@ export default function EditSuperAdminPage({ params }: { params: Promise<{ id: s
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [roles, setRoles] = useState<Role[]>([])
+  const [loadingRoles, setLoadingRoles] = useState(true)
 
   useEffect(() => {
-    const loadAdmin = async () => {
+    const loadData = async () => {
       try {
-        const response = await apiFetch<{ admin: SuperAdmin }>(`/super-admin/admins/${resolvedParams.id}`)
-        const admin = response.admin
+        // Load roles first
+        const rolesResponse = await apiFetch<RolesResponse>('/super-admin/roles')
+        if (rolesResponse.success) {
+          setRoles(rolesResponse.roles)
+        } else {
+          toast.error('Failed to load roles')
+          return
+        }
+
+        // Then load admin data
+        const adminResponse = await apiFetch<{ admin: SuperAdmin }>(`/super-admin/admins/${resolvedParams.id}`)
+        const admin = adminResponse.admin
+        
         setFormData({
           name: admin.name,
           email: admin.email,
           password: "", // Don't pre-fill password
-          role: admin.role,
+          role: admin.role, // API now returns role ID directly
           status: admin.status,
         })
       } catch (e: any) {
-        toast.error(e.message || "Failed to load admin details")
+        toast.error(e.message || "Failed to load data")
         router.push("/super-admin/admins")
       } finally {
         setIsLoading(false)
+        setLoadingRoles(false)
       }
     }
     
-    loadAdmin()
+    loadData()
   }, [resolvedParams.id, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -171,13 +207,14 @@ export default function EditSuperAdminPage({ params }: { params: Promise<{ id: s
             <Label htmlFor="role">Role</Label>
             <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })}>
               <SelectTrigger>
-                <SelectValue placeholder="Select role" />
+                <SelectValue placeholder={loadingRoles ? "Loading roles..." : "Select role"} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="super_administrator">Super Administrator</SelectItem>
-                <SelectItem value="business_manager">Business Manager</SelectItem>
-                <SelectItem value="support_agent">Support Agent</SelectItem>
-                <SelectItem value="billing_manager">Billing Manager</SelectItem>
+                {roles.map((role) => (
+                  <SelectItem key={role.id} value={role.id}>
+                    {role.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

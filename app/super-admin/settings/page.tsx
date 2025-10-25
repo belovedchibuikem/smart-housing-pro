@@ -196,9 +196,9 @@ export default function PlatformSettingsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Platform Settings</h1>
-          <p className="text-muted-foreground mt-2">Configure platform-wide settings and preferences</p>
+      <div>
+        <h1 className="text-3xl font-bold">Platform Settings</h1>
+        <p className="text-muted-foreground mt-2">Configure platform-wide settings and preferences</p>
         </div>
         <Button onClick={handleSave} disabled={saving}>
           <Save className="h-4 w-4 mr-2" />
@@ -238,7 +238,7 @@ export default function PlatformSettingsPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
+              <div>
                   <Label htmlFor="platform_name">Platform Name</Label>
                   <Input
                     id="platform_name"
@@ -246,8 +246,8 @@ export default function PlatformSettingsPage() {
                     onChange={(e) => updateSetting('platform_name', e.target.value)}
                     placeholder="FRSC Housing Platform"
                   />
-                </div>
-                <div>
+              </div>
+              <div>
                   <Label htmlFor="platform_domain">Platform Domain</Label>
                   <Input
                     id="platform_domain"
@@ -255,8 +255,8 @@ export default function PlatformSettingsPage() {
                     onChange={(e) => updateSetting('platform_domain', e.target.value)}
                     placeholder="frschousing.com"
                   />
-                </div>
-                <div>
+              </div>
+              <div>
                   <Label htmlFor="support_email">Support Email</Label>
                   <Input
                     id="support_email"
@@ -265,9 +265,9 @@ export default function PlatformSettingsPage() {
                     onChange={(e) => updateSetting('support_email', e.target.value)}
                     placeholder="support@frschousing.com"
                   />
-                </div>
-                <div>
-                  <Label htmlFor="timezone">Timezone</Label>
+              </div>
+              <div>
+                <Label htmlFor="timezone">Timezone</Label>
                   <Select
                     value={settings.timezone || 'Africa/Lagos'}
                     onValueChange={(value) => updateSetting('timezone', value)}
@@ -294,7 +294,7 @@ export default function PlatformSettingsPage() {
                   checked={settings.maintenance_mode || false}
                   onCheckedChange={(checked) => updateSetting('maintenance_mode', checked)}
                 />
-              </div>
+            </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -307,7 +307,7 @@ export default function PlatformSettingsPage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
+              <div>
                   <Label htmlFor="smtp_host">SMTP Host</Label>
                   <Input
                     id="smtp_host"
@@ -315,8 +315,8 @@ export default function PlatformSettingsPage() {
                     onChange={(e) => updateSetting('smtp_host', e.target.value)}
                     placeholder="smtp.example.com"
                   />
-                </div>
-                <div>
+              </div>
+              <div>
                   <Label htmlFor="smtp_port">SMTP Port</Label>
                   <Input
                     id="smtp_port"
@@ -325,8 +325,8 @@ export default function PlatformSettingsPage() {
                     onChange={(e) => updateSetting('smtp_port', parseInt(e.target.value))}
                     placeholder="587"
                   />
-                </div>
-                <div>
+              </div>
+              <div>
                   <Label htmlFor="smtp_username">SMTP Username</Label>
                   <Input
                     id="smtp_username"
@@ -334,8 +334,8 @@ export default function PlatformSettingsPage() {
                     onChange={(e) => updateSetting('smtp_username', e.target.value)}
                     placeholder="username@example.com"
                   />
-                </div>
-                <div>
+              </div>
+              <div>
                   <Label htmlFor="smtp_password">SMTP Password</Label>
                   <Input
                     id="smtp_password"
@@ -344,8 +344,8 @@ export default function PlatformSettingsPage() {
                     onChange={(e) => updateSetting('smtp_password', e.target.value)}
                     placeholder="••••••••"
                   />
-                </div>
-                <div>
+              </div>
+              <div>
                   <Label htmlFor="smtp_encryption">SMTP Encryption</Label>
                   <Select
                     value={settings.smtp_encryption || 'tls'}
@@ -360,8 +360,8 @@ export default function PlatformSettingsPage() {
                       <SelectItem value="ssl">SSL</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-                <div>
+              </div>
+              <div>
                   <Label htmlFor="from_email">From Email</Label>
                   <Input
                     id="from_email"
@@ -419,10 +419,10 @@ export default function PlatformSettingsPage() {
                 { key: 'notify_usage_limit', label: 'Usage Limit Reached', description: 'Notify when a business reaches usage limits' }
               ].map(({ key, label, description }) => (
                 <div key={key} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div>
+                <div>
                     <Label htmlFor={key}>{label}</Label>
                     <p className="text-sm text-muted-foreground">{description}</p>
-                  </div>
+                </div>
                   <Switch
                     id={key}
                     checked={settings[key] || false}
@@ -453,7 +453,7 @@ export default function PlatformSettingsPage() {
                 />
               </div>
 
-              <div>
+                <div>
                 <Label htmlFor="session_timeout">Session Timeout (minutes)</Label>
                 <Input
                   id="session_timeout"
@@ -488,7 +488,7 @@ export default function PlatformSettingsPage() {
                     rows={4}
                   />
                   <p className="text-sm text-muted-foreground mt-1">Enter one IP address per line</p>
-                </div>
+            </div>
               )}
             </CardContent>
           </Card>
@@ -532,7 +532,7 @@ export default function PlatformSettingsPage() {
               </div>
 
               <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div>
+              <div>
                   <Label htmlFor="auto_optimize">Auto Optimize Database</Label>
                   <p className="text-sm text-muted-foreground">Automatically optimize database performance</p>
                 </div>
@@ -558,12 +558,12 @@ export default function PlatformSettingsPage() {
                   <div>
                     <p className="text-sm text-muted-foreground">Database Size</p>
                     <p className="text-2xl font-bold">2.4 GB</p>
-                  </div>
-                  <div>
+              </div>
+              <div>
                     <p className="text-sm text-muted-foreground">Total Records</p>
                     <p className="text-2xl font-bold">45,231</p>
                   </div>
-                </div>
+              </div>
               </div>
             </CardContent>
           </Card>

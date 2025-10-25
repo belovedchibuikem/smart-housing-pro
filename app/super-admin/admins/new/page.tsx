@@ -9,10 +9,32 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { apiFetch } from "@/lib/api/client"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
+
+interface Role {
+  id: string
+  name: string
+  slug: string
+  description: string
+  is_active: boolean
+  user_count: number
+  created_at: string
+  updated_at: string
+}
+
+interface RolesResponse {
+  success: boolean
+  roles: Role[]
+  pagination: {
+    current_page: number
+    last_page: number
+    per_page: number
+    total: number
+  }
+}
 
 export default function NewSuperAdminPage() {
   const [formData, setFormData] = useState({
@@ -23,7 +45,29 @@ export default function NewSuperAdminPage() {
     status: "active",
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [roles, setRoles] = useState<Role[]>([])
+  const [loadingRoles, setLoadingRoles] = useState(true)
   const router = useRouter()
+
+  useEffect(() => {
+    const loadRoles = async () => {
+      try {
+        const response = await apiFetch<RolesResponse>('/super-admin/roles')
+        if (response.success) {
+          setRoles(response.roles)
+        } else {
+          toast.error('Failed to load roles')
+        }
+      } catch (error: any) {
+        console.error('Error loading roles:', error)
+        toast.error('Failed to load roles')
+      } finally {
+        setLoadingRoles(false)
+      }
+    }
+    
+    loadRoles()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -98,13 +142,14 @@ export default function NewSuperAdminPage() {
             <Label htmlFor="role">Role</Label>
             <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value })}>
               <SelectTrigger>
-                <SelectValue placeholder="Select role" />
+                <SelectValue placeholder={loadingRoles ? "Loading roles..." : "Select role"} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="super_administrator">Super Administrator</SelectItem>
-                <SelectItem value="business_manager">Business Manager</SelectItem>
-                <SelectItem value="support_agent">Support Agent</SelectItem>
-                <SelectItem value="billing_manager">Billing Manager</SelectItem>
+                {roles.map((role) => (
+                  <SelectItem key={role.id} value={role.id}>
+                    {role.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
