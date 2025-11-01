@@ -4,7 +4,8 @@
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000/api"
+// Use Next.js API route proxy to avoid CORS issues
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "/api"
 const AUTH_TOKEN_KEY = "auth_token"
 
 export function getApiBaseUrl(): string {
@@ -62,38 +63,117 @@ export async function apiFetch<T = unknown>(
 		}
 	}
 
-	try {
-		const response = await fetch(url, {
-			method: options.method || "GET",
-			headers,
-			body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-		})
+		try {
+			console.log('API Fetch Request:', {
+				url,
+				method: options.method || "GET",
+				headers: Object.fromEntries(Object.entries(headers).map(([k, v]) => [k, k === 'Authorization' ? '***' : v])),
+				hasBody: !!options.body,
+				timestamp: new Date().toISOString()
+			})
 
-		// Attempt to parse JSON; if not JSON, throw generic error on non-OK
-		const isJson = response.headers.get("content-type")?.includes("application/json")
-		const data = isJson ? await response.json() : (undefined as unknown as T)
+			const response = await fetch(url, {
+				method: options.method || "GET",
+				headers,
+				body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+			}).catch((fetchError) => {
+				// Handle network errors specifically
+				console.error('Fetch Network Error:', {
+					url,
+					errorName: fetchError?.name,
+					errorMessage: fetchError?.message,
+					errorType: typeof fetchError,
+					errorConstructor: fetchError?.constructor?.name,
+				})
+				throw new Error(`Network error: ${fetchError?.message || 'Failed to connect to server'}`)
+			})
 
-		if (!response.ok) {
-			const message = (data as any)?.message || `Request failed with ${response.status}`
-			throw new Error(message)
+			console.log('API Fetch Response:', {
+				url,
+				status: response.status,
+				statusText: response.statusText,
+				contentType: response.headers.get("content-type"),
+				timestamp: new Date().toISOString()
+			})
+
+			// Attempt to parse JSON; if not JSON, throw generic error on non-OK
+			const isJson = response.headers.get("content-type")?.includes("application/json")
+			let data
+			
+			try {
+				const text = await response.text()
+				data = isJson && text ? JSON.parse(text) : (text || undefined)
+			} catch (parseError: any) {
+				console.warn('JSON Parse Error:', {
+					url,
+					parseError: parseError?.message || String(parseError),
+					contentType: response.headers.get("content-type"),
+				})
+				data = undefined
+			}
+
+			if (!response.ok) {
+				const message = (data as any)?.message || (data as any)?.error || `Request failed with ${response.status}`
+				
+				// Log detailed error for debugging
+				console.error('API Fetch HTTP Error:', {
+					url,
+					method: options.method || "GET",
+					status: response.status,
+					statusText: response.statusText,
+					contentType: response.headers.get("content-type"),
+					data: data || "No response data",
+					timestamp: new Date().toISOString()
+				})
+				
+				throw new Error(message)
+			}
+
+			return (data || {}) as T
+		} catch (error: any) {
+			// Enhanced error logging for debugging
+			const errorDetails: any = {
+				url,
+				method: options.method || "GET",
+				timestamp: new Date().toISOString(),
+			}
+
+			// Safely extract error information
+			if (error) {
+				if (error instanceof Error) {
+					errorDetails.errorType = 'Error'
+					errorDetails.errorName = error.name || 'Unknown'
+					errorDetails.errorMessage = error.message || 'No message'
+					if (error.stack) {
+						errorDetails.errorStack = error.stack.split('\n').slice(0, 5).join('\n') // Limit stack trace
+					}
+				} else if (typeof error === 'object') {
+					errorDetails.errorType = 'Object'
+					try {
+						errorDetails.errorKeys = Object.keys(error)
+						errorDetails.errorString = String(error)
+						// Try to get common error properties
+						if ('message' in error) errorDetails.errorMessage = String(error.message)
+						if ('name' in error) errorDetails.errorName = String(error.name)
+					} catch (e) {
+						errorDetails.errorExtractionFailed = true
+					}
+				} else {
+					errorDetails.errorType = typeof error
+					errorDetails.errorValue = String(error)
+				}
+			} else {
+				errorDetails.errorIsNull = true
+			}
+
+			console.error('API Fetch Error Details:', errorDetails)
+			
+			// Re-throw the error with more context
+			if (error instanceof Error) {
+				throw new Error(`Failed to fetch ${url}: ${error.message}`)
+			}
+			throw new Error(`Failed to fetch ${url}: Network error - ${String(error)}`)
 		}
-
-		return data as T
-	} catch (error) {
-		// Enhanced error logging for debugging
-		console.error('API Fetch Error:', {
-			url,
-			method: options.method || "GET",
-			error: error instanceof Error ? error.message : String(error),
-			timestamp: new Date().toISOString()
-		})
-		
-		// Re-throw the error with more context
-		if (error instanceof Error) {
-			throw new Error(`Failed to fetch ${url}: ${error.message}`)
-		}
-		throw new Error(`Failed to fetch ${url}: Network error`)
-	}
 }
 
 export async function loginRequest(payload: { email: string; password: string }) {

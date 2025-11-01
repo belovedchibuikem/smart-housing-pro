@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Check, X, Eye } from "lucide-react"
+import { Check, X, Eye, Loader2 } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -13,47 +13,106 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { apiFetch } from "@/lib/api/client"
+import { toast } from "sonner"
 
 export default function PendingApprovalsPage() {
   const [selectedTransaction, setSelectedTransaction] = useState<any>(null)
   const [showDialog, setShowDialog] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [pendingTransactions, setPendingTransactions] = useState<Array<{
+    id: string
+    memberName: string
+    memberId: string
+    type: string
+    amount: number
+    method: string
+    accountNumber?: string
+    bankName?: string
+    date: string
+    reference: string
+  }>>([])
 
-  const pendingTransactions = [
-    {
-      id: "1",
-      memberName: "Jane Smith",
-      memberId: "FRSC002",
-      type: "withdrawal",
-      amount: 25000,
-      method: "Bank Transfer",
-      accountNumber: "0123456789",
-      bankName: "First Bank",
-      date: "2024-01-10 12:15",
-      reference: "TXN001235",
-    },
-    {
-      id: "2",
-      memberName: "David Brown",
-      memberId: "FRSC004",
-      type: "withdrawal",
-      amount: 50000,
-      method: "Bank Transfer",
-      accountNumber: "9876543210",
-      bankName: "GTBank",
-      date: "2024-01-10 10:30",
-      reference: "TXN001237",
-    },
-  ]
+  const fetchPendingTransactions = async () => {
+    setLoading(true)
+    try {
+      const res = await apiFetch<any>('/admin/wallets/pending').catch(() => ({ transactions: [], data: [] }))
+      const list: any[] = Array.isArray(res?.transactions) ? res.transactions : (Array.isArray(res?.data) ? res.data : [])
+      
+      const normalized = list.map((t) => {
+        const member = t.member || t.user || {}
+        const amountNum = Number(t.amount ?? 0)
+        const createdAt = t.created_at || t.date || t.timestamp
+        const dateObj = createdAt ? new Date(createdAt) : null
+        return {
+          id: String(t.id ?? t.withdrawal_id ?? Math.random()),
+          memberName: (member.name ?? member.full_name ?? `${member.first_name ?? ''} ${member.last_name ?? ''}`.trim()) || 'Unknown',
+          memberId: member.member_id ?? member.staff_id ?? member.code ?? '—',
+          type: 'withdrawal',
+          amount: Math.abs(isFinite(amountNum) ? amountNum : 0),
+          method: t.method ?? t.payment_method ?? 'Bank Transfer',
+          accountNumber: t.account_number ?? t.account ?? undefined,
+          bankName: t.bank_name ?? t.bank ?? undefined,
+          date: dateObj ? dateObj.toLocaleString() : (t.date ?? ''),
+          reference: t.reference ?? t.ref ?? t.transaction_ref ?? t.id ?? 'N/A',
+        }
+      })
+      setPendingTransactions(normalized)
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to load pending transactions')
+      setPendingTransactions([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchPendingTransactions()
+  }, [])
 
   const handleApprove = (transaction: any) => {
     setSelectedTransaction(transaction)
     setShowDialog(true)
   }
 
+  const confirmApproval = async () => {
+    if (!selectedTransaction) return
+
+    try {
+      await apiFetch<any>(`/admin/wallets/withdrawals/${selectedTransaction.id}/approve`, {
+        method: 'POST',
+        body: { approved: true, notes: 'Approved via admin panel' },
+      })
+
+      toast.success('Withdrawal approved successfully')
+      setShowDialog(false)
+      setSelectedTransaction(null)
+      fetchPendingTransactions()
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to approve withdrawal')
+    }
+  }
+
+  const handleReject = async (transaction: any) => {
+    if (!confirm('Are you sure you want to reject this withdrawal request?')) return
+
+    try {
+      await apiFetch<any>(`/admin/wallets/withdrawals/${transaction.id}/reject`, {
+        method: 'POST',
+        body: { notes: 'Rejected via admin panel' },
+      })
+
+      toast.success('Withdrawal rejected')
+      fetchPendingTransactions()
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to reject withdrawal')
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Pending Approvals</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Pending Refund</h1>
         <p className="text-muted-foreground mt-2">Review and approve withdrawal requests</p>
       </div>
 
@@ -65,8 +124,17 @@ export default function PendingApprovalsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {pendingTransactions.map((transaction) => (
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : pendingTransactions.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No pending withdrawal requests
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {pendingTransactions.map((transaction) => (
               <Card key={transaction.id}>
                 <CardContent className="p-6">
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -119,7 +187,12 @@ export default function PendingApprovalsPage() {
                         <Check className="h-4 w-4 mr-2" />
                         Approve
                       </Button>
-                      <Button variant="destructive" size="sm" className="flex-1 lg:flex-none">
+                      <Button 
+                        variant="destructive" 
+                        size="sm" 
+                        className="flex-1 lg:flex-none"
+                        onClick={() => handleReject(transaction)}
+                      >
                         <X className="h-4 w-4 mr-2" />
                         Reject
                       </Button>
@@ -127,8 +200,9 @@ export default function PendingApprovalsPage() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -158,7 +232,7 @@ export default function PendingApprovalsPage() {
             <Button variant="outline" onClick={() => setShowDialog(false)}>
               Cancel
             </Button>
-            <Button onClick={() => setShowDialog(false)}>Confirm Approval</Button>
+            <Button onClick={confirmApproval}>Confirm Approval</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

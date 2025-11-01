@@ -1,61 +1,86 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Wallet, Plus, ArrowUpRight, ArrowDownRight, History, TrendingUp, Eye, EyeOff, Download } from "lucide-react"
+import { getWallet, getWalletTransactions } from "@/lib/api/client"
 
 export default function WalletPage() {
   const [showBalance, setShowBalance] = useState(true)
+  const [loading, setLoading] = useState(true)
+  const [walletBalance, setWalletBalance] = useState<number>(0)
+  const [recentTransactions, setRecentTransactions] = useState<Array<{
+    id: string
+    type: "credit" | "debit"
+    description: string
+    amount: number
+    date: string
+    time?: string
+    status?: string
+  }>>([])
 
-  // Mock data
-  const walletBalance = 450000
-  const recentTransactions = [
-    {
-      id: "TXN001",
-      type: "credit",
-      description: "Wallet Top-up via Paystack",
-      amount: 50000,
-      date: "2024-01-15",
-      time: "10:30 AM",
-      status: "completed",
-    },
-    {
-      id: "TXN002",
-      type: "debit",
-      description: "Monthly Contribution Payment",
-      amount: 25000,
-      date: "2024-01-14",
-      time: "02:15 PM",
-      status: "completed",
-    },
-    {
-      id: "TXN003",
-      type: "credit",
-      description: "Investment Return",
-      amount: 15000,
-      date: "2024-01-13",
-      time: "09:45 AM",
-      status: "completed",
-    },
-    {
-      id: "TXN004",
-      type: "debit",
-      description: "Loan Repayment",
-      amount: 30000,
-      date: "2024-01-12",
-      time: "11:20 AM",
-      status: "completed",
-    },
-  ]
+  useEffect(() => {
+    let isMounted = true
+    ;(async () => {
+      try {
+        setLoading(true)
+        const [walletRes, txRes] = await Promise.all([
+          getWallet().catch(() => ({ wallet: { balance: 0, currency: "NGN", id: "" } })),
+          getWalletTransactions({ page: 1, per_page: 5 }).catch(() => ({ transactions: { data: [] } } as any)),
+        ])
+        if (!isMounted) return
 
-  const stats = [
-    { label: "Total Income", value: 165000, icon: ArrowDownRight, color: "text-green-600" },
-    { label: "Total Expenses", value: 55000, icon: ArrowUpRight, color: "text-red-600" },
-    { label: "This Month", value: 110000, icon: TrendingUp, color: "text-blue-600" },
-  ]
+        const balance = Number((walletRes as any)?.wallet?.balance ?? 0)
+        setWalletBalance(isFinite(balance) ? balance : 0)
+
+        const apiTx: any[] = (txRes as any)?.transactions?.data ?? []
+        const normalized = apiTx.map((t) => {
+          const amountNum = Number(t.amount ?? 0)
+          const createdAt = t.created_at || t.date || t.timestamp
+          const dateObj = createdAt ? new Date(createdAt) : null
+          return {
+            id: String(t.id ?? t.reference ?? t.txn_id ?? Math.random()),
+            type: (String(t.type ?? '').toLowerCase() === 'credit' || Number(t.amount) > 0) ? 'credit' : 'debit',
+            description: t.description ?? t.note ?? t.narration ?? 'Wallet transaction',
+            amount: Math.abs(isFinite(amountNum) ? amountNum : 0),
+            date: dateObj ? dateObj.toISOString().slice(0, 10) : (t.date ?? ''),
+            time: dateObj ? dateObj.toLocaleTimeString() : undefined,
+            status: t.status ?? t.state ?? 'completed',
+          }
+        })
+        setRecentTransactions(normalized)
+      } finally {
+        if (isMounted) setLoading(false)
+      }
+    })()
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const stats = useMemo(() => {
+    const income = recentTransactions
+      .filter((t) => t.type === 'credit')
+      .reduce((sum, t) => sum + t.amount, 0)
+    const expenses = recentTransactions
+      .filter((t) => t.type === 'debit')
+      .reduce((sum, t) => sum + t.amount, 0)
+    const monthTotal = recentTransactions
+      .filter((t) => {
+        const d = new Date(t.date)
+        const now = new Date()
+        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+      })
+      .reduce((sum, t) => sum + (t.type === 'credit' ? t.amount : -t.amount), 0)
+    return [
+      { label: "Total Income", value: income, icon: ArrowDownRight, color: "text-green-600" },
+      { label: "Total Expenses", value: expenses, icon: ArrowUpRight, color: "text-red-600" },
+      { label: "This Month", value: monthTotal, icon: TrendingUp, color: "text-blue-600" },
+    ]
+  }, [recentTransactions])
 
   return (
     <div className="space-y-6">
@@ -146,7 +171,11 @@ export default function WalletPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {recentTransactions.map((transaction) => (
+            {loading && recentTransactions.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-6">Loading transactions…</div>
+            ) : recentTransactions.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-6">No recent transactions</div>
+            ) : recentTransactions.map((transaction) => (
               <div
                 key={transaction.id}
                 className="flex items-center justify-between p-4 rounded-lg border hover:bg-muted/50 transition-colors"
@@ -166,7 +195,7 @@ export default function WalletPage() {
                   <div>
                     <p className="font-medium">{transaction.description}</p>
                     <p className="text-sm text-muted-foreground">
-                      {transaction.date} • {transaction.time}
+                      {transaction.date}{transaction.time ? ` • ${transaction.time}` : ''}
                     </p>
                   </div>
                 </div>

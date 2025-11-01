@@ -1,53 +1,74 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Download, ArrowUpRight, ArrowDownRight } from "lucide-react"
+import { Search, Download, ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react"
+import { apiFetch } from "@/lib/api/client"
+import { toast } from "sonner"
 
 export default function AdminWalletTransactionsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [typeFilter, setTypeFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [loading, setLoading] = useState(true)
+  const [transactions, setTransactions] = useState<Array<{
+    id: string
+    memberName: string
+    memberId: string
+    type: string
+    amount: number
+    method: string
+    status: string
+    date: string
+    reference: string
+  }>>([])
 
-  const transactions = [
-    {
-      id: "1",
-      memberName: "John Doe",
-      memberId: "FRSC001",
-      type: "deposit",
-      amount: 50000,
-      method: "Paystack",
-      status: "completed",
-      date: "2024-01-10 14:30",
-      reference: "TXN001234",
-    },
-    {
-      id: "2",
-      memberName: "Jane Smith",
-      memberId: "FRSC002",
-      type: "withdrawal",
-      amount: 25000,
-      method: "Bank Transfer",
-      status: "pending",
-      date: "2024-01-10 12:15",
-      reference: "TXN001235",
-    },
-    {
-      id: "3",
-      memberName: "Mike Johnson",
-      memberId: "FRSC003",
-      type: "deposit",
-      amount: 100000,
-      method: "Remita",
-      status: "completed",
-      date: "2024-01-09 16:45",
-      reference: "TXN001236",
-    },
-  ]
+  const fetchTransactions = async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (searchQuery) params.set('search', searchQuery)
+      if (typeFilter && typeFilter !== 'all') params.set('type', typeFilter)
+      if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter)
+      const path = `/admin/wallets/transactions${params.toString() ? `?${params.toString()}` : ''}`
+
+      const res = await apiFetch<any>(path).catch(() => ({ transactions: { data: [] } }))
+      const list: any[] = Array.isArray(res?.transactions?.data) ? res.transactions.data : (Array.isArray(res?.data) ? res.data : [])
+      
+      const normalized = list.map((t) => {
+        const member = t.member || t.user || {}
+        const amountNum = Number(t.amount ?? 0)
+        const createdAt = t.created_at || t.date || t.timestamp
+        const dateObj = createdAt ? new Date(createdAt) : null
+        return {
+          id: String(t.id ?? t.transaction_id ?? Math.random()),
+          memberName: (member.name ?? member.full_name ?? `${member.first_name ?? ''} ${member.last_name ?? ''}`.trim()) || 'Unknown',
+          memberId: member.member_id ?? member.staff_id ?? member.code ?? '—',
+          type: String(t.type ?? t.transaction_type ?? 'deposit').toLowerCase(),
+          amount: Math.abs(isFinite(amountNum) ? amountNum : 0),
+          method: t.method ?? t.payment_method ?? t.channel ?? 'N/A',
+          status: String(t.status ?? t.state ?? 'completed').toLowerCase(),
+          date: dateObj ? dateObj.toLocaleString() : (t.date ?? ''),
+          reference: t.reference ?? t.ref ?? t.transaction_ref ?? t.id ?? 'N/A',
+        }
+      })
+      setTransactions(normalized)
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to load transactions')
+      setTransactions([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchTransactions()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, typeFilter, statusFilter])
 
   return (
     <div className="space-y-6">
@@ -114,7 +135,17 @@ export default function AdminWalletTransactionsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {transactions.map((transaction) => (
+                  {loading && transactions.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-6 text-center">
+                        <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                      </td>
+                    </tr>
+                  ) : transactions.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-6 text-center text-muted-foreground">No transactions found</td>
+                    </tr>
+                  ) : transactions.map((transaction) => (
                     <tr key={transaction.id} className="border-b">
                       <td className="p-4">
                         <div>

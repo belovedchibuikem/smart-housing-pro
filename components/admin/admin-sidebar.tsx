@@ -38,6 +38,8 @@ import {
   Eye,
   Layout,
   CheckCircle,
+  UserPlus,
+  Plus,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
@@ -52,21 +54,85 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/members", label: "Members", icon: Users },
-  { href: "/admin/bulk-upload/members", label: "↳ Bulk Upload Members", icon: Upload },
-  { href: "/admin/users", label: "User Management", icon: Users },
-  { href: "/admin/wallets", label: "All Wallets", icon: Wallet },
-  { href: "/admin/wallets/transactions", label: "Transactions", icon: ScrollText },
-  { href: "/admin/wallets/pending", label: "Pending Approvals", icon: FileText },
-  { href: "/admin/contributions", label: "Contributions", icon: Wallet },
-  { href: "/admin/bulk-upload/contributions", label: "↳ Bulk Upload Contributions", icon: Upload },
-  { href: "/admin/financial-reports", label: "Financial Reports", icon: DollarSign },
-  { href: "/admin/loans", label: "Loans", icon: TrendingUp },
-  { href: "/admin/bulk-upload/loan-repayments", label: "↳ Bulk Upload Repayments", icon: Upload },
-  { href: "/admin/loan-products", label: "Loan Products", icon: Package },
-  { href: "/admin/mortgages", label: "Mortgages", icon: Building2 },
-  { href: "/admin/properties", label: "Properties", icon: Home },
-  { href: "/admin/eoi-forms", label: "EOI Forms", icon: ClipboardList },
+  {
+    label: "Members",
+    icon: Users,
+    subItems: [
+      { href: "/admin/members", label: "All Members", icon: Users },
+      { href: "/admin/members/new", label: "Add Member", icon: UserPlus },
+      { href: "/admin/bulk-upload/members", label: "Bulk Upload", icon: Upload },
+    ],
+  },
+  {
+    label: "Admin Users",
+    icon: Shield,
+    subItems: [
+      { href: "/admin/users", label: "All Admin Users", icon: Shield },
+      { href: "/admin/users/new", label: "Add Admin User", icon: UserPlus },
+    ],
+  },
+  {
+    label: "Roles & Permissions",
+    icon: Shield,
+    subItems: [
+      { href: "/admin/roles", label: "All Roles", icon: Shield },
+      { href: "/admin/roles/new", label: "Create Role", icon: Plus },
+      { href: "/admin/permissions", label: "All Permissions", icon: CheckCircle },
+    ],
+  },
+  {
+    label: "User Wallets",
+    icon: Wallet,
+    subItems: [
+      { href: "/admin/wallets", label: "Wallets", icon: Wallet },
+      { href: "/admin/wallets/transactions", label: "Wallet Transactions", icon: ScrollText },
+    ],
+  },
+  {
+    label: "Contributions",
+    icon: CreditCard,
+    subItems: [
+      { href: "/admin/contributions", label: "All Contributions", icon: CreditCard },
+      { href: "/admin/bulk-upload/contributions", label: "Bulk Upload Contribution", icon: Upload },
+    ],
+  },
+  {
+    label: "Loans",
+    icon: TrendingUp,
+    subItems: [
+      { href: "/admin/loans", label: "All Loans", icon: TrendingUp },
+      { href: "/admin/bulk-upload/loan-repayments", label: "Bulk Upload Repayments", icon: Upload },
+      { href: "/admin/loan-products", label: "Loan Products", icon: Package },
+    ],
+  },
+  {
+    label: "Refund",
+    icon: Receipt,
+    subItems: [
+      { href: "/admin/wallets/pending", label: "Pending Refund", icon: FileText },
+      { href: "/admin/refund-member", label: "Refund Member", icon: DollarSign },
+      { href: "/admin/bulk-upload/refund", label: "Bulk Refund", icon: Upload },
+    ],
+  },
+  {
+    label: "Mortgages",
+    icon: Building2,
+    subItems: [
+      { href: "/admin/mortgages", label: "All Mortgages", icon: Building2 },
+      { href: "/admin/mortgage-providers", label: "Mortgage Providers", icon: Building },
+      { href: "/admin/mortgages/new", label: "Create Mortgage", icon: Plus },
+      { href: "/admin/bulk-upload/mortgages", label: "Bulk Upload", icon: Upload },
+    ],
+  },
+  {
+    label: "Properties",
+    icon: Home,
+    subItems: [
+      { href: "/admin/properties", label: "All Properties", icon: Home },
+      { href: "/admin/eoi-forms", label: "EOI Forms", icon: ClipboardList },
+      { href: "/admin/bulk-upload/properties", label: "Bulk Upload", icon: Upload },
+    ],
+  },
   { href: "/admin/investment-plans", label: "Investment Plans", icon: TrendingUp },
   {
     label: "Statutory Charges",
@@ -117,7 +183,6 @@ const navItems: NavItem[] = [
   },
   { href: "/admin/activity-logs", label: "Activity Logs", icon: ScrollText },
   { href: "/admin/documents", label: "Documents", icon: FileText },
-  { href: "/admin/roles", label: "Roles & Permissions", icon: Shield },
   {
     label: "Landing Page",
     icon: Layout,

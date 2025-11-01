@@ -1,80 +1,78 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, Download, Eye, Wallet, TrendingUp, TrendingDown, DollarSign } from "lucide-react"
+import { apiFetch } from "@/lib/api/client"
 
 export default function AdminWalletsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [loading, setLoading] = useState(true)
+  const [wallets, setWallets] = useState<Array<{
+    id: string
+    memberName: string
+    memberId: string
+    balance: number
+    totalDeposits: number
+    totalWithdrawals: number
+    status: string
+    lastTransaction?: string
+  }>>([])
+  const [meta, setMeta] = useState<{ current_page: number; total: number; per_page: number; total_balance?: number } | null>(null)
 
-  const wallets = [
-    {
-      id: "1",
-      memberName: "John Doe",
-      memberId: "FRSC001",
-      balance: 250000,
-      totalDeposits: 500000,
-      totalWithdrawals: 250000,
-      status: "active",
-      lastTransaction: "2024-01-10",
-    },
-    {
-      id: "2",
-      memberName: "Jane Smith",
-      memberId: "FRSC002",
-      balance: 150000,
-      totalDeposits: 300000,
-      totalWithdrawals: 150000,
-      status: "active",
-      lastTransaction: "2024-01-09",
-    },
-    {
-      id: "3",
-      memberName: "Mike Johnson",
-      memberId: "FRSC003",
-      balance: 50000,
-      totalDeposits: 100000,
-      totalWithdrawals: 50000,
-      status: "suspended",
-      lastTransaction: "2024-01-08",
-    },
-  ]
+  const fetchWallets = async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (searchQuery) params.set('search', searchQuery)
+      if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter)
+      const path = `/admin/wallets${params.toString() ? `?${params.toString()}` : ''}`
 
-  const stats = [
-    {
-      title: "Total Wallet Balance",
-      value: "₦450,000",
-      icon: Wallet,
-      trend: "+12.5%",
-      trendUp: true,
-    },
-    {
-      title: "Total Deposits",
-      value: "₦900,000",
-      icon: TrendingUp,
-      trend: "+8.2%",
-      trendUp: true,
-    },
-    {
-      title: "Total Withdrawals",
-      value: "₦450,000",
-      icon: TrendingDown,
-      trend: "-3.1%",
-      trendUp: false,
-    },
-    {
-      title: "Active Wallets",
-      value: "2",
-      icon: DollarSign,
-      trend: "+2",
-      trendUp: true,
-    },
-  ]
+      const res = await apiFetch<any>(path)
+      const list: any[] = Array.isArray(res?.data) ? res.data : (res?.wallets ?? [])
+      const normalized = list.map((w) => {
+        const member = w.member || w.user || {}
+        return {
+          id: String(w.id ?? member.id ?? Math.random()),
+          memberName: (member.name ?? member.full_name ?? `${member.first_name ?? ''} ${member.last_name ?? ''}`.trim()) || 'Unknown',
+          memberId: member.member_id ?? member.staff_id ?? member.code ?? '—',
+          balance: Number(w.balance ?? w.current_balance ?? 0) || 0,
+          totalDeposits: Number(w.total_deposits ?? w.total_credits ?? 0) || 0,
+          totalWithdrawals: Number(w.total_withdrawals ?? w.total_debits ?? 0) || 0,
+          status: String(w.status ?? w.state ?? 'active'),
+          lastTransaction: w.last_transaction ?? w.last_tx_at ?? w.updated_at ?? undefined,
+        }
+      })
+      setWallets(normalized)
+      const m = res?.meta || res?.pagination || null
+      if (m) setMeta({ current_page: m.current_page ?? 1, total: m.total ?? 0, per_page: m.per_page ?? 50, total_balance: m.total_balance })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchWallets()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, statusFilter])
+
+  const stats = useMemo(() => {
+    const totalBalance = meta?.total_balance ?? wallets.reduce((sum, w) => sum + (w.balance || 0), 0)
+    const totalDeposits = wallets.reduce((sum, w) => sum + (w.totalDeposits || 0), 0)
+    const totalWithdrawals = wallets.reduce((sum, w) => sum + (w.totalWithdrawals || 0), 0)
+    const activeCount = wallets.filter((w) => (w.status || '').toLowerCase() === 'active').length
+    return [
+      { title: "Total Wallet Balance", value: `₦${Number(totalBalance).toLocaleString()}`, icon: Wallet, trend: '', trendUp: true },
+      { title: "Total Deposits", value: `₦${Number(totalDeposits).toLocaleString()}`, icon: TrendingUp, trend: '', trendUp: true },
+      { title: "Total Withdrawals", value: `₦${Number(totalWithdrawals).toLocaleString()}`, icon: TrendingDown, trend: '', trendUp: false },
+      { title: "Active Wallets", value: String(activeCount), icon: DollarSign, trend: '', trendUp: true },
+    ]
+  }, [wallets, meta])
 
   return (
     <div className="space-y-6">
@@ -153,7 +151,15 @@ export default function AdminWalletsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {wallets.map((wallet) => (
+                  {loading && wallets.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-6 text-center text-muted-foreground">Loading wallets…</td>
+                    </tr>
+                  ) : wallets.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-6 text-center text-muted-foreground">No wallets found</td>
+                    </tr>
+                  ) : wallets.map((wallet) => (
                     <tr key={wallet.id} className="border-b">
                       <td className="p-4">
                         <div>
@@ -167,7 +173,7 @@ export default function AdminWalletsPage() {
                       <td className="p-4">
                         <Badge variant={wallet.status === "active" ? "default" : "destructive"}>{wallet.status}</Badge>
                       </td>
-                      <td className="p-4 text-sm text-muted-foreground">{wallet.lastTransaction}</td>
+                      <td className="p-4 text-sm text-muted-foreground">{wallet.lastTransaction ? new Date(wallet.lastTransaction).toISOString().slice(0,10) : '—'}</td>
                       <td className="p-4">
                         <Button variant="ghost" size="sm">
                           <Eye className="h-4 w-4" />

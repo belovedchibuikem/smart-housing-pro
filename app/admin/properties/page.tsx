@@ -1,119 +1,204 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Search, Home, MapPin, DollarSign, Users, Eye, Edit, Trash2, CheckCircle, XCircle } from "lucide-react"
+import { Plus, Search, Home, MapPin, DollarSign, Users, Eye, Edit, Trash2, CheckCircle, XCircle, Loader2 } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useToast } from "@/hooks/use-toast"
+import { apiFetch } from "@/lib/api/client"
+
+interface Property {
+  id: string
+  title?: string
+  description?: string
+  address?: string
+  city?: string
+  state?: string
+  property_type?: string
+  price?: number
+  status?: string
+  images?: Array<{ url: string }>
+  allocations?: Array<{ member: any }>
+}
 
 export default function AdminPropertiesPage() {
+  const router = useRouter()
+  const { toast } = useToast()
+  const [loading, setLoading] = useState(true)
+  const [properties, setProperties] = useState<Property[]>([])
+  const [subscriptions, setSubscriptions] = useState<any[]>([])
+  const [pendingPayments, setPendingPayments] = useState<any[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [paymentFilter, setPaymentFilter] = useState("all")
 
-  // Mock data
-  const properties = [
-    {
-      id: 1,
-      name: "Luxury 3-Bedroom Apartment",
-      type: "House",
-      location: "Maitama, Abuja",
-      price: 25000000,
-      status: "Available",
-      subscribers: 3,
-      image: "/modern-apartment-living.png",
-    },
-    {
-      id: 2,
-      name: "500 SQM Residential Land",
-      type: "Land",
-      location: "Gwarinpa, Abuja",
-      price: 15000000,
-      status: "Available",
-      subscribers: 5,
-      image: "/residential-land.png",
-    },
-    {
-      id: 3,
-      name: "4-Bedroom Duplex",
-      type: "House",
-      location: "Asokoro, Abuja",
-      price: 45000000,
-      status: "Sold Out",
-      subscribers: 1,
-      image: "/duplex-house.jpg",
-    },
-  ]
+  useEffect(() => {
+    fetchProperties()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery])
 
-  const subscriptions = [
-    {
-      id: 1,
-      memberName: "John Doe",
-      memberNo: "MEM-001",
-      property: "Luxury 3-Bedroom Apartment",
-      totalPrice: 25000000,
-      amountPaid: 20000000,
-      balance: 5000000,
-      paymentMethod: "Mixed (Cash + Cooperative)",
-      status: "In Progress",
-    },
-    {
-      id: 2,
-      memberName: "Jane Smith",
-      memberNo: "MEM-002",
-      property: "500 SQM Residential Land",
-      totalPrice: 15000000,
-      amountPaid: 15000000,
-      balance: 0,
-      paymentMethod: "Cash",
-      status: "Completed",
-    },
-  ]
+  useEffect(() => {
+    fetchSubscriptions()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
-  const pendingPayments = [
-    {
-      id: "PAY001",
-      memberName: "John Doe",
-      memberNo: "MEM-001",
-      property: "Luxury 3-Bedroom Apartment",
-      amount: 5000000,
-      paymentMethod: "Bank Transfer",
-      date: "2024-03-15",
-      evidence: "receipt_001.pdf",
-      status: "Pending",
-    },
-    {
-      id: "PAY002",
-      memberName: "Mike Johnson",
-      memberNo: "MEM-003",
-      property: "500 SQM Residential Land",
-      amount: 7500000,
-      paymentMethod: "Bank Transfer",
-      date: "2024-03-14",
-      evidence: "receipt_002.pdf",
-      status: "Pending",
-    },
-    {
-      id: "PAY003",
-      memberName: "Sarah Williams",
-      memberNo: "MEM-004",
-      property: "4-Bedroom Duplex",
-      amount: 10000000,
-      paymentMethod: "Cash",
-      date: "2024-03-13",
-      evidence: "receipt_003.pdf",
-      status: "Verified",
-    },
-  ]
+  useEffect(() => {
+    fetchPendingPayments()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paymentFilter])
 
-  const handleVerifyPayment = (paymentId: string, action: "approve" | "reject") => {
-    // TODO: Implement actual payment verification with database
-    alert(`Payment ${paymentId} ${action === "approve" ? "approved" : "rejected"}`)
+  const fetchProperties = async () => {
+    try {
+      setLoading(true)
+      const params = new URLSearchParams()
+      if (searchQuery) params.append('search', searchQuery)
+      const response = await apiFetch<{ success: boolean; data: Property[] }>(
+        `/admin/properties?${params.toString()}`
+      )
+      if (response.success) {
+        setProperties(response.data)
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch properties",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
   }
+
+  const fetchSubscriptions = async () => {
+    try {
+      // Fetch property allocations as subscriptions
+      const response = await apiFetch<{ success: boolean; data: any[] }>("/admin/properties?per_page=100")
+      const props = (response.success ? response.data : []) || []
+      const subs: any[] = []
+      props.forEach(prop => {
+        if (prop.allocations) {
+          prop.allocations.forEach((alloc: any) => {
+            subs.push({
+              id: alloc.id,
+              memberName: `${alloc.member?.user?.first_name || ''} ${alloc.member?.user?.last_name || ''}`.trim(),
+              memberNo: alloc.member?.member_id || alloc.member?.staff_id || '—',
+              property: prop.title || prop.address || '—',
+              totalPrice: prop.price || 0,
+              amountPaid: (alloc as any).amount_paid || 0,
+              balance: (prop.price || 0) - ((alloc as any).amount_paid || 0),
+              paymentMethod: 'Mixed',
+              status: alloc.status === 'completed' ? 'Completed' : 'In Progress',
+              allocation: alloc,
+            })
+          })
+        }
+      })
+      setSubscriptions(subs)
+    } catch (error) {
+      console.error('Failed to fetch subscriptions:', error)
+    }
+  }
+
+  const fetchPendingPayments = async () => {
+    try {
+      // This would typically come from a payment verification endpoint
+      // For now, we'll use wallet transactions or create an endpoint
+      const response = await apiFetch<{ success?: boolean; transactions?: { data: any[] }; data?: any[] }>("/admin/wallets/transactions?type=deposit&status=pending")
+      const transactionsData = response.success ? (response.data || []) : (response.transactions?.data || [])
+      const payments = transactionsData.map((tx: any, index: number) => ({
+        id: tx.id || `PAY${String(index + 1).padStart(3, '0')}`,
+        memberName: tx.member?.name || 'Unknown',
+        memberNo: tx.member?.member_id || '—',
+        property: 'Property Payment',
+        amount: tx.amount || 0,
+        paymentMethod: tx.method || 'Bank Transfer',
+        date: tx.date ? new Date(tx.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        evidence: tx.reference || 'N/A',
+        status: tx.status === 'completed' ? 'Verified' : tx.status === 'failed' ? 'Rejected' : 'Pending',
+        transaction: tx,
+      }))
+      setPendingPayments(payments)
+    } catch (error) {
+      console.error('Failed to fetch pending payments:', error)
+    }
+  }
+
+  const handleDeleteProperty = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this property?")) return
+    
+    try {
+      await apiFetch(`/admin/properties/${id}`, { method: "DELETE" })
+      toast({
+        title: "Success",
+        description: "Property deleted successfully",
+      })
+      fetchProperties()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete property",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleViewProperty = (id: string) => {
+    router.push(`/admin/properties/${id}`)
+  }
+
+  const handleEditProperty = (id: string) => {
+    router.push(`/admin/properties/${id}/edit`)
+  }
+
+  const handleViewSubscriptionDetails = (subscription: any) => {
+    router.push(`/admin/properties/${subscription.allocation?.property_id || ''}/allocations/${subscription.id}`)
+  }
+
+  const handleViewSubscriptionPayments = (subscription: any) => {
+    router.push(`/admin/wallets/transactions?member=${subscription.allocation?.member_id}`)
+  }
+
+  const handleIssueCertificate = async (subscription: any) => {
+    toast({
+      title: "Certificate",
+      description: "Certificate issuance functionality will be implemented",
+    })
+  }
+
+  const handleVerifyPayment = async (payment: any, action: "approve" | "reject") => {
+    try {
+      if (action === "approve") {
+        await apiFetch(`/admin/wallets/withdrawals/${payment.id}/approve`, { method: "POST" })
+      } else {
+        await apiFetch(`/admin/wallets/withdrawals/${payment.id}/reject`, { method: "POST" })
+      }
+      toast({
+        title: "Success",
+        description: `Payment ${action === "approve" ? "approved" : "rejected"} successfully`,
+      })
+      fetchPendingPayments()
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: `Failed to ${action} payment`,
+        variant: "destructive",
+      })
+    }
+  }
+
+  const stats = {
+    totalProperties: properties.length,
+    activeSubscriptions: subscriptions.filter(s => s.status === 'In Progress').length,
+    totalValue: properties.reduce((sum, p) => sum + (p.price || 0), 0),
+    completed: subscriptions.filter(s => s.status === 'Completed').length,
+  }
+
 
   return (
     <div className="space-y-6">
@@ -137,7 +222,7 @@ export default function AdminPropertiesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm text-muted-foreground">Total Properties</div>
-                <div className="text-2xl font-bold">24</div>
+                <div className="text-2xl font-bold">{stats.totalProperties}</div>
               </div>
               <Home className="h-8 w-8 text-muted-foreground" />
             </div>
@@ -148,7 +233,7 @@ export default function AdminPropertiesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm text-muted-foreground">Active Subscriptions</div>
-                <div className="text-2xl font-bold">18</div>
+                <div className="text-2xl font-bold">{stats.activeSubscriptions}</div>
               </div>
               <Users className="h-8 w-8 text-muted-foreground" />
             </div>
@@ -159,7 +244,7 @@ export default function AdminPropertiesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm text-muted-foreground">Total Value</div>
-                <div className="text-2xl font-bold">₦450M</div>
+                <div className="text-2xl font-bold">₦{(stats.totalValue / 1000000).toFixed(0)}M</div>
               </div>
               <DollarSign className="h-8 w-8 text-muted-foreground" />
             </div>
@@ -170,7 +255,7 @@ export default function AdminPropertiesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm text-muted-foreground">Completed</div>
-                <div className="text-2xl font-bold">12</div>
+                <div className="text-2xl font-bold">{stats.completed}</div>
               </div>
               <Home className="h-8 w-8 text-muted-foreground" />
             </div>
@@ -207,46 +292,71 @@ export default function AdminPropertiesPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {properties.map((property) => (
-                  <Card key={property.id} className="overflow-hidden">
-                    <img
-                      src={property.image || "/placeholder.svg"}
-                      alt={property.name}
-                      className="w-full h-48 object-cover"
-                    />
-                    <CardContent className="p-4 space-y-3">
-                      <div>
-                        <div className="font-semibold">{property.name}</div>
-                        <div className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                          <MapPin className="h-3 w-3" />
-                          {property.location}
+              {loading ? (
+                <div className="text-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
+                  <p className="text-muted-foreground">Loading properties...</p>
+                </div>
+              ) : properties.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">No properties found</div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {properties.map((property) => (
+                    <Card key={property.id} className="overflow-hidden">
+                      <img
+                        src={property.images?.[0]?.url || "/placeholder.svg"}
+                        alt={property.title || "Property"}
+                        className="w-full h-48 object-cover"
+                      />
+                      <CardContent className="p-4 space-y-3">
+                        <div>
+                          <div className="font-semibold">{property.title || "Untitled Property"}</div>
+                          <div className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                            <MapPin className="h-3 w-3" />
+                            {property.address || property.city || property.state || "No location"}
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="text-lg font-bold text-primary">₦{(property.price / 1000000).toFixed(1)}M</div>
-                        <Badge variant={property.status === "Available" ? "default" : "secondary"}>
-                          {property.status}
-                        </Badge>
-                      </div>
-                      <div className="text-sm text-muted-foreground">{property.subscribers} subscriber(s)</div>
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="flex-1 bg-transparent">
-                          <Eye className="h-4 w-4 mr-1" />
-                          View
-                        </Button>
-                        <Button variant="outline" size="sm" className="flex-1 bg-transparent">
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                        <div className="flex items-center justify-between">
+                          <div className="text-lg font-bold text-primary">₦{((property.price || 0) / 1000000).toFixed(1)}M</div>
+                          <Badge variant={property.status === "available" ? "default" : "secondary"}>
+                            {property.status || "N/A"}
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {property.allocations?.length || 0} subscriber(s)
+                        </div>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1 bg-transparent"
+                            onClick={() => handleViewProperty(property.id)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="flex-1 bg-transparent"
+                            onClick={() => handleEditProperty(property.id)}
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => handleDeleteProperty(property.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -285,13 +395,26 @@ export default function AdminPropertiesPage() {
                     </div>
                     <div className="text-sm text-muted-foreground">Payment Method: {sub.paymentMethod}</div>
                     <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleViewSubscriptionDetails(sub)}
+                      >
                         View Details
                       </Button>
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleViewSubscriptionPayments(sub)}
+                      >
                         View Payments
                       </Button>
-                      <Button variant="outline" size="sm">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleIssueCertificate(sub)}
+                        disabled={sub.status !== "Completed"}
+                      >
                         Issue Certificate
                       </Button>
                     </div>
@@ -380,7 +503,7 @@ export default function AdminPropertiesPage() {
                                   size="sm"
                                   variant="outline"
                                   className="bg-transparent"
-                                  onClick={() => handleVerifyPayment(payment.id, "approve")}
+                                  onClick={() => handleVerifyPayment(payment, "approve")}
                                 >
                                   <CheckCircle className="h-4 w-4 mr-1 text-green-600" />
                                   Approve
@@ -389,7 +512,7 @@ export default function AdminPropertiesPage() {
                                   size="sm"
                                   variant="outline"
                                   className="bg-transparent"
-                                  onClick={() => handleVerifyPayment(payment.id, "reject")}
+                                  onClick={() => handleVerifyPayment(payment, "reject")}
                                 >
                                   <XCircle className="h-4 w-4 mr-1 text-red-600" />
                                   Reject

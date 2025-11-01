@@ -1,181 +1,254 @@
+"use client"
+
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
-import { ArrowLeft, Save } from "lucide-react"
+import { ArrowLeft, Save, Loader2 } from "lucide-react"
+import { useCreateRole } from "@/lib/hooks/use-roles"
+import { useGroupedPermissions } from "@/lib/hooks/use-permissions"
+import { CreateRoleRequest } from "@/lib/types/role"
+import { toast } from "sonner"
 import Link from "next/link"
 
 export default function NewRolePage() {
-  const permissionCategories = [
-    {
-      name: "Members Management",
-      permissions: [
-        { id: "view_members", label: "View Members" },
-        { id: "create_members", label: "Create Members" },
-        { id: "edit_members", label: "Edit Members" },
-        { id: "delete_members", label: "Delete Members" },
-        { id: "approve_kyc", label: "Approve KYC" },
-      ],
-    },
-    {
-      name: "Financial Management",
-      permissions: [
-        { id: "view_contributions", label: "View Contributions" },
-        { id: "manage_contributions", label: "Manage Contributions" },
-        { id: "view_wallets", label: "View Wallets" },
-        { id: "manage_payments", label: "Manage Payments" },
-        { id: "financial_reports", label: "Financial Reports" },
-      ],
-    },
-    {
-      name: "Loans & Credit",
-      permissions: [
-        { id: "view_loans", label: "View Loans" },
-        { id: "approve_loans", label: "Approve Loans" },
-        { id: "manage_repayments", label: "Manage Repayments" },
-        { id: "create_loan_products", label: "Create Loan Products" },
-        { id: "loan_reports", label: "Loan Reports" },
-      ],
-    },
-    {
-      name: "Mortgage Management",
-      permissions: [
-        { id: "view_mortgages", label: "View Mortgages" },
-        { id: "create_mortgages", label: "Create Mortgages" },
-        { id: "manage_agreements", label: "Manage Agreements" },
-        { id: "mortgage_reports", label: "Mortgage Reports" },
-      ],
-    },
-    {
-      name: "Property Management",
-      permissions: [
-        { id: "view_properties", label: "View Properties" },
-        { id: "create_properties", label: "Create Properties" },
-        { id: "edit_properties", label: "Edit Properties" },
-        { id: "delete_properties", label: "Delete Properties" },
-        { id: "manage_estates", label: "Manage Estates" },
-        { id: "manage_maintenance", label: "Manage Maintenance" },
-      ],
-    },
-    {
-      name: "Legal & Compliance",
-      permissions: [
-        { id: "view_documents", label: "View Documents" },
-        { id: "manage_legal_docs", label: "Manage Legal Documents" },
-        { id: "compliance_reports", label: "Compliance Reports" },
-      ],
-    },
-    {
-      name: "System Administration",
-      permissions: [
-        { id: "manage_roles", label: "Manage Roles" },
-        { id: "view_activity_logs", label: "View Activity Logs" },
-        { id: "system_settings", label: "System Settings" },
-        { id: "bulk_uploads", label: "Bulk Uploads" },
-      ],
-    },
+  const router = useRouter()
+  const { createRole, loading } = useCreateRole()
+  const { groupedPermissions, loading: permissionsLoading } = useGroupedPermissions()
+  
+  const [formData, setFormData] = useState<CreateRoleRequest>({
+    name: '',
+    description: '',
+    color: 'bg-blue-500',
+    is_active: true,
+    sort_order: 0,
+    permissions: []
+  })
+
+  const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setErrors({})
+
+    try {
+      await createRole(formData)
+      toast.success("Role created successfully!")
+      router.push('/admin/roles')
+    } catch (error: any) {
+      if (error.details?.errors) {
+        setErrors(error.details.errors)
+      } else {
+        toast.error(error.message || "Failed to create role")
+      }
+    }
+  }
+
+  const handlePermissionChange = (permissionName: string, checked: boolean) => {
+    if (checked) {
+      setFormData(prev => ({
+        ...prev,
+        permissions: [...prev.permissions, permissionName]
+      }))
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        permissions: prev.permissions.filter(p => p !== permissionName)
+      }))
+    }
+  }
+
+  const handleSelectAll = (groupPermissions: string[], checked: boolean) => {
+    if (checked) {
+      setFormData(prev => ({
+        ...prev,
+        permissions: [...new Set([...prev.permissions, ...groupPermissions])]
+      }))
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        permissions: prev.permissions.filter(p => !groupPermissions.includes(p))
+      }))
+    }
+  }
+
+  const colorOptions = [
+    { value: 'bg-red-500', label: 'Red' },
+    { value: 'bg-blue-500', label: 'Blue' },
+    { value: 'bg-green-500', label: 'Green' },
+    { value: 'bg-purple-500', label: 'Purple' },
+    { value: 'bg-orange-500', label: 'Orange' },
+    { value: 'bg-indigo-500', label: 'Indigo' },
+    { value: 'bg-pink-500', label: 'Pink' },
+    { value: 'bg-gray-500', label: 'Gray' },
   ]
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Link href="/admin/roles">
-          <Button variant="ghost" size="sm">
+          <Button variant="outline" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
+            Back to Roles
           </Button>
         </Link>
         <div>
           <h1 className="text-3xl font-bold text-foreground">Create New Role</h1>
-          <p className="text-muted-foreground mt-1">Define a new role with specific permissions</p>
+          <p className="text-muted-foreground mt-1">Create a new role with specific permissions</p>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Role Information</CardTitle>
-              <CardDescription>Basic details about the role</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="roleName">Role Name</Label>
-                <Input id="roleName" placeholder="e.g., Property Manager" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="roleDescription">Description</Label>
-                <Textarea
-                  id="roleDescription"
-                  placeholder="Describe the responsibilities and scope of this role"
-                  rows={3}
-                />
-              </div>
-            </CardContent>
-          </Card>
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Basic Information */}
+          <div className="lg:col-span-1">
+            <Card>
+              <CardHeader>
+                <CardTitle>Role Information</CardTitle>
+                <CardDescription>Basic details about the role</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="name">Role Name *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="e.g., finance_manager"
+                    className={errors.name ? 'border-red-500' : ''}
+                  />
+                  {errors.name && (
+                    <p className="text-sm text-red-500 mt-1">{errors.name}</p>
+                  )}
+                </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Permissions</CardTitle>
-              <CardDescription>Select the permissions for this role</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {permissionCategories.map((category) => (
-                <div key={category.name} className="space-y-3">
-                  <h3 className="font-semibold text-sm text-foreground">{category.name}</h3>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {category.permissions.map((permission) => (
-                      <div key={permission.id} className="flex items-center space-x-2">
-                        <Checkbox id={permission.id} />
-                        <label
-                          htmlFor={permission.id}
-                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                        >
-                          {permission.label}
-                        </label>
-                      </div>
+                <div>
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Describe what this role can do"
+                    rows={3}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="color">Color</Label>
+                  <div className="grid grid-cols-4 gap-2 mt-2">
+                    {colorOptions.map((color) => (
+                      <button
+                        key={color.value}
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, color: color.value }))}
+                        className={`h-8 w-8 rounded-full ${color.value} ${
+                          formData.color === color.value ? 'ring-2 ring-offset-2 ring-gray-400' : ''
+                        }`}
+                        title={color.label}
+                      />
                     ))}
                   </div>
                 </div>
-              ))}
-            </CardContent>
-          </Card>
+
+                <div>
+                  <Label htmlFor="sort_order">Sort Order</Label>
+                  <Input
+                    id="sort_order"
+                    type="number"
+                    value={formData.sort_order}
+                    onChange={(e) => setFormData(prev => ({ ...prev, sort_order: parseInt(e.target.value) || 0 }))}
+                    min="0"
+                  />
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="is_active"
+                    checked={formData.is_active}
+                    onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: !!checked }))}
+                  />
+                  <Label htmlFor="is_active">Active</Label>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Permissions */}
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Permissions</CardTitle>
+                <CardDescription>Select the permissions for this role</CardDescription>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary">
+                    {formData.permissions.length} permissions selected
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {permissionsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {groupedPermissions?.map((group) => (
+                      <div key={group.group} className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-medium text-sm">{group.group_display_name}</h4>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleSelectAll(
+                              group.permissions.map(p => p.name),
+                              !group.permissions.every(p => formData.permissions.includes(p.name))
+                            )}
+                          >
+                            {group.permissions.every(p => formData.permissions.includes(p.name)) ? 'Deselect All' : 'Select All'}
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {group.permissions.map((permission) => (
+                            <div key={permission.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={permission.id}
+                                checked={formData.permissions.includes(permission.name)}
+                                onCheckedChange={(checked) => handlePermissionChange(permission.name, !!checked)}
+                              />
+                              <Label htmlFor={permission.id} className="text-sm">
+                                {permission.display_name}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Role Summary</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Selected Permissions</p>
-                <p className="text-2xl font-bold">0</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Status</p>
-                <p className="text-sm font-medium">Draft</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6 space-y-3">
-              <Button className="w-full">
-                <Save className="h-4 w-4 mr-2" />
-                Create Role
-              </Button>
-              <Link href="/admin/roles" className="block">
-                <Button variant="outline" className="w-full bg-transparent">
-                  Cancel
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
+        <div className="flex justify-end gap-4">
+          <Link href="/admin/roles">
+            <Button variant="outline" disabled={loading}>
+              Cancel
+            </Button>
+          </Link>
+          <Button type="submit" disabled={loading}>
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Save className="mr-2 h-4 w-4" />
+            Create Role
+          </Button>
         </div>
-      </div>
+      </form>
     </div>
   )
 }

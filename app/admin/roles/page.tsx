@@ -1,203 +1,341 @@
+"use client"
+
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Shield, Users, Plus, Edit, Trash2 } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Shield, Users, Plus, Edit, Trash2, Search, MoreHorizontal, Loader2 } from "lucide-react"
+import { useRoles, useRoleStats, useDeleteRole, useToggleRoleStatus } from "@/lib/hooks/use-roles"
+import { Role as RoleType } from "@/lib/types/role"
+import { toast } from "sonner"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import Link from "next/link"
 
 export default function RolesPage() {
-  const roles = [
-    {
-      id: 1,
-      name: "Super Admin",
-      description: "Full access to all system features and settings",
-      userCount: 2,
-      permissions: ["All Permissions"],
-      color: "bg-red-500",
-    },
-    {
-      id: 2,
-      name: "Accounts Admin",
-      description: "Manage financial records, contributions, and reports",
-      userCount: 5,
-      permissions: ["View Contributions", "Manage Payments", "Financial Reports", "Wallet Management"],
-      color: "bg-blue-500",
-    },
-    {
-      id: 3,
-      name: "Loans & Credit Admin",
-      description: "Manage loan applications, approvals, and repayments",
-      userCount: 3,
-      permissions: ["View Loans", "Approve Loans", "Manage Repayments", "Loan Reports"],
-      color: "bg-green-500",
-    },
-    {
-      id: 4,
-      name: "Mortgage Admin",
-      description: "Handle mortgage agreements and property financing",
-      userCount: 2,
-      permissions: ["View Mortgages", "Create Mortgages", "Manage Agreements", "Mortgage Reports"],
-      color: "bg-purple-500",
-    },
-    {
-      id: 5,
-      name: "Legal Admin",
-      description: "Manage legal documents, compliance, and agreements",
-      userCount: 2,
-      permissions: ["View Documents", "Manage Agreements", "Legal Reports", "Compliance"],
-      color: "bg-yellow-500",
-    },
-    {
-      id: 6,
-      name: "Engineering Admin",
-      description: "Manage properties, maintenance, and construction projects",
-      userCount: 4,
-      permissions: ["View Properties", "Manage Maintenance", "Estate Management", "Engineering Reports"],
-      color: "bg-orange-500",
-    },
-    {
-      id: 7,
-      name: "Member",
-      description: "Standard member access to personal records and transactions",
-      userCount: 1250,
-      permissions: ["View Profile", "Make Contributions", "Apply for Loans", "View Properties"],
-      color: "bg-gray-500",
-    },
-  ]
+  const [searchQuery, setSearchQuery] = useState("")
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [deleteRoleId, setDeleteRoleId] = useState<string | null>(null)
+
+  const { roles, loading, error, pagination, refetch } = useRoles({
+    search: searchQuery,
+    is_active: statusFilter,
+  })
+
+  const { stats, loading: statsLoading } = useRoleStats()
+  const { deleteRole, loading: deleteLoading } = useDeleteRole()
+  const { toggleStatus, loading: toggleLoading } = useToggleRoleStatus()
+
+  const handleDelete = async (roleId: string) => {
+    try {
+      await deleteRole(roleId)
+      toast.success("Role deleted successfully!")
+      refetch()
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete role")
+    }
+  }
+
+  const handleToggleStatus = async (roleId: string) => {
+    try {
+      await toggleStatus(roleId)
+      toast.success("Role status updated successfully!")
+      refetch()
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update role status")
+    }
+  }
+
+  const getRoleColor = (color: string) => {
+    return color || 'bg-gray-500'
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Role Management</h1>
+            <p className="text-muted-foreground mt-1">Manage user roles and permissions</p>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center">
+              <p className="text-red-500 mb-4">Error loading roles: {error}</p>
+              <Button onClick={() => refetch()}>Retry</Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Roles & Permissions</h1>
-          <p className="text-muted-foreground mt-1">Manage user roles and access control across the system</p>
+          <h1 className="text-3xl font-bold text-foreground">Role Management</h1>
+          <p className="text-muted-foreground mt-1">Manage user roles and permissions</p>
         </div>
         <Link href="/admin/roles/new">
           <Button>
             <Plus className="h-4 w-4 mr-2" />
-            Create Role
+            Add Role
           </Button>
         </Link>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {roles.slice(0, 3).map((role) => (
-          <Card key={role.id}>
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`${role.color} p-2 rounded-lg`}>
-                    <Shield className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg">{role.name}</CardTitle>
-                    <CardDescription className="flex items-center gap-1 mt-1">
-                      <Users className="h-3 w-3" />
-                      {role.userCount} users
-                    </CardDescription>
-                  </div>
+      {/* Stats Cards */}
+      {stats && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Roles</p>
+                  <p className="text-2xl font-bold">{stats.total_roles}</p>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">{role.description}</p>
-              <div className="flex flex-wrap gap-2 mb-4">
-                {role.permissions.slice(0, 3).map((permission, idx) => (
-                  <Badge key={idx} variant="secondary" className="text-xs">
-                    {permission}
-                  </Badge>
-                ))}
-                {role.permissions.length > 3 && (
-                  <Badge variant="outline" className="text-xs">
-                    +{role.permissions.length - 3} more
-                  </Badge>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <Link href={`/admin/roles/${role.id}/edit`} className="flex-1">
-                  <Button variant="outline" size="sm" className="w-full bg-transparent">
-                    <Edit className="h-3 w-3 mr-1" />
-                    Edit
-                  </Button>
-                </Link>
-                <Link href={`/admin/roles/${role.id}`} className="flex-1">
-                  <Button variant="outline" size="sm" className="w-full bg-transparent">
-                    View Details
-                  </Button>
-                </Link>
+                <Shield className="h-8 w-8 text-blue-500" />
               </div>
             </CardContent>
           </Card>
-        ))}
-      </div>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Active Roles</p>
+                  <p className="text-2xl font-bold text-green-600">{stats.active_roles}</p>
+                </div>
+                <Shield className="h-8 w-8 text-green-500" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Roles in Use</p>
+                  <p className="text-2xl font-bold text-purple-600">{stats.roles_in_use}</p>
+                </div>
+                <Users className="h-8 w-8 text-purple-500" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Permissions</p>
+                  <p className="text-2xl font-bold text-orange-600">{stats.total_permissions}</p>
+                </div>
+                <Shield className="h-8 w-8 text-orange-500" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <Card>
         <CardHeader>
-          <CardTitle>All Roles</CardTitle>
-          <CardDescription>Complete list of system roles and their permissions</CardDescription>
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div>
+              <CardTitle>All Roles</CardTitle>
+              <CardDescription>View and manage user roles and their permissions</CardDescription>
+            </div>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-64">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search roles..." 
+                  className="pl-9" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[140px]">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="true">Active</SelectItem>
+                  <SelectItem value="false">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Role Name</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Users</TableHead>
-                <TableHead>Permissions</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {roles.map((role) => (
-                <TableRow key={role.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <div className={`${role.color} p-1.5 rounded`}>
-                        <Shield className="h-3 w-3 text-white" />
-                      </div>
-                      <span className="font-medium">{role.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="max-w-xs">
-                    <p className="text-sm text-muted-foreground truncate">{role.description}</p>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{role.userCount}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {role.permissions.slice(0, 2).map((permission, idx) => (
-                        <Badge key={idx} variant="secondary" className="text-xs">
-                          {permission}
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : (
+            <div className="border rounded-lg overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Users</TableHead>
+                    <TableHead>Permissions</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="w-[50px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {roles.map((role) => (
+                    <TableRow key={role.id}>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className={`h-3 w-3 rounded-full ${getRoleColor(role.color || '')}`}></div>
+                          <div>
+                            <p className="font-medium">{role.name.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <p className="text-sm text-muted-foreground max-w-xs truncate">
+                          {role.description || 'No description provided'}
+                        </p>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {role.users_count} users
                         </Badge>
-                      ))}
-                      {role.permissions.length > 2 && (
-                        <Badge variant="outline" className="text-xs">
-                          +{role.permissions.length - 2}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {role.permissions_count} permissions
                         </Badge>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Link href={`/admin/roles/${role.id}/edit`}>
-                        <Button variant="ghost" size="sm">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </Link>
-                      {role.name !== "Super Admin" && role.name !== "Member" && (
-                        <Button variant="ghost" size="sm">
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                      </TableCell>
+                      <TableCell>
+                        <Badge className={role.is_active ? 'bg-green-500' : 'bg-red-500'}>
+                          {role.is_active ? 'Active' : 'Inactive'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-muted-foreground">
+                          {new Date(role.created_at).toLocaleDateString()}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem asChild>
+                              <Link href={`/admin/roles/${role.id}/edit`}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => handleToggleStatus(role.id)}
+                              disabled={toggleLoading}
+                            >
+                              <Shield className="h-4 w-4 mr-2" />
+                              {role.is_active ? 'Deactivate' : 'Activate'}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={() => setDeleteRoleId(role.id)}
+                              className="text-red-600"
+                              disabled={role.users_count > 0}
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          {/* Pagination */}
+          {pagination.total > pagination.per_page && (
+            <div className="flex items-center justify-between mt-4">
+              <p className="text-sm text-muted-foreground">
+                Showing {((pagination.current_page - 1) * pagination.per_page) + 1} to{' '}
+                {Math.min(pagination.current_page * pagination.per_page, pagination.total)} of{' '}
+                {pagination.total} results
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pagination.current_page === 1}
+                  onClick={() => refetch()}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pagination.current_page === pagination.last_page}
+                  onClick={() => refetch()}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteRoleId} onOpenChange={() => setDeleteRoleId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the role
+              and remove all associated permissions.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteRoleId) {
+                  handleDelete(deleteRoleId)
+                  setDeleteRoleId(null)
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700"
+              disabled={deleteLoading}
+            >
+              {deleteLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
