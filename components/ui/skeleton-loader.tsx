@@ -92,6 +92,10 @@ export function ListSkeleton({ items = 5 }: { items?: number }) {
 
 // Chart skeleton
 export function ChartSkeleton() {
+  // Fixed heights array to prevent hydration mismatch
+  // Using consistent percentages that look like a realistic chart
+  const barHeights = [65, 45, 75, 55, 85, 60, 70, 50, 80, 65, 55, 90]
+  
   return (
     <div className="p-6 border rounded-lg space-y-4">
       <SkeletonLoader className="h-6 w-1/3" />
@@ -100,7 +104,7 @@ export function ChartSkeleton() {
           <SkeletonLoader 
             key={i} 
             className="flex-1" 
-            style={{ height: `${Math.random() * 100 + 20}%` }}
+            style={{ height: `${barHeights[i]}%` }}
           />
         ))}
       </div>

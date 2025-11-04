@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { toast as sonnerToast } from "sonner"
+import { apiFetch } from "@/lib/api/client"
 
 interface RepaymentData {
   loanId: string
@@ -73,7 +75,9 @@ export default function BulkUploadLoanRepaymentsPage() {
     reader.readAsText(file)
   }
 
-  const downloadTemplate = () => {
+  const downloadTemplate = async () => {
+    try {
+      // For now, create template locally. You can add an API endpoint later if needed
     const template =
       "Loan ID,Member ID,Member Name,Amount,Payment Date,Payment Method,Transaction Reference\nLOAN-2024-001,FRSC/HMS/2024/001,John Doe,100000,2025-01-15,Bank Transfer,TRX123456789\nLOAN-2024-002,FRSC/HMS/2024/002,Jane Smith,150000,2025-01-15,Paystack,PAY987654321"
     const blob = new Blob([template], { type: "text/csv" })
@@ -82,13 +86,54 @@ export default function BulkUploadLoanRepaymentsPage() {
     a.href = url
     a.download = "loan_repayments_upload_template.csv"
     a.click()
+      window.URL.revokeObjectURL(url)
+      
+      sonnerToast.success("Template Downloaded", {
+        description: "CSV template has been downloaded successfully.",
+      })
+    } catch (error: any) {
+      sonnerToast.error("Download Failed", {
+        description: error.message || "Failed to download template.",
+      })
+    }
   }
 
   const handleUpload = async () => {
+    if (!file) return
+
     setUploading(true)
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    setUploadComplete(false)
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      // Note: You may need to create a bulk repayment upload endpoint
+      // For now, this is a placeholder implementation
+      const result = await apiFetch<{ success: boolean; message?: string; data?: any }>(
+        '/admin/bulk/loan-repayments/upload',
+        {
+          method: 'POST',
+          body: formData,
+        }
+      )
+
+      if (result.success) {
+        setUploadComplete(true)
+        sonnerToast.success("Upload Successful", {
+          description: result.message || "Loan repayments uploaded successfully",
+        })
+      } else {
+        throw new Error(result.message || 'Upload failed')
+      }
+    } catch (error: any) {
+      console.error('Error uploading repayments:', error)
+      sonnerToast.error("Upload Failed", {
+        description: error.message || "Failed to upload loan repayments. Please check the file format and try again.",
+      })
+    } finally {
     setUploading(false)
-    setUploadComplete(true)
+    }
   }
 
   const totalAmount = previewData.reduce((sum, item) => sum + Number.parseFloat(item.amount || "0"), 0)

@@ -7,6 +7,18 @@ import { Building2, Users, Wallet, TrendingUp, Shield, Zap, BarChart3, Check, Ar
 import { SaaSHeader } from "@/components/saas/saas-header"
 
 export default function SaaSLandingPage() {
+  return (
+    <div className="min-h-screen bg-background relative">
+      {/* SaaS Platform Indicator Badge */}
+      <div className="absolute top-4 right-4 z-50 bg-blue-600/90 text-white px-3 py-1 rounded-full text-xs font-medium shadow-lg backdrop-blur-sm">
+        SaaS Platform
+      </div>
+      <SaaSLandingContent />
+    </div>
+  )
+}
+
+function SaaSLandingContent() {
   const features = [
     {
       icon: Users,
@@ -121,7 +133,7 @@ export default function SaaSLandingPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
       <SaaSHeader />
 
       {/* Hero Section */}
@@ -383,6 +395,6 @@ export default function SaaSLandingPage() {
           </div>
         </div>
       </footer>
-    </div>
+    </>
   )
 }

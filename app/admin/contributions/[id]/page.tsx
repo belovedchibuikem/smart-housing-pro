@@ -1,10 +1,10 @@
 "use client"
 
-import { use, useState } from "react"
+import { use, useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, CheckCircle, XCircle, Calendar, User, CreditCard } from "lucide-react"
+import { ArrowLeft, CheckCircle, XCircle, Calendar, User, CreditCard, Loader2 } from "lucide-react"
 import Link from "next/link"
 import {
   Dialog,
@@ -15,41 +15,171 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
+import { toast as sonnerToast } from "sonner"
+import { apiFetch } from "@/lib/api/client"
+
+interface Contribution {
+  id: string
+  member?: {
+    member_id?: string
+    user?: {
+      first_name?: string
+      last_name?: string
+      email?: string
+      phone?: string
+    }
+  }
+  amount: number
+  type: string
+  frequency: string
+  status: string
+  contribution_date: string
+  payment_method?: string
+  rejection_reason?: string
+  approved_at?: string
+  rejected_at?: string
+  created_at: string
+}
 
 export default function ContributionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const [contribution, setContribution] = useState<Contribution | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [processing, setProcessing] = useState(false)
   const [showApproveDialog, setShowApproveDialog] = useState(false)
   const [showRejectDialog, setShowRejectDialog] = useState(false)
   const [rejectionReason, setRejectionReason] = useState("")
 
-  // Mock data
-  const contribution = {
-    id,
-    contributionId: "CONT-2024-001",
-    member: "John Adebayo",
-    memberId: "FRSC/HMS/2024/001",
-    email: "john.adebayo@frsc.gov.ng",
-    phone: "+234 803 456 7890",
-    amount: 50000,
-    type: "Monthly Contribution",
-    paymentMethod: "Bank Transfer",
-    transactionRef: "TXN123456789",
-    bankName: "First Bank",
-    accountNumber: "0123456789",
-    status: "pending",
-    dateSubmitted: "2024-03-01",
-    proofOfPayment: "/payment-receipt.jpg",
-    notes: "Monthly contribution for March 2024",
+  useEffect(() => {
+    fetchContribution()
+  }, [id])
+
+  const fetchContribution = async () => {
+    try {
+      setLoading(true)
+      const response = await apiFetch<{ success: boolean; data: Contribution }>(
+        `/admin/contributions/${id}`
+      )
+
+      if (response.success && response.data) {
+        setContribution(response.data)
+      }
+    } catch (error: any) {
+      console.error('Error fetching contribution:', error)
+      sonnerToast.error("Failed to load contribution", {
+        description: error.message || "Please try again later",
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleApprove = () => {
-    console.log("Approving contribution:", id)
+  const handleApprove = async () => {
+    try {
+      setProcessing(true)
+      const response = await apiFetch<{ success: boolean; message?: string; data?: Contribution }>(
+        `/admin/contributions/${id}/approve`,
+        { method: 'POST' }
+      )
+
+      if (response.success) {
+        sonnerToast.success("Contribution Approved", {
+          description: response.message || "Contribution has been approved successfully",
+        })
     setShowApproveDialog(false)
+        fetchContribution()
+      }
+    } catch (error: any) {
+      console.error('Error approving contribution:', error)
+      sonnerToast.error("Failed to approve contribution", {
+        description: error.message || "Please try again later",
+      })
+    } finally {
+      setProcessing(false)
+    }
   }
 
-  const handleReject = () => {
-    console.log("Rejecting contribution:", id, "Reason:", rejectionReason)
+  const handleReject = async () => {
+    if (!rejectionReason.trim()) {
+      sonnerToast.error("Rejection reason required", {
+        description: "Please provide a reason for rejecting this contribution",
+      })
+      return
+    }
+
+    try {
+      setProcessing(true)
+      const response = await apiFetch<{ success: boolean; message?: string; data?: Contribution }>(
+        `/admin/contributions/${id}/reject`,
+        {
+          method: 'POST',
+          body: { rejection_reason: rejectionReason }
+        }
+      )
+
+      if (response.success) {
+        sonnerToast.success("Contribution Rejected", {
+          description: response.message || "Contribution has been rejected",
+        })
     setShowRejectDialog(false)
+        setRejectionReason("")
+        fetchContribution()
+      }
+    } catch (error: any) {
+      console.error('Error rejecting contribution:', error)
+      sonnerToast.error("Failed to reject contribution", {
+        description: error.message || "Please try again later",
+      })
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '-'
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  }
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', minimumFractionDigits: 0 }).format(amount)
+  }
+
+  const getMemberName = () => {
+    if (contribution?.member?.user) {
+      return `${contribution.member.user.first_name || ''} ${contribution.member.user.last_name || ''}`.trim() || 'N/A'
+    }
+    return 'N/A'
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (!contribution) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Link href="/admin/contributions">
+            <Button variant="outline" size="icon">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold">Contribution Not Found</h1>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-muted-foreground">The contribution you're looking for doesn't exist.</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -62,11 +192,11 @@ export default function ContributionDetailPage({ params }: { params: Promise<{ i
         </Link>
         <div className="flex-1">
           <h1 className="text-3xl font-bold">Contribution Details</h1>
-          <p className="text-muted-foreground">{contribution.contributionId}</p>
+          <p className="text-muted-foreground">{contribution.id.substring(0, 8)}...</p>
         </div>
         <Badge
           variant={
-            contribution.status === "approved"
+            contribution.status === "approved" || contribution.status === "completed"
               ? "default"
               : contribution.status === "rejected"
                 ? "destructive"
@@ -86,11 +216,11 @@ export default function ContributionDetailPage({ params }: { params: Promise<{ i
                 <p className="text-sm text-muted-foreground">Review payment details and approve or reject</p>
               </div>
               <div className="flex gap-2">
-                <Button onClick={() => setShowApproveDialog(true)}>
+                <Button onClick={() => setShowApproveDialog(true)} disabled={processing}>
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Approve
                 </Button>
-                <Button variant="destructive" onClick={() => setShowRejectDialog(true)}>
+                <Button variant="destructive" onClick={() => setShowRejectDialog(true)} disabled={processing}>
                   <XCircle className="h-4 w-4 mr-2" />
                   Reject
                 </Button>
@@ -111,33 +241,40 @@ export default function ContributionDetailPage({ params }: { params: Promise<{ i
               <div className="space-y-4">
                 <div>
                   <label className="text-sm text-muted-foreground">Amount</label>
-                  <p className="text-3xl font-bold">₦{contribution.amount.toLocaleString()}</p>
+                  <p className="text-3xl font-bold">{formatCurrency(contribution.amount)}</p>
                 </div>
                 <div>
                   <label className="text-sm text-muted-foreground">Contribution Type</label>
-                  <p className="font-medium">{contribution.type}</p>
+                  <p className="font-medium">{contribution.type || contribution.frequency || '-'}</p>
                 </div>
                 <div>
                   <label className="text-sm text-muted-foreground">Payment Method</label>
                   <p className="font-medium flex items-center gap-2">
                     <CreditCard className="h-4 w-4" />
-                    {contribution.paymentMethod}
+                    {contribution.payment_method || '-'}
                   </p>
                 </div>
               </div>
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm text-muted-foreground">Transaction Reference</label>
-                  <p className="font-medium font-mono text-sm">{contribution.transactionRef}</p>
+                  <label className="text-sm text-muted-foreground">Contribution Date</label>
+                  <p className="font-medium flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    {formatDate(contribution.contribution_date || contribution.created_at)}
+                  </p>
                 </div>
+                {contribution.approved_at && (
                 <div>
-                  <label className="text-sm text-muted-foreground">Bank Name</label>
-                  <p className="font-medium">{contribution.bankName}</p>
+                    <label className="text-sm text-muted-foreground">Approved Date</label>
+                    <p className="font-medium">{formatDate(contribution.approved_at)}</p>
                 </div>
+                )}
+                {contribution.rejected_at && (
                 <div>
-                  <label className="text-sm text-muted-foreground">Account Number</label>
-                  <p className="font-medium">{contribution.accountNumber}</p>
+                    <label className="text-sm text-muted-foreground">Rejected Date</label>
+                    <p className="font-medium">{formatDate(contribution.rejected_at)}</p>
                 </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -153,39 +290,38 @@ export default function ContributionDetailPage({ params }: { params: Promise<{ i
                   <label className="text-sm text-muted-foreground">Full Name</label>
                   <p className="font-medium flex items-center gap-2">
                     <User className="h-4 w-4" />
-                    {contribution.member}
+                    {getMemberName()}
                   </p>
                 </div>
                 <div>
                   <label className="text-sm text-muted-foreground">Member ID</label>
-                  <p className="font-medium font-mono">{contribution.memberId}</p>
+                  <p className="font-medium font-mono">{contribution.member?.member_id || 'N/A'}</p>
                 </div>
               </div>
               <div className="space-y-4">
+                {contribution.member?.user?.email && (
                 <div>
                   <label className="text-sm text-muted-foreground">Email</label>
-                  <p className="font-medium">{contribution.email}</p>
+                    <p className="font-medium">{contribution.member.user.email}</p>
                 </div>
+                )}
+                {contribution.member?.user?.phone && (
                 <div>
                   <label className="text-sm text-muted-foreground">Phone</label>
-                  <p className="font-medium">{contribution.phone}</p>
+                    <p className="font-medium">{contribution.member.user.phone}</p>
                 </div>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          {contribution.proofOfPayment && (
+          {contribution.rejection_reason && (
             <Card>
               <CardHeader>
-                <CardTitle>Proof of Payment</CardTitle>
-                <CardDescription>Uploaded payment receipt</CardDescription>
+                <CardTitle>Rejection Reason</CardTitle>
               </CardHeader>
               <CardContent>
-                <img
-                  src={contribution.proofOfPayment || "/placeholder.svg"}
-                  alt="Payment Receipt"
-                  className="w-full max-w-2xl border rounded-lg"
-                />
+                <p className="text-sm text-muted-foreground">{contribution.rejection_reason}</p>
               </CardContent>
             </Card>
           )}
@@ -201,7 +337,7 @@ export default function ContributionDetailPage({ params }: { params: Promise<{ i
                 <label className="text-sm text-muted-foreground">Date Submitted</label>
                 <p className="font-medium flex items-center gap-2">
                   <Calendar className="h-4 w-4" />
-                  {new Date(contribution.dateSubmitted).toLocaleDateString()}
+                  {formatDate(contribution.created_at)}
                 </p>
               </div>
               <div>
@@ -209,7 +345,7 @@ export default function ContributionDetailPage({ params }: { params: Promise<{ i
                 <Badge
                   className="mt-1"
                   variant={
-                    contribution.status === "approved"
+                    contribution.status === "approved" || contribution.status === "completed"
                       ? "default"
                       : contribution.status === "rejected"
                         ? "destructive"
@@ -221,17 +357,6 @@ export default function ContributionDetailPage({ params }: { params: Promise<{ i
               </div>
             </CardContent>
           </Card>
-
-          {contribution.notes && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Additional Notes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">{contribution.notes}</p>
-              </CardContent>
-            </Card>
-          )}
         </div>
       </div>
 
@@ -241,15 +366,24 @@ export default function ContributionDetailPage({ params }: { params: Promise<{ i
           <DialogHeader>
             <DialogTitle>Approve Contribution</DialogTitle>
             <DialogDescription>
-              Are you sure you want to approve this contribution of ₦{contribution.amount.toLocaleString()} from{" "}
-              {contribution.member}?
+              Are you sure you want to approve this contribution of {formatCurrency(contribution.amount)} from{" "}
+              {getMemberName()}?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowApproveDialog(false)}>
+            <Button variant="outline" onClick={() => setShowApproveDialog(false)} disabled={processing}>
               Cancel
             </Button>
-            <Button onClick={handleApprove}>Approve Contribution</Button>
+            <Button onClick={handleApprove} disabled={processing}>
+              {processing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Approving...
+                </>
+              ) : (
+                "Approve Contribution"
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -270,11 +404,18 @@ export default function ContributionDetailPage({ params }: { params: Promise<{ i
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
+            <Button variant="outline" onClick={() => setShowRejectDialog(false)} disabled={processing}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleReject} disabled={!rejectionReason.trim()}>
-              Reject Contribution
+            <Button variant="destructive" onClick={handleReject} disabled={!rejectionReason.trim() || processing}>
+              {processing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Rejecting...
+                </>
+              ) : (
+                "Reject Contribution"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

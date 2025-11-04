@@ -1,105 +1,112 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Download, Building, Users, Wrench, TrendingUp } from "lucide-react"
+import { Download, Building, Users, Wrench, TrendingUp, Loader2 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { useToast } from "@/hooks/use-toast"
+import { getPropertyManagementReports } from "@/lib/api/client"
+
+interface EstateReport {
+  estate_name: string
+  location: string
+  total_properties: number
+  allocated_properties: number
+  available_properties: number
+  occupancy_rate: number
+  maintenance_requests: number
+}
+
+interface AllotteeReport {
+  estate_name: string
+  total_allottees: number
+  active_allottees: number
+  inactive_allottees: number
+  avg_tenure_months?: number
+}
+
+interface MaintenanceReport {
+  id: string
+  estate_name: string
+  issue_type: string
+  status: string
+  reported_date: string
+  completed_date?: string
+  cost: number
+}
 
 export default function ManagementReportsPage() {
   const [dateRange, setDateRange] = useState("this-month")
+  const [loading, setLoading] = useState(true)
+  const [estateReports, setEstateReports] = useState<EstateReport[]>([])
+  const [allotteeReports, setAllotteeReports] = useState<AllotteeReport[]>([])
+  const [maintenanceReports, setMaintenanceReports] = useState<MaintenanceReport[]>([])
+  const [stats, setStats] = useState({
+    total_estates: 0,
+    total_allottees: 0,
+    maintenance_requests: 0,
+    occupancy_rate: 0,
+  })
+  const { toast } = useToast()
 
-  const stats = [
-    { label: "Total Estates", value: "12", icon: Building, color: "text-blue-600" },
-    { label: "Total Allottees", value: "156", icon: Users, color: "text-green-600" },
-    { label: "Maintenance Requests", value: "45", icon: Wrench, color: "text-orange-600" },
-    { label: "Occupancy Rate", value: "87%", icon: TrendingUp, color: "text-purple-600" },
-  ]
+  useEffect(() => {
+    fetchReports()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateRange])
 
-  const estateReports = [
-    {
-      estate: "FRSC Estate Phase 1",
-      location: "Maitama, Abuja",
-      totalUnits: 50,
-      occupied: 45,
-      vacant: 5,
-      occupancyRate: "90%",
-      maintenanceRequests: 12,
-    },
-    {
-      estate: "FRSC Estate Phase 2",
-      location: "Gwarinpa, Abuja",
-      totalUnits: 40,
-      occupied: 35,
-      vacant: 5,
-      occupancyRate: "87.5%",
-      maintenanceRequests: 8,
-    },
-    {
-      estate: "FRSC Estate Phase 3",
-      location: "Asokoro, Abuja",
-      totalUnits: 30,
-      occupied: 24,
-      vacant: 6,
-      occupancyRate: "80%",
-      maintenanceRequests: 5,
-    },
-  ]
+  const fetchReports = async () => {
+    try {
+      setLoading(true)
+      const response = await getPropertyManagementReports({ type: 'all' })
+      if (response.success) {
+        const data = response.data || {}
+        
+        // Set stats
+        if (data.stats) {
+          setStats(data.stats)
+        }
 
-  const maintenanceReports = [
-    {
-      id: "MR001",
-      estate: "FRSC Estate Phase 1",
-      type: "Plumbing",
-      status: "Completed",
-      requestDate: "2024-03-10",
-      completionDate: "2024-03-12",
-      cost: "₦45,000",
-    },
-    {
-      id: "MR002",
-      estate: "FRSC Estate Phase 2",
-      type: "Electrical",
-      status: "In Progress",
-      requestDate: "2024-03-14",
-      completionDate: "-",
-      cost: "₦65,000",
-    },
-    {
-      id: "MR003",
-      estate: "FRSC Estate Phase 1",
-      type: "Painting",
-      status: "Pending",
-      requestDate: "2024-03-15",
-      completionDate: "-",
-      cost: "₦120,000",
-    },
-  ]
+        // Set estate reports
+        if (data.estate_reports) {
+          setEstateReports(data.estate_reports)
+        }
 
-  const allotteeReports = [
-    {
-      estate: "FRSC Estate Phase 1",
-      totalAllottees: 45,
-      active: 42,
-      inactive: 3,
-      avgTenure: "3.5 years",
-    },
-    {
-      estate: "FRSC Estate Phase 2",
-      totalAllottees: 35,
-      active: 33,
-      inactive: 2,
-      avgTenure: "2.8 years",
-    },
-    {
-      estate: "FRSC Estate Phase 3",
-      totalAllottees: 24,
-      active: 22,
-      inactive: 2,
-      avgTenure: "1.5 years",
-    },
+        // Set allottee reports
+        if (data.allottee_reports) {
+          setAllotteeReports(data.allottee_reports)
+        }
+
+        // Set maintenance reports
+        if (data.maintenance_reports) {
+          setMaintenanceReports(data.maintenance_reports)
+        }
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch reports",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleExport = () => {
+    toast({
+      title: "Export",
+      description: "Export functionality will be implemented soon",
+    })
+  }
+
+  const statsList = [
+    { label: "Total Estates", value: stats.total_estates.toString(), icon: Building, color: "text-blue-600" },
+    { label: "Total Allottees", value: stats.total_allottees.toString(), icon: Users, color: "text-green-600" },
+    { label: "Maintenance Requests", value: stats.maintenance_requests.toString(), icon: Wrench, color: "text-orange-600" },
+    { label: "Occupancy Rate", value: `${stats.occupancy_rate.toFixed(1)}%`, icon: TrendingUp, color: "text-purple-600" },
   ]
 
   return (
@@ -121,16 +128,22 @@ export default function ManagementReportsPage() {
               <SelectItem value="this-year">This Year</SelectItem>
             </SelectContent>
           </Select>
-          <Button>
+          <Button onClick={handleExport}>
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
         </div>
       </div>
 
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      ) : (
+        <>
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat) => {
+            {statsList.map((stat) => {
           const Icon = stat.icon
           return (
             <Card key={stat.label}>
@@ -153,6 +166,9 @@ export default function ManagementReportsPage() {
           <CardDescription>Occupancy rates and unit distribution by estate</CardDescription>
         </CardHeader>
         <CardContent>
+              {estateReports.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">No estate reports available</div>
+              ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -167,20 +183,21 @@ export default function ManagementReportsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {estateReports.map((estate) => (
-                  <TableRow key={estate.estate}>
-                    <TableCell className="font-medium">{estate.estate}</TableCell>
+                      {estateReports.map((estate, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">{estate.estate_name}</TableCell>
                     <TableCell>{estate.location}</TableCell>
-                    <TableCell className="text-right">{estate.totalUnits}</TableCell>
-                    <TableCell className="text-right text-green-600 font-semibold">{estate.occupied}</TableCell>
-                    <TableCell className="text-right text-orange-600">{estate.vacant}</TableCell>
-                    <TableCell className="text-right font-semibold">{estate.occupancyRate}</TableCell>
-                    <TableCell className="text-right">{estate.maintenanceRequests}</TableCell>
+                          <TableCell className="text-right">{estate.total_properties}</TableCell>
+                          <TableCell className="text-right text-green-600 font-semibold">{estate.allocated_properties}</TableCell>
+                          <TableCell className="text-right text-orange-600">{estate.available_properties}</TableCell>
+                          <TableCell className="text-right font-semibold">{estate.occupancy_rate.toFixed(1)}%</TableCell>
+                          <TableCell className="text-right">{estate.maintenance_requests}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </div>
+              )}
         </CardContent>
       </Card>
 
@@ -191,6 +208,9 @@ export default function ManagementReportsPage() {
           <CardDescription>Allottee distribution and tenure analysis</CardDescription>
         </CardHeader>
         <CardContent>
+              {allotteeReports.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">No allottee reports available</div>
+              ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -199,22 +219,29 @@ export default function ManagementReportsPage() {
                   <TableHead className="text-right">Total Allottees</TableHead>
                   <TableHead className="text-right">Active</TableHead>
                   <TableHead className="text-right">Inactive</TableHead>
+                        {allotteeReports.some(r => r.avg_tenure_months) && (
                   <TableHead className="text-right">Avg Tenure</TableHead>
+                        )}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {allotteeReports.map((report) => (
-                  <TableRow key={report.estate}>
-                    <TableCell className="font-medium">{report.estate}</TableCell>
-                    <TableCell className="text-right">{report.totalAllottees}</TableCell>
-                    <TableCell className="text-right text-green-600 font-semibold">{report.active}</TableCell>
-                    <TableCell className="text-right text-red-600">{report.inactive}</TableCell>
-                    <TableCell className="text-right">{report.avgTenure}</TableCell>
+                      {allotteeReports.map((report, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">{report.estate_name}</TableCell>
+                          <TableCell className="text-right">{report.total_allottees}</TableCell>
+                          <TableCell className="text-right text-green-600 font-semibold">{report.active_allottees}</TableCell>
+                          <TableCell className="text-right text-red-600">{report.inactive_allottees}</TableCell>
+                          {report.avg_tenure_months !== undefined && (
+                            <TableCell className="text-right">
+                              {(report.avg_tenure_months / 12).toFixed(1)} years
+                            </TableCell>
+                          )}
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </div>
+              )}
         </CardContent>
       </Card>
 
@@ -225,6 +252,9 @@ export default function ManagementReportsPage() {
           <CardDescription>Recent maintenance activities and costs</CardDescription>
         </CardHeader>
         <CardContent>
+              {maintenanceReports.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">No maintenance reports available</div>
+              ) : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -241,23 +271,25 @@ export default function ManagementReportsPage() {
               <TableBody>
                 {maintenanceReports.map((request) => (
                   <TableRow key={request.id}>
-                    <TableCell className="font-medium">{request.id}</TableCell>
-                    <TableCell>{request.estate}</TableCell>
-                    <TableCell>{request.type}</TableCell>
-                    <TableCell>{request.requestDate}</TableCell>
-                    <TableCell>{request.completionDate}</TableCell>
-                    <TableCell className="text-right font-semibold">{request.cost}</TableCell>
+                          <TableCell className="font-medium">{request.id.substring(0, 8)}...</TableCell>
+                          <TableCell>{request.estate_name}</TableCell>
+                          <TableCell>{request.issue_type || '—'}</TableCell>
+                          <TableCell>{request.reported_date ? new Date(request.reported_date).toLocaleDateString() : '—'}</TableCell>
+                          <TableCell>{request.completed_date ? new Date(request.completed_date).toLocaleDateString() : '—'}</TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {request.cost ? `₦${request.cost.toLocaleString()}` : '—'}
+                          </TableCell>
                     <TableCell>
                       <Badge
                         variant={
-                          request.status === "Completed"
+                                request.status === "completed"
                             ? "default"
-                            : request.status === "In Progress"
+                                  : request.status === "in_progress"
                               ? "secondary"
                               : "outline"
                         }
                       >
-                        {request.status}
+                              {request.status.replace('_', ' ').split(' ').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ')}
                       </Badge>
                     </TableCell>
                   </TableRow>
@@ -265,8 +297,11 @@ export default function ManagementReportsPage() {
               </TableBody>
             </Table>
           </div>
+              )}
         </CardContent>
       </Card>
+        </>
+      )}
     </div>
   )
 }

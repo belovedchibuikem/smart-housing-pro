@@ -8,95 +8,52 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { TrendingUp, Calendar, DollarSign, MapPin, Home, Coins } from "lucide-react"
 
-const investments = [
-  {
-    id: 1,
-    name: "High-Yield Savings Plan",
-    type: "Money",
-    roi: 15,
-    minInvestment: 500000,
-    duration: "12 months",
-    closingDate: "2025-12-31",
-    status: "Open",
-    description: "Secure cash investment with guaranteed returns",
-    icon: Coins,
-  },
-  {
-    id: 2,
-    name: "Lekki Estate Development",
-    type: "Land",
-    roi: 25,
-    minInvestment: 2000000,
-    duration: "24 months",
-    closingDate: "2025-06-30",
-    status: "Open",
-    location: "Lagos, Lekki",
-    size: "300 sqm plots",
-    image: "/estate-development-land.jpg",
-    description: "Prime estate land with high appreciation potential",
-  },
-  {
-    id: 3,
-    name: "Abuja Housing Project",
-    type: "House",
-    roi: 30,
-    minInvestment: 5000000,
-    duration: "36 months",
-    closingDate: "2025-09-30",
-    status: "Open",
-    location: "Abuja, Gwarinpa",
-    units: "50 units",
-    image: "/housing-project-development.jpg",
-    description: "Modern housing development in prime location",
-  },
-  {
-    id: 4,
-    name: "Fixed Deposit Plan",
-    type: "Money",
-    roi: 12,
-    minInvestment: 1000000,
-    duration: "6 months",
-    closingDate: "2025-03-31",
-    status: "Open",
-    description: "Short-term investment with quarterly returns",
-    icon: DollarSign,
-  },
-  {
-    id: 5,
-    name: "Port Harcourt Land Bank",
-    type: "Land",
-    roi: 20,
-    minInvestment: 1500000,
-    duration: "18 months",
-    closingDate: "2025-08-31",
-    status: "Open",
-    location: "Port Harcourt, Rivers",
-    size: "500 sqm plots",
-    image: "/land-bank-investment.jpg",
-    description: "Strategic land banking opportunity",
-  },
-  {
-    id: 6,
-    name: "Smart Homes Initiative",
-    type: "House",
-    roi: 28,
-    minInvestment: 3000000,
-    duration: "30 months",
-    closingDate: "2025-11-30",
-    status: "Filling Fast",
-    location: "Ibadan, Oyo",
-    units: "30 units",
-    image: "/smart-homes.jpg",
-    description: "Technology-enabled modern homes",
-  },
-]
+interface InvestmentPlan {
+  id: string
+  name: string
+  description?: string
+  min_amount: number
+  max_amount: number
+  expected_return_rate: number
+  min_duration_months: number
+  max_duration_months: number
+  duration_range?: string
+  return_type: string
+  risk_level: string
+  features?: string[]
+}
 
-export function InvestmentOpportunities() {
+interface InvestmentOpportunitiesProps {
+  plans?: InvestmentPlan[]
+  config?: {
+    title?: string
+    subtitle?: string
+    limit?: number
+  }
+}
+
+export function InvestmentOpportunities({ plans = [], config }: InvestmentOpportunitiesProps) {
   const [investmentType, setInvestmentType] = useState("all")
+  
+  // Map API plans to display format
+  const mappedPlans = plans.map((plan) => ({
+    id: plan.id,
+    name: plan.name,
+    type: "Money", // Investment plans are cash-based
+    roi: parseFloat(plan.expected_return_rate.toString()),
+    minInvestment: parseFloat(plan.min_amount.toString()),
+    maxInvestment: parseFloat(plan.max_amount.toString()),
+    duration: plan.duration_range || `${plan.min_duration_months}-${plan.max_duration_months} months`,
+    status: "Open",
+    description: plan.description || "",
+    riskLevel: plan.risk_level,
+    features: plan.features || [],
+    icon: Coins,
+  }))
 
-  const filteredInvestments = investments.filter((investment) => {
+  const filteredInvestments = mappedPlans.filter((investment) => {
     return investmentType === "all" || investment.type === investmentType
-  })
+  }).slice(0, config?.limit || 6)
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -139,12 +96,11 @@ export function InvestmentOpportunities() {
         <div className="text-center max-w-2xl mx-auto mb-12">
           <Badge className="mb-4" variant="secondary">
             <TrendingUp className="h-3 w-3 mr-1" />
-            Investment Opportunities
+            {config?.title || "Investment Opportunities"}
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Grow Your Wealth with Smart Investments</h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">{config?.title || "Grow Your Wealth with Smart Investments"}</h2>
           <p className="text-muted-foreground text-lg">
-            Explore diverse investment options with attractive returns. From cash investments to property development
-            projects.
+            {config?.subtitle || "Explore diverse investment options with attractive returns. From cash investments to property development projects."}
           </p>
         </div>
 
@@ -184,11 +140,12 @@ export function InvestmentOpportunities() {
         </div>
 
         {/* Investment Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {filteredInvestments.map((investment) => {
-            const TypeIcon = investment.icon || getTypeIcon(investment.type)
-            return (
-              <Card key={investment.id} className="overflow-hidden hover:shadow-xl transition-shadow group">
+        {filteredInvestments.length > 0 ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            {filteredInvestments.map((investment) => {
+              const TypeIcon = investment.icon || getTypeIcon(investment.type)
+              return (
+                <Card key={investment.id} className="overflow-hidden hover:shadow-xl transition-shadow group">
                 {investment.image ? (
                   <div className="relative h-48 overflow-hidden">
                     <Image
@@ -243,31 +200,32 @@ export function InvestmentOpportunities() {
                   </div>
                 </CardContent>
                 <CardFooter className="p-4 pt-0">
-                  <Link href="/register" className="w-full">
+                  <Link href={`/register?ref=investment&plan=${investment.id}`} className="w-full">
                     <Button className="w-full" size="sm">
                       Invest Now
                     </Button>
                   </Link>
                 </CardFooter>
               </Card>
-            )
-          })}
-        </div>
-
-        {filteredInvestments.length === 0 && (
+              )
+            })}
+          </div>
+        ) : (
           <div className="text-center py-12">
-            <p className="text-muted-foreground">No investments found matching your criteria.</p>
+            <p className="text-muted-foreground">No investment plans available at the moment.</p>
           </div>
         )}
 
         {/* View All Button */}
-        <div className="text-center">
-          <Link href="/register">
-            <Button size="lg" variant="outline">
-              View All Investment Plans
-            </Button>
-          </Link>
-        </div>
+        {filteredInvestments.length > 0 && (
+          <div className="text-center">
+            <Link href="/register">
+              <Button size="lg" variant="outline">
+                View All Investment Plans
+              </Button>
+            </Link>
+          </div>
+        )}
       </div>
     </section>
   )

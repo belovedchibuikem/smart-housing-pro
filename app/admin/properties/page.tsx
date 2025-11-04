@@ -300,62 +300,62 @@ export default function AdminPropertiesPage() {
               ) : properties.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">No properties found</div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {properties.map((property) => (
-                    <Card key={property.id} className="overflow-hidden">
-                      <img
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {properties.map((property) => (
+                  <Card key={property.id} className="overflow-hidden">
+                    <img
                         src={property.images?.[0]?.url || "/placeholder.svg"}
                         alt={property.title || "Property"}
-                        className="w-full h-48 object-cover"
-                      />
-                      <CardContent className="p-4 space-y-3">
-                        <div>
+                      className="w-full h-48 object-cover"
+                    />
+                    <CardContent className="p-4 space-y-3">
+                      <div>
                           <div className="font-semibold">{property.title || "Untitled Property"}</div>
-                          <div className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                            <MapPin className="h-3 w-3" />
+                        <div className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                          <MapPin className="h-3 w-3" />
                             {property.address || property.city || property.state || "No location"}
-                          </div>
                         </div>
-                        <div className="flex items-center justify-between">
+                      </div>
+                      <div className="flex items-center justify-between">
                           <div className="text-lg font-bold text-primary">₦{((property.price || 0) / 1000000).toFixed(1)}M</div>
                           <Badge variant={property.status === "available" ? "default" : "secondary"}>
                             {property.status || "N/A"}
-                          </Badge>
-                        </div>
+                        </Badge>
+                      </div>
                         <div className="text-sm text-muted-foreground">
                           {property.allocations?.length || 0} subscriber(s)
                         </div>
-                        <div className="flex gap-2">
+                      <div className="flex gap-2">
                           <Button 
                             variant="outline" 
                             size="sm" 
                             className="flex-1 bg-transparent"
                             onClick={() => handleViewProperty(property.id)}
                           >
-                            <Eye className="h-4 w-4 mr-1" />
-                            View
-                          </Button>
+                          <Eye className="h-4 w-4 mr-1" />
+                          View
+                        </Button>
                           <Button 
                             variant="outline" 
                             size="sm" 
                             className="flex-1 bg-transparent"
                             onClick={() => handleEditProperty(property.id)}
                           >
-                            <Edit className="h-4 w-4 mr-1" />
-                            Edit
-                          </Button>
+                          <Edit className="h-4 w-4 mr-1" />
+                          Edit
+                        </Button>
                           <Button 
                             variant="outline" 
                             size="sm"
                             onClick={() => handleDeleteProperty(property.id)}
                           >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
               )}
             </CardContent>
           </Card>

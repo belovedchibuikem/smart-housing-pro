@@ -8,11 +8,49 @@ import { Badge } from "@/components/ui/badge"
 import { Search, TrendingUp, Home, Zap, Building2, Shield, ArrowRight, Info } from "lucide-react"
 import Link from "next/link"
 
-export function LoanOfferings() {
+interface LoanProduct {
+  id: string
+  name: string
+  description?: string
+  min_amount: number
+  max_amount: number
+  interest_rate: number
+  min_tenure_months: number
+  max_tenure_months: number
+  tenure_range?: string
+  interest_type: string
+  eligibility_criteria?: string[]
+  required_documents?: string[]
+}
+
+interface LoanOfferingsProps {
+  products?: LoanProduct[]
+  config?: {
+    title?: string
+    subtitle?: string
+    limit?: number
+  }
+}
+
+export function LoanOfferings({ products = [], config }: LoanOfferingsProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<"all" | "member" | "non-member">("all")
 
-  const loanProducts = [
+  // Map API products to display format
+  const mappedProducts = products.map((product) => ({
+    id: product.id,
+    name: product.name,
+    icon: TrendingUp, // Default icon
+    maxAmount: `₦${parseFloat(product.max_amount.toString()).toLocaleString('en-NG')}`,
+    memberRate: `${product.interest_rate}%`,
+    nonMemberRate: `${product.interest_rate + 2}%`, // Estimate non-member rate
+    tenure: product.tenure_range || `${product.min_tenure_months}-${product.max_tenure_months} months`,
+    description: product.description || "",
+    eligibility: "both",
+    features: product.eligibility_criteria || [],
+  }))
+
+  const loanProducts = mappedProducts.length > 0 ? mappedProducts : [
     {
       id: 1,
       name: "Personal Loan",
@@ -75,18 +113,20 @@ export function LoanOfferings() {
     },
   ]
 
-  const filteredLoans = loanProducts.filter((loan) => {
-    const matchesSearch =
-      loan.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      loan.description.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredLoans = loanProducts
+    .filter((loan) => {
+      const matchesSearch =
+        loan.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        loan.description.toLowerCase().includes(searchQuery.toLowerCase())
 
-    const matchesCategory =
-      selectedCategory === "all" ||
-      (selectedCategory === "member" && loan.eligibility !== "non-member-only") ||
-      (selectedCategory === "non-member" && loan.eligibility !== "member-only")
+      const matchesCategory =
+        selectedCategory === "all" ||
+        (selectedCategory === "member" && loan.eligibility !== "non-member-only") ||
+        (selectedCategory === "non-member" && loan.eligibility !== "member-only")
 
-    return matchesSearch && matchesCategory
-  })
+      return matchesSearch && matchesCategory
+    })
+    .slice(0, config?.limit || 6)
 
   return (
     <section className="py-20 bg-background">
@@ -95,11 +135,11 @@ export function LoanOfferings() {
         <div className="text-center max-w-3xl mx-auto mb-12">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
             <TrendingUp className="h-4 w-4" />
-            Flexible Financing Options
+            {config?.title || "Flexible Financing Options"}
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Affordable Loan Products</h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">{config?.title || "Affordable Loan Products"}</h2>
           <p className="text-lg text-muted-foreground text-balance">
-            Access competitive loan products with flexible terms designed for FRSC personnel and the general public
+            {config?.subtitle || "Access competitive loan products with flexible terms designed for FRSC personnel and the general public"}
           </p>
         </div>
 
@@ -215,7 +255,7 @@ export function LoanOfferings() {
                   </div>
 
                   {/* CTA Button */}
-                  <Link href="/register" className="block">
+                  <Link href={`/register?ref=loan&product=${loan.id}`} className="block">
                     <Button className="w-full group-hover:bg-primary/90 transition-colors">
                       Apply Now
                       <ArrowRight className="ml-2 h-4 w-4" />

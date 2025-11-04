@@ -7,7 +7,11 @@ import { Building2, Menu, X } from "lucide-react"
 import { useWhiteLabel } from "@/lib/hooks/use-white-label"
 import Image from "next/image"
 
-export function LandingHeader() {
+interface LandingHeaderProps {
+  isTenantPage?: boolean
+}
+
+export function LandingHeader({ isTenantPage = true }: LandingHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { settings } = useWhiteLabel()
 

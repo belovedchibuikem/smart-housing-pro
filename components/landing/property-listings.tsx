@@ -6,55 +6,30 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { MapPin, Home, Maximize } from "lucide-react"
 
-const properties = [
-  {
-    id: 1,
-    name: "Luxury 3-Bedroom Apartment",
-    type: "House",
-    location: "Abuja, FCT",
-    price: 25000000,
-    size: "180 sqm",
-    bedrooms: 3,
-    bathrooms: 2,
-    image: "/modern-apartment-exterior.png",
-    featured: true,
-  },
-  {
-    id: 2,
-    name: "Prime Residential Land",
-    type: "Land",
-    location: "Lagos, Lekki",
-    price: 15000000,
-    size: "500 sqm",
-    image: "/residential-land-plot.jpg",
-    featured: true,
-  },
-  {
-    id: 3,
-    name: "4-Bedroom Duplex",
-    type: "House",
-    location: "Port Harcourt, Rivers",
-    price: 35000000,
-    size: "250 sqm",
-    bedrooms: 4,
-    bathrooms: 3,
-    image: "/modern-duplex.png",
-    featured: false,
-  },
-  {
-    id: 4,
-    name: "Commercial Land",
-    type: "Land",
-    location: "Abuja, Maitama",
-    price: 45000000,
-    size: "1000 sqm",
-    image: "/commercial-land.png",
-    featured: true,
-  },
-]
+interface Property {
+  id: string
+  name: string
+  type: string
+  location: string
+  price: number
+  size?: string
+  bedrooms?: number
+  bathrooms?: number
+  image?: string
+}
 
-export function PropertyListings() {
-  const featuredProperties = properties.filter((p) => p.featured).slice(0, 4)
+interface PropertyListingsProps {
+  properties?: Property[]
+  config?: {
+    title?: string
+    subtitle?: string
+    limit?: number
+  }
+}
+
+export function PropertyListings({ properties = [], config }: PropertyListingsProps) {
+  // Use provided properties or fallback to empty array
+  const displayProperties = properties.slice(0, config?.limit || 6)
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("en-NG", {
@@ -71,17 +46,18 @@ export function PropertyListings() {
         <div className="text-center max-w-2xl mx-auto mb-12">
           <Badge className="mb-4" variant="secondary">
             <Home className="h-3 w-3 mr-1" />
-            Featured Properties
+            {config?.title || "Featured Properties"}
           </Badge>
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Find Your Dream Property</h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">{config?.title || "Find Your Dream Property"}</h2>
           <p className="text-muted-foreground text-lg">
-            Browse our exclusive collection of properties across Nigeria. Quality homes and land at affordable prices.
+            {config?.subtitle || "Browse our exclusive collection of properties across Nigeria. Quality homes and land at affordable prices."}
           </p>
         </div>
 
         {/* Property Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {featuredProperties.map((property) => (
+        {displayProperties.length > 0 ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {displayProperties.map((property) => (
             <Card key={property.id} className="overflow-hidden hover:shadow-xl transition-shadow group">
               <div className="relative h-48 overflow-hidden">
                 <Image
@@ -90,7 +66,6 @@ export function PropertyListings() {
                   fill
                   className="object-cover group-hover:scale-110 transition-transform duration-300"
                 />
-                <Badge className="absolute top-3 right-3 bg-primary">Featured</Badge>
                 <Badge className="absolute top-3 left-3 bg-background/90 text-foreground">{property.type}</Badge>
               </div>
               <CardContent className="p-4 space-y-3">
@@ -120,17 +95,24 @@ export function PropertyListings() {
                 </Link>
               </CardFooter>
             </Card>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">No properties available at the moment.</p>
+          </div>
+        )}
 
         {/* View All Button */}
-        <div className="text-center">
-          <Link href="/properties">
-            <Button size="lg" variant="outline">
-              View All Properties
-            </Button>
-          </Link>
-        </div>
+        {displayProperties.length > 0 && (
+          <div className="text-center">
+            <Link href="/properties">
+              <Button size="lg" variant="outline">
+                View All Properties
+              </Button>
+            </Link>
+          </div>
+        )}
       </div>
     </section>
   )

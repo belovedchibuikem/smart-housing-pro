@@ -1,104 +1,160 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Search, Users, Home, MapPin, Eye, Download } from "lucide-react"
+import { Search, Users, Home, MapPin, Eye, Edit, Trash2, Loader2 } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
+import { getPropertyAllottees, getPropertyAllotteeStats, deletePropertyAllottee } from "@/lib/api/client"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+
+interface Allottee {
+  id: string
+  property: {
+    id: string
+    title: string
+    location: string
+    type: string
+  }
+  member: {
+    id: string
+    name: string
+    member_id: string
+    email: string
+  } | null
+  allocation_date: string
+  status: string
+  notes?: string
+  rejection_reason?: string
+  created_at: string
+}
 
 export default function ManageAllotteesPage() {
+  const [allottees, setAllottees] = useState<Allottee[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedAllottee, setSelectedAllottee] = useState<any>(null)
+  const [statusFilter, setStatusFilter] = useState("all")
+  const [selectedAllottee, setSelectedAllottee] = useState<Allottee | null>(null)
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; allotteeId: string | null }>({ open: false, allotteeId: null })
+  const [stats, setStats] = useState({ total_allottees: 0, approved_allottees: 0, pending_allottees: 0, rejected_allottees: 0 })
+  const router = useRouter()
+  const { toast } = useToast()
 
-  const allottees = [
-    {
-      id: "ALL-001",
-      memberNo: "MEM-001",
-      name: "John Doe",
-      email: "john.doe@example.com",
-      phone: "+234 801 234 5678",
-      estate: "FRSC Estate Phase 1",
-      plotNumber: "A-12",
-      houseType: "3 Bedroom Bungalow",
-      allocationDate: "Jan 15, 2023",
-      completionStatus: "Completed",
-      occupancyStatus: "Occupied",
-      paymentStatus: "Fully Paid",
-      totalCost: 15000000,
-      amountPaid: 15000000,
-    },
-    {
-      id: "ALL-002",
-      memberNo: "MEM-002",
-      name: "Jane Smith",
-      email: "jane.smith@example.com",
-      phone: "+234 802 345 6789",
-      estate: "FRSC Estate Phase 2",
-      plotNumber: "B-25",
-      houseType: "4 Bedroom Duplex",
-      allocationDate: "Mar 20, 2023",
-      completionStatus: "Under Construction",
-      occupancyStatus: "Pending",
-      paymentStatus: "Partial",
-      totalCost: 25000000,
-      amountPaid: 18000000,
-    },
-    {
-      id: "ALL-003",
-      memberNo: "MEM-003",
-      name: "Michael Johnson",
-      email: "michael.j@example.com",
-      phone: "+234 803 456 7890",
-      estate: "FRSC Estate Phase 1",
-      plotNumber: "C-08",
-      houseType: "2 Bedroom Flat",
-      allocationDate: "Feb 10, 2023",
-      completionStatus: "Completed",
-      occupancyStatus: "Occupied",
-      paymentStatus: "Fully Paid",
-      totalCost: 10000000,
-      amountPaid: 10000000,
-    },
-  ]
+  useEffect(() => {
+    fetchAllottees()
+    fetchStats()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, statusFilter])
 
-  const handleViewDetails = (allottee: any) => {
+  const fetchAllottees = async () => {
+    try {
+      setLoading(true)
+      const params: any = {}
+      if (searchQuery) params.search = searchQuery
+      if (statusFilter !== 'all') params.status = statusFilter
+      
+      const response = await getPropertyAllottees(params)
+      if (response.success) {
+        setAllottees(response.data || [])
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch allottees",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchStats = async () => {
+    try {
+      const response = await getPropertyAllotteeStats()
+      if (response.success) {
+        setStats(response.data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch stats", error)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteDialog.allotteeId) return
+    
+    try {
+      const response = await deletePropertyAllottee(deleteDialog.allotteeId)
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: response.message || "Allottee deleted successfully",
+        })
+        fetchAllottees()
+        fetchStats()
+        setDeleteDialog({ open: false, allotteeId: null })
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to delete allottee",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleViewDetails = (allottee: Allottee) => {
     setSelectedAllottee(allottee)
     setShowDetailsDialog(true)
   }
 
-  const filteredAllottees = allottees.filter(
-    (allottee) =>
-      allottee.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      allottee.memberNo.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      allottee.estate.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      allottee.plotNumber.toLowerCase().includes(searchQuery.toLowerCase()),
-  )
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case "approved":
+        return "default"
+      case "pending":
+        return "secondary"
+      case "rejected":
+        return "destructive"
+      default:
+        return "outline"
+    }
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Manage Allottees</h1>
-          <p className="text-muted-foreground mt-1">View and manage property allottees</p>
+          <p className="text-muted-foreground mt-1">View and manage property allocations</p>
         </div>
-        <Button>
-          <Download className="h-4 w-4 mr-2" />
-          Export Allottees
+        <Button onClick={() => router.push('/admin/property-management/allottees/new')}>
+          <Users className="h-4 w-4 mr-2" />
+          Add New Allottee
         </Button>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm text-muted-foreground">Total Allottees</div>
-                <div className="text-2xl font-bold">{allottees.length}</div>
+                <div className="text-2xl font-bold">{stats.total_allottees}</div>
               </div>
               <Users className="h-8 w-8 text-muted-foreground" />
             </div>
@@ -108,10 +164,8 @@ export default function ManageAllotteesPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-muted-foreground">Occupied</div>
-                <div className="text-2xl font-bold">
-                  {allottees.filter((a) => a.occupancyStatus === "Occupied").length}
-                </div>
+                <div className="text-sm text-muted-foreground">Approved</div>
+                <div className="text-2xl font-bold text-green-600">{stats.approved_allottees}</div>
               </div>
               <Home className="h-8 w-8 text-muted-foreground" />
             </div>
@@ -121,12 +175,10 @@ export default function ManageAllotteesPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-muted-foreground">Fully Paid</div>
-                <div className="text-2xl font-bold">
-                  {allottees.filter((a) => a.paymentStatus === "Fully Paid").length}
-                </div>
+                <div className="text-sm text-muted-foreground">Pending</div>
+                <div className="text-2xl font-bold text-yellow-600">{stats.pending_allottees}</div>
               </div>
-              <Home className="h-8 w-8 text-muted-foreground" />
+              <MapPin className="h-8 w-8 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
@@ -134,12 +186,10 @@ export default function ManageAllotteesPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-muted-foreground">Under Construction</div>
-                <div className="text-2xl font-bold">
-                  {allottees.filter((a) => a.completionStatus === "Under Construction").length}
-                </div>
+                <div className="text-sm text-muted-foreground">Rejected</div>
+                <div className="text-2xl font-bold text-red-600">{stats.rejected_allottees}</div>
               </div>
-              <Home className="h-8 w-8 text-muted-foreground" />
+              <Users className="h-8 w-8 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
@@ -150,72 +200,97 @@ export default function ManageAllotteesPage() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>All Allottees</CardTitle>
-              <CardDescription>Manage property allocations and allottee information</CardDescription>
+              <CardDescription>Complete list of property allocations</CardDescription>
             </div>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search allottees..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 w-[300px]"
-              />
+            <div className="flex items-center gap-4">
+              <div className="relative w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search allottees..." 
+                  className="pl-9"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-40 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Member No</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Estate</TableHead>
-                <TableHead>Plot No</TableHead>
-                <TableHead>House Type</TableHead>
-                <TableHead>Completion</TableHead>
-                <TableHead>Payment</TableHead>
-                <TableHead>Occupancy</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredAllottees.map((allottee) => (
-                <TableRow key={allottee.id}>
-                  <TableCell className="font-medium">{allottee.memberNo}</TableCell>
-                  <TableCell>{allottee.name}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      {allottee.estate}
-                    </div>
-                  </TableCell>
-                  <TableCell>{allottee.plotNumber}</TableCell>
-                  <TableCell>{allottee.houseType}</TableCell>
-                  <TableCell>
-                    <Badge variant={allottee.completionStatus === "Completed" ? "default" : "secondary"}>
-                      {allottee.completionStatus}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={allottee.paymentStatus === "Fully Paid" ? "default" : "secondary"}>
-                      {allottee.paymentStatus}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={allottee.occupancyStatus === "Occupied" ? "default" : "secondary"}>
-                      {allottee.occupancyStatus}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="outline" size="sm" onClick={() => handleViewDetails(allottee)}>
-                      <Eye className="h-4 w-4 mr-1" />
-                      View Details
-                    </Button>
-                  </TableCell>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : allottees.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              No allottees found
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Member</TableHead>
+                  <TableHead>Property</TableHead>
+                  <TableHead>Allocation Date</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {allottees.map((allottee) => (
+                  <TableRow key={allottee.id}>
+                    <TableCell>
+                      {allottee.member ? (
+                        <div>
+                          <div className="font-medium">{allottee.member.name}</div>
+                          <div className="text-sm text-muted-foreground">{allottee.member.member_id}</div>
+                          <div className="text-sm text-muted-foreground">{allottee.member.email}</div>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <div className="font-medium">{allottee.property.title}</div>
+                        <div className="text-sm text-muted-foreground">{allottee.property.location}</div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {allottee.allocation_date ? new Date(allottee.allocation_date).toLocaleDateString() : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getStatusBadgeVariant(allottee.status)}>
+                        {allottee.status.charAt(0).toUpperCase() + allottee.status.slice(1)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="icon" onClick={() => handleViewDetails(allottee)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => router.push(`/admin/property-management/allottees/${allottee.id}/edit`)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => setDeleteDialog({ open: true, allotteeId: allottee.id })}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
@@ -223,114 +298,81 @@ export default function ManageAllotteesPage() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Allottee Details</DialogTitle>
-            <DialogDescription>Complete information about the allottee and their property</DialogDescription>
+            <DialogDescription>Complete information about this property allocation</DialogDescription>
           </DialogHeader>
-
           {selectedAllottee && (
-            <div className="space-y-6">
-              <div className="border-b pb-4">
-                <h4 className="font-semibold mb-3">Personal Information</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm text-muted-foreground">Member Number</label>
-                    <p className="font-semibold">{selectedAllottee.memberNo}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm text-muted-foreground">Full Name</label>
-                    <p className="font-semibold">{selectedAllottee.name}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm text-muted-foreground">Email</label>
-                    <p className="font-semibold">{selectedAllottee.email}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm text-muted-foreground">Phone</label>
-                    <p className="font-semibold">{selectedAllottee.phone}</p>
-                  </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium">Member Name</p>
+                  <p className="text-sm text-muted-foreground">{selectedAllottee.member?.name || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Member ID</p>
+                  <p className="text-sm text-muted-foreground">{selectedAllottee.member?.member_id || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Email</p>
+                  <p className="text-sm text-muted-foreground">{selectedAllottee.member?.email || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Property</p>
+                  <p className="text-sm text-muted-foreground">{selectedAllottee.property.title}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Location</p>
+                  <p className="text-sm text-muted-foreground">{selectedAllottee.property.location}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Property Type</p>
+                  <p className="text-sm text-muted-foreground">{selectedAllottee.property.type}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Allocation Date</p>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedAllottee.allocation_date ? new Date(selectedAllottee.allocation_date).toLocaleDateString() : '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Status</p>
+                  <Badge variant={getStatusBadgeVariant(selectedAllottee.status)}>
+                    {selectedAllottee.status.charAt(0).toUpperCase() + selectedAllottee.status.slice(1)}
+                  </Badge>
                 </div>
               </div>
-
-              <div className="border-b pb-4">
-                <h4 className="font-semibold mb-3">Property Information</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm text-muted-foreground">Estate</label>
-                    <p className="font-semibold">{selectedAllottee.estate}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm text-muted-foreground">Plot Number</label>
-                    <p className="font-semibold">{selectedAllottee.plotNumber}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm text-muted-foreground">House Type</label>
-                    <p className="font-semibold">{selectedAllottee.houseType}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm text-muted-foreground">Allocation Date</label>
-                    <p className="font-semibold">{selectedAllottee.allocationDate}</p>
-                  </div>
+              {selectedAllottee.notes && (
+                <div>
+                  <p className="text-sm font-medium">Notes</p>
+                  <p className="text-sm text-muted-foreground">{selectedAllottee.notes}</p>
                 </div>
-              </div>
-
-              <div className="border-b pb-4">
-                <h4 className="font-semibold mb-3">Status</h4>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-sm text-muted-foreground">Completion</label>
-                    <Badge variant={selectedAllottee.completionStatus === "Completed" ? "default" : "secondary"}>
-                      {selectedAllottee.completionStatus}
-                    </Badge>
-                  </div>
-                  <div>
-                    <label className="text-sm text-muted-foreground">Payment</label>
-                    <Badge variant={selectedAllottee.paymentStatus === "Fully Paid" ? "default" : "secondary"}>
-                      {selectedAllottee.paymentStatus}
-                    </Badge>
-                  </div>
-                  <div>
-                    <label className="text-sm text-muted-foreground">Occupancy</label>
-                    <Badge variant={selectedAllottee.occupancyStatus === "Occupied" ? "default" : "secondary"}>
-                      {selectedAllottee.occupancyStatus}
-                    </Badge>
-                  </div>
+              )}
+              {selectedAllottee.rejection_reason && (
+                <div>
+                  <p className="text-sm font-medium">Rejection Reason</p>
+                  <p className="text-sm text-red-600">{selectedAllottee.rejection_reason}</p>
                 </div>
-              </div>
-
-              <div>
-                <h4 className="font-semibold mb-3">Payment Information</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-muted rounded-lg">
-                    <p className="text-sm text-muted-foreground">Total Cost</p>
-                    <p className="text-2xl font-bold">₦{selectedAllottee.totalCost.toLocaleString()}</p>
-                  </div>
-                  <div className="p-4 bg-green-50 rounded-lg">
-                    <p className="text-sm text-muted-foreground">Amount Paid</p>
-                    <p className="text-2xl font-bold text-green-600">₦{selectedAllottee.amountPaid.toLocaleString()}</p>
-                  </div>
-                </div>
-                {selectedAllottee.totalCost > selectedAllottee.amountPaid && (
-                  <div className="mt-4 p-4 bg-orange-50 rounded-lg">
-                    <p className="text-sm text-muted-foreground">Outstanding Balance</p>
-                    <p className="text-2xl font-bold text-orange-600">
-                      ₦{(selectedAllottee.totalCost - selectedAllottee.amountPaid).toLocaleString()}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex gap-2 pt-4">
-                <Button className="flex-1">View Payment History</Button>
-                <Button variant="outline" className="flex-1 bg-transparent">
-                  Download Documents
-                </Button>
-                <Button variant="outline" className="flex-1 bg-transparent">
-                  Send Notification
-                </Button>
-              </div>
+              )}
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialog.open} onOpenChange={(open) => setDeleteDialog({ open, allotteeId: null })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Allottee</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this allottee record? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

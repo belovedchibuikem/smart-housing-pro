@@ -9,13 +9,13 @@
   --card-foreground: oklch(0.2 0 0); /* Near black */
   --popover: oklch(1 0 0); /* White */
   --popover-foreground: oklch(0.2 0 0); /* Near black */
-  --primary: oklch(0.75 0.15 75); /* #FDB11E - Bright Gold */
+  --primary: oklch(0.75 0.15 75); /* #FDB11E - Bright Gold - Can be overridden by theme */
   --primary-foreground: oklch(0.15 0 0); /* Dark text on gold */
-  --secondary: oklch(0.42 0.06 180); /* #276254 - Teal Green */
+  --secondary: oklch(0.42 0.06 180); /* #276254 - Teal Green - Can be overridden by theme */
   --secondary-foreground: oklch(1 0 0); /* White text on teal */
   --muted: oklch(0.96 0.005 75); /* Very light warm gray */
   --muted-foreground: oklch(0.5 0.01 75); /* Medium gray */
-  --accent: oklch(0.5 0.08 180); /* Lighter teal accent */
+  --accent: oklch(0.5 0.08 180); /* Lighter teal accent - Can be overridden by theme */
   --accent-foreground: oklch(1 0 0); /* White text on teal */
   --destructive: oklch(0.55 0.22 25); /* Red */
   --destructive-foreground: oklch(1 0 0); /* White text on red */

@@ -1,38 +1,77 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Eye, Download } from "lucide-react"
+import { Search, Eye, Loader2 } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
+import { getStatutoryChargePayments } from "@/lib/api/client"
+
+interface Payment {
+  id: string
+  statutory_charge_id: string
+  statutory_charge?: {
+    id: string
+    type: string
+    member?: {
+      user?: {
+        first_name: string
+        last_name: string
+      }
+    }
+  }
+  amount: number
+  payment_method: string
+  reference?: string
+  status: string
+  paid_at: string
+}
 
 export default function PaymentRecordsPage() {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [payments, setPayments] = useState<Payment[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState("")
+  const router = useRouter()
+  const { toast } = useToast()
 
-  const payments = [
-    {
-      id: "PAY-2024-001",
-      chargeId: "SC-2024-001",
-      property: "3 Bedroom Duplex - Abuja",
-      owner: "John Adebayo",
-      amount: "₦50,000",
-      paymentMethod: "Bank Transfer",
-      paymentDate: "2024-03-10",
-      status: "verified",
-    },
-    {
-      id: "PAY-2024-002",
-      chargeId: "SC-2024-004",
-      property: "4 Bedroom Bungalow - Kano",
-      owner: "Fatima Yusuf",
-      amount: "₦35,000",
-      paymentMethod: "Card",
-      paymentDate: "2024-03-12",
-      status: "verified",
-    },
-  ]
+  useEffect(() => {
+    fetchPayments()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const fetchPayments = async () => {
+    try {
+      setLoading(true)
+      const response = await getStatutoryChargePayments({})
+      if (response.success) {
+        setPayments(response.data || [])
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch payment records",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filteredPayments = payments.filter(payment => {
+    if (!searchQuery) return true
+    const search = searchQuery.toLowerCase()
+    return (
+      payment.id.toLowerCase().includes(search) ||
+      payment.reference?.toLowerCase().includes(search) ||
+      payment.payment_method.toLowerCase().includes(search) ||
+      payment.statutory_charge?.type.toLowerCase().includes(search) ||
+      `${payment.statutory_charge?.member?.user?.first_name} ${payment.statutory_charge?.member?.user?.last_name}`.toLowerCase().includes(search)
+    )
+  })
 
   return (
     <main className="flex-1 p-6 lg:p-8">
@@ -51,52 +90,70 @@ export default function PaymentRecordsPage() {
               </div>
               <div className="relative w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search payments..." className="pl-9" />
+                <Input 
+                  placeholder="Search payments..." 
+                  className="pl-9"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Payment ID</TableHead>
-                  <TableHead>Charge ID</TableHead>
-                  <TableHead>Property</TableHead>
-                  <TableHead>Owner</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Payment Method</TableHead>
-                  <TableHead>Payment Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {payments.map((payment) => (
-                  <TableRow key={payment.id}>
-                    <TableCell className="font-medium">{payment.id}</TableCell>
-                    <TableCell>{payment.chargeId}</TableCell>
-                    <TableCell>{payment.property}</TableCell>
-                    <TableCell>{payment.owner}</TableCell>
-                    <TableCell className="font-semibold">{payment.amount}</TableCell>
-                    <TableCell>{payment.paymentMethod}</TableCell>
-                    <TableCell className="text-sm">{payment.paymentDate}</TableCell>
-                    <TableCell>
-                      <Badge variant="default">{payment.status}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : filteredPayments.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                No payment records found
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Payment ID</TableHead>
+                    <TableHead>Charge Type</TableHead>
+                    <TableHead>Member</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Payment Method</TableHead>
+                    <TableHead>Reference</TableHead>
+                    <TableHead>Payment Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredPayments.map((payment) => (
+                    <TableRow key={payment.id}>
+                      <TableCell className="font-medium">{payment.id.substring(0, 8)}...</TableCell>
+                      <TableCell>{payment.statutory_charge?.type || '—'}</TableCell>
+                      <TableCell>
+                        {payment.statutory_charge?.member?.user 
+                          ? `${payment.statutory_charge.member.user.first_name} ${payment.statutory_charge.member.user.last_name}`
+                          : '—'}
+                      </TableCell>
+                      <TableCell className="font-semibold">₦{payment.amount.toLocaleString()}</TableCell>
+                      <TableCell>{payment.payment_method}</TableCell>
+                      <TableCell>{payment.reference || '—'}</TableCell>
+                      <TableCell className="text-sm">
+                        {payment.paid_at ? new Date(payment.paid_at).toLocaleDateString() : '—'}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={payment.status === 'completed' ? 'default' : payment.status === 'pending' ? 'secondary' : 'destructive'}>
+                          {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" onClick={() => router.push(`/admin/statutory-charges/${payment.statutory_charge_id}`)}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon">
-                          <Download className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
           </CardContent>
         </Card>
       </div>

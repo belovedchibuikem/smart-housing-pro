@@ -12,8 +12,9 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Switch } from "@/components/ui/switch"
 import { Palette, Type, ImageIcon, Mail, FileText, Save, Upload, X, Code, LinkIcon, AlertCircle } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { toast as sonnerToast } from "sonner"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { apiFetch } from "@/lib/api/client"
 
 interface WhiteLabelSettings {
   id?: string
@@ -81,9 +82,9 @@ const MODULE_OPTIONS = [
 ]
 
 export default function WhiteLabelPage() {
-  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [uploading, setUploading] = useState<Record<string, boolean>>({})
   const [settings, setSettings] = useState<WhiteLabelSettings>({
     company_name: "",
     company_tagline: "",
@@ -123,17 +124,14 @@ export default function WhiteLabelPage() {
 
   const fetchSettings = async () => {
     try {
-      const response = await fetch("/api/admin/white-label")
-      const data = await response.json()
+      const data = await apiFetch<{ settings: WhiteLabelSettings }>("/admin/white-label")
       if (data.settings) {
         setSettings(data.settings)
       }
-    } catch (error) {
-      console.error("[v0] Error fetching white label settings:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load white label settings",
-        variant: "destructive",
+    } catch (error: any) {
+      console.error("Error fetching white label settings:", error)
+      sonnerToast.error("Failed to load white label settings", {
+        description: error.message || "Please try again later"
       })
     } finally {
       setLoading(false)
@@ -143,32 +141,90 @@ export default function WhiteLabelPage() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      const response = await fetch("/api/admin/white-label", {
+      const data = await apiFetch("/admin/white-label", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings),
+        body: settings,
       })
 
-      const data = await response.json()
-
       if (data.success) {
-        toast({
-          title: "Success",
-          description: "White label settings saved successfully",
+        sonnerToast.success("White label settings saved successfully", {
+          description: "Your changes have been applied to the platform"
         })
-        fetchSettings()
+        await fetchSettings()
       } else {
-        throw new Error(data.error)
+        throw new Error(data.message || "Failed to save settings")
       }
-    } catch (error) {
-      console.error("[v0] Error saving white label settings:", error)
-      toast({
-        title: "Error",
-        description: "Failed to save white label settings",
-        variant: "destructive",
+    } catch (error: any) {
+      console.error("Error saving white label settings:", error)
+      sonnerToast.error("Failed to save white label settings", {
+        description: error.message || "Please check your input and try again"
       })
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleFileUpload = async (file: File, uploadType: string) => {
+    const formData = new FormData()
+    const fieldName = uploadType === 'logo' ? 'logo' : 
+                     uploadType === 'logo_dark' ? 'logo_dark' :
+                     uploadType === 'favicon' ? 'favicon' :
+                     uploadType === 'login_background' ? 'login_background' :
+                     uploadType === 'dashboard_hero' ? 'dashboard_hero' :
+                     'email_logo'
+    
+    formData.append(fieldName, file)
+    
+    setUploading(prev => ({ ...prev, [uploadType]: true }))
+    
+    try {
+      const endpoint = uploadType === 'logo' ? '/admin/white-label/upload-logo' :
+                      uploadType === 'logo_dark' ? '/admin/white-label/upload-logo-dark' :
+                      uploadType === 'favicon' ? '/admin/white-label/upload-favicon' :
+                      uploadType === 'login_background' ? '/admin/white-label/upload-login-background' :
+                      uploadType === 'dashboard_hero' ? '/admin/white-label/upload-dashboard-hero' :
+                      '/admin/white-label/upload-email-logo'
+      
+      // Use apiFetch with FormData
+      const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
+      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '/api'
+      
+      const response = await fetch(`${apiUrl}${endpoint}`, {
+        method: 'POST',
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+        },
+        body: formData,
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.message || `Upload failed: ${response.statusText}`)
+      }
+      
+      if (data.success) {
+        const urlField = uploadType === 'logo' ? 'logo_url' :
+                        uploadType === 'logo_dark' ? 'logo_dark_url' :
+                        uploadType === 'favicon' ? 'favicon_url' :
+                        uploadType === 'login_background' ? 'login_background_url' :
+                        uploadType === 'dashboard_hero' ? 'dashboard_hero_url' :
+                        'email_logo_url'
+        
+        updateSettings({ [urlField]: data[urlField] })
+        sonnerToast.success("File uploaded successfully", {
+          description: data.message
+        })
+      } else {
+        throw new Error(data.message || "Upload failed")
+      }
+    } catch (error: any) {
+      console.error(`Error uploading ${uploadType}:`, error)
+      sonnerToast.error("Upload failed", {
+        description: error.message || "Please try again"
+      })
+    } finally {
+      setUploading(prev => ({ ...prev, [uploadType]: false }))
     }
   }
 
@@ -315,9 +371,31 @@ export default function WhiteLabelPage() {
                     value={settings.logo_url}
                     onChange={(e) => updateSettings({ logo_url: e.target.value })}
                   />
-                  <Button variant="outline" size="icon">
-                    <Upload className="h-4 w-4" />
-                  </Button>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      id="logo-upload"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleFileUpload(file, 'logo')
+                      }}
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      type="button"
+                      disabled={uploading.logo}
+                      onClick={() => document.getElementById('logo-upload')?.click()}
+                    >
+                      {uploading.logo ? (
+                        <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
                 {settings.logo_url && (
                   <div className="mt-2 p-4 border rounded-lg bg-muted">
@@ -339,9 +417,31 @@ export default function WhiteLabelPage() {
                     value={settings.logo_dark_url}
                     onChange={(e) => updateSettings({ logo_dark_url: e.target.value })}
                   />
-                  <Button variant="outline" size="icon">
-                    <Upload className="h-4 w-4" />
-                  </Button>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      id="logo-dark-upload"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleFileUpload(file, 'logo_dark')
+                      }}
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      type="button"
+                      disabled={uploading.logo_dark}
+                      onClick={() => document.getElementById('logo-dark-upload')?.click()}
+                    >
+                      {uploading.logo_dark ? (
+                        <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -354,9 +454,31 @@ export default function WhiteLabelPage() {
                     value={settings.favicon_url}
                     onChange={(e) => updateSettings({ favicon_url: e.target.value })}
                   />
-                  <Button variant="outline" size="icon">
-                    <Upload className="h-4 w-4" />
-                  </Button>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/x-icon,image/png"
+                      className="hidden"
+                      id="favicon-upload"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleFileUpload(file, 'favicon')
+                      }}
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      type="button"
+                      disabled={uploading.favicon}
+                      onClick={() => document.getElementById('favicon-upload')?.click()}
+                    >
+                      {uploading.favicon ? (
+                        <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -371,9 +493,31 @@ export default function WhiteLabelPage() {
                     value={settings.login_background_url}
                     onChange={(e) => updateSettings({ login_background_url: e.target.value })}
                   />
-                  <Button variant="outline" size="icon">
-                    <Upload className="h-4 w-4" />
-                  </Button>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      id="login-bg-upload"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleFileUpload(file, 'login_background')
+                      }}
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      type="button"
+                      disabled={uploading.login_background}
+                      onClick={() => document.getElementById('login-bg-upload')?.click()}
+                    >
+                      {uploading.login_background ? (
+                        <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
 
@@ -386,9 +530,31 @@ export default function WhiteLabelPage() {
                     value={settings.dashboard_hero_url}
                     onChange={(e) => updateSettings({ dashboard_hero_url: e.target.value })}
                   />
-                  <Button variant="outline" size="icon">
-                    <Upload className="h-4 w-4" />
-                  </Button>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      id="dashboard-hero-upload"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleFileUpload(file, 'dashboard_hero')
+                      }}
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      type="button"
+                      disabled={uploading.dashboard_hero}
+                      onClick={() => document.getElementById('dashboard-hero-upload')?.click()}
+                    >
+                      {uploading.dashboard_hero ? (
+                        <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -627,9 +793,31 @@ export default function WhiteLabelPage() {
                     value={settings.email_logo_url}
                     onChange={(e) => updateSettings({ email_logo_url: e.target.value })}
                   />
-                  <Button variant="outline" size="icon">
-                    <Upload className="h-4 w-4" />
-                  </Button>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      id="email-logo-upload"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) handleFileUpload(file, 'email_logo')
+                      }}
+                    />
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      type="button"
+                      disabled={uploading.email_logo}
+                      onClick={() => document.getElementById('email-logo-upload')?.click()}
+                    >
+                      {uploading.email_logo ? (
+                        <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                      ) : (
+                        <Upload className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
 

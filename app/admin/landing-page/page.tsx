@@ -11,9 +11,12 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Eye, Settings, Layout, Palette, Save, Globe, Plus, GripVertical, Trash2, Edit } from "lucide-react"
+import { Eye, Settings, Layout, Palette, Save, Globe, Plus, GripVertical, Trash2, Edit, RefreshCw } from "lucide-react"
 import Link from "next/link"
-import { useToast } from "@/hooks/use-toast"
+import { useRouter } from "next/navigation"
+import { toast as sonnerToast } from "sonner"
+import { apiFetch } from "@/lib/api/client"
+import { useTenant } from "@/lib/tenant/tenant-context"
 import {
   Dialog,
   DialogContent,
@@ -34,6 +37,7 @@ interface PageSection {
 
 interface LandingPageData {
   id?: string
+  template_id?: string
   is_published: boolean
   sections: PageSection[]
   theme: {
@@ -62,10 +66,11 @@ const SECTION_TYPES = [
 ]
 
 export default function LandingPageBuilderPage() {
-  const { toast } = useToast()
+  const { tenant } = useTenant()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [pageData, setPageData] = useState<LandingPageData>({
+    template_id: "default",
     is_published: false,
     sections: [],
     theme: {
@@ -83,56 +88,535 @@ export default function LandingPageBuilderPage() {
   const [activeSection, setActiveSection] = useState<string | null>(null)
   const [draggedSection, setDraggedSection] = useState<string | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
+  const [availableItems, setAvailableItems] = useState<{
+    loans: Array<{ id: string; name: string; description?: string }>
+    investments: Array<{ id: string; name: string; description?: string }>
+    properties: Array<{ id: string; name: string; type?: string; location?: string; price?: number }>
+  } | null>(null)
+  const [loadingItems, setLoadingItems] = useState(false)
+  const router = useRouter()
+
+  // Get preview URL based on tenant context
+  const getPreviewUrl = (): string => {
+    if (typeof window === 'undefined') return '/'
+    
+    const hostname = window.location.hostname
+    const protocol = window.location.protocol
+    const port = window.location.port ? `:${window.location.port}` : ''
+    
+    // Check if we're in development mode
+    const isDevelopment = hostname === 'localhost' || hostname === '127.0.0.1'
+    
+    // Get tenant slug from tenant context or URL
+    let tenantSlug: string | null = null
+    
+    if (tenant?.slug) {
+      tenantSlug = tenant.slug
+    } else {
+      // Try to extract from current URL
+      const currentHost = window.location.host
+      const parts = currentHost.split('.')
+      
+      // Check if it's a subdomain (e.g., tenant1.localhost:3000)
+      if (isDevelopment && parts.length > 1 && parts[0] !== 'localhost' && parts[0] !== '127') {
+        tenantSlug = parts[0]
+      } else if (!isDevelopment && parts.length > 2) {
+        // Production: tenant.platform.com
+        tenantSlug = parts[0]
+      }
+      
+      // Check for tenant query param in development
+      if (!tenantSlug && isDevelopment) {
+        const urlParams = new URLSearchParams(window.location.search)
+        tenantSlug = urlParams.get('tenant')
+      }
+    }
+    
+    // Construct preview URL
+    if (tenantSlug && isDevelopment) {
+      // Development: tenant1.localhost:3000 or localhost:3000?tenant=tenant1
+      return `${protocol}//${tenantSlug}.localhost${port}/`
+    } else if (tenantSlug && !isDevelopment) {
+      // Production: tenant.platform.com
+      const domainParts = hostname.split('.')
+      const baseDomain = domainParts.slice(-2).join('.') // Get platform.com
+      return `${protocol}//${tenantSlug}.${baseDomain}${port}/`
+    } else if (tenant?.custom_domain) {
+      // Use custom domain if available
+      return `${protocol}//${tenant.custom_domain}${port}/`
+    }
+    
+    // Fallback to root
+    return '/'
+  }
+
+  // Template definitions (same as templates page)
+  const templates = [
+    {
+      id: "default",
+      name: "Default",
+      description: "Original FRSC Housing Management landing page design",
+      sections: [
+        {
+          type: "hero",
+          name: "Hero Section",
+          config: {
+            title: "Your Path to Homeownership Made Simple",
+            subtitle: "Join the FRSC Housing Cooperative and start your journey to owning your dream home.",
+            cta_text: "Become a Member",
+            cta_link: "/register",
+            show_stats: true,
+          },
+        },
+        {
+          type: "properties",
+          name: "Properties",
+          config: {
+            title: "Available Properties",
+            subtitle: "Explore our curated selection of properties",
+            limit: 6,
+          },
+        },
+        {
+          type: "investments",
+          name: "Investment Opportunities",
+          config: {
+            title: "Investment Opportunities",
+            subtitle: "Grow your wealth with our investment plans",
+            limit: 6,
+          },
+        },
+        {
+          type: "loans",
+          name: "Loan Products",
+          config: {
+            title: "Loan Products",
+            subtitle: "Flexible loan options for all your needs",
+            limit: 6,
+          },
+        },
+        {
+          type: "features",
+          name: "Features",
+          config: {
+            title: "Everything You Need",
+            subtitle: "Comprehensive tools to manage your housing cooperative membership",
+            features: [
+              { icon: "Users", title: "Member Management", description: "Complete KYC verification and member profiles" },
+              { icon: "Wallet", title: "Contribution Tracking", description: "Automated payment collection and history" },
+              { icon: "TrendingUp", title: "Loan Management", description: "Flexible loan products and repayment tracking" },
+              { icon: "Building2", title: "Property Management", description: "Property listings and allotment tracking" },
+            ],
+          },
+        },
+        {
+          type: "how-it-works",
+          name: "How It Works",
+          config: {
+            title: "How It Works",
+            subtitle: "Simple steps to get started",
+            steps: [
+              { step: 1, title: "Register", description: "Create your account and complete KYC" },
+              { step: 2, title: "Contribute", description: "Start making regular contributions" },
+              { step: 3, title: "Apply", description: "Apply for loans or investments" },
+              { step: 4, title: "Benefit", description: "Enjoy housing and financial benefits" },
+            ],
+          },
+        },
+        {
+          type: "stats",
+          name: "Statistics",
+          config: {
+            title: "Our Impact",
+            subtitle: "Numbers that matter",
+            stats: [
+              { label: "Active Members", value: "0", icon: "Users" },
+              { label: "Properties Available", value: "0", icon: "Building2" },
+              { label: "Total Loans Disbursed", value: "₦0", icon: "TrendingUp" },
+              { label: "Member Satisfaction", value: "98%", icon: "Shield" },
+            ],
+          },
+        },
+        {
+          type: "cta",
+          name: "Call to Action",
+          config: {
+            title: "Ready to Start Your Homeownership Journey?",
+            description: "Join thousands of members who are building their future",
+            cta_text: "Register Now",
+            cta_link: "/register",
+          },
+        },
+      ],
+      theme: {
+        primary_color: "#FDB11E",
+        secondary_color: "#276254",
+        accent_color: "#10b981",
+        font_family: "Inter",
+      },
+    },
+    {
+      id: "modern",
+      name: "Modern",
+      description: "Clean and modern design with bold typography and vibrant colors",
+      sections: [
+        {
+          type: "hero",
+          name: "Hero Section",
+          config: {
+            title: "Transform Your Future with Smart Housing Solutions",
+            subtitle: "Experience the future of cooperative housing with cutting-edge technology and seamless member services.",
+            cta_text: "Get Started Today",
+            cta_link: "/register",
+            show_stats: false,
+          },
+        },
+        {
+          type: "features",
+          name: "Features",
+          config: {
+            title: "Powerful Features for Modern Living",
+            subtitle: "Everything you need in one comprehensive platform",
+            features: [
+              { icon: "Zap", title: "Lightning Fast", description: "Instant processing and real-time updates" },
+              { icon: "Shield", title: "Secure & Safe", description: "Bank-level security for all transactions" },
+              { icon: "BarChart3", title: "Smart Analytics", description: "Data-driven insights for better decisions" },
+              { icon: "Smartphone", title: "Mobile First", description: "Access everything from your mobile device" },
+            ],
+          },
+        },
+        {
+          type: "properties",
+          name: "Properties",
+          config: {
+            title: "Premium Properties",
+            subtitle: "Discover your next home from our premium collection",
+            limit: 4,
+          },
+        },
+        {
+          type: "investments",
+          name: "Investment Opportunities",
+          config: {
+            title: "Smart Investment Plans",
+            subtitle: "Maximize returns with our curated investment opportunities",
+            limit: 3,
+          },
+        },
+        {
+          type: "stats",
+          name: "Statistics",
+          config: {
+            title: "By The Numbers",
+            subtitle: "See what we've achieved together",
+            stats: [
+              { label: "Happy Members", value: "0", icon: "Users" },
+              { label: "Properties Listed", value: "0", icon: "Building2" },
+              { label: "Loans Approved", value: "₦0", icon: "TrendingUp" },
+              { label: "Investment Returns", value: "0%", icon: "BarChart3" },
+            ],
+          },
+        },
+        {
+          type: "cta",
+          name: "Call to Action",
+          config: {
+            title: "Ready to Join the Future of Housing?",
+            description: "Start your journey today and experience the difference",
+            cta_text: "Sign Up Now",
+            cta_link: "/register",
+          },
+        },
+      ],
+      theme: {
+        primary_color: "#3b82f6",
+        secondary_color: "#1e40af",
+        accent_color: "#f59e0b",
+        font_family: "Poppins",
+      },
+    },
+    {
+      id: "classic",
+      name: "Classic",
+      description: "Traditional professional layout with elegant styling",
+      sections: [
+        {
+          type: "hero",
+          name: "Hero Section",
+          config: {
+            title: "Building Trust, One Home at a Time",
+            subtitle: "Join Nigeria's most trusted housing cooperative. Decades of experience serving our members with integrity and excellence.",
+            cta_text: "Become a Member",
+            cta_link: "/register",
+            show_stats: true,
+          },
+        },
+        {
+          type: "features",
+          name: "Features",
+          config: {
+            title: "Why Choose Us",
+            subtitle: "Proven track record of excellence and member satisfaction",
+            features: [
+              { icon: "Award", title: "Established Excellence", description: "Years of trusted service and proven results" },
+              { icon: "Handshake", title: "Member-Focused", description: "Your success is our priority" },
+              { icon: "TrendingUp", title: "Growing Together", description: "Building wealth and communities" },
+              { icon: "Heart", title: "Trusted Partnership", description: "Reliable and transparent operations" },
+            ],
+          },
+        },
+        {
+          type: "properties",
+          name: "Properties",
+          config: {
+            title: "Featured Properties",
+            subtitle: "Carefully selected properties in prime locations",
+            limit: 6,
+          },
+        },
+        {
+          type: "loans",
+          name: "Loan Products",
+          config: {
+            title: "Flexible Financing Solutions",
+            subtitle: "Competitive rates and flexible terms for all your needs",
+            limit: 4,
+          },
+        },
+        {
+          type: "testimonials",
+          name: "Testimonials",
+          config: {
+            title: "What Our Members Say",
+            subtitle: "Real stories from satisfied members",
+            testimonials: [
+              { name: "John Doe", role: "Member since 2020", content: "The best decision I made was joining this cooperative.", rating: 5 },
+              { name: "Jane Smith", role: "Member since 2019", content: "Professional service and excellent support throughout.", rating: 5 },
+            ],
+          },
+        },
+        {
+          type: "cta",
+          name: "Call to Action",
+          config: {
+            title: "Join Our Growing Community",
+            description: "Become part of a legacy of trust and excellence",
+            cta_text: "Register Today",
+            cta_link: "/register",
+          },
+        },
+      ],
+      theme: {
+        primary_color: "#1f2937",
+        secondary_color: "#374151",
+        accent_color: "#dc2626",
+        font_family: "Georgia",
+      },
+    },
+  ]
 
   useEffect(() => {
     fetchPageData()
+    fetchAvailableItems()
   }, [])
+
+  const fetchAvailableItems = async () => {
+    setLoadingItems(true)
+    try {
+      const data = await apiFetch<{
+        loans: Array<{ id: string; name: string; description?: string }>
+        investments: Array<{ id: string; name: string; description?: string }>
+        properties: Array<{ id: string; name: string; type?: string; location?: string; price?: number }>
+      }>("/admin/landing-page/available-items")
+      setAvailableItems(data)
+    } catch (error) {
+      console.error("[v0] Error fetching available items:", error)
+    } finally {
+      setLoadingItems(false)
+    }
+  }
 
   const fetchPageData = async () => {
     try {
-      const response = await fetch("/api/admin/landing-page")
-      const data = await response.json()
+      const data = await apiFetch<{ page: LandingPageData }>("/admin/landing-page")
       if (data.page) {
         setPageData(data.page)
       }
     } catch (error) {
       console.error("[v0] Error fetching landing page data:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load landing page data",
-        variant: "destructive",
-      })
+      sonnerToast.error("Failed to load landing page data")
     } finally {
       setLoading(false)
     }
   }
 
   const handleSave = async () => {
+    console.log("[Landing Page] Save button clicked")
+    setSaving(true)
+    
+    try {
+      // Ensure theme has all required fields with defaults
+      const theme = {
+        primary_color: pageData.theme.primary_color || "#FDB11E",
+        secondary_color: pageData.theme.secondary_color || "#276254",
+        accent_color: pageData.theme.accent_color || "#10b981",
+        font_family: pageData.theme.font_family || "Inter",
+      }
+
+      const payload = {
+        template_id: pageData.template_id || "default",
+        sections: pageData.sections,
+        theme: theme,
+        seo: pageData.seo,
+      }
+
+      console.log("[Landing Page] Saving payload:", JSON.stringify(payload, null, 2))
+
+      let data
+      try {
+        data = await apiFetch<{ 
+          success: boolean; 
+          message?: string; 
+          error?: string; 
+          errors?: Record<string, string[]>;
+          page?: LandingPageData;
+        }>("/admin/landing-page", {
+        method: "POST",
+          body: payload,
+        })
+        console.log("[Landing Page] API Response:", JSON.stringify(data, null, 2))
+      } catch (fetchError: any) {
+        console.error("[Landing Page] API Fetch Error:", fetchError)
+        // Check if it's a validation error (422)
+        if (fetchError?.status === 422 || fetchError?.response?.status === 422) {
+          const errorData = fetchError?.response?.data || fetchError?.data || {}
+          if (errorData.errors) {
+            const errorMessages = Object.values(errorData.errors).flat().join(", ")
+            sonnerToast.error(`Validation Error: ${errorMessages}`, {
+              duration: 5000,
+            })
+            setSaving(false)
+            return
+          }
+        }
+        throw fetchError
+      }
+
+      if (data?.success) {
+        // Update local state with saved data
+        if (data.page) {
+          console.log("[Landing Page] Updating page data with saved data")
+          setPageData(data.page)
+        }
+        
+        sonnerToast.success(data.message || "Landing page saved successfully", {
+          duration: 3000,
+        })
+        
+        // Refresh to get latest from server
+        await fetchPageData()
+      } else {
+        // Handle validation errors
+        if (data?.errors) {
+          const errorMessages = Object.values(data.errors).flat().join(", ")
+          sonnerToast.error(`Validation Error: ${errorMessages}`, {
+            duration: 5000,
+          })
+        } else {
+          const errorMsg = data?.error || data?.message || "Failed to save"
+          console.error("[Landing Page] Save failed:", errorMsg)
+          sonnerToast.error(errorMsg, {
+            duration: 5000,
+          })
+        }
+      }
+    } catch (error: any) {
+      console.error("[Landing Page] Unexpected error saving:", error)
+      const errorMessage = error?.message || error?.error || error?.toString() || "Failed to save landing page"
+      console.error("[Landing Page] Error details:", {
+        message: errorMessage,
+        error: error,
+        stack: error?.stack,
+      })
+      
+      sonnerToast.error(errorMessage, {
+        duration: 5000,
+      })
+    } finally {
+      setSaving(false)
+      console.log("[Landing Page] Save completed")
+    }
+  }
+
+  const handleApplyTemplate = async () => {
+    if (!selectedTemplate) return
+
     setSaving(true)
     try {
-      const response = await fetch("/api/admin/landing-page", {
+      const template = templates.find((t) => t.id === selectedTemplate)
+      if (!template) return
+
+      // Create sections based on template
+      const sections = template.sections.map((section, index) => ({
+        id: `${section.type}-${Date.now()}-${index}`,
+        type: section.type,
+        name: section.name,
+        visible: true,
+        position: index,
+        config: section.config || {},
+      }))
+
+      // Update template_id in pageData
+      const updatedPageData = {
+        ...pageData,
+        template_id: template.id,
+        sections,
+        theme: template.theme,
+      }
+
+      // Save immediately to database
+      const data = await apiFetch<{ success: boolean; message?: string; data?: any }>("/admin/landing-page", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(pageData),
+        body: {
+          template_id: template.id,
+          sections,
+          theme: template.theme,
+          seo: pageData.seo, // Keep existing SEO settings
+          is_published: pageData.is_published, // Keep publish status
+        },
       })
 
-      const data = await response.json()
-
       if (data.success) {
-        toast({
-          title: "Success",
-          description: "Landing page saved successfully",
+        // Update local state immediately for real-time preview
+        setPageData(updatedPageData)
+        
+        // Close dialog and reset selection
+        setTemplateDialogOpen(false)
+        setSelectedTemplate(null)
+        
+        // Show success notification
+        sonnerToast.success(`${template.name} template applied successfully!`, {
+          description: "Your landing page has been updated in real-time.",
+          duration: 5000,
         })
-        fetchPageData()
-      } else {
-        throw new Error(data.error)
+        
+        // Trigger a refresh of the landing page preview if it's open
+        // This will be handled by the 30-second auto-refresh in dynamic-landing-page.tsx
+        // But we can also trigger it manually if needed
+        if (typeof window !== 'undefined') {
+          // Dispatch a custom event to trigger refresh in preview window
+          window.dispatchEvent(new CustomEvent('landing-page-template-changed', {
+            detail: { template_id: template.id }
+          }))
+        }
       }
     } catch (error) {
-      console.error("[v0] Error saving landing page:", error)
-      toast({
-        title: "Error",
-        description: "Failed to save landing page",
-        variant: "destructive",
+      console.error("[Landing Page Builder] Error applying template:", error)
+      sonnerToast.error("Failed to apply template", {
+        description: "Please try again or contact support if the issue persists.",
+        duration: 5000,
       })
     } finally {
       setSaving(false)
@@ -144,27 +628,17 @@ export default function LandingPageBuilderPage() {
     setPageData((prev) => ({ ...prev, is_published: newPublishState }))
 
     try {
-      const response = await fetch("/api/admin/landing-page/publish", {
+      const data = await apiFetch<{ success: boolean; message?: string }>("/admin/landing-page/publish", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ is_published: newPublishState }),
+        body: { is_published: newPublishState },
       })
 
-      const data = await response.json()
-
       if (data.success) {
-        toast({
-          title: "Success",
-          description: newPublishState ? "Landing page published" : "Landing page unpublished",
-        })
+        sonnerToast.success(newPublishState ? "Landing page published" : "Landing page unpublished")
       }
     } catch (error) {
       console.error("[v0] Error publishing landing page:", error)
-      toast({
-        title: "Error",
-        description: "Failed to update publish status",
-        variant: "destructive",
-      })
+      sonnerToast.error("Failed to update publish status")
       setPageData((prev) => ({ ...prev, is_published: !newPublishState }))
     }
   }
@@ -237,6 +711,25 @@ export default function LandingPageBuilderPage() {
     }))
   }
 
+  // Apply theme changes reactively in the page builder for live preview
+  useEffect(() => {
+    if (!pageData?.theme) return
+    
+    const root = document.documentElement
+    const primaryColor = pageData.theme.primary_color || "#FDB11E"
+    const secondaryColor = pageData.theme.secondary_color || "#276254"
+    const accentColor = pageData.theme.accent_color || "#10b981"
+    const fontFamily = pageData.theme.font_family || "Inter"
+    
+    // Set CSS custom properties for immediate preview in page builder
+    root.style.setProperty("--primary", primaryColor)
+    root.style.setProperty("--secondary", secondaryColor)
+    root.style.setProperty("--accent", accentColor)
+    root.style.setProperty("--font-sans", `"${fontFamily}", system-ui, -apple-system, sans-serif`)
+    document.body.style.fontFamily = `"${fontFamily}", system-ui, -apple-system, sans-serif`
+    root.style.fontFamily = `"${fontFamily}", system-ui, -apple-system, sans-serif`
+  }, [pageData?.theme])
+
   const handleDragStart = (id: string) => {
     setDraggedSection(id)
   }
@@ -284,11 +777,80 @@ export default function LandingPageBuilderPage() {
           <p className="text-muted-foreground mt-1">Customize your business landing page</p>
         </div>
         <div className="flex items-center gap-3">
-          <Button variant="outline" asChild>
-            <Link href="/" target="_blank">
+          <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline">
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Change Template
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Change Template</DialogTitle>
+                <DialogDescription>
+                  Select a new template to apply. This will replace your current sections and theme. Your current content will be lost.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                {templates.map((template) => (
+                  <Card
+                    key={template.id}
+                    className={`cursor-pointer transition-all hover:shadow-lg ${
+                      selectedTemplate === template.id ? "ring-2 ring-primary" : ""
+                    }`}
+                    onClick={() => setSelectedTemplate(template.id)}
+                  >
+                    <div className="p-4">
+                      <h3 className="font-semibold text-lg mb-2">{template.name}</h3>
+                      <p className="text-sm text-muted-foreground mb-3">{template.description}</p>
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        {template.sections.slice(0, 4).map((section, idx) => (
+                          <span key={`${template.id}-${section.type}-${idx}`} className="text-xs bg-muted px-2 py-1 rounded">
+                            {section.type}
+                          </span>
+                        ))}
+                        {template.sections.length > 4 && (
+                          <span className="text-xs bg-muted px-2 py-1 rounded">
+                            +{template.sections.length - 4} more
+                          </span>
+                        )}
+                      </div>
+                      <Button
+                        className="w-full"
+                        variant={selectedTemplate === template.id ? "default" : "outline"}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setSelectedTemplate(template.id)
+                        }}
+                      >
+                        {selectedTemplate === template.id ? "Selected" : "Select"}
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+              <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+                <Button variant="outline" onClick={() => setTemplateDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleApplyTemplate}
+                  disabled={!selectedTemplate || saving}
+                >
+                  {saving ? "Applying..." : "Apply Template"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Button 
+            variant="outline"
+            onClick={() => {
+              const previewUrl = getPreviewUrl()
+              window.open(previewUrl, '_blank', 'noopener,noreferrer')
+            }}
+          >
               <Eye className="h-4 w-4 mr-2" />
               Preview
-            </Link>
           </Button>
           <Button onClick={handleSave} disabled={saving}>
             <Save className="h-4 w-4 mr-2" />
@@ -345,7 +907,7 @@ export default function LandingPageBuilderPage() {
                         className="h-auto py-4 flex flex-col items-center gap-2 bg-transparent"
                         onClick={() => {
                           addSection(type.value)
-                          toast({ title: "Section added", description: `${type.label} section added successfully` })
+                          sonnerToast.success(`${type.label} section added successfully`)
                         }}
                       >
                         <span className="text-2xl">{type.icon}</span>
@@ -510,6 +1072,285 @@ export default function LandingPageBuilderPage() {
                         <Input
                           value={activeSecData.config.subtitle || ""}
                           onChange={(e) => updateSectionConfig(activeSecData.id, { subtitle: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Features (JSON array)</Label>
+                        <Textarea
+                          value={JSON.stringify(activeSecData.config.features || [], null, 2)}
+                          onChange={(e) => {
+                            try {
+                              const features = JSON.parse(e.target.value)
+                              updateSectionConfig(activeSecData.id, { features })
+                            } catch (err) {
+                              // Invalid JSON, ignore
+                            }
+                          }}
+                          rows={8}
+                          placeholder='[{"icon": "Users", "title": "Feature Title", "description": "Feature description"}]'
+                        />
+                      </div>
+                    </>
+                  )}
+                  {(activeSecData.type === "properties" || activeSecData.type === "investments" || activeSecData.type === "loans") && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Section Title</Label>
+                        <Input
+                          value={activeSecData.config.title || ""}
+                          onChange={(e) => updateSectionConfig(activeSecData.id, { title: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Section Subtitle</Label>
+                        <Textarea
+                          value={activeSecData.config.subtitle || ""}
+                          onChange={(e) => updateSectionConfig(activeSecData.id, { subtitle: e.target.value })}
+                          rows={2}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Data Source</Label>
+                        <Select
+                          value={activeSecData.config.data_source || "all_active"}
+                          onValueChange={(value) => {
+                            const config = { ...activeSecData.config, data_source: value }
+                            if (value === "all_active") {
+                              delete config.selected_ids
+                            }
+                            updateSectionConfig(activeSecData.id, config)
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all_active">All Active Items</SelectItem>
+                            <SelectItem value="selected">Selected Items Only</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">
+                          Choose whether to show all active items or select specific ones
+                        </p>
+                      </div>
+                      {activeSecData.config.data_source === "selected" && (
+                        <div className="space-y-2">
+                          <Label>Select Items</Label>
+                          {loadingItems ? (
+                            <p className="text-sm text-muted-foreground">Loading items...</p>
+                          ) : (
+                            <ScrollArea className="h-48 border rounded-md p-4">
+                              <div className="space-y-2">
+                                {(activeSecData.type === "loans" ? availableItems?.loans : 
+                                  activeSecData.type === "investments" ? availableItems?.investments : 
+                                  availableItems?.properties)?.map((item) => {
+                                  const selectedIds = activeSecData.config.selected_ids || []
+                                  const isSelected = selectedIds.includes(item.id)
+                                  return (
+                                    <div key={item.id} className="flex items-center space-x-2">
+                                      <Checkbox
+                                        id={`item-${item.id}`}
+                                        checked={isSelected}
+                                        onCheckedChange={(checked) => {
+                                          const currentIds = activeSecData.config.selected_ids || []
+                                          const newIds = checked
+                                            ? [...currentIds, item.id]
+                                            : currentIds.filter((id: string) => id !== item.id)
+                                          updateSectionConfig(activeSecData.id, {
+                                            ...activeSecData.config,
+                                            selected_ids: newIds,
+                                          })
+                                        }}
+                                      />
+                                      <label
+                                        htmlFor={`item-${item.id}`}
+                                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
+                                      >
+                                        {item.name}
+                                        {item.description && (
+                                          <span className="text-xs text-muted-foreground block">
+                                            {item.description}
+                                          </span>
+                                        )}
+                                        {"location" in item && item.location && (
+                                          <span className="text-xs text-muted-foreground block">
+                                            {item.location}
+                                          </span>
+                                        )}
+                                      </label>
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </ScrollArea>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            {activeSecData.config.selected_ids?.length || 0} item(s) selected
+                          </p>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Sort By</Label>
+                          <Select
+                            value={activeSecData.config.sort_by || (activeSecData.type === "properties" ? "created_at" : "name")}
+                            onValueChange={(value) =>
+                              updateSectionConfig(activeSecData.id, { ...activeSecData.config, sort_by: value })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {activeSecData.type === "properties" ? (
+                                <>
+                                  <SelectItem value="created_at">Date Added</SelectItem>
+                                  <SelectItem value="name">Name</SelectItem>
+                                  <SelectItem value="price">Price</SelectItem>
+                                </>
+                              ) : (
+                                <>
+                                  <SelectItem value="name">Name</SelectItem>
+                                  {activeSecData.type === "loans" ? (
+                                    <SelectItem value="interest_rate">Interest Rate</SelectItem>
+                                  ) : (
+                                    <SelectItem value="expected_return_rate">Return Rate</SelectItem>
+                                  )}
+                                  <SelectItem value="created_at">Date Added</SelectItem>
+                                </>
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Sort Order</Label>
+                          <Select
+                            value={activeSecData.config.sort_order || (activeSecData.type === "properties" ? "desc" : "asc")}
+                            onValueChange={(value) =>
+                              updateSectionConfig(activeSecData.id, { ...activeSecData.config, sort_order: value })
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="asc">Ascending</SelectItem>
+                              <SelectItem value="desc">Descending</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Display Limit</Label>
+                        <Input
+                          type="number"
+                          value={activeSecData.config.limit || 6}
+                          onChange={(e) => updateSectionConfig(activeSecData.id, { ...activeSecData.config, limit: parseInt(e.target.value) || 6 })}
+                          min={1}
+                          max={12}
+                        />
+                        <p className="text-xs text-muted-foreground">Maximum number of items to display (1-12)</p>
+                      </div>
+                    </>
+                  )}
+                  {activeSecData.type === "stats" && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Section Title</Label>
+                        <Input
+                          value={activeSecData.config.title || ""}
+                          onChange={(e) => updateSectionConfig(activeSecData.id, { title: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Section Subtitle</Label>
+                        <Input
+                          value={activeSecData.config.subtitle || ""}
+                          onChange={(e) => updateSectionConfig(activeSecData.id, { subtitle: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Statistics (JSON array)</Label>
+                        <Textarea
+                          value={JSON.stringify(activeSecData.config.stats || [], null, 2)}
+                          onChange={(e) => {
+                            try {
+                              const stats = JSON.parse(e.target.value)
+                              updateSectionConfig(activeSecData.id, { stats })
+                            } catch (err) {
+                              // Invalid JSON, ignore
+                            }
+                          }}
+                          rows={8}
+                          placeholder='[{"label": "Label", "value": "Value", "icon": "Users"}]'
+                        />
+                      </div>
+                    </>
+                  )}
+                  {activeSecData.type === "how-it-works" && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Section Title</Label>
+                        <Input
+                          value={activeSecData.config.title || ""}
+                          onChange={(e) => updateSectionConfig(activeSecData.id, { title: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Section Subtitle</Label>
+                        <Input
+                          value={activeSecData.config.subtitle || ""}
+                          onChange={(e) => updateSectionConfig(activeSecData.id, { subtitle: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Steps (JSON array)</Label>
+                        <Textarea
+                          value={JSON.stringify(activeSecData.config.steps || [], null, 2)}
+                          onChange={(e) => {
+                            try {
+                              const steps = JSON.parse(e.target.value)
+                              updateSectionConfig(activeSecData.id, { steps })
+                            } catch (err) {
+                              // Invalid JSON, ignore
+                            }
+                          }}
+                          rows={8}
+                          placeholder='[{"step": 1, "title": "Step Title", "description": "Step description"}]'
+                        />
+                      </div>
+                    </>
+                  )}
+                  {activeSecData.type === "testimonials" && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Section Title</Label>
+                        <Input
+                          value={activeSecData.config.title || ""}
+                          onChange={(e) => updateSectionConfig(activeSecData.id, { title: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Section Subtitle</Label>
+                        <Input
+                          value={activeSecData.config.subtitle || ""}
+                          onChange={(e) => updateSectionConfig(activeSecData.id, { subtitle: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Testimonials (JSON array)</Label>
+                        <Textarea
+                          value={JSON.stringify(activeSecData.config.testimonials || [], null, 2)}
+                          onChange={(e) => {
+                            try {
+                              const testimonials = JSON.parse(e.target.value)
+                              updateSectionConfig(activeSecData.id, { testimonials })
+                            } catch (err) {
+                              // Invalid JSON, ignore
+                            }
+                          }}
+                          rows={8}
+                          placeholder='[{"name": "Name", "role": "Role", "content": "Testimonial", "rating": 5}]'
                         />
                       </div>
                     </>

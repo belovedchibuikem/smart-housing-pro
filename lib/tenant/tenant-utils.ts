@@ -10,8 +10,14 @@ import type { Tenant, PackageLimits, TenantUsage } from "@/lib/types/tenant"
  * - localhost:3000 -> null (development)
  */
 export function getTenantSlugFromHost(hostname: string): string | null {
-  // Development environment
+  // Development environment - allow localhost subdomains for testing
+  // e.g., tenant1.localhost:3000 or tenant1.127.0.0.1:3000
   if (hostname.includes("localhost") || hostname.includes("127.0.0.1")) {
+    // Check if it's a subdomain pattern: subdomain.localhost:port
+    const localhostMatch = hostname.match(/^([^.]+)\.(localhost|127\.0\.0\.1)(:\d+)?$/)
+    if (localhostMatch && localhostMatch[1]) {
+      return localhostMatch[1]
+    }
     return null
   }
 

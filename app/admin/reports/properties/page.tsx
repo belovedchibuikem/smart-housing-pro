@@ -1,80 +1,72 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Download, Home, Building2, LandPlot, TrendingUp } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { getPropertyReports, exportReport } from "@/lib/api/client"
+import { useToast } from "@/hooks/use-toast"
+import Link from "next/link"
 
 export default function PropertyReportsPage() {
+  const { toast } = useToast()
   const [dateRange, setDateRange] = useState("this-month")
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
+    total_properties: 0,
+    houses: 0,
+    land: 0,
+    total_value: "₦0",
+  })
+  const [properties, setProperties] = useState<any[]>([])
 
-  const stats = [
-    { label: "Total Properties", value: "23", icon: Home, color: "text-blue-600" },
-    { label: "Houses", value: "15", icon: Building2, color: "text-green-600" },
-    { label: "Land", value: "8", icon: LandPlot, color: "text-purple-600" },
-    { label: "Total Value", value: "₦450M", icon: TrendingUp, color: "text-orange-600" },
-  ]
+  useEffect(() => {
+    fetchData()
+  }, [dateRange])
 
-  const properties = [
-    {
-      id: "P001",
-      name: "Luxury Villa - Lekki",
-      type: "House",
-      location: "Lekki, Lagos",
-      size: "450 sqm",
-      value: "₦45,000,000",
-      status: "Sold",
-      owner: "John Doe",
-    },
-    {
-      id: "P002",
-      name: "Modern Apartment - VI",
-      type: "House",
-      location: "Victoria Island, Lagos",
-      size: "280 sqm",
-      value: "₦35,000,000",
-      status: "Available",
-      owner: "-",
-    },
-    {
-      id: "P003",
-      name: "Land Plot - Abuja",
-      type: "Land",
-      location: "Gwarinpa, Abuja",
-      size: "1000 sqm",
-      value: "₦25,000,000",
-      status: "Reserved",
-      owner: "Jane Smith",
-    },
-    {
-      id: "P004",
-      name: "Duplex - Ikeja",
-      type: "House",
-      location: "Ikeja GRA, Lagos",
-      size: "350 sqm",
-      value: "₦40,000,000",
-      status: "Sold",
-      owner: "Mike Johnson",
-    },
-    {
-      id: "P005",
-      name: "Commercial Land - PH",
-      type: "Land",
-      location: "Port Harcourt",
-      size: "2000 sqm",
-      value: "₦50,000,000",
-      status: "Available",
-      owner: "-",
-    },
-  ]
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      const response = await getPropertyReports({ date_range: dateRange, per_page: 50 })
+      if (response.success) {
+        setStats(response.data.stats)
+        setProperties(response.data.properties || [])
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to load property reports",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  const locationAnalysis = [
-    { location: "Lagos", properties: 12, totalValue: "₦280M", avgValue: "₦23.3M", occupancy: "85%" },
-    { location: "Abuja", properties: 7, totalValue: "₦120M", avgValue: "₦17.1M", occupancy: "78%" },
-    { location: "Port Harcourt", properties: 4, totalValue: "₦50M", avgValue: "₦12.5M", occupancy: "92%" },
+  const handleExport = async () => {
+    try {
+      await exportReport('properties', { date_range: dateRange })
+      toast({
+        title: "Export initiated",
+        description: "Your report is being generated.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to export report",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const statsCards = [
+    { label: "Total Properties", value: stats.total_properties.toString(), icon: Home, color: "text-blue-600" },
+    { label: "Houses", value: stats.houses.toString(), icon: Building2, color: "text-green-600" },
+    { label: "Land", value: stats.land.toString(), icon: LandPlot, color: "text-purple-600" },
+    { label: "Total Value", value: stats.total_value, icon: TrendingUp, color: "text-orange-600" },
   ]
 
   return (
@@ -96,7 +88,7 @@ export default function PropertyReportsPage() {
               <SelectItem value="this-year">This Year</SelectItem>
             </SelectContent>
           </Select>
-          <Button>
+          <Button onClick={handleExport}>
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
@@ -105,7 +97,7 @@ export default function PropertyReportsPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat) => {
+        {statsCards.map((stat) => {
           const Icon = stat.icon
           return (
             <Card key={stat.label}>
@@ -121,40 +113,6 @@ export default function PropertyReportsPage() {
         })}
       </div>
 
-      {/* Location Analysis */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Location Analysis</CardTitle>
-          <CardDescription>Property distribution and performance by location</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Location</TableHead>
-                  <TableHead className="text-right">Properties</TableHead>
-                  <TableHead className="text-right">Total Value</TableHead>
-                  <TableHead className="text-right">Avg Value</TableHead>
-                  <TableHead className="text-right">Occupancy Rate</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {locationAnalysis.map((location) => (
-                  <TableRow key={location.location}>
-                    <TableCell className="font-medium">{location.location}</TableCell>
-                    <TableCell className="text-right">{location.properties}</TableCell>
-                    <TableCell className="text-right font-semibold">{location.totalValue}</TableCell>
-                    <TableCell className="text-right">{location.avgValue}</TableCell>
-                    <TableCell className="text-right text-green-600 font-semibold">{location.occupancy}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Property Details */}
       <Card>
         <CardHeader>
@@ -162,50 +120,58 @@ export default function PropertyReportsPage() {
           <CardDescription>Detailed property listings and status</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Property ID</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Size</TableHead>
-                  <TableHead className="text-right">Value</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Owner</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {properties.map((property) => (
-                  <TableRow key={property.id}>
-                    <TableCell className="font-medium">{property.id}</TableCell>
-                    <TableCell>{property.name}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{property.type}</Badge>
-                    </TableCell>
-                    <TableCell>{property.location}</TableCell>
-                    <TableCell>{property.size}</TableCell>
-                    <TableCell className="text-right font-semibold">{property.value}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          property.status === "Sold"
-                            ? "default"
-                            : property.status === "Reserved"
-                              ? "secondary"
-                              : "outline"
-                        }
-                      >
-                        {property.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{property.owner}</TableCell>
+          {loading ? (
+            <div className="text-center py-8">Loading...</div>
+          ) : properties.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">No properties found</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Property ID</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Location</TableHead>
+                    <TableHead className="text-right">Value</TableHead>
+                    <TableHead>Allocated</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {properties.map((property) => (
+                    <TableRow key={property.id}>
+                      <TableCell className="font-medium">
+                        <Link href={`/admin/properties/${property.id}`} className="hover:underline">
+                          {property.id}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{property.name}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{property.type}</Badge>
+                      </TableCell>
+                      <TableCell>{property.location}</TableCell>
+                      <TableCell className="text-right font-semibold">{property.price}</TableCell>
+                      <TableCell>{property.allocated || 0}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            property.status === "Sold"
+                              ? "default"
+                              : property.status === "Reserved"
+                                ? "secondary"
+                                : "outline"
+                          }
+                        >
+                          {property.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

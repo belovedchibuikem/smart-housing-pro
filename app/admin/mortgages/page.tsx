@@ -114,11 +114,11 @@ export default function AdminMortgagesPage() {
       })
       fetchMortgages()
     } catch (error) {
-      toast({
+    toast({
         title: "Error",
         description: "Failed to approve mortgage",
         variant: "destructive",
-      })
+    })
     }
   }
 
@@ -131,7 +131,7 @@ export default function AdminMortgagesPage() {
       })
       fetchMortgages()
     } catch (error) {
-      toast({
+    toast({
         title: "Error",
         description: "Failed to reject mortgage",
         variant: "destructive",
@@ -252,34 +252,34 @@ export default function AdminMortgagesPage() {
                   </TableRow>
                 ) : (
                   mortgages.map((mortgage) => (
-                    <TableRow key={mortgage.id}>
+                  <TableRow key={mortgage.id}>
                       <TableCell className="font-medium">{mortgage.id.substring(0, 8)}...</TableCell>
-                      <TableCell>
-                        <div>
+                    <TableCell>
+                      <div>
                           <div className="font-medium">
                             {mortgage.member?.user?.first_name} {mortgage.member?.user?.last_name}
                           </div>
                           <div className="text-sm text-muted-foreground">
                             {mortgage.member?.member_id || mortgage.member?.staff_id || '—'}
                           </div>
-                        </div>
-                      </TableCell>
+                      </div>
+                    </TableCell>
                       <TableCell>
                         {mortgage.property?.title || mortgage.property?.address || '—'}
                       </TableCell>
                       <TableCell className="text-right">₦{(mortgage.loan_amount / 1000000).toFixed(1)}M</TableCell>
                       <TableCell className="text-right">₦{(mortgage.monthly_payment / 1000).toFixed(0)}K</TableCell>
                       <TableCell>{mortgage.tenure_years} years</TableCell>
-                      <TableCell>
+                    <TableCell>
                         <Badge variant={mortgage.status === "active" || mortgage.status === "approved" ? "default" : "secondary"}>
                           {mortgage.status}
                         </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon" onClick={() => handleViewMortgage(mortgage.id)}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button variant="ghost" size="icon" onClick={() => handleViewMortgage(mortgage.id)}>
+                          <Eye className="h-4 w-4" />
+                        </Button>
                           {mortgage.status === 'pending' && (
                             <>
                               <Button variant="ghost" size="icon" onClick={() => handleApprove(mortgage.id)} title="Approve">
@@ -292,13 +292,13 @@ export default function AdminMortgagesPage() {
                           )}
                           <Button variant="ghost" size="icon" onClick={() => handleEdit(mortgage.id)}>
                             <Edit className="h-4 w-4" />
-                          </Button>
+                        </Button>
                           <Button variant="ghost" size="icon" onClick={() => handleDelete(mortgage.id)}>
                             <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
                   ))
                 )}
               </TableBody>

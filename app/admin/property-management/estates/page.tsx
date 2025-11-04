@@ -1,75 +1,81 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Plus, Search, Building, MapPin, Users, Home, Eye } from "lucide-react"
+import { Plus, Search, Building, MapPin, Users, Home, Eye, Loader2 } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
+import { getPropertyEstates, getPropertyEstateStats } from "@/lib/api/client"
+
+interface Estate {
+  id: string
+  name: string
+  location: string
+  city?: string
+  state?: string
+  total_properties: number
+  allocated_properties: number
+  available_properties: number
+  completion_rate: number
+}
 
 export default function ManageEstatesPage() {
+  const [estates, setEstates] = useState<Estate[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedEstate, setSelectedEstate] = useState<any>(null)
+  const [selectedEstate, setSelectedEstate] = useState<Estate | null>(null)
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
+  const [stats, setStats] = useState({ total_estates: 0, total_properties: 0, allocated_properties: 0, available_properties: 0 })
+  const router = useRouter()
+  const { toast } = useToast()
 
-  const estates = [
-    {
-      id: "EST-001",
-      name: "FRSC Estate Phase 1",
-      location: "Gwarinpa, Abuja",
-      totalPlots: 150,
-      allocatedPlots: 120,
-      availablePlots: 30,
-      totalHouses: 80,
-      completedHouses: 65,
-      status: "Active",
-      developer: "FRSC Housing Cooperative",
-      startDate: "Jan 2020",
-      completionRate: 81,
-    },
-    {
-      id: "EST-002",
-      name: "FRSC Estate Phase 2",
-      location: "Lugbe, Abuja",
-      totalPlots: 200,
-      allocatedPlots: 150,
-      availablePlots: 50,
-      totalHouses: 100,
-      completedHouses: 45,
-      status: "Active",
-      developer: "FRSC Housing Cooperative",
-      startDate: "Jun 2021",
-      completionRate: 45,
-    },
-    {
-      id: "EST-003",
-      name: "FRSC Estate Phase 3",
-      location: "Apo, Abuja",
-      totalPlots: 100,
-      allocatedPlots: 30,
-      availablePlots: 70,
-      totalHouses: 50,
-      completedHouses: 10,
-      status: "Under Development",
-      developer: "FRSC Housing Cooperative",
-      startDate: "Mar 2023",
-      completionRate: 20,
-    },
-  ]
+  useEffect(() => {
+    fetchEstates()
+    fetchStats()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery])
 
-  const handleViewDetails = (estate: any) => {
+  const fetchEstates = async () => {
+    try {
+      setLoading(true)
+      const params: any = {}
+      if (searchQuery) params.search = searchQuery
+      
+      const response = await getPropertyEstates(params)
+      if (response.success) {
+        setEstates(response.data || [])
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to fetch estates",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchStats = async () => {
+    try {
+      const response = await getPropertyEstateStats()
+      if (response.success) {
+        setStats(response.data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch stats", error)
+    }
+  }
+
+  const handleViewDetails = (estate: Estate) => {
     setSelectedEstate(estate)
     setShowDetailsDialog(true)
   }
-
-  const filteredEstates = estates.filter(
-    (estate) =>
-      estate.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      estate.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      estate.id.toLowerCase().includes(searchQuery.toLowerCase()),
-  )
 
   return (
     <div className="space-y-6">
@@ -78,20 +84,19 @@ export default function ManageEstatesPage() {
           <h1 className="text-3xl font-bold">Manage Estates</h1>
           <p className="text-muted-foreground mt-1">View and manage all housing estates</p>
         </div>
-        <Button>
+        <Button onClick={() => router.push('/admin/property-management/estates/new')}>
           <Plus className="h-4 w-4 mr-2" />
           Add New Estate
         </Button>
       </div>
 
-      {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm text-muted-foreground">Total Estates</div>
-                <div className="text-2xl font-bold">{estates.length}</div>
+                <div className="text-2xl font-bold">{stats.total_estates}</div>
               </div>
               <Building className="h-8 w-8 text-muted-foreground" />
             </div>
@@ -101,10 +106,10 @@ export default function ManageEstatesPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-muted-foreground">Total Plots</div>
-                <div className="text-2xl font-bold">{estates.reduce((sum, e) => sum + e.totalPlots, 0)}</div>
+                <div className="text-sm text-muted-foreground">Total Properties</div>
+                <div className="text-2xl font-bold">{stats.total_properties}</div>
               </div>
-              <MapPin className="h-8 w-8 text-muted-foreground" />
+              <Home className="h-8 w-8 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
@@ -112,8 +117,8 @@ export default function ManageEstatesPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-muted-foreground">Allocated Plots</div>
-                <div className="text-2xl font-bold">{estates.reduce((sum, e) => sum + e.allocatedPlots, 0)}</div>
+                <div className="text-sm text-muted-foreground">Allocated</div>
+                <div className="text-2xl font-bold">{stats.allocated_properties}</div>
               </div>
               <Users className="h-8 w-8 text-muted-foreground" />
             </div>
@@ -123,10 +128,10 @@ export default function ManageEstatesPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-muted-foreground">Completed Houses</div>
-                <div className="text-2xl font-bold">{estates.reduce((sum, e) => sum + e.completedHouses, 0)}</div>
+                <div className="text-sm text-muted-foreground">Available</div>
+                <div className="text-2xl font-bold">{stats.available_properties}</div>
               </div>
-              <Home className="h-8 w-8 text-muted-foreground" />
+              <MapPin className="h-8 w-8 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
@@ -137,152 +142,94 @@ export default function ManageEstatesPage() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>All Estates</CardTitle>
-              <CardDescription>Manage and monitor all housing estates</CardDescription>
+              <CardDescription>Complete list of housing estates</CardDescription>
             </div>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search estates..."
+            <div className="relative w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input 
+                placeholder="Search estates..." 
+                className="pl-9"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 w-[300px]"
               />
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Estate ID</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Total Plots</TableHead>
-                <TableHead>Allocated</TableHead>
-                <TableHead>Available</TableHead>
-                <TableHead>Completion</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredEstates.map((estate) => (
-                <TableRow key={estate.id}>
-                  <TableCell className="font-medium">{estate.id}</TableCell>
-                  <TableCell>{estate.name}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      {estate.location}
-                    </div>
-                  </TableCell>
-                  <TableCell>{estate.totalPlots}</TableCell>
-                  <TableCell>{estate.allocatedPlots}</TableCell>
-                  <TableCell>{estate.availablePlots}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full bg-primary" style={{ width: `${estate.completionRate}%` }} />
-                      </div>
-                      <span className="text-sm">{estate.completionRate}%</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={estate.status === "Active" ? "default" : "secondary"}>{estate.status}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="outline" size="sm" onClick={() => handleViewDetails(estate)}>
-                      <Eye className="h-4 w-4 mr-1" />
-                      View Details
-                    </Button>
-                  </TableCell>
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : estates.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              No estates found
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Estate Name</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Total Properties</TableHead>
+                  <TableHead>Allocated</TableHead>
+                  <TableHead>Available</TableHead>
+                  <TableHead>Completion Rate</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {estates.map((estate) => (
+                  <TableRow key={estate.id}>
+                    <TableCell className="font-medium">{estate.name}</TableCell>
+                    <TableCell>{estate.location}</TableCell>
+                    <TableCell>{estate.total_properties}</TableCell>
+                    <TableCell>{estate.allocated_properties}</TableCell>
+                    <TableCell>{estate.available_properties}</TableCell>
+                    <TableCell>
+                      <Badge variant={estate.completion_rate >= 80 ? 'default' : estate.completion_rate >= 50 ? 'secondary' : 'outline'}>
+                        {estate.completion_rate.toFixed(0)}%
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" onClick={() => handleViewDetails(estate)}>
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>{selectedEstate?.name}</DialogTitle>
-            <DialogDescription>Complete estate information and statistics</DialogDescription>
+            <DialogDescription>Estate details and statistics</DialogDescription>
           </DialogHeader>
-
           {selectedEstate && (
-            <div className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm text-muted-foreground">Estate ID</label>
-                  <p className="font-semibold">{selectedEstate.id}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground">Location</label>
-                  <p className="font-semibold">{selectedEstate.location}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground">Developer</label>
-                  <p className="font-semibold">{selectedEstate.developer}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground">Start Date</label>
-                  <p className="font-semibold">{selectedEstate.startDate}</p>
-                </div>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-medium">Location</p>
+                <p className="text-sm text-muted-foreground">{selectedEstate.location}</p>
               </div>
-
-              <div className="border-t pt-4">
-                <h4 className="font-semibold mb-3">Plot Information</h4>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="p-4 bg-muted rounded-lg">
-                    <p className="text-sm text-muted-foreground">Total Plots</p>
-                    <p className="text-2xl font-bold">{selectedEstate.totalPlots}</p>
-                  </div>
-                  <div className="p-4 bg-green-50 rounded-lg">
-                    <p className="text-sm text-muted-foreground">Allocated</p>
-                    <p className="text-2xl font-bold text-green-600">{selectedEstate.allocatedPlots}</p>
-                  </div>
-                  <div className="p-4 bg-blue-50 rounded-lg">
-                    <p className="text-sm text-muted-foreground">Available</p>
-                    <p className="text-2xl font-bold text-blue-600">{selectedEstate.availablePlots}</p>
-                  </div>
-                </div>
+              <div>
+                <p className="text-sm font-medium">Total Properties</p>
+                <p className="text-sm text-muted-foreground">{selectedEstate.total_properties}</p>
               </div>
-
-              <div className="border-t pt-4">
-                <h4 className="font-semibold mb-3">Construction Progress</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 bg-muted rounded-lg">
-                    <p className="text-sm text-muted-foreground">Total Houses</p>
-                    <p className="text-2xl font-bold">{selectedEstate.totalHouses}</p>
-                  </div>
-                  <div className="p-4 bg-green-50 rounded-lg">
-                    <p className="text-sm text-muted-foreground">Completed</p>
-                    <p className="text-2xl font-bold text-green-600">{selectedEstate.completedHouses}</p>
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <div className="flex justify-between text-sm mb-2">
-                    <span>Overall Completion</span>
-                    <span className="font-semibold">{selectedEstate.completionRate}%</span>
-                  </div>
-                  <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary transition-all"
-                      style={{ width: `${selectedEstate.completionRate}%` }}
-                    />
-                  </div>
-                </div>
+              <div>
+                <p className="text-sm font-medium">Allocated Properties</p>
+                <p className="text-sm text-muted-foreground">{selectedEstate.allocated_properties}</p>
               </div>
-
-              <div className="flex gap-2 pt-4">
-                <Button className="flex-1">Edit Estate</Button>
-                <Button variant="outline" className="flex-1 bg-transparent">
-                  View Allottees
-                </Button>
-                <Button variant="outline" className="flex-1 bg-transparent">
-                  Generate Report
-                </Button>
+              <div>
+                <p className="text-sm font-medium">Available Properties</p>
+                <p className="text-sm text-muted-foreground">{selectedEstate.available_properties}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium">Completion Rate</p>
+                <p className="text-sm text-muted-foreground">{selectedEstate.completion_rate.toFixed(1)}%</p>
               </div>
             </div>
           )}

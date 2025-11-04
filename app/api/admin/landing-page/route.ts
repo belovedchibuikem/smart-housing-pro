@@ -47,8 +47,15 @@ export async function POST(request: NextRequest) {
     })
 
     const data = await res.json()
+    
+    // Forward the response exactly as received from Laravel
     return NextResponse.json(data, { status: res.status })
   } catch (error) {
-    return NextResponse.json({ error: "Failed to save landing page" }, { status: 500 })
+    console.error("Landing page save API route error:", error)
+    return NextResponse.json({ 
+      success: false,
+      error: "Failed to save landing page",
+      message: error instanceof Error ? error.message : "Unknown error"
+    }, { status: 500 })
   }
 }

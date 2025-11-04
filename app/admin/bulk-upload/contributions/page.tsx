@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { useToast } from "@/hooks/use-toast"
+import { toast as sonnerToast } from "sonner"
 import { apiFetch } from "@/lib/api/client"
 
 export default function BulkUploadContributionsPage() {
@@ -17,7 +17,6 @@ export default function BulkUploadContributionsPage() {
   const [uploadComplete, setUploadComplete] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
   const [uploadResult, setUploadResult] = useState<any>(null)
-  const { toast } = useToast()
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
@@ -79,15 +78,12 @@ export default function BulkUploadContributionsPage() {
       a.click()
       window.URL.revokeObjectURL(url)
       
-      toast({
-        title: "Template Downloaded",
+      sonnerToast.success("Template Downloaded", {
         description: "CSV template has been downloaded successfully.",
       })
-    } catch (error) {
-      toast({
-        title: "Download Failed",
-        description: "Failed to download template. Please try again.",
-        variant: "destructive",
+    } catch (error: any) {
+      sonnerToast.error("Download Failed", {
+        description: error.message || "Failed to download template. Please try again.",
       })
     }
   }
@@ -103,32 +99,28 @@ export default function BulkUploadContributionsPage() {
       const formData = new FormData()
       formData.append('file', file)
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || '/api'}/admin/bulk/contributions/upload`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
-        },
-        body: formData,
-      })
+      const result = await apiFetch<{ success: boolean; message?: string; data?: any }>(
+        '/admin/bulk/contributions/upload',
+        {
+          method: 'POST',
+          body: formData,
+        }
+      )
 
-      const result = await response.json()
-
-      if (!response.ok) {
+      if (result.success && result.data) {
+        setUploadResult(result.data)
+        setUploadComplete(true)
+        
+        sonnerToast.success("Upload Successful", {
+          description: `Successfully processed ${result.data.successful} contributions. ${result.data.failed} failed.`,
+        })
+      } else {
         throw new Error(result.message || 'Upload failed')
       }
-
-      setUploadResult(result.data)
-      setUploadComplete(true)
-      
-      toast({
-        title: "Upload Successful",
-        description: `Successfully processed ${result.data.successful} contributions. ${result.data.failed} failed.`,
-      })
-    } catch (error) {
-      toast({
-        title: "Upload Failed",
-        description: error instanceof Error ? error.message : "Failed to upload contributions",
-        variant: "destructive",
+    } catch (error: any) {
+      console.error('Error uploading contributions:', error)
+      sonnerToast.error("Upload Failed", {
+        description: error.message || "Failed to upload contributions",
       })
     } finally {
       setUploading(false)

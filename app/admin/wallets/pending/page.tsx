@@ -133,8 +133,8 @@ export default function PendingApprovalsPage() {
               No pending withdrawal requests
             </div>
           ) : (
-            <div className="space-y-4">
-              {pendingTransactions.map((transaction) => (
+          <div className="space-y-4">
+            {pendingTransactions.map((transaction) => (
               <Card key={transaction.id}>
                 <CardContent className="p-6">
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -200,8 +200,8 @@ export default function PendingApprovalsPage() {
                   </div>
                 </CardContent>
               </Card>
-              ))}
-            </div>
+            ))}
+          </div>
           )}
         </CardContent>
       </Card>

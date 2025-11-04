@@ -1,11 +1,11 @@
 "use client"
 
-import { use, useState } from "react"
+import { use, useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, CheckCircle, XCircle, FileText, Download, Calendar, User } from "lucide-react"
+import { ArrowLeft, CheckCircle, XCircle, FileText, Download, Calendar, User, Loader2 } from "lucide-react"
 import Link from "next/link"
 import {
   Dialog,
@@ -17,60 +17,238 @@ import {
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { toast as sonnerToast } from "sonner"
+import { apiFetch } from "@/lib/api/client"
+
+interface Loan {
+  id: string
+  member?: {
+    member_id?: string
+    user?: {
+      first_name?: string
+      last_name?: string
+      email?: string
+      phone?: string
+    }
+  }
+  amount: number
+  interest_rate: number
+  duration_months: number
+  type: string
+  purpose?: string
+  status: string
+  application_date: string
+  approved_at?: string
+  rejected_at?: string
+  rejection_reason?: string
+  repayments?: Array<{
+    id: string
+    amount: number
+    payment_date: string
+    status: string
+  }>
+  created_at: string
+}
 
 export default function LoanDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const [loan, setLoan] = useState<Loan | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [processing, setProcessing] = useState(false)
   const [showApproveDialog, setShowApproveDialog] = useState(false)
   const [showRejectDialog, setShowRejectDialog] = useState(false)
   const [showDisburseDialog, setShowDisburseDialog] = useState(false)
   const [rejectionReason, setRejectionReason] = useState("")
 
-  // Mock data
-  const loan = {
-    id,
-    loanId: "LN-2024-001",
-    applicant: "John Adebayo",
-    memberId: "FRSC/HMS/2024/001",
-    email: "john.adebayo@frsc.gov.ng",
-    phone: "+234 803 456 7890",
-    amount: 5000000,
-    tenure: 24,
-    interestRate: 10,
-    monthlyRepayment: 229167,
-    totalRepayment: 5500000,
-    lastNetPay: 500000,
-    purpose: "Property Purchase",
-    status: "pending",
-    applicationDate: "Mar 1, 2024",
-    approvedDate: null,
-    disbursedDate: null,
-    rejectionReason: null,
-    documents: [
-      { name: "Employment Letter", status: "verified", uploadDate: "Mar 1, 2024" },
-      { name: "Bank Statement (6 months)", status: "verified", uploadDate: "Mar 1, 2024" },
-      { name: "Guarantor Form", status: "pending", uploadDate: "Mar 2, 2024" },
-    ],
-    repaymentSchedule: Array.from({ length: 24 }, (_, i) => ({
-      month: i + 1,
-      dueDate: new Date(2024, 3 + i, 1).toLocaleDateString(),
-      amount: 229167,
-      status: i === 0 ? "paid" : "pending",
-    })),
+  useEffect(() => {
+    fetchLoan()
+  }, [id])
+
+  const fetchLoan = async () => {
+    try {
+      setLoading(true)
+      const response = await apiFetch<{ success: boolean; data: Loan }>(
+        `/admin/loans/${id}`
+      )
+
+      if (response.success && response.data) {
+        setLoan(response.data)
+      }
+    } catch (error: any) {
+      console.error('Error fetching loan:', error)
+      sonnerToast.error("Failed to load loan", {
+        description: error.message || "Please try again later",
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
-  const handleApprove = () => {
-    console.log("Approving loan:", id)
+  const handleApprove = async () => {
+    try {
+      setProcessing(true)
+      const response = await apiFetch<{ success: boolean; message?: string; data?: Loan }>(
+        `/admin/loans/${id}/approve`,
+        { method: 'POST' }
+      )
+
+      if (response.success) {
+        sonnerToast.success("Loan Approved", {
+          description: response.message || "Loan has been approved successfully",
+        })
     setShowApproveDialog(false)
+        fetchLoan()
+      }
+    } catch (error: any) {
+      console.error('Error approving loan:', error)
+      sonnerToast.error("Failed to approve loan", {
+        description: error.message || "Please try again later",
+      })
+    } finally {
+      setProcessing(false)
+    }
   }
 
-  const handleReject = () => {
-    console.log("Rejecting loan:", id, "Reason:", rejectionReason)
+  const handleReject = async () => {
+    if (!rejectionReason.trim()) {
+      sonnerToast.error("Rejection reason required", {
+        description: "Please provide a reason for rejecting this loan",
+      })
+      return
+    }
+
+    try {
+      setProcessing(true)
+      const response = await apiFetch<{ success: boolean; message?: string; data?: Loan }>(
+        `/admin/loans/${id}/reject`,
+        {
+          method: 'POST',
+          body: { rejection_reason: rejectionReason }
+        }
+      )
+
+      if (response.success) {
+        sonnerToast.success("Loan Rejected", {
+          description: response.message || "Loan has been rejected",
+        })
     setShowRejectDialog(false)
+        setRejectionReason("")
+        fetchLoan()
+      }
+    } catch (error: any) {
+      console.error('Error rejecting loan:', error)
+      sonnerToast.error("Failed to reject loan", {
+        description: error.message || "Please try again later",
+      })
+    } finally {
+      setProcessing(false)
+    }
   }
 
-  const handleDisburse = () => {
-    console.log("Disbursing loan:", id)
+  const handleDisburse = async () => {
+    try {
+      setProcessing(true)
+      const response = await apiFetch<{ success: boolean; message?: string; data?: Loan }>(
+        `/admin/loans/${id}/disburse`,
+        { method: 'POST' }
+      )
+
+      if (response.success) {
+        sonnerToast.success("Loan Disbursed", {
+          description: response.message || "Loan has been disbursed successfully",
+        })
     setShowDisburseDialog(false)
+        fetchLoan()
+      }
+    } catch (error: any) {
+      console.error('Error disbursing loan:', error)
+      sonnerToast.error("Failed to disburse loan", {
+        description: error.message || "Please try again later",
+      })
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '-'
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  }
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', minimumFractionDigits: 0 }).format(amount)
+  }
+
+  const getMemberName = () => {
+    if (loan?.member?.user) {
+      return `${loan.member.user.first_name || ''} ${loan.member.user.last_name || ''}`.trim() || 'N/A'
+    }
+    return 'N/A'
+  }
+
+  const calculateMonthlyPayment = () => {
+    if (!loan || !loan.amount || !loan.duration_months || loan.duration_months === 0) return 0
+    const interest = loan.amount * (loan.interest_rate / 100)
+    const total = loan.amount + interest
+    return total / loan.duration_months
+  }
+
+  const calculateTotalRepayment = () => {
+    if (!loan || !loan.amount) return 0
+    const interest = loan.amount * (loan.interest_rate / 100)
+    return loan.amount + interest
+  }
+
+  const generateRepaymentSchedule = () => {
+    if (!loan || !loan.duration_months) return []
+    const monthlyPayment = calculateMonthlyPayment()
+    const schedule = []
+    const startDate = new Date(loan.application_date || loan.created_at)
+
+    for (let i = 0; i < loan.duration_months; i++) {
+      const dueDate = new Date(startDate)
+      dueDate.setMonth(dueDate.getMonth() + i + 1)
+      
+      schedule.push({
+        month: i + 1,
+        dueDate: dueDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
+        amount: monthlyPayment,
+        status: loan.repayments && loan.repayments[i] ? loan.repayments[i].status : 'pending',
+      })
+    }
+
+    return schedule
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
+
+  if (!loan) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Link href="/admin/loans">
+            <Button variant="outline" size="icon">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold">Loan Not Found</h1>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-muted-foreground">The loan you're looking for doesn't exist.</p>
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -83,16 +261,14 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
         </Link>
         <div className="flex-1">
           <h1 className="text-3xl font-bold">Loan Application</h1>
-          <p className="text-muted-foreground">{loan.loanId}</p>
+          <p className="text-muted-foreground">{loan.id.substring(0, 8)}...</p>
         </div>
         <Badge
           variant={
-            loan.status === "approved"
+            loan.status === "approved" || loan.status === "active"
               ? "default"
               : loan.status === "rejected"
                 ? "destructive"
-                : loan.status === "active"
-                  ? "default"
                   : "secondary"
           }
         >
@@ -109,11 +285,11 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
                 <p className="text-sm text-muted-foreground">Review application details and approve or reject</p>
               </div>
               <div className="flex gap-2">
-                <Button onClick={() => setShowApproveDialog(true)}>
+                <Button onClick={() => setShowApproveDialog(true)} disabled={processing}>
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Approve Loan
                 </Button>
-                <Button variant="destructive" onClick={() => setShowRejectDialog(true)}>
+                <Button variant="destructive" onClick={() => setShowRejectDialog(true)} disabled={processing}>
                   <XCircle className="h-4 w-4 mr-2" />
                   Reject Loan
                 </Button>
@@ -123,7 +299,7 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
         </Card>
       )}
 
-      {loan.status === "approved" && !loan.disbursedDate && (
+      {loan.status === "approved" && (
         <Card className="border-green-200 bg-green-50">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -131,7 +307,9 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
                 <h3 className="font-semibold">Loan Approved - Ready for Disbursement</h3>
                 <p className="text-sm text-muted-foreground">Disburse funds to the applicant's account</p>
               </div>
-              <Button onClick={() => setShowDisburseDialog(true)}>Disburse Loan</Button>
+              <Button onClick={() => setShowDisburseDialog(true)} disabled={processing}>
+                Disburse Loan
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -141,7 +319,6 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
         <TabsList>
           <TabsTrigger value="details">Loan Details</TabsTrigger>
           <TabsTrigger value="applicant">Applicant Info</TabsTrigger>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
           <TabsTrigger value="schedule">Repayment Schedule</TabsTrigger>
         </TabsList>
 
@@ -155,39 +332,35 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
               <div className="space-y-4">
                 <div>
                   <label className="text-sm text-muted-foreground">Loan Amount</label>
-                  <p className="text-2xl font-bold">₦{loan.amount.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">{formatCurrency(loan.amount)}</p>
                 </div>
                 <div>
                   <label className="text-sm text-muted-foreground">Tenure</label>
-                  <p className="font-medium">{loan.tenure} months</p>
+                  <p className="font-medium">{loan.duration_months} months</p>
                 </div>
                 <div>
                   <label className="text-sm text-muted-foreground">Interest Rate</label>
-                  <p className="font-medium">{loan.interestRate}% (Simple Interest)</p>
+                  <p className="font-medium">{loan.interest_rate}% (Simple Interest)</p>
                 </div>
+                {loan.purpose && (
                 <div>
                   <label className="text-sm text-muted-foreground">Purpose</label>
                   <p className="font-medium">{loan.purpose}</p>
                 </div>
+                )}
               </div>
               <div className="space-y-4">
                 <div>
                   <label className="text-sm text-muted-foreground">Monthly Repayment</label>
-                  <p className="text-2xl font-bold text-primary">₦{loan.monthlyRepayment.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-primary">{formatCurrency(calculateMonthlyPayment())}</p>
                 </div>
                 <div>
                   <label className="text-sm text-muted-foreground">Total Repayment</label>
-                  <p className="font-medium">₦{loan.totalRepayment.toLocaleString()}</p>
+                  <p className="font-medium">{formatCurrency(calculateTotalRepayment())}</p>
                 </div>
                 <div>
-                  <label className="text-sm text-muted-foreground">Last Net Pay</label>
-                  <p className="font-medium">₦{loan.lastNetPay.toLocaleString()}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground">Net Pay Ratio</label>
-                  <p className="font-medium">
-                    {((loan.monthlyRepayment / loan.lastNetPay) * 100).toFixed(1)}% of net pay
-                  </p>
+                  <label className="text-sm text-muted-foreground">Loan Type</label>
+                  <p className="font-medium">{loan.type || '-'}</p>
                 </div>
               </div>
             </CardContent>
@@ -203,24 +376,24 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
                 <Calendar className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="font-medium">Application Date</p>
-                  <p className="text-sm text-muted-foreground">{loan.applicationDate}</p>
+                  <p className="text-sm text-muted-foreground">{formatDate(loan.application_date || loan.created_at)}</p>
                 </div>
               </div>
-              {loan.approvedDate && (
+              {loan.approved_at && (
                 <div className="flex items-center gap-4">
                   <CheckCircle className="h-5 w-5 text-green-600" />
                   <div>
                     <p className="font-medium">Approved Date</p>
-                    <p className="text-sm text-muted-foreground">{loan.approvedDate}</p>
+                    <p className="text-sm text-muted-foreground">{formatDate(loan.approved_at)}</p>
                   </div>
                 </div>
               )}
-              {loan.disbursedDate && (
+              {loan.rejected_at && (
                 <div className="flex items-center gap-4">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
+                  <XCircle className="h-5 w-5 text-red-600" />
                   <div>
-                    <p className="font-medium">Disbursed Date</p>
-                    <p className="text-sm text-muted-foreground">{loan.disbursedDate}</p>
+                    <p className="font-medium">Rejected Date</p>
+                    <p className="text-sm text-muted-foreground">{formatDate(loan.rejected_at)}</p>
                   </div>
                 </div>
               )}
@@ -240,58 +413,27 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
                   <label className="text-sm text-muted-foreground">Full Name</label>
                   <p className="font-medium flex items-center gap-2">
                     <User className="h-4 w-4" />
-                    {loan.applicant}
+                    {getMemberName()}
                   </p>
                 </div>
                 <div>
                   <label className="text-sm text-muted-foreground">Member ID</label>
-                  <p className="font-medium font-mono">{loan.memberId}</p>
+                  <p className="font-medium font-mono">{loan.member?.member_id || 'N/A'}</p>
                 </div>
               </div>
               <div className="space-y-4">
+                {loan.member?.user?.email && (
                 <div>
                   <label className="text-sm text-muted-foreground">Email</label>
-                  <p className="font-medium">{loan.email}</p>
+                    <p className="font-medium">{loan.member.user.email}</p>
                 </div>
+                )}
+                {loan.member?.user?.phone && (
                 <div>
                   <label className="text-sm text-muted-foreground">Phone</label>
-                  <p className="font-medium">{loan.phone}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="documents" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Supporting Documents</CardTitle>
-              <CardDescription>Uploaded documents for verification</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {loan.documents.map((doc, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex items-center gap-4">
-                      <FileText className="h-8 w-8 text-primary" />
-                      <div>
-                        <p className="font-medium">{doc.name}</p>
-                        <p className="text-sm text-muted-foreground">Uploaded: {doc.uploadDate}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge variant={doc.status === "verified" ? "default" : "secondary"}>{doc.status}</Badge>
-                      <Button variant="outline" size="sm">
-                        <FileText className="h-4 w-4 mr-2" />
-                        View
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Download className="h-4 w-4 mr-2" />
-                        Download
-                      </Button>
-                    </div>
+                    <p className="font-medium">{loan.member.user.phone}</p>
                   </div>
-                ))}
+                )}
               </div>
             </CardContent>
           </Card>
@@ -314,13 +456,15 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {loan.repaymentSchedule.slice(0, 12).map((payment) => (
+                  {generateRepaymentSchedule().slice(0, 12).map((payment) => (
                     <TableRow key={payment.month}>
                       <TableCell>Month {payment.month}</TableCell>
                       <TableCell>{payment.dueDate}</TableCell>
-                      <TableCell className="text-right">₦{payment.amount.toLocaleString()}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(payment.amount)}</TableCell>
                       <TableCell>
-                        <Badge variant={payment.status === "paid" ? "default" : "secondary"}>{payment.status}</Badge>
+                        <Badge variant={payment.status === "paid" ? "default" : "secondary"}>
+                          {payment.status}
+                        </Badge>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -337,14 +481,23 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
           <DialogHeader>
             <DialogTitle>Approve Loan Application</DialogTitle>
             <DialogDescription>
-              Are you sure you want to approve this loan application for ₦{loan.amount.toLocaleString()}?
+              Are you sure you want to approve this loan application for {formatCurrency(loan.amount)}?
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowApproveDialog(false)}>
+            <Button variant="outline" onClick={() => setShowApproveDialog(false)} disabled={processing}>
               Cancel
             </Button>
-            <Button onClick={handleApprove}>Approve Loan</Button>
+            <Button onClick={handleApprove} disabled={processing}>
+              {processing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Approving...
+                </>
+              ) : (
+                "Approve Loan"
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -364,11 +517,18 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
             />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
+            <Button variant="outline" onClick={() => setShowRejectDialog(false)} disabled={processing}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleReject} disabled={!rejectionReason.trim()}>
-              Reject Loan
+            <Button variant="destructive" onClick={handleReject} disabled={!rejectionReason.trim() || processing}>
+              {processing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Rejecting...
+                </>
+              ) : (
+                "Reject Loan"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -379,14 +539,23 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
           <DialogHeader>
             <DialogTitle>Disburse Loan</DialogTitle>
             <DialogDescription>
-              Confirm disbursement of ₦{loan.amount.toLocaleString()} to {loan.applicant}'s account.
+              Confirm disbursement of {formatCurrency(loan.amount)} to {getMemberName()}'s account.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDisburseDialog(false)}>
+            <Button variant="outline" onClick={() => setShowDisburseDialog(false)} disabled={processing}>
               Cancel
             </Button>
-            <Button onClick={handleDisburse}>Confirm Disbursement</Button>
+            <Button onClick={handleDisburse} disabled={processing}>
+              {processing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Disbursing...
+                </>
+              ) : (
+                "Confirm Disbursement"
+              )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

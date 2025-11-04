@@ -1,76 +1,74 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Download, Mail, Send, Inbox, FileEdit } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { getMailServiceReports, exportReport } from "@/lib/api/client"
+import { useToast } from "@/hooks/use-toast"
+import Link from "next/link"
 
 export default function MailServiceReportsPage() {
+  const { toast } = useToast()
   const [dateRange, setDateRange] = useState("this-month")
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
+    total_messages: 0,
+    sent_messages: 0,
+    draft_messages: 0,
+    delivered_messages: 0,
+  })
+  const [messagesByCategory, setMessagesByCategory] = useState<any[]>([])
+  const [messages, setMessages] = useState<any[]>([])
 
-  const stats = [
-    { label: "Total Messages", value: "1,456", icon: Mail, color: "text-blue-600" },
-    { label: "Sent", value: "892", icon: Send, color: "text-green-600" },
-    { label: "Received", value: "564", icon: Inbox, color: "text-purple-600" },
-    { label: "Drafts", value: "23", icon: FileEdit, color: "text-orange-600" },
-  ]
+  useEffect(() => {
+    fetchData()
+  }, [dateRange])
 
-  const mailActivity = [
-    {
-      id: "MSG001",
-      from: "Admin",
-      to: "All Members",
-      subject: "Monthly Newsletter - March 2024",
-      date: "2024-03-15",
-      status: "Sent",
-      recipients: 1234,
-    },
-    {
-      id: "MSG002",
-      from: "Finance Dept",
-      to: "John Doe",
-      subject: "Contribution Reminder",
-      date: "2024-03-14",
-      status: "Delivered",
-      recipients: 1,
-    },
-    {
-      id: "MSG003",
-      from: "Property Dept",
-      to: "Property Owners",
-      subject: "Maintenance Schedule",
-      date: "2024-03-13",
-      status: "Sent",
-      recipients: 156,
-    },
-    {
-      id: "MSG004",
-      from: "Loan Officer",
-      to: "Jane Smith",
-      subject: "Loan Approval Notification",
-      date: "2024-03-12",
-      status: "Delivered",
-      recipients: 1,
-    },
-    {
-      id: "MSG005",
-      from: "Admin",
-      to: "New Members",
-      subject: "Welcome to FRSC HMS",
-      date: "2024-03-11",
-      status: "Sent",
-      recipients: 45,
-    },
-  ]
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      const response = await getMailServiceReports({ date_range: dateRange, per_page: 50 })
+      if (response.success) {
+        setStats(response.data.stats)
+        setMessagesByCategory(response.data.messages_by_category || [])
+        setMessages(response.data.messages || [])
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to load mail service reports",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  const departmentActivity = [
-    { department: "Admin", sent: 234, received: 156, avgResponseTime: "2.5 hours" },
-    { department: "Finance", sent: 189, received: 145, avgResponseTime: "3.2 hours" },
-    { department: "Property", sent: 156, received: 98, avgResponseTime: "4.1 hours" },
-    { department: "Loans", sent: 145, received: 87, avgResponseTime: "2.8 hours" },
+  const handleExport = async () => {
+    try {
+      await exportReport('mail-service', { date_range: dateRange })
+      toast({
+        title: "Export initiated",
+        description: "Your report is being generated.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to export report",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const statsCards = [
+    { label: "Total Messages", value: stats.total_messages.toString(), icon: Mail, color: "text-blue-600" },
+    { label: "Sent", value: stats.sent_messages.toString(), icon: Send, color: "text-green-600" },
+    { label: "Drafts", value: stats.draft_messages.toString(), icon: FileEdit, color: "text-orange-600" },
+    { label: "Delivered", value: stats.delivered_messages.toString(), icon: Inbox, color: "text-purple-600" },
   ]
 
   return (
@@ -92,7 +90,7 @@ export default function MailServiceReportsPage() {
               <SelectItem value="this-year">This Year</SelectItem>
             </SelectContent>
           </Select>
-          <Button>
+          <Button onClick={handleExport}>
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
@@ -101,7 +99,7 @@ export default function MailServiceReportsPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat) => {
+        {statsCards.map((stat) => {
           const Icon = stat.icon
           return (
             <Card key={stat.label}>
@@ -117,75 +115,87 @@ export default function MailServiceReportsPage() {
         })}
       </div>
 
-      {/* Department Activity */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Department Activity</CardTitle>
-          <CardDescription>Mail activity and response times by department</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Department</TableHead>
-                  <TableHead className="text-right">Sent</TableHead>
-                  <TableHead className="text-right">Received</TableHead>
-                  <TableHead className="text-right">Avg Response Time</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {departmentActivity.map((dept) => (
-                  <TableRow key={dept.department}>
-                    <TableCell className="font-medium">{dept.department}</TableCell>
-                    <TableCell className="text-right">{dept.sent}</TableCell>
-                    <TableCell className="text-right">{dept.received}</TableCell>
-                    <TableCell className="text-right text-blue-600 font-semibold">{dept.avgResponseTime}</TableCell>
+      {/* Category Breakdown */}
+      {messagesByCategory.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Messages by Category</CardTitle>
+            <CardDescription>Message distribution by category</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Category</TableHead>
+                    <TableHead className="text-right">Count</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {messagesByCategory.map((item) => (
+                    <TableRow key={item.category}>
+                      <TableCell className="font-medium">{item.category}</TableCell>
+                      <TableCell className="text-right">{item.count}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Mail Activity */}
+      {/* Recent Messages */}
       <Card>
         <CardHeader>
           <CardTitle>Recent Mail Activity</CardTitle>
           <CardDescription>Latest messages and delivery status</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Message ID</TableHead>
-                  <TableHead>From</TableHead>
-                  <TableHead>To</TableHead>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead className="text-right">Recipients</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mailActivity.map((mail) => (
-                  <TableRow key={mail.id}>
-                    <TableCell className="font-medium">{mail.id}</TableCell>
-                    <TableCell>{mail.from}</TableCell>
-                    <TableCell>{mail.to}</TableCell>
-                    <TableCell className="max-w-xs truncate">{mail.subject}</TableCell>
-                    <TableCell>{mail.date}</TableCell>
-                    <TableCell className="text-right">{mail.recipients}</TableCell>
-                    <TableCell>
-                      <Badge variant={mail.status === "Delivered" ? "default" : "secondary"}>{mail.status}</Badge>
-                    </TableCell>
+          {loading ? (
+            <div className="text-center py-8">Loading...</div>
+          ) : messages.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">No messages found</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Message ID</TableHead>
+                    <TableHead>From</TableHead>
+                    <TableHead>Subject</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Recipient Type</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Status</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {messages.map((mail) => (
+                    <TableRow key={mail.id}>
+                      <TableCell className="font-medium">
+                        <Link href={`/admin/mail-service/${mail.id}`} className="hover:underline">
+                          {mail.id}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{mail.sender}</TableCell>
+                      <TableCell className="max-w-xs truncate">{mail.subject}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{mail.category}</Badge>
+                      </TableCell>
+                      <TableCell>{mail.recipient_type}</TableCell>
+                      <TableCell>{mail.sent_at || mail.created_at}</TableCell>
+                      <TableCell>
+                        <Badge variant={mail.status === "Delivered" ? "default" : "secondary"}>
+                          {mail.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -93,6 +93,7 @@ const navItems: NavItem[] = [
     icon: CreditCard,
     subItems: [
       { href: "/admin/contributions", label: "All Contributions", icon: CreditCard },
+      { href: "/admin/contribution-plans", label: "Contribution Plans", icon: Package },
       { href: "/admin/bulk-upload/contributions", label: "Bulk Upload Contribution", icon: Upload },
     ],
   },
@@ -102,7 +103,7 @@ const navItems: NavItem[] = [
     subItems: [
       { href: "/admin/loans", label: "All Loans", icon: TrendingUp },
       { href: "/admin/bulk-upload/loan-repayments", label: "Bulk Upload Repayments", icon: Upload },
-      { href: "/admin/loan-products", label: "Loan Products", icon: Package },
+  { href: "/admin/loan-products", label: "Loan Products", icon: Package },
     ],
   },
   {
@@ -129,7 +130,7 @@ const navItems: NavItem[] = [
     icon: Home,
     subItems: [
       { href: "/admin/properties", label: "All Properties", icon: Home },
-      { href: "/admin/eoi-forms", label: "EOI Forms", icon: ClipboardList },
+  { href: "/admin/eoi-forms", label: "EOI Forms", icon: ClipboardList },
       { href: "/admin/bulk-upload/properties", label: "Bulk Upload", icon: Upload },
     ],
   },
@@ -154,7 +155,15 @@ const navItems: NavItem[] = [
       { href: "/admin/property-management/reports", label: "Management Reports", icon: FileBarChart },
     ],
   },
-  { href: "/admin/blockchain", label: "Blockchain Management", icon: LinkIcon },
+  {
+    label: "Blockchain",
+    icon: LinkIcon,
+    subItems: [
+      { href: "/admin/blockchain", label: "Properties", icon: LinkIcon },
+      { href: "/admin/blockchain/wallets", label: "Wallets", icon: Wallet },
+      { href: "/admin/blockchain/setup", label: "Setup", icon: Settings },
+    ],
+  },
   {
     label: "Mail Service",
     icon: Mail,
@@ -191,8 +200,14 @@ const navItems: NavItem[] = [
       { href: "/admin/landing-page/templates", label: "Templates", icon: FileText },
     ],
   },
-  { href: "/admin/payment-gateways", label: "Payment Gateways", icon: CreditCard },
-  { href: "/admin/payment-approvals", label: "Payment Approvals", icon: CheckCircle },
+  {
+    label: "Payment Manager",
+    icon: CreditCard,
+    subItems: [
+      { href: "/admin/payment-gateways", label: "Payment Gateways", icon: CreditCard },
+      { href: "/admin/payment-approvals", label: "Payment Approvals", icon: CheckCircle },
+    ],
+  },
   { href: "/admin/white-label", label: "White Label", icon: Settings },
   { href: "/admin/custom-domains", label: "Custom Domains", icon: LinkIcon },
   { href: "/admin/settings", label: "Settings", icon: Settings },

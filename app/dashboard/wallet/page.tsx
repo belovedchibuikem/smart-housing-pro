@@ -79,7 +79,7 @@ export default function WalletPage() {
       { label: "Total Income", value: income, icon: ArrowDownRight, color: "text-green-600" },
       { label: "Total Expenses", value: expenses, icon: ArrowUpRight, color: "text-red-600" },
       { label: "This Month", value: monthTotal, icon: TrendingUp, color: "text-blue-600" },
-    ]
+  ]
   }, [recentTransactions])
 
   return (

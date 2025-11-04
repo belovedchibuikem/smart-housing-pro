@@ -1,109 +1,77 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Search, Filter, Download, User, DollarSign, FileText, Home, Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { getActivityLogs, exportReport } from "@/lib/api/client"
+import { useToast } from "@/hooks/use-toast"
+
+// Icon mapping
+const iconMap: Record<string, any> = {
+  dollar: DollarSign,
+  shield: Shield,
+  home: Home,
+  user: User,
+  'file-text': FileText,
+  file: FileText,
+}
 
 export default function ActivityLogsPage() {
+  const { toast } = useToast()
   const [searchQuery, setSearchQuery] = useState("")
   const [filterType, setFilterType] = useState("all")
+  const [dateRange, setDateRange] = useState("this-month")
+  const [loading, setLoading] = useState(true)
+  const [activityLogs, setActivityLogs] = useState<any[]>([])
 
-  const activityLogs = [
-    {
-      id: 1,
-      user: "John Doe (FRSC-2024-001)",
-      action: "Applied for housing loan",
-      details: "Loan amount: ₦5,000,000 | Product: Standard Housing Loan",
-      timestamp: "2024-03-15 14:30:25",
-      type: "loan",
-      icon: DollarSign,
-      color: "text-orange-600",
-      bgColor: "bg-orange-100",
-    },
-    {
-      id: 2,
-      user: "Admin User (Super Admin)",
-      action: "Approved KYC verification",
-      details: "Member: Jane Smith (FRSC-2024-045)",
-      timestamp: "2024-03-15 14:15:10",
-      type: "kyc",
-      icon: Shield,
-      color: "text-blue-600",
-      bgColor: "bg-blue-100",
-    },
-    {
-      id: 3,
-      user: "Mike Johnson (FRSC-2024-023)",
-      action: "Made monthly contribution",
-      details: "Amount: ₦50,000 | Payment method: Bank transfer",
-      timestamp: "2024-03-15 13:45:00",
-      type: "payment",
-      icon: DollarSign,
-      color: "text-green-600",
-      bgColor: "bg-green-100",
-    },
-    {
-      id: 4,
-      user: "Sarah Williams (FRSC-2024-067)",
-      action: "Invested in property",
-      details: "Property: Luxury Duplex in Lekki | Amount: ₦2,000,000",
-      timestamp: "2024-03-15 12:20:15",
-      type: "property",
-      icon: Home,
-      color: "text-purple-600",
-      bgColor: "bg-purple-100",
-    },
-    {
-      id: 5,
-      user: "Admin User (Accounts)",
-      action: "Generated financial report",
-      details: "Report type: Monthly contributions summary | Period: February 2024",
-      timestamp: "2024-03-15 11:00:00",
-      type: "report",
-      icon: FileText,
-      color: "text-gray-600",
-      bgColor: "bg-gray-100",
-    },
-    {
-      id: 6,
-      user: "David Brown (FRSC-2024-089)",
-      action: "Updated profile information",
-      details: "Changed: Phone number, Email address",
-      timestamp: "2024-03-15 10:30:45",
-      type: "profile",
-      icon: User,
-      color: "text-teal-600",
-      bgColor: "bg-teal-100",
-    },
-    {
-      id: 7,
-      user: "Admin User (Loans)",
-      action: "Approved loan application",
-      details: "Applicant: John Doe | Amount: ₦5,000,000 | Tenure: 15 years",
-      timestamp: "2024-03-15 09:15:30",
-      type: "loan",
-      icon: DollarSign,
-      color: "text-orange-600",
-      bgColor: "bg-orange-100",
-    },
-    {
-      id: 8,
-      user: "Emma Wilson (FRSC-2024-112)",
-      action: "Paid statutory charge",
-      details: "Charge: Building Plan Approval | Amount: ₦75,000",
-      timestamp: "2024-03-15 08:45:20",
-      type: "payment",
-      icon: DollarSign,
-      color: "text-green-600",
-      bgColor: "bg-green-100",
-    },
-  ]
+  useEffect(() => {
+    fetchLogs()
+  }, [searchQuery, filterType, dateRange])
 
-  const filteredLogs = filterType === "all" ? activityLogs : activityLogs.filter((log) => log.type === filterType)
+  const fetchLogs = async () => {
+    try {
+      setLoading(true)
+      const response = await getActivityLogs({
+        search: searchQuery || undefined,
+        module: filterType !== 'all' ? filterType : undefined,
+        date_range: dateRange,
+        per_page: 50,
+      })
+      if (response.success) {
+        setActivityLogs(response.data || [])
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to load activity logs",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleExport = async () => {
+    try {
+      await exportReport('activity-logs', { date_range: dateRange, search: searchQuery, module: filterType })
+      toast({
+        title: "Export initiated",
+        description: "Your logs are being generated.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to export logs",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const filteredLogs = activityLogs
 
   return (
     <div className="min-h-screen bg-background">
@@ -113,7 +81,7 @@ export default function ActivityLogsPage() {
             <h1 className="text-3xl font-bold">Activity Logs</h1>
             <p className="text-muted-foreground mt-1">Track all system activities and user actions</p>
           </div>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExport}>
             <Download className="h-4 w-4 mr-2" />
             Export Logs
           </Button>
@@ -132,6 +100,17 @@ export default function ActivityLogsPage() {
                   className="pl-9"
                 />
               </div>
+              <Select value={dateRange} onValueChange={setDateRange}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Today</SelectItem>
+                  <SelectItem value="this-week">This Week</SelectItem>
+                  <SelectItem value="this-month">This Month</SelectItem>
+                  <SelectItem value="last-month">Last Month</SelectItem>
+                </SelectContent>
+              </Select>
               <Select value={filterType} onValueChange={setFilterType}>
                 <SelectTrigger className="w-full sm:w-[200px]">
                   <Filter className="h-4 w-4 mr-2" />
@@ -145,6 +124,8 @@ export default function ActivityLogsPage() {
                   <SelectItem value="property">Properties</SelectItem>
                   <SelectItem value="profile">Profile Updates</SelectItem>
                   <SelectItem value="report">Reports</SelectItem>
+                  <SelectItem value="document">Documents</SelectItem>
+                  <SelectItem value="admin">Admin Actions</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -156,35 +137,41 @@ export default function ActivityLogsPage() {
           <CardHeader>
             <CardTitle>Recent Activities</CardTitle>
             <CardDescription>
-              Showing {filteredLogs.length} {filterType === "all" ? "" : filterType} activities
+              {loading ? "Loading..." : `Showing ${filteredLogs.length} ${filterType === "all" ? "" : filterType} activities`}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {filteredLogs.map((log) => {
-                const Icon = log.icon
-                return (
-                  <div key={log.id} className="flex items-start gap-4 p-4 border rounded-lg hover:bg-muted/50">
-                    <div className={`p-2 rounded-lg ${log.bgColor} flex-shrink-0`}>
-                      <Icon className={`h-5 w-5 ${log.color}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1">
-                          <p className="font-medium">{log.user}</p>
-                          <p className="text-sm text-muted-foreground mt-0.5">{log.action}</p>
-                        </div>
-                        <Badge variant="outline" className="capitalize flex-shrink-0">
-                          {log.type}
-                        </Badge>
+            {loading ? (
+              <div className="text-center py-8">Loading...</div>
+            ) : filteredLogs.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">No activity logs found</div>
+            ) : (
+              <div className="space-y-4">
+                {filteredLogs.map((log) => {
+                  const Icon = iconMap[log.icon] || FileText
+                  return (
+                    <div key={log.id} className="flex items-start gap-4 p-4 border rounded-lg hover:bg-muted/50">
+                      <div className={`p-2 rounded-lg ${log.bgColor} flex-shrink-0`}>
+                        <Icon className={`h-5 w-5 ${log.color}`} />
                       </div>
-                      <p className="text-sm text-muted-foreground mt-2">{log.details}</p>
-                      <p className="text-xs text-muted-foreground mt-2">{log.timestamp}</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <p className="font-medium">{log.user}</p>
+                            <p className="text-sm text-muted-foreground mt-0.5">{log.action}</p>
+                          </div>
+                          <Badge variant="outline" className="capitalize flex-shrink-0">
+                            {log.type}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-2">{log.details}</p>
+                        <p className="text-xs text-muted-foreground mt-2">{log.timestamp}</p>
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
-            </div>
+                  )
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -25,7 +25,7 @@ import {
   XCircle,
   RefreshCw
 } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { toast as sonnerToast } from "sonner"
 import { apiFetch } from "@/lib/api/client"
 
 interface PaymentGateway {
@@ -34,19 +34,17 @@ interface PaymentGateway {
   display_name: string
   description: string
   is_active: boolean
-  is_test_mode: boolean
-  credentials: Record<string, any>
-  configuration: Record<string, any>
-  supported_currencies: string[]
-  supported_countries: string[]
-  transaction_fee_percentage: number
-  transaction_fee_fixed: number
-  minimum_amount: number
-  maximum_amount: number
-  platform_fee_percentage: number
-  platform_fee_fixed: number
-  created_at: string
-  updated_at: string
+  settings: Record<string, any>
+  supported_currencies?: string[]
+  supported_countries?: string[]
+  transaction_fee_percentage?: number
+  transaction_fee_fixed?: number
+  minimum_amount?: number
+  maximum_amount?: number
+  platform_fee_percentage?: number
+  platform_fee_fixed?: number
+  created_at?: string
+  updated_at?: string
 }
 
 interface BankAccount {
@@ -58,10 +56,12 @@ interface BankAccount {
 }
 
 export default function TenantPaymentGatewaysPage() {
-  const { toast } = useToast()
   const [gateways, setGateways] = useState<PaymentGateway[]>([])
   const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState<Record<string, boolean>>({})
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({})
+  const [activeTab, setActiveTab] = useState<string>("paystack")
+  const [localSettings, setLocalSettings] = useState<Record<string, Record<string, any>>>({})
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
   const [newBankAccount, setNewBankAccount] = useState({
     bank_name: "",
@@ -78,65 +78,225 @@ export default function TenantPaymentGatewaysPage() {
     try {
       setLoading(true)
       const response = await apiFetch<{ gateways: PaymentGateway[] }>("/admin/payment-gateways")
-      setGateways(response.gateways)
-    } catch (error) {
+      
+      console.log("Payment gateways API response:", response)
+      
+      const gatewaysList = response.gateways || []
+      
+      // If no gateways from API, create default gateways structure
+      if (gatewaysList.length === 0) {
+        console.log("No gateways found, creating default structure")
+        const defaultGateways: PaymentGateway[] = [
+          {
+            id: 'default-paystack',
+            name: 'paystack',
+            display_name: 'Paystack',
+            description: 'Accept payments via Paystack',
+            is_active: false,
+            settings: {}
+          },
+          {
+            id: 'default-remita',
+            name: 'remita',
+            display_name: 'Remita',
+            description: 'Accept payments via Remita',
+            is_active: false,
+            settings: {}
+          },
+          {
+            id: 'default-stripe',
+            name: 'stripe',
+            display_name: 'Stripe',
+            description: 'Accept payments via Stripe',
+            is_active: false,
+            settings: {}
+          },
+          {
+            id: 'default-manual',
+            name: 'manual',
+            display_name: 'Manual Transfer',
+            description: 'Manual bank transfer payments',
+            is_active: false,
+            settings: {}
+          }
+        ]
+        setGateways(defaultGateways)
+        
+        // Initialize local settings
+        const settingsMap: Record<string, Record<string, any>> = {}
+        defaultGateways.forEach(gateway => {
+          settingsMap[gateway.name] = gateway.settings || {}
+        })
+        setLocalSettings(settingsMap)
+        setActiveTab(defaultGateways[0].name)
+      } else {
+        setGateways(gatewaysList)
+        
+        // Initialize local settings from API response
+        const settingsMap: Record<string, Record<string, any>> = {}
+        gatewaysList.forEach(gateway => {
+          settingsMap[gateway.name] = gateway.settings || {}
+        })
+        setLocalSettings(settingsMap)
+        
+        // Set active tab to first available gateway
+        if (gatewaysList.length > 0) {
+          setActiveTab(gatewaysList[0].name)
+        }
+      }
+    } catch (error: any) {
       console.error("Error loading gateways:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load payment gateways",
-        variant: "destructive",
+      
+      // Even on error, show default gateways so page is usable
+      const defaultGateways: PaymentGateway[] = [
+        {
+          id: 'default-paystack',
+          name: 'paystack',
+          display_name: 'Paystack',
+          description: 'Accept payments via Paystack',
+          is_active: false,
+          settings: {}
+        },
+        {
+          id: 'default-remita',
+          name: 'remita',
+          display_name: 'Remita',
+          description: 'Accept payments via Remita',
+          is_active: false,
+          settings: {}
+        },
+        {
+          id: 'default-stripe',
+          name: 'stripe',
+          display_name: 'Stripe',
+          description: 'Accept payments via Stripe',
+          is_active: false,
+          settings: {}
+        },
+        {
+          id: 'default-manual',
+          name: 'manual',
+          display_name: 'Manual Transfer',
+          description: 'Manual bank transfer payments',
+          is_active: false,
+          settings: {}
+        }
+      ]
+      setGateways(defaultGateways)
+      
+      const settingsMap: Record<string, Record<string, any>> = {}
+      defaultGateways.forEach(gateway => {
+        settingsMap[gateway.name] = gateway.settings || {}
+      })
+      setLocalSettings(settingsMap)
+      setActiveTab(defaultGateways[0].name)
+      
+      sonnerToast.error("Failed to load payment gateways", {
+        description: error.message || "Please try again later."
       })
     } finally {
       setLoading(false)
     }
   }
 
-  const updateGateway = async (gatewayId: string, updates: Partial<PaymentGateway>) => {
+  const updateLocalSetting = (gatewayName: string, key: string, value: any) => {
+    setLocalSettings(prev => ({
+      ...prev,
+      [gatewayName]: {
+        ...(prev[gatewayName] || {}),
+        [key]: value
+      }
+    }))
+  }
+
+  const saveGatewaySettings = async (gateway: PaymentGateway) => {
     try {
-      await apiFetch(`/admin/payment-gateways/${gatewayId}`, {
+      setSaving(prev => ({ ...prev, [gateway.id]: true }))
+      
+      const settings = localSettings[gateway.name] || gateway.settings || {}
+      
+      // Use gateway name for lookup (works for both real IDs and default names)
+      // The backend will handle finding by name if ID doesn't exist
+      const gatewayIdentifier = gateway.id.startsWith('default-') ? gateway.name : gateway.id
+      
+      await apiFetch(`/admin/payment-gateways/${gatewayIdentifier}`, {
         method: "PUT",
-        body: updates
+        body: {
+          is_active: gateway.is_active,
+          settings: settings
+        }
       })
 
-      setGateways(prev => 
-        prev.map(gateway => 
-          gateway.id === gatewayId 
-            ? { ...gateway, ...updates }
-            : gateway
-        )
+      // Reload gateways to get updated data from server
+      await loadGateways()
+
+      sonnerToast.success("Settings saved successfully", {
+        description: `${gateway.display_name} configuration has been updated.`
+      })
+    } catch (error: any) {
+      console.error("Error saving gateway settings:", error)
+      sonnerToast.error("Failed to save settings", {
+        description: error.message || "Please check your input and try again."
+      })
+    } finally {
+      setSaving(prev => ({ ...prev, [gateway.id]: false }))
+    }
+  }
+
+  const toggleGatewayStatus = async (gateway: PaymentGateway) => {
+    try {
+      const newStatus = !gateway.is_active
+      
+      // Use gateway name for lookup (works for both real IDs and default names)
+      const gatewayIdentifier = gateway.id.startsWith('default-') ? gateway.name : gateway.id
+      
+      await apiFetch(`/admin/payment-gateways/${gatewayIdentifier}`, {
+        method: "PUT",
+        body: {
+          is_active: newStatus,
+          settings: gateway.settings || localSettings[gateway.name] || {}
+        }
+      })
+
+      // Reload gateways to get updated data from server
+      await loadGateways()
+
+      sonnerToast.success(
+        newStatus ? "Gateway enabled" : "Gateway disabled",
+        {
+          description: `${gateway.display_name} has been ${newStatus ? 'enabled' : 'disabled'}.`
+        }
       )
-
-      toast({
-        title: "Success",
-        description: "Payment gateway updated successfully",
-      })
-    } catch (error) {
-      console.error("Error updating gateway:", error)
-      toast({
-        title: "Error",
-        description: "Failed to update payment gateway",
-        variant: "destructive",
+    } catch (error: any) {
+      console.error("Error toggling gateway:", error)
+      sonnerToast.error("Failed to update gateway status", {
+        description: error.message || "Please try again."
       })
     }
   }
 
-  const testConnection = async (gatewayId: string) => {
+  const testConnection = async (gateway: PaymentGateway) => {
     try {
-      const response = await apiFetch(`/admin/payment-gateways/${gatewayId}/test`, {
+      // Use gateway name for lookup (works for both real IDs and default names)
+      const gatewayIdentifier = gateway.id.startsWith('default-') ? gateway.name : gateway.id
+      
+      const response = await apiFetch<{ success: boolean; message: string }>(`/admin/payment-gateways/${gatewayIdentifier}/test`, {
         method: "POST"
       })
 
-      toast({
-        title: response.success ? "Success" : "Error",
-        description: response.message,
-        variant: response.success ? "default" : "destructive",
-      })
-    } catch (error) {
+      if (response.success) {
+        sonnerToast.success("Connection test successful", {
+          description: response.message
+        })
+      } else {
+        sonnerToast.error("Connection test failed", {
+          description: response.message
+        })
+      }
+    } catch (error: any) {
       console.error("Error testing connection:", error)
-      toast({
-        title: "Error",
-        description: "Failed to test connection",
-        variant: "destructive",
+      sonnerToast.error("Connection test failed", {
+        description: error.message || "Please check your configuration and try again."
       })
     }
   }
@@ -151,10 +311,8 @@ export default function TenantPaymentGatewaysPage() {
 
   const addBankAccount = () => {
     if (!newBankAccount.bank_name || !newBankAccount.account_number || !newBankAccount.account_name) {
-      toast({
-        title: "Error",
-        description: "Please fill in all bank account fields",
-        variant: "destructive",
+      sonnerToast.error("Validation Error", {
+        description: "Please fill in all bank account fields"
       })
       return
     }
@@ -172,17 +330,15 @@ export default function TenantPaymentGatewaysPage() {
       is_primary: false
     })
 
-    toast({
-      title: "Success",
-      description: "Bank account added successfully",
+    sonnerToast.success("Bank account added", {
+      description: "Bank account has been added successfully."
     })
   }
 
   const removeBankAccount = (accountId: string) => {
     setBankAccounts(prev => prev.filter(account => account.id !== accountId))
-    toast({
-      title: "Success",
-      description: "Bank account removed successfully",
+    sonnerToast.success("Bank account removed", {
+      description: "Bank account has been removed."
     })
   }
 
@@ -194,6 +350,18 @@ export default function TenantPaymentGatewaysPage() {
           : account
       )
     )
+  }
+
+  const getGateway = (name: string): PaymentGateway | undefined => {
+    return gateways.find(g => g.name === name)
+  }
+
+  const getSetting = (gatewayName: string, key: string, defaultValue: any = ""): any => {
+    const gateway = getGateway(gatewayName)
+    if (localSettings[gatewayName] && localSettings[gatewayName][key] !== undefined) {
+      return localSettings[gatewayName][key]
+    }
+    return gateway?.settings?.[key] || defaultValue
   }
 
   const getGatewayIcon = (name: string) => {
@@ -215,28 +383,45 @@ export default function TenantPaymentGatewaysPage() {
     if (!gateway.is_active) {
       return <Badge variant="secondary">Inactive</Badge>
     }
-    if (gateway.is_test_mode) {
-      return <Badge variant="outline">Test Mode</Badge>
-    }
-    return <Badge variant="default">Active</Badge>
+    return <Badge variant="default" className="bg-green-500">Active</Badge>
   }
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 p-6">
         <div>
           <h1 className="text-3xl font-bold">Payment Gateways</h1>
           <p className="text-muted-foreground mt-2">Configure payment methods for member payments</p>
         </div>
-        <div className="flex items-center justify-center py-8">
-          <div className="text-muted-foreground">Loading payment gateways...</div>
+        <div className="flex items-center justify-center py-12">
+          <div className="text-center">
+            <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+            <div className="text-muted-foreground">Loading payment gateways...</div>
+          </div>
         </div>
       </div>
     )
   }
 
+  if (!gateways || gateways.length === 0) {
+    return (
+      <div className="space-y-6 p-6">
+        <div>
+          <h1 className="text-3xl font-bold">Payment Gateways</h1>
+          <p className="text-muted-foreground mt-2">Configure payment methods for member payments</p>
+        </div>
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            No payment gateways found. Please contact support to set up payment gateways.
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div>
         <h1 className="text-3xl font-bold">Payment Gateways</h1>
         <p className="text-muted-foreground mt-2">Configure payment methods for member payments</p>
@@ -249,24 +434,24 @@ export default function TenantPaymentGatewaysPage() {
         </AlertDescription>
       </Alert>
 
-      <Tabs defaultValue="paystack" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="paystack" className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4" />
-            Paystack
-          </TabsTrigger>
-          <TabsTrigger value="remita" className="flex items-center gap-2">
-            <Building2 className="h-4 w-4" />
-            Remita
-          </TabsTrigger>
-          <TabsTrigger value="stripe" className="flex items-center gap-2">
-            <DollarSign className="h-4 w-4" />
-            Stripe
-          </TabsTrigger>
-          <TabsTrigger value="manual" className="flex items-center gap-2">
-            <Wallet className="h-4 w-4" />
-            Manual
-          </TabsTrigger>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className={`grid w-full ${gateways.length === 4 ? 'grid-cols-4' : gateways.length === 3 ? 'grid-cols-3' : gateways.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>
+          {gateways.map((gateway) => {
+            const iconMap: Record<string, any> = {
+              paystack: <CreditCard className="h-4 w-4" />,
+              remita: <Building2 className="h-4 w-4" />,
+              stripe: <DollarSign className="h-4 w-4" />,
+              manual: <Wallet className="h-4 w-4" />,
+            }
+            const Icon = iconMap[gateway.name] || <CreditCard className="h-4 w-4" />
+            
+            return (
+              <TabsTrigger key={gateway.id} value={gateway.name} className="flex items-center gap-2">
+                {Icon}
+                {gateway.display_name || gateway.name}
+              </TabsTrigger>
+            )
+          })}
         </TabsList>
 
         {gateways.map((gateway) => (
@@ -283,14 +468,6 @@ export default function TenantPaymentGatewaysPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     {getGatewayStatus(gateway)}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => testConnection(gateway.id)}
-                    >
-                      <TestTube className="h-4 w-4 mr-2" />
-                      Test Connection
-                    </Button>
                   </div>
                 </div>
               </CardHeader>
@@ -301,39 +478,34 @@ export default function TenantPaymentGatewaysPage() {
                     <Switch
                       id={`${gateway.id}-active`}
                       checked={gateway.is_active}
-                      onCheckedChange={(checked) => updateGateway(gateway.id, { is_active: checked })}
-                    />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor={`${gateway.id}-test`}>Test Mode</Label>
-                    <Switch
-                      id={`${gateway.id}-test`}
-                      checked={gateway.is_test_mode}
-                      onCheckedChange={(checked) => updateGateway(gateway.id, { is_test_mode: checked })}
+                      onCheckedChange={() => toggleGatewayStatus(gateway)}
                     />
                   </div>
                 </div>
 
                 {gateway.name === 'paystack' && (
                   <div className="space-y-4">
-                    <h4 className="font-medium">Paystack Configuration</h4>
+                    <div>
+                      <h4 className="font-medium mb-2">Paystack Configuration</h4>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Enter your Paystack API keys. Get these from your Paystack dashboard.
+                      </p>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="paystack-public-key">Public Key</Label>
-                        <div className="flex">
+                        <div className="flex gap-2">
                           <Input
                             id="paystack-public-key"
                             type={showSecrets[`${gateway.id}_public_key`] ? "text" : "password"}
-                            value={gateway.credentials?.public_key || ""}
-                            onChange={(e) => updateGateway(gateway.id, {
-                              credentials: { ...gateway.credentials, public_key: e.target.value }
-                            })}
+                            value={getSetting('paystack', 'public_key')}
+                            onChange={(e) => updateLocalSetting('paystack', 'public_key', e.target.value)}
+                            placeholder="pk_test_..."
                           />
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="ml-2"
                             onClick={() => toggleSecretVisibility(gateway.id, 'public_key')}
                           >
                             {showSecrets[`${gateway.id}_public_key`] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -342,20 +514,18 @@ export default function TenantPaymentGatewaysPage() {
                       </div>
                       <div>
                         <Label htmlFor="paystack-secret-key">Secret Key</Label>
-                        <div className="flex">
+                        <div className="flex gap-2">
                           <Input
                             id="paystack-secret-key"
                             type={showSecrets[`${gateway.id}_secret_key`] ? "text" : "password"}
-                            value={gateway.credentials?.secret_key || ""}
-                            onChange={(e) => updateGateway(gateway.id, {
-                              credentials: { ...gateway.credentials, secret_key: e.target.value }
-                            })}
+                            value={getSetting('paystack', 'secret_key')}
+                            onChange={(e) => updateLocalSetting('paystack', 'secret_key', e.target.value)}
+                            placeholder="sk_test_..."
                           />
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="ml-2"
                             onClick={() => toggleSecretVisibility(gateway.id, 'secret_key')}
                           >
                             {showSecrets[`${gateway.id}_secret_key`] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -368,39 +538,50 @@ export default function TenantPaymentGatewaysPage() {
 
                 {gateway.name === 'remita' && (
                   <div className="space-y-4">
-                    <h4 className="font-medium">Remita Configuration</h4>
+                    <div>
+                      <h4 className="font-medium mb-2">Remita Configuration</h4>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Enter your Remita merchant credentials. Get these from your Remita dashboard.
+                      </p>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="remita-merchant-id">Merchant ID</Label>
                         <Input
                           id="remita-merchant-id"
-                          value={gateway.credentials?.merchant_id || ""}
-                          onChange={(e) => updateGateway(gateway.id, {
-                            credentials: { ...gateway.credentials, merchant_id: e.target.value }
-                          })}
+                          value={getSetting('remita', 'merchant_id')}
+                          onChange={(e) => updateLocalSetting('remita', 'merchant_id', e.target.value)}
+                          placeholder="Enter merchant ID"
                         />
                       </div>
                       <div>
                         <Label htmlFor="remita-api-key">API Key</Label>
-                        <div className="flex">
+                        <div className="flex gap-2">
                           <Input
                             id="remita-api-key"
                             type={showSecrets[`${gateway.id}_api_key`] ? "text" : "password"}
-                            value={gateway.credentials?.api_key || ""}
-                            onChange={(e) => updateGateway(gateway.id, {
-                              credentials: { ...gateway.credentials, api_key: e.target.value }
-                            })}
+                            value={getSetting('remita', 'api_key')}
+                            onChange={(e) => updateLocalSetting('remita', 'api_key', e.target.value)}
+                            placeholder="Enter API key"
                           />
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="ml-2"
                             onClick={() => toggleSecretVisibility(gateway.id, 'api_key')}
                           >
                             {showSecrets[`${gateway.id}_api_key`] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </Button>
                         </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="remita-service-type-id">Service Type ID</Label>
+                        <Input
+                          id="remita-service-type-id"
+                          value={getSetting('remita', 'service_type_id')}
+                          onChange={(e) => updateLocalSetting('remita', 'service_type_id', e.target.value)}
+                          placeholder="Enter service type ID"
+                        />
                       </div>
                     </div>
                   </div>
@@ -408,24 +589,27 @@ export default function TenantPaymentGatewaysPage() {
 
                 {gateway.name === 'stripe' && (
                   <div className="space-y-4">
-                    <h4 className="font-medium">Stripe Configuration</h4>
+                    <div>
+                      <h4 className="font-medium mb-2">Stripe Configuration</h4>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Enter your Stripe API keys. Get these from your Stripe dashboard.
+                      </p>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="stripe-publishable-key">Publishable Key</Label>
-                        <div className="flex">
+                        <div className="flex gap-2">
                           <Input
                             id="stripe-publishable-key"
                             type={showSecrets[`${gateway.id}_publishable_key`] ? "text" : "password"}
-                            value={gateway.credentials?.publishable_key || ""}
-                            onChange={(e) => updateGateway(gateway.id, {
-                              credentials: { ...gateway.credentials, publishable_key: e.target.value }
-                            })}
+                            value={getSetting('stripe', 'publishable_key')}
+                            onChange={(e) => updateLocalSetting('stripe', 'publishable_key', e.target.value)}
+                            placeholder="pk_test_..."
                           />
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="ml-2"
                             onClick={() => toggleSecretVisibility(gateway.id, 'publishable_key')}
                           >
                             {showSecrets[`${gateway.id}_publishable_key`] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -434,20 +618,18 @@ export default function TenantPaymentGatewaysPage() {
                       </div>
                       <div>
                         <Label htmlFor="stripe-secret-key">Secret Key</Label>
-                        <div className="flex">
+                        <div className="flex gap-2">
                           <Input
                             id="stripe-secret-key"
                             type={showSecrets[`${gateway.id}_secret_key`] ? "text" : "password"}
-                            value={gateway.credentials?.secret_key || ""}
-                            onChange={(e) => updateGateway(gateway.id, {
-                              credentials: { ...gateway.credentials, secret_key: e.target.value }
-                            })}
+                            value={getSetting('stripe', 'secret_key')}
+                            onChange={(e) => updateLocalSetting('stripe', 'secret_key', e.target.value)}
+                            placeholder="sk_test_..."
                           />
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
-                            className="ml-2"
                             onClick={() => toggleSecretVisibility(gateway.id, 'secret_key')}
                           >
                             {showSecrets[`${gateway.id}_secret_key`] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -558,10 +740,30 @@ export default function TenantPaymentGatewaysPage() {
                   </div>
                 )}
 
-                <div className="flex justify-end">
-                  <Button onClick={() => updateGateway(gateway.id, {})}>
-                    <Save className="h-4 w-4 mr-2" />
-                    Save Configuration
+                <div className="flex justify-end gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => testConnection(gateway)}
+                    disabled={saving[gateway.id]}
+                  >
+                    <TestTube className="h-4 w-4 mr-2" />
+                    Test Connection
+                  </Button>
+                  <Button
+                    onClick={() => saveGatewaySettings(gateway)}
+                    disabled={saving[gateway.id]}
+                  >
+                    {saving[gateway.id] ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4 mr-2" />
+                        Save Configuration
+                      </>
+                    )}
                   </Button>
                 </div>
               </CardContent>

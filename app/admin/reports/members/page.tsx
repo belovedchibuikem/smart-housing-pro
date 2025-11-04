@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Download, Search, Users, UserCheck, UserX, Clock } from "lucide-react"
@@ -8,65 +8,75 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { getMemberReports, exportReport } from "@/lib/api/client"
+import { useToast } from "@/hooks/use-toast"
+import Link from "next/link"
 
 export default function MemberReportsPage() {
+  const { toast } = useToast()
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [dateRange, setDateRange] = useState("this-month")
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
+    total_members: 0,
+    active_members: 0,
+    pending_kyc: 0,
+    inactive_members: 0,
+  })
+  const [members, setMembers] = useState<any[]>([])
+  const [pagination, setPagination] = useState<any>({})
 
-  const stats = [
-    { label: "Total Members", value: "1,234", icon: Users, color: "text-blue-600" },
-    { label: "Active Members", value: "1,156", icon: UserCheck, color: "text-green-600" },
-    { label: "Pending KYC", value: "45", icon: Clock, color: "text-orange-600" },
-    { label: "Inactive", value: "33", icon: UserX, color: "text-red-600" },
-  ]
+  useEffect(() => {
+    fetchData()
+  }, [searchQuery, statusFilter, dateRange])
 
-  const members = [
-    {
-      id: "M001",
-      name: "John Doe",
-      email: "john@example.com",
-      phone: "08012345678",
-      status: "Active",
-      joinDate: "2024-01-15",
-      contributions: "₦500,000",
-    },
-    {
-      id: "M002",
-      name: "Jane Smith",
-      email: "jane@example.com",
-      phone: "08023456789",
-      status: "Active",
-      joinDate: "2024-02-20",
-      contributions: "₦450,000",
-    },
-    {
-      id: "M003",
-      name: "Mike Johnson",
-      email: "mike@example.com",
-      phone: "08034567890",
-      status: "Pending",
-      joinDate: "2024-03-10",
-      contributions: "₦0",
-    },
-    {
-      id: "M004",
-      name: "Sarah Williams",
-      email: "sarah@example.com",
-      phone: "08045678901",
-      status: "Active",
-      joinDate: "2024-01-05",
-      contributions: "₦750,000",
-    },
-    {
-      id: "M005",
-      name: "David Brown",
-      email: "david@example.com",
-      phone: "08056789012",
-      status: "Inactive",
-      joinDate: "2023-12-01",
-      contributions: "₦200,000",
-    },
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      const response = await getMemberReports({
+        date_range: dateRange,
+        search: searchQuery || undefined,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        per_page: 50,
+      })
+      if (response.success) {
+        setStats(response.data.stats)
+        setMembers(response.data.members)
+        setPagination(response.data.pagination || {})
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to load member reports",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleExport = async () => {
+    try {
+      await exportReport('members', { date_range: dateRange, search: searchQuery, status: statusFilter })
+      toast({
+        title: "Export initiated",
+        description: "Your report is being generated. You'll receive a notification when it's ready.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to export report",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const statsCards = [
+    { label: "Total Members", value: stats.total_members.toLocaleString(), icon: Users, color: "text-blue-600" },
+    { label: "Active Members", value: stats.active_members.toLocaleString(), icon: UserCheck, color: "text-green-600" },
+    { label: "Pending KYC", value: stats.pending_kyc.toLocaleString(), icon: Clock, color: "text-orange-600" },
+    { label: "Inactive", value: stats.inactive_members.toLocaleString(), icon: UserX, color: "text-red-600" },
   ]
 
   return (
@@ -76,7 +86,7 @@ export default function MemberReportsPage() {
           <h1 className="text-2xl md:text-3xl font-bold">Member Reports</h1>
           <p className="text-muted-foreground mt-1">Comprehensive member statistics and analytics</p>
         </div>
-        <Button>
+        <Button onClick={handleExport}>
           <Download className="h-4 w-4 mr-2" />
           Export Report
         </Button>
@@ -84,7 +94,7 @@ export default function MemberReportsPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat) => {
+        {statsCards.map((stat) => {
           const Icon = stat.icon
           return (
             <Card key={stat.label}>
@@ -153,46 +163,56 @@ export default function MemberReportsPage() {
           <CardDescription>Detailed member information and statistics</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Member ID</TableHead>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Join Date</TableHead>
-                  <TableHead className="text-right">Total Contributions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {members.map((member) => (
-                  <TableRow key={member.id}>
-                    <TableCell className="font-medium">{member.id}</TableCell>
-                    <TableCell>{member.name}</TableCell>
-                    <TableCell>{member.email}</TableCell>
-                    <TableCell>{member.phone}</TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          member.status === "Active"
-                            ? "default"
-                            : member.status === "Pending"
-                              ? "secondary"
-                              : "destructive"
-                        }
-                      >
-                        {member.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{member.joinDate}</TableCell>
-                    <TableCell className="text-right font-semibold">{member.contributions}</TableCell>
+          {loading ? (
+            <div className="text-center py-8">Loading...</div>
+          ) : members.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">No members found</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Member ID</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Join Date</TableHead>
+                    <TableHead className="text-right">Total Contributions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {members.map((member) => (
+                    <TableRow key={member.id}>
+                      <TableCell className="font-medium">
+                        <Link href={`/admin/members/${member.id}`} className="hover:underline">
+                          {member.member_number || member.id.substring(0, 8)}
+                        </Link>
+                      </TableCell>
+                      <TableCell>{member.name}</TableCell>
+                      <TableCell>{member.email}</TableCell>
+                      <TableCell>{member.phone || '-'}</TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            member.status === "active"
+                              ? "default"
+                              : member.status === "pending"
+                                ? "secondary"
+                                : "destructive"
+                          }
+                        >
+                          {member.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{member.join_date}</TableCell>
+                      <TableCell className="text-right font-semibold">{member.contributions}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

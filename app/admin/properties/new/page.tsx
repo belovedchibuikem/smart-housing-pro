@@ -7,12 +7,94 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Upload, X } from "lucide-react"
+import { ArrowLeft, Upload, X, Loader2 } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
+import { apiFetch } from "@/lib/api/client"
 
 export default function NewPropertyPage() {
+  const router = useRouter()
+  const { toast } = useToast()
+  const [loading, setLoading] = useState(false)
   const [propertyType, setPropertyType] = useState<string>("house")
   const [images, setImages] = useState<string[]>([])
+  
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    type: "house",
+    location: "",
+    address: "",
+    city: "",
+    state: "",
+    price: "",
+    size: "",
+    bedrooms: "",
+    bathrooms: "",
+    features: "",
+    status: "available",
+  })
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    
+    if (!formData.title || !formData.location || !formData.price) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields (Title, Location, Price)",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setLoading(true)
+    try {
+      const submitData: any = {
+        title: formData.title,
+        description: formData.description || "",
+        type: formData.type,
+        property_type: formData.type,
+        location: formData.location,
+        address: formData.address || formData.location,
+        city: formData.city || "",
+        state: formData.state || "",
+        price: parseFloat(formData.price),
+        status: formData.status,
+      }
+
+      if (formData.size) submitData.size = parseFloat(formData.size)
+      if (formData.bedrooms) submitData.bedrooms = parseInt(formData.bedrooms)
+      if (formData.bathrooms) submitData.bathrooms = parseInt(formData.bathrooms)
+      if (formData.features) {
+        submitData.features = formData.features.split(',').map(f => f.trim()).filter(f => f)
+      }
+
+      const response = await apiFetch<{ success: boolean; message?: string; data?: any }>(
+        "/admin/properties",
+        {
+          method: "POST",
+          body: submitData,
+        }
+      )
+
+      if (response.success) {
+        toast({
+          title: "Success",
+          description: response.message || "Property created successfully",
+        })
+        router.push("/admin/properties")
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to create property",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -27,6 +109,7 @@ export default function NewPropertyPage() {
         <p className="text-muted-foreground mt-1">Create a new property listing</p>
       </div>
 
+      <form onSubmit={handleSubmit}>
       <Card>
         <CardHeader>
           <CardTitle>Property Information</CardTitle>
@@ -35,18 +118,39 @@ export default function NewPropertyPage() {
         <CardContent className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Property Name</Label>
-              <Input id="name" placeholder="e.g., Luxury 3-Bedroom Apartment" />
+                <Label htmlFor="title">
+                  Property Name <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="title"
+                  placeholder="e.g., Luxury 3-Bedroom Apartment"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  required
+                />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="type">Property Type</Label>
-              <Select value={propertyType} onValueChange={setPropertyType}>
+                <Label htmlFor="type">
+                  Property Type <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={propertyType}
+                  onValueChange={(value) => {
+                    setPropertyType(value)
+                    setFormData({ ...formData, type: value })
+                  }}
+                  required
+                >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                    <SelectItem value="apartment">Apartment</SelectItem>
                   <SelectItem value="house">House</SelectItem>
+                    <SelectItem value="duplex">Duplex</SelectItem>
+                    <SelectItem value="bungalow">Bungalow</SelectItem>
                   <SelectItem value="land">Land</SelectItem>
+                    <SelectItem value="commercial">Commercial</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -58,33 +162,120 @@ export default function NewPropertyPage() {
               id="description"
               placeholder="Describe the property features, amenities, and location benefits..."
               rows={4}
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
-              <Input id="location" placeholder="e.g., Maitama, Abuja" />
+                <Label htmlFor="location">
+                  Location <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="location"
+                  placeholder="e.g., Maitama, Abuja"
+                  value={formData.location}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                  required
+                />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="price">Price (₦)</Label>
-              <Input id="price" type="number" placeholder="e.g., 25000000" />
+                <Label htmlFor="address">Address</Label>
+                <Input
+                  id="address"
+                  placeholder="e.g., No. 123 Street Name"
+                  value={formData.address}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                />
             </div>
           </div>
 
-          {propertyType === "house" && (
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="bedrooms">Bedrooms</Label>
-                <Input id="bedrooms" type="number" placeholder="e.g., 3" />
+                <Label htmlFor="city">City</Label>
+                <Input
+                  id="city"
+                  placeholder="e.g., Abuja"
+                  value={formData.city}
+                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="bathrooms">Bathrooms</Label>
-                <Input id="bathrooms" type="number" placeholder="e.g., 2" />
+                <Label htmlFor="state">State</Label>
+                <Input
+                  id="state"
+                  placeholder="e.g., FCT"
+                  value={formData.state}
+                  onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="price">
+                  Price (₦) <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="price"
+                  type="number"
+                  placeholder="e.g., 25000000"
+                  value={formData.price}
+                  onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                  required
+                />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(value) => setFormData({ ...formData, status: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="available">Available</SelectItem>
+                    <SelectItem value="allocated">Allocated</SelectItem>
+                    <SelectItem value="sold">Sold</SelectItem>
+                    <SelectItem value="maintenance">Maintenance</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {propertyType !== "land" && (
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="bedrooms">Bedrooms</Label>
+                  <Input
+                    id="bedrooms"
+                    type="number"
+                    placeholder="e.g., 3"
+                    value={formData.bedrooms}
+                    onChange={(e) => setFormData({ ...formData, bedrooms: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bathrooms">Bathrooms</Label>
+                  <Input
+                    id="bathrooms"
+                    type="number"
+                    placeholder="e.g., 2"
+                    value={formData.bathrooms}
+                    onChange={(e) => setFormData({ ...formData, bathrooms: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
                 <Label htmlFor="size">Size (sqm)</Label>
-                <Input id="size" placeholder="e.g., 150" />
+                  <Input
+                    id="size"
+                    type="number"
+                    placeholder="e.g., 150"
+                    value={formData.size}
+                    onChange={(e) => setFormData({ ...formData, size: e.target.value })}
+                  />
               </div>
             </div>
           )}
@@ -93,11 +284,13 @@ export default function NewPropertyPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="size">Size (sqm)</Label>
-                <Input id="size" placeholder="e.g., 500" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="plots">Number of Plots</Label>
-                <Input id="plots" type="number" placeholder="e.g., 1" />
+                  <Input
+                    id="size"
+                    type="number"
+                    placeholder="e.g., 500"
+                    value={formData.size}
+                    onChange={(e) => setFormData({ ...formData, size: e.target.value })}
+                  />
               </div>
             </div>
           )}
@@ -118,7 +311,11 @@ export default function NewPropertyPage() {
                       alt={`Property ${index + 1}`}
                       className="w-full h-24 object-cover rounded-lg"
                     />
-                    <button className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => setImages(images.filter((_, i) => i !== index))}
+                      >
                       <X className="h-4 w-4" />
                     </button>
                   </div>
@@ -129,17 +326,28 @@ export default function NewPropertyPage() {
 
           <div className="space-y-2">
             <Label htmlFor="features">Features & Amenities (comma-separated)</Label>
-            <Input id="features" placeholder="e.g., 24/7 Security, Parking Space, Generator" />
+              <Input
+                id="features"
+                placeholder="e.g., 24/7 Security, Parking Space, Generator"
+                value={formData.features}
+                onChange={(e) => setFormData({ ...formData, features: e.target.value })}
+              />
           </div>
 
           <div className="flex gap-3">
-            <Button className="flex-1">Create Property</Button>
-            <Button variant="outline" className="flex-1 bg-transparent">
-              Save as Draft
+              <Button type="submit" className="flex-1" disabled={loading}>
+                {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Create Property
+              </Button>
+              <Link href="/admin/properties">
+                <Button type="button" variant="outline" className="flex-1 bg-transparent">
+                  Cancel
             </Button>
+              </Link>
           </div>
         </CardContent>
       </Card>
+      </form>
     </div>
   )
 }

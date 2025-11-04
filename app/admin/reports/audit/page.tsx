@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Download, Activity, Shield, AlertTriangle, CheckCircle } from "lucide-react"
@@ -9,78 +9,72 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
+import { getAuditReports, exportReport } from "@/lib/api/client"
+import { useToast } from "@/hooks/use-toast"
 
 export default function AuditReportsPage() {
+  const { toast } = useToast()
   const [dateRange, setDateRange] = useState("this-month")
   const [searchQuery, setSearchQuery] = useState("")
   const [actionFilter, setActionFilter] = useState("all")
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
+    total_activities: 0,
+    admin_actions: 0,
+    warnings: 0,
+    successful: 0,
+  })
+  const [logs, setLogs] = useState<any[]>([])
 
-  const stats = [
-    { label: "Total Activities", value: "5,678", icon: Activity, color: "text-blue-600" },
-    { label: "Admin Actions", value: "1,234", icon: Shield, color: "text-green-600" },
-    { label: "Warnings", value: "45", icon: AlertTriangle, color: "text-orange-600" },
-    { label: "Successful", value: "5,589", icon: CheckCircle, color: "text-green-600" },
-  ]
+  useEffect(() => {
+    fetchData()
+  }, [searchQuery, actionFilter, dateRange])
 
-  const auditLogs = [
-    {
-      id: "AUD001",
-      timestamp: "2024-03-15 14:32:15",
-      user: "Admin User",
-      role: "Super Admin",
-      action: "Updated Loan Settings",
-      module: "Loans",
-      ipAddress: "192.168.1.1",
-      status: "Success",
-    },
-    {
-      id: "AUD002",
-      timestamp: "2024-03-15 13:45:22",
-      user: "Finance Manager",
-      role: "Finance Manager",
-      action: "Approved Contribution",
-      module: "Contributions",
-      ipAddress: "192.168.1.5",
-      status: "Success",
-    },
-    {
-      id: "AUD003",
-      timestamp: "2024-03-15 12:18:45",
-      user: "Loan Officer",
-      role: "Loan Officer",
-      action: "Rejected Loan Application",
-      module: "Loans",
-      ipAddress: "192.168.1.8",
-      status: "Success",
-    },
-    {
-      id: "AUD004",
-      timestamp: "2024-03-15 11:05:33",
-      user: "Property Manager",
-      role: "Property Manager",
-      action: "Added New Property",
-      module: "Properties",
-      ipAddress: "192.168.1.12",
-      status: "Success",
-    },
-    {
-      id: "AUD005",
-      timestamp: "2024-03-15 10:22:11",
-      user: "System Admin",
-      role: "System Admin",
-      action: "Failed Login Attempt",
-      module: "Authentication",
-      ipAddress: "192.168.1.99",
-      status: "Failed",
-    },
-  ]
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      const response = await getAuditReports({
+        date_range: dateRange,
+        search: searchQuery || undefined,
+        action: actionFilter !== 'all' ? actionFilter : undefined,
+        per_page: 50,
+      })
+      if (response.success) {
+        setStats(response.data.stats)
+        setLogs(response.data.logs || [])
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to load audit reports",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
 
-  const moduleActivity = [
-    { module: "Loans", actions: 1234, users: 12, lastActivity: "2 mins ago" },
-    { module: "Contributions", actions: 987, users: 8, lastActivity: "5 mins ago" },
-    { module: "Properties", actions: 654, users: 6, lastActivity: "15 mins ago" },
-    { module: "Members", actions: 543, users: 10, lastActivity: "1 hour ago" },
-    { module: "Authentication", actions: 2260, users: 45, lastActivity: "Just now" },
+  const handleExport = async () => {
+    try {
+      await exportReport('audit', { date_range: dateRange, search: searchQuery, action: actionFilter })
+      toast({
+        title: "Export initiated",
+        description: "Your report is being generated.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to export report",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const statsCards = [
+    { label: "Total Activities", value: stats.total_activities.toLocaleString(), icon: Activity, color: "text-blue-600" },
+    { label: "Admin Actions", value: stats.admin_actions.toLocaleString(), icon: Shield, color: "text-green-600" },
+    { label: "Warnings", value: stats.warnings.toLocaleString(), icon: AlertTriangle, color: "text-orange-600" },
+    { label: "Successful", value: stats.successful.toLocaleString(), icon: CheckCircle, color: "text-green-600" },
   ]
 
   return (
@@ -96,13 +90,13 @@ export default function AuditReportsPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="today">Today</SelectItem>
-              <SelectItem value="this-week">This Week</SelectItem>
               <SelectItem value="this-month">This Month</SelectItem>
+              <SelectItem value="last-month">Last Month</SelectItem>
+              <SelectItem value="this-quarter">This Quarter</SelectItem>
               <SelectItem value="this-year">This Year</SelectItem>
             </SelectContent>
           </Select>
-          <Button>
+          <Button onClick={handleExport}>
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>
@@ -111,7 +105,7 @@ export default function AuditReportsPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat) => {
+        {statsCards.map((stat) => {
           const Icon = stat.icon
           return (
             <Card key={stat.label}>
@@ -126,38 +120,6 @@ export default function AuditReportsPage() {
           )
         })}
       </div>
-
-      {/* Module Activity */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Module Activity Summary</CardTitle>
-          <CardDescription>Activity breakdown by system module</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Module</TableHead>
-                  <TableHead className="text-right">Total Actions</TableHead>
-                  <TableHead className="text-right">Active Users</TableHead>
-                  <TableHead>Last Activity</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {moduleActivity.map((module) => (
-                  <TableRow key={module.module}>
-                    <TableCell className="font-medium">{module.module}</TableCell>
-                    <TableCell className="text-right font-semibold">{module.actions}</TableCell>
-                    <TableCell className="text-right">{module.users}</TableCell>
-                    <TableCell className="text-muted-foreground">{module.lastActivity}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Filters */}
       <Card>
@@ -188,6 +150,7 @@ export default function AuditReportsPage() {
                 <SelectItem value="update">Update</SelectItem>
                 <SelectItem value="delete">Delete</SelectItem>
                 <SelectItem value="login">Login</SelectItem>
+                <SelectItem value="warning">Warning</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -201,40 +164,42 @@ export default function AuditReportsPage() {
           <CardDescription>Detailed system activity logs with timestamps</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Audit ID</TableHead>
-                  <TableHead>Timestamp</TableHead>
-                  <TableHead>User</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Module</TableHead>
-                  <TableHead>IP Address</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {auditLogs.map((log) => (
-                  <TableRow key={log.id}>
-                    <TableCell className="font-medium">{log.id}</TableCell>
-                    <TableCell className="text-xs">{log.timestamp}</TableCell>
-                    <TableCell>{log.user}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{log.role}</Badge>
-                    </TableCell>
-                    <TableCell>{log.action}</TableCell>
-                    <TableCell>{log.module}</TableCell>
-                    <TableCell className="font-mono text-xs">{log.ipAddress}</TableCell>
-                    <TableCell>
-                      <Badge variant={log.status === "Success" ? "default" : "destructive"}>{log.status}</Badge>
-                    </TableCell>
+          {loading ? (
+            <div className="text-center py-8">Loading...</div>
+          ) : logs.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">No audit logs found</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Audit ID</TableHead>
+                    <TableHead>Timestamp</TableHead>
+                    <TableHead>User</TableHead>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Module</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>IP Address</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {logs.map((log) => (
+                    <TableRow key={log.id}>
+                      <TableCell className="font-medium">{log.id}</TableCell>
+                      <TableCell className="text-xs">{log.created_at}</TableCell>
+                      <TableCell>{log.user}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{log.action}</Badge>
+                      </TableCell>
+                      <TableCell>{log.module}</TableCell>
+                      <TableCell className="max-w-xs truncate">{log.description}</TableCell>
+                      <TableCell className="font-mono text-xs">{log.ip_address || '-'}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
