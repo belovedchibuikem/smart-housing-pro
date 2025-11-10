@@ -4,6 +4,7 @@ import type React from "react"
 
 import { createContext, useContext, useEffect, useState } from "react"
 import type { Tenant } from "@/lib/types/tenant"
+import { setTenantSlug } from "@/lib/api/client"
 
 interface TenantContextType {
   tenant: Tenant | null
@@ -38,9 +39,13 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 
       const data = await response.json()
       setTenant(data.tenant)
+      if (data?.tenant?.slug) {
+        setTenantSlug(data.tenant.slug)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error")
       console.error("[v0] Error fetching tenant:", err)
+      setTenantSlug(null)
     } finally {
       setIsLoading(false)
     }

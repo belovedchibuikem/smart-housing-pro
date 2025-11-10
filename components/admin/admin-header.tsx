@@ -1,6 +1,6 @@
 "use client"
 
-import { Building2, Bell, User, Menu } from "lucide-react"
+import { Building2, User, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -10,8 +10,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
+import Image from "next/image"
+import { useWhiteLabel } from "@/lib/hooks/use-white-label"
+import { useTenantSettings } from "@/lib/context/tenant-settings-context"
+import { AdminNotificationBell } from "./admin-notification-bell"
+import { handleLogout } from "@/lib/auth/auth-utils"
 
 interface AdminHeaderProps {
   mobileMenuOpen: boolean
@@ -19,6 +23,13 @@ interface AdminHeaderProps {
 }
 
 export function AdminHeader({ mobileMenuOpen, setMobileMenuOpen }: AdminHeaderProps) {
+  const { settings: whiteLabelSettings } = useWhiteLabel()
+  const { getSetting } = useTenantSettings()
+  
+  const siteName = whiteLabelSettings?.company_name || getSetting('site_name', 'FRSC HMS Admin')
+  const siteTagline = whiteLabelSettings?.company_tagline || 'System Administration'
+  const logoUrl = whiteLabelSettings?.logo_url
+
   return (
     <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
       <div className="flex items-center justify-between px-4 lg:px-6 py-4">
@@ -27,41 +38,26 @@ export function AdminHeader({ mobileMenuOpen, setMobileMenuOpen }: AdminHeaderPr
             <Menu className="h-5 w-5" />
           </Button>
           <Link href="/admin" className="flex items-center gap-2">
-            <Building2 className="h-8 w-8 text-primary" />
+            {logoUrl ? (
+              <Image
+                src={logoUrl}
+                alt={siteName}
+                width={32}
+                height={32}
+                className="h-8 w-8 object-contain"
+              />
+            ) : (
+              <Building2 className="h-8 w-8 text-primary" />
+            )}
             <div className="hidden sm:block">
-              <h1 className="font-bold text-lg">FRSC HMS Admin</h1>
-              <p className="text-xs text-muted-foreground">System Administration</p>
+              <h1 className="font-bold text-lg">{siteName}</h1>
+              <p className="text-xs text-muted-foreground">{siteTagline}</p>
             </div>
           </Link>
         </div>
 
         <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
-                  8
-                </Badge>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
-              <DropdownMenuLabel>Admin Notifications</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="flex flex-col items-start p-3">
-                <div className="font-medium">45 KYC Applications Pending</div>
-                <div className="text-sm text-muted-foreground">Review and approve member verifications</div>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-col items-start p-3">
-                <div className="font-medium">23 Loan Applications</div>
-                <div className="text-sm text-muted-foreground">Awaiting approval decision</div>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-col items-start p-3">
-                <div className="font-medium">System Backup Completed</div>
-                <div className="text-sm text-muted-foreground">Daily backup successful at 2:00 AM</div>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <AdminNotificationBell />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -79,8 +75,11 @@ export function AdminHeader({ mobileMenuOpen, setMobileMenuOpen }: AdminHeaderPr
                 <Link href="/admin/audit-logs">Audit Logs</Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/login">Logout</Link>
+              <DropdownMenuItem 
+                className="text-destructive cursor-pointer"
+                onClick={() => handleLogout()}
+              >
+                Logout
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

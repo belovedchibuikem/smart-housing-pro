@@ -301,6 +301,12 @@ export function ExpressionOfInterestForm({ propertyId }: ExpressionOfInterestFor
             <RadioGroup value={fundingOption} onValueChange={setFundingOption} required>
               <div className="flex flex-wrap gap-8">
                 <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="equity_wallet" id="funding-equity-wallet" />
+                  <Label htmlFor="funding-equity-wallet" className="font-normal cursor-pointer">
+                    EQUITY WALLET (Property Deposit)
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
                   <RadioGroupItem value="cash" id="funding-cash" />
                   <Label htmlFor="funding-cash" className="font-normal cursor-pointer">
                     100% CASH PAYMENT
@@ -322,7 +328,8 @@ export function ExpressionOfInterestForm({ propertyId }: ExpressionOfInterestFor
             </RadioGroup>
 
             <div className="text-sm text-muted-foreground italic">
-              Please Note: If your choice of funding is mix-funding, equity is 20% while loan is 80%
+              Please Note: If your choice of funding is mix-funding, equity is 20% while loan is 80%. 
+              Equity Wallet can be used for property deposits and payments.
             </div>
           </div>
 

@@ -41,16 +41,21 @@ export function LoanOfferings({ products = [], config }: LoanOfferingsProps) {
     id: product.id,
     name: product.name,
     icon: TrendingUp, // Default icon
-    maxAmount: `₦${parseFloat(product.max_amount.toString()).toLocaleString('en-NG')}`,
-    memberRate: `${product.interest_rate}%`,
-    nonMemberRate: `${product.interest_rate + 2}%`, // Estimate non-member rate
-    tenure: product.tenure_range || `${product.min_tenure_months}-${product.max_tenure_months} months`,
+    maxAmount: `₦${parseFloat(product.max_amount?.toString() || '0').toLocaleString('en-NG')}`,
+    memberRate: `${product.interest_rate || 0}%`,
+    nonMemberRate: `${(product.interest_rate || 0) + 2}%`, // Estimate non-member rate
+    tenure: product.tenure_range || `${product.min_tenure_months || 0}-${product.max_tenure_months || 0} months`,
     description: product.description || "",
     eligibility: "both",
-    features: product.eligibility_criteria || [],
+    features: Array.isArray(product.eligibility_criteria) 
+      ? product.eligibility_criteria 
+      : (product.eligibility_criteria ? [product.eligibility_criteria] : []),
   }))
 
-  const loanProducts = mappedProducts.length > 0 ? mappedProducts : [
+  // Only use mock data if products array is explicitly empty (not undefined/null)
+  // This means if products is provided but empty, show empty state instead of mock data
+  const hasProducts = products && products.length > 0
+  const loanProducts = hasProducts ? mappedProducts : [
     {
       id: 1,
       name: "Personal Loan",
@@ -198,8 +203,9 @@ export function LoanOfferings({ products = [], config }: LoanOfferingsProps) {
         </div>
 
         {/* Loan Products Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
-          {filteredLoans.map((loan) => {
+        {hasProducts ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-7xl mx-auto">
+            {filteredLoans.map((loan) => {
             const Icon = loan.icon
             return (
               <Card key={loan.id} className="overflow-hidden hover:shadow-lg transition-all duration-300 group">
@@ -265,10 +271,17 @@ export function LoanOfferings({ products = [], config }: LoanOfferingsProps) {
               </Card>
             )
           })}
-        </div>
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <TrendingUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-lg font-semibold mb-2">No loan products available</p>
+            <p className="text-muted-foreground">Please check back later or contact support for more information.</p>
+          </div>
+        )}
 
-        {/* No Results */}
-        {filteredLoans.length === 0 && (
+        {/* No Results (when filtering produces no results) */}
+        {hasProducts && filteredLoans.length === 0 && (
           <div className="text-center py-12">
             <p className="text-muted-foreground">No loan products found matching your criteria</p>
           </div>

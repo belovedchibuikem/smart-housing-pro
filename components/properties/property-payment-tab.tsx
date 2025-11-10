@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,12 +8,16 @@ import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Upload, CreditCard, Building2, Users, Receipt, CheckCircle2 } from "lucide-react"
+import { Upload, CreditCard, Building2, Users, Receipt, CheckCircle2, Wallet, Loader2 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
+import { apiFetch } from "@/lib/api/client"
+import { toast as sonnerToast } from "sonner"
 
 export function PropertyPaymentTab() {
   const [paymentMethod, setPaymentMethod] = useState<string>("cash")
   const [fundingType, setFundingType] = useState<string>("single")
+  const [equityWalletBalance, setEquityWalletBalance] = useState<number>(0)
+  const [loadingBalance, setLoadingBalance] = useState(true)
 
   // Mock data
   const property = {
@@ -30,6 +34,25 @@ export function PropertyPaymentTab() {
   const totalPaid = paymentHistory.reduce((sum, payment) => sum + payment.amount, 0)
   const balance = property.price - totalPaid
   const progress = (totalPaid / property.price) * 100
+
+  useEffect(() => {
+    // Fetch equity wallet balance
+    const fetchEquityBalance = async () => {
+      try {
+        setLoadingBalance(true)
+        const response = await apiFetch<{ success: boolean; data: { balance: number } }>('/user/equity-wallet/balance')
+        if (response.success && response.data) {
+          setEquityWalletBalance(response.data.balance || 0)
+        }
+      } catch (error) {
+        console.error('Error fetching equity wallet balance:', error)
+        // Silently fail - user can still use other payment methods
+      } finally {
+        setLoadingBalance(false)
+      }
+    }
+    fetchEquityBalance()
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -109,6 +132,13 @@ export function PropertyPaymentTab() {
               <Label>Payment Method</Label>
               <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
                 <div className="flex items-center space-x-2 p-3 border rounded-lg">
+                  <RadioGroupItem value="equity_wallet" id="equity_wallet" />
+                  <Label htmlFor="equity_wallet" className="flex items-center gap-2 font-normal cursor-pointer flex-1">
+                    <Wallet className="h-4 w-4" />
+                    Equity Wallet (Property Deposit)
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2 p-3 border rounded-lg">
                   <RadioGroupItem value="cash" id="cash" />
                   <Label htmlFor="cash" className="flex items-center gap-2 font-normal cursor-pointer flex-1">
                     <CreditCard className="h-4 w-4" />
@@ -133,6 +163,45 @@ export function PropertyPaymentTab() {
             </div>
 
             {/* Payment Forms */}
+            {paymentMethod === "equity_wallet" && (
+              <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="font-semibold text-blue-900 mb-2">Equity Wallet Payment</div>
+                  <div className="text-sm text-blue-700">
+                    Pay from your equity wallet balance. This option is specifically for property deposits.
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="equity-amount">Amount to Pay from Equity Wallet</Label>
+                  <Input 
+                    id="equity-amount" 
+                    type="number" 
+                    placeholder="Enter amount" 
+                    max={Math.min(balance, equityWalletBalance)}
+                    min="0"
+                  />
+                  <div className="text-sm text-muted-foreground">
+                    Available balance: ₦{loadingBalance ? (
+                      <Loader2 className="h-3 w-3 inline animate-spin" />
+                    ) : (
+                      equityWalletBalance.toLocaleString()
+                    )}
+                  </div>
+                  {equityWalletBalance < balance && (
+                    <div className="text-sm text-orange-600">
+                      Your equity wallet balance is less than the remaining balance. You can pay ₦{equityWalletBalance.toLocaleString()} from equity wallet and pay the rest using another method.
+                    </div>
+                  )}
+                </div>
+                <Button 
+                  className="w-full" 
+                  disabled={equityWalletBalance === 0 || loadingBalance}
+                >
+                  Pay from Equity Wallet
+                </Button>
+              </div>
+            )}
+
             {paymentMethod === "cash" && (
               <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
                 <div className="space-y-2">

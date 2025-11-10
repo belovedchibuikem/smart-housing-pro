@@ -24,7 +24,7 @@ import {
   CheckCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 interface NavItem {
   href?: string
@@ -36,10 +36,23 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: "/super-admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/super-admin/businesses", label: "Businesses", icon: Building2 },
-  { href: "/super-admin/packages", label: "Packages", icon: Package },
   { href: "/super-admin/modules", label: "Modules", icon: Blocks },
-  { href: "/super-admin/member-subscriptions", label: "Member Subscriptions", icon: Package },
-  { href: "/super-admin/subscriptions", label: "Business Subscriptions", icon: CreditCard },
+  { 
+    label: "Business Subscription", 
+    icon: CreditCard,
+    subItems: [
+      { href: "/super-admin/subscriptions", label: "All Subscriptions", icon: CreditCard },
+      { href: "/super-admin/packages", label: "Packages", icon: Package },
+    ]
+  },
+  { 
+    label: "Member Subscriptions", 
+    icon: Package,
+    subItems: [
+      { href: "/super-admin/member-subscriptions", label: "Plans", icon: Package },
+      { href: "/super-admin/member-subscriptions/list", label: "Member Subscriptions", icon: Users },
+    ]
+  },
   { href: "/super-admin/payment-gateways", label: "Payment Gateways", icon: CreditCard },
   { href: "/super-admin/payment-approvals", label: "Payment Approvals", icon: CheckCircle },
   { href: "/super-admin/invoices", label: "Invoices", icon: FileText },
@@ -75,6 +88,22 @@ export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAd
 
   const isMenuOpen = (label: string) => openMenus.includes(label)
 
+  // Auto-open parent menus when a child is active
+  useEffect(() => {
+    navItems.forEach((item) => {
+      if (item.subItems && item.subItems.length > 0) {
+        const hasActiveChild = item.subItems.some((subItem) => {
+          if (!subItem.href) return false
+          if (pathname === subItem.href) return true
+          return pathname.startsWith(subItem.href + "/")
+        })
+        if (hasActiveChild && !openMenus.includes(item.label)) {
+          setOpenMenus((prev) => [...prev, item.label])
+        }
+      }
+    })
+  }, [pathname, openMenus])
+
   const renderNavItem = (item: NavItem) => {
     const Icon = item.icon
     const hasSubItems = item.subItems && item.subItems.length > 0
@@ -96,13 +125,23 @@ export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAd
       return pathname.startsWith(item.href + "/")
     })() : false
 
+    // Check if any sub-item is active for parent menu highlighting
+    const hasActiveSubItem = hasSubItems && item.subItems?.some((subItem) => {
+      if (!subItem.href) return false
+      if (pathname === subItem.href) return true
+      return pathname.startsWith(subItem.href + "/")
+    })
+
     if (hasSubItems) {
       return (
         <div key={item.label}>
           <div className="flex items-center gap-1">
             <div
               className={cn(
-                "flex items-center flex-1 gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground",
+                "flex items-center flex-1 gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
+                hasActiveSubItem
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
               )}
             >
               <Icon className="h-5 w-5" />

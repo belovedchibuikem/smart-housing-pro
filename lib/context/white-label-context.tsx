@@ -52,8 +52,9 @@ export function WhiteLabelProvider({ children }: { children: ReactNode }) {
 
   const fetchSettings = async () => {
     try {
-      const response = await fetch("/api/admin/white-label")
-      const data = await response.json()
+      // Use dynamic import to avoid SSR issues
+      const { apiFetch } = await import("@/lib/api/client")
+      const data = await apiFetch<{ settings: WhiteLabelSettings }>("/admin/white-label")
 
       if (data.settings && data.settings.is_active) {
         setSettings(data.settings)
@@ -62,7 +63,7 @@ export function WhiteLabelProvider({ children }: { children: ReactNode }) {
         setSettings(defaultSettings)
       }
     } catch (error) {
-      console.error("[v0] Error fetching white label settings:", error)
+      console.error("Error fetching white label settings:", error)
       setSettings(defaultSettings)
     } finally {
       setLoading(false)
@@ -112,6 +113,17 @@ export function WhiteLabelProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     fetchSettings()
+    
+    // Listen for settings updates
+    const handleSettingsUpdate = () => {
+      fetchSettings()
+    }
+    
+    window.addEventListener('white-label-settings-updated', handleSettingsUpdate)
+    
+    return () => {
+      window.removeEventListener('white-label-settings-updated', handleSettingsUpdate)
+    }
   }, [])
 
   const refreshSettings = async () => {

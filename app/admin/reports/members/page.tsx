@@ -60,8 +60,8 @@ export default function MemberReportsPage() {
     try {
       await exportReport('members', { date_range: dateRange, search: searchQuery, status: statusFilter })
       toast({
-        title: "Export initiated",
-        description: "Your report is being generated. You'll receive a notification when it's ready.",
+        title: "Export completed",
+        description: "Your report has been downloaded.",
       })
     } catch (error: any) {
       toast({

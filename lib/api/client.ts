@@ -7,6 +7,7 @@ export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
 // Use Next.js API route proxy to avoid CORS issues
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "/api"
 const AUTH_TOKEN_KEY = "auth_token"
+const TENANT_SLUG_KEY = "tenant_slug"
 
 export function getApiBaseUrl(): string {
 	return API_BASE_URL.replace(/\/$/, "")
@@ -28,6 +29,31 @@ export function setAuthToken(token: string | null) {
 			window.localStorage.setItem(AUTH_TOKEN_KEY, token)
 		} else {
 			window.localStorage.removeItem(AUTH_TOKEN_KEY)
+		}
+	} catch {
+		// no-op
+	}
+}
+
+export function getTenantSlug(): string | null {
+	if (typeof window === "undefined") return null
+	try {
+		return window.localStorage.getItem(TENANT_SLUG_KEY)
+	} catch {
+		return null
+	}
+}
+
+export function setTenantSlug(slug: string | null) {
+	if (typeof window === "undefined") return
+	try {
+		if (slug) {
+			window.localStorage.setItem(TENANT_SLUG_KEY, slug)
+			const maxAge = 60 * 60 * 24 * 30 // 30 days
+			document.cookie = `tenant_slug=${encodeURIComponent(slug)}; path=/; max-age=${maxAge}; SameSite=Lax`
+		} else {
+			window.localStorage.removeItem(TENANT_SLUG_KEY)
+			document.cookie = "tenant_slug=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax"
 		}
 	} catch {
 		// no-op
@@ -64,6 +90,10 @@ export async function apiFetch<T = unknown>(
 	if (typeof window !== "undefined") {
 		try {
 			headers["X-Forwarded-Host"] = window.location.host
+			const tenantSlug = getTenantSlug()
+			if (tenantSlug) {
+				headers["X-Tenant-Slug"] = tenantSlug
+			}
 		} catch {
 			// no-op
 		}
@@ -82,7 +112,10 @@ export async function apiFetch<T = unknown>(
 			const response = await fetch(url, {
 				method: options.method || "GET",
 				headers,
-				body: options.body !== undefined ? (isFormData ? options.body : JSON.stringify(options.body)) : undefined,
+				body:
+					options.body !== undefined
+						? (isFormData ? (options.body as BodyInit) : (JSON.stringify(options.body) as BodyInit))
+						: undefined,
 			}).catch((fetchError) => {
 				// Handle network errors specifically
 				console.error('Fetch Network Error:', {
@@ -225,15 +258,86 @@ export async function getWallet() {
 	})
 }
 
+export async function getWalletPaymentMethods() {
+	return apiFetch<{
+		payment_methods: Array<{
+			id: string
+			name: string
+			description: string
+			icon: string
+			is_enabled: boolean
+			configuration?: any
+		}>
+	}>("/user/wallet/payment-methods", { method: "GET" })
+}
+
+export async function initializeWalletFunding(
+  data: FormData | {
+	amount: number
+	payment_method: string
+	notes?: string
+	payer_name?: string
+	payer_phone?: string
+	account_details?: string
+	payment_evidence?: string[]
+  },
+) {
+	return apiFetch<{
+		success: boolean
+		paymentUrl?: string
+		reference?: string
+		payment_id?: string
+		requires_approval?: boolean
+		message?: string
+	}>("/user/wallet/fund", {
+		method: "POST",
+		body: data,
+	})
+}
+
+export async function verifyWalletFunding(provider: string, reference: string) {
+	return apiFetch<{
+		success: boolean
+		message: string
+	}>("/user/wallet/verify", {
+		method: "POST",
+		body: { provider, reference },
+	})
+}
+
+export interface WalletTransactionsResponse {
+	transactions: Array<{
+		id: string
+		type: string
+		status: string
+		amount: number
+		payment_method?: string | null
+		payment_reference?: string | null
+		description?: string | null
+		metadata?: Record<string, unknown> | null
+		created_at?: string | null
+	}>
+	pagination: {
+		current_page: number
+		last_page: number
+		per_page: number
+		total: number
+	}
+	summary?: {
+		total_transactions?: number
+		total_completed_transactions?: number
+		total_credit?: number
+		total_debit?: number
+	}
+	balance?: number
+}
+
 export async function getWalletTransactions(params?: { page?: number; per_page?: number }) {
 	const query = new URLSearchParams()
 	if (params?.page) query.set("page", String(params.page))
 	if (params?.per_page) query.set("per_page", String(params.per_page))
 	const path = `/user/wallet/transactions${query.toString() ? `?${query.toString()}` : ""}`
-	return apiFetch<{
-		transactions: { data: any[]; current_page: number; last_page: number; total: number }
-		pagination: { current_page: number; last_page: number; per_page: number; total: number }
-	}>(path, { method: "GET" })
+	return apiFetch<WalletTransactionsResponse>(path, { method: "GET" })
 }
 
 // Investment Plans API
@@ -744,12 +848,55 @@ export async function getAuditReports(params?: { date_range?: string; search?: s
 export async function exportReport(type: string, params?: Record<string, any>) {
 	const query = new URLSearchParams()
 	query.set("type", type)
+	query.set("format", "csv")
 	if (params) {
 		Object.entries(params).forEach(([key, value]) => {
 			if (value) query.set(key, String(value))
 		})
 	}
-	return apiFetch<{ success: boolean; message: string; download_url?: string }>(`/admin/reports/export?${query.toString()}`, { method: "POST" })
+	
+	const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
+	const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '/api'
+	
+	try {
+		const response = await fetch(`${apiUrl}/admin/reports/export?${query.toString()}`, {
+			method: 'POST',
+			headers: {
+				'Accept': 'text/csv',
+				...(token && { 'Authorization': `Bearer ${token}` }),
+			},
+		})
+		
+		if (!response.ok) {
+			const errorData = await response.json().catch(() => ({ message: 'Export failed' }))
+			throw new Error(errorData.message || 'Export failed')
+		}
+		
+		const blob = await response.blob()
+		const contentDisposition = response.headers.get('content-disposition')
+		let filename = `${type}_${new Date().toISOString().split('T')[0]}.csv`
+		
+		if (contentDisposition) {
+			const filenameMatch = contentDisposition.match(/filename="(.+)"/)
+			if (filenameMatch) {
+				filename = filenameMatch[1]
+			}
+		}
+		
+		const url = window.URL.createObjectURL(blob)
+		const a = document.createElement('a')
+		a.href = url
+		a.download = filename
+		document.body.appendChild(a)
+		a.click()
+		window.URL.revokeObjectURL(url)
+		document.body.removeChild(a)
+		
+		return { success: true, message: 'Export completed successfully' }
+	} catch (error: any) {
+		console.error('Export error:', error)
+		throw error
+	}
 }
 
 // Activity Logs API
@@ -801,6 +948,920 @@ export async function rejectDocument(id: string, reason: string) {
 
 export async function deleteDocument(id: string) {
 	return apiFetch<{ success: boolean; message: string }>(`/admin/documents/${id}`, { method: "DELETE" })
+}
+
+// Admin Notifications API
+export async function getAdminNotifications(params?: {
+	user_id?: string
+	type?: string
+	read?: boolean
+	from_date?: string
+	to_date?: string
+	search?: string
+	page?: number
+	per_page?: number
+}) {
+	const query = new URLSearchParams()
+	if (params?.user_id) query.set("user_id", params.user_id)
+	if (params?.type) query.set("type", params.type)
+	if (params?.read !== undefined) query.set("read", String(params.read))
+	if (params?.from_date) query.set("from_date", params.from_date)
+	if (params?.to_date) query.set("to_date", params.to_date)
+	if (params?.search) query.set("search", params.search)
+	if (params?.page) query.set("page", String(params.page))
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+	return apiFetch<{
+		success: boolean
+		notifications: any[]
+		pagination: {
+			current_page: number
+			last_page: number
+			per_page: number
+			total: number
+		}
+	}>(`/admin/notifications?${query.toString()}`, { method: "GET" })
+}
+
+export async function getAdminNotificationStats() {
+	return apiFetch<{
+		success: boolean
+		stats: {
+			total: number
+			unread: number
+			read: number
+			by_type: Record<string, number>
+			today: number
+			this_week: number
+			this_month: number
+		}
+	}>("/admin/notifications/stats", { method: "GET" })
+}
+
+export async function getAdminUnreadCount() {
+	return apiFetch<{
+		success: boolean
+		unread_count: number
+	}>("/admin/notifications/unread-count", { method: "GET" })
+}
+
+export async function createAdminNotification(data: {
+	user_id: string
+	type: "info" | "success" | "warning" | "error" | "system"
+	title: string
+	message: string
+	data?: Record<string, any>
+	mark_as_read?: boolean
+}) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		notification: any
+	}>("/admin/notifications", { method: "POST", body: data })
+}
+
+export async function markNotificationAsRead(notificationId: string) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		notification: any
+	}>(`/admin/notifications/${notificationId}/read`, { method: "POST" })
+}
+
+export async function markAllNotificationsAsRead(userId?: string) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		count: number
+	}>("/admin/notifications/mark-all-read", {
+		method: "POST",
+		body: userId ? { user_id: userId } : {},
+	})
+}
+
+export async function markMultipleNotificationsAsRead(notificationIds: string[]) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		count: number
+	}>("/admin/notifications/mark-multiple-read", {
+		method: "POST",
+		body: { notification_ids: notificationIds },
+	})
+}
+
+export async function deleteAdminNotification(notificationId: string) {
+	return apiFetch<{
+		success: boolean
+		message: string
+	}>(`/admin/notifications/${notificationId}`, { method: "DELETE" })
+}
+
+export async function bulkDeleteNotifications(notificationIds: string[]) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		count: number
+	}>("/admin/notifications/bulk-delete", {
+		method: "POST",
+		body: { notification_ids: notificationIds },
+	})
+}
+
+// Admin Audit Logs API
+export async function getAuditLogs(params?: {
+	user_id?: string
+	action?: string
+	module?: string
+	resource_type?: string
+	resource_id?: string
+	date_range?: string
+	start_date?: string
+	end_date?: string
+	search?: string
+	sort_by?: string
+	sort_order?: "asc" | "desc"
+	page?: number
+	per_page?: number
+}) {
+	const query = new URLSearchParams()
+	if (params?.user_id) query.set("user_id", params.user_id)
+	if (params?.action) query.set("action", params.action)
+	if (params?.module) query.set("module", params.module)
+	if (params?.resource_type) query.set("resource_type", params.resource_type)
+	if (params?.resource_id) query.set("resource_id", params.resource_id)
+	if (params?.date_range) query.set("date_range", params.date_range)
+	if (params?.start_date) query.set("start_date", params.start_date)
+	if (params?.end_date) query.set("end_date", params.end_date)
+	if (params?.search) query.set("search", params.search)
+	if (params?.sort_by) query.set("sort_by", params.sort_by)
+	if (params?.sort_order) query.set("sort_order", params.sort_order)
+	if (params?.page) query.set("page", String(params.page))
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+	return apiFetch<{
+		success: boolean
+		data: any[]
+		pagination?: {
+			current_page: number
+			last_page: number
+			per_page: number
+			total: number
+		}
+		filters?: {
+			date_range: string
+			start_date: string
+			end_date: string
+		}
+	}>(`/admin/audit-logs?${query.toString()}`, { method: "GET" })
+}
+
+export async function getAuditLogStats(params?: { date_range?: string }) {
+	const query = new URLSearchParams()
+	if (params?.date_range) query.set("date_range", params.date_range)
+	return apiFetch<{
+		success: boolean
+		stats: {
+			total: number
+			by_action: Record<string, number>
+			by_module: Record<string, number>
+			by_user: Array<{
+				user_id: string
+				user: {
+					name: string
+					email: string
+				} | null
+				count: number
+			}>
+			login_logout: {
+				logins: number
+				logouts: number
+			}
+			recent_activity: Array<{
+				id: string
+				action: string
+				module: string
+				description: string
+				user: string
+				created_at: string
+			}>
+		}
+		period: {
+			start_date: string
+			end_date: string
+		}
+	}>(`/admin/audit-logs/stats?${query.toString()}`, { method: "GET" })
+}
+
+export async function getAuditLog(id: string) {
+	return apiFetch<{
+		success: boolean
+		data: any
+	}>(`/admin/audit-logs/${id}`, { method: "GET" })
+}
+
+export async function getResourceAuditLogs(resourceType: string, resourceId: string, params?: { page?: number; per_page?: number }) {
+	const query = new URLSearchParams()
+	if (params?.page) query.set("page", String(params.page))
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+	return apiFetch<{
+		success: boolean
+		data: any[]
+		pagination?: {
+			current_page: number
+			last_page: number
+			per_page: number
+			total: number
+		}
+	}>(`/admin/audit-logs/resource/${resourceType}/${resourceId}?${query.toString()}`, { method: "GET" })
+}
+
+export async function getUserAuditLogs(userId: string, params?: { page?: number; per_page?: number }) {
+	const query = new URLSearchParams()
+	if (params?.page) query.set("page", String(params.page))
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+	return apiFetch<{
+		success: boolean
+		user: {
+			id: string
+			name: string
+			email: string
+		}
+		data: any[]
+		pagination?: {
+			current_page: number
+			last_page: number
+			per_page: number
+			total: number
+		}
+	}>(`/admin/audit-logs/user/${userId}?${query.toString()}`, { method: "GET" })
+}
+
+export async function exportAuditLogs(params?: {
+	user_id?: string
+	action?: string
+	module?: string
+	resource_type?: string
+	resource_id?: string
+	date_range?: string
+	start_date?: string
+	end_date?: string
+	search?: string
+	sort_by?: string
+	sort_order?: "asc" | "desc"
+}) {
+	const query = new URLSearchParams()
+	if (params?.user_id) query.set("user_id", params.user_id)
+	if (params?.action) query.set("action", params.action)
+	if (params?.module) query.set("module", params.module)
+	if (params?.resource_type) query.set("resource_type", params.resource_type)
+	if (params?.resource_id) query.set("resource_id", params.resource_id)
+	if (params?.date_range) query.set("date_range", params.date_range)
+	if (params?.start_date) query.set("start_date", params.start_date)
+	if (params?.end_date) query.set("end_date", params.end_date)
+	if (params?.search) query.set("search", params.search)
+	if (params?.sort_by) query.set("sort_by", params.sort_by)
+	if (params?.sort_order) query.set("sort_order", params.sort_order)
+	
+	const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
+	const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '/api'
+	
+	try {
+		const response = await fetch(`${apiUrl}/admin/audit-logs/export?${query.toString()}`, {
+			method: 'GET',
+			headers: {
+				'Accept': 'text/csv',
+				...(token && { 'Authorization': `Bearer ${token}` }),
+			},
+		})
+		
+		if (!response.ok) {
+			const errorData = await response.json().catch(() => ({ message: 'Export failed' }))
+			throw new Error(errorData.message || 'Export failed')
+		}
+		
+		const blob = await response.blob()
+		const contentDisposition = response.headers.get('content-disposition')
+		let filename = `audit_logs_${new Date().toISOString().split('T')[0]}.csv`
+		
+		if (contentDisposition) {
+			const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i)
+			if (filenameMatch) {
+				filename = filenameMatch[1]
+			}
+		}
+		
+		const url = window.URL.createObjectURL(blob)
+		const link = document.createElement('a')
+		link.href = url
+		link.download = filename
+		document.body.appendChild(link)
+		link.click()
+		document.body.removeChild(link)
+		window.URL.revokeObjectURL(url)
+	} catch (error: any) {
+		console.error('Export error:', error)
+		throw error
+	}
+}
+
+// User Dashboard API
+export async function getUserDashboardStats() {
+	return apiFetch<{
+		wallet_balance: number
+		financial_summary: {
+			total_contributions: number
+			total_loans: number
+			outstanding_loans: number
+			total_investments: number
+			total_repayments: number
+		}
+		recent_activity: {
+			contributions: Array<{
+				id: string
+				amount: number
+				status: string
+				created_at: string
+				type?: string
+			}>
+			loans: Array<{
+				id: string
+				amount: number
+				status: string
+				created_at: string
+				type?: string
+			}>
+			investments: Array<{
+				id: string
+				amount: number
+				status: string
+				created_at: string
+			}>
+		}
+		upcoming_payments: Array<{
+			id: string
+			amount: number
+			due_date: string
+			status: string
+			description?: string
+			type?: string
+		}>
+		property_interests: any[]
+		monthly_trends: Array<{
+			month: string
+			contributions: number
+			loans: number
+			investments: number
+		}>
+		member_status: string
+		kyc_status: string
+		membership_type: string
+	}>("/user/dashboard/stats", { method: "GET" })
+}
+
+export async function getUserDashboardQuickActions() {
+	return apiFetch<{
+		actions: Record<string, {
+			title: string
+			description: string
+			url: string
+			icon: string
+			available: boolean
+		}>
+	}>("/user/dashboard/quick-actions", { method: "GET" })
+}
+
+// Subscription API
+export async function getSubscriptionPackages() {
+	return apiFetch<{
+		packages: Array<{
+			id: string
+			name: string
+			slug: string
+			description?: string
+			price: number
+			billing_cycle: string
+			duration: number
+			duration_days: number
+			trial_days: number
+			features: any[]
+			is_popular: boolean
+			is_active: boolean
+		}>
+	}>("/subscriptions/packages", { method: "GET" })
+}
+
+export async function getCurrentSubscription() {
+	return apiFetch<{
+		subscription: {
+			id: string
+			package_id: string
+			package_name: string
+			status: string
+			starts_at: string
+			ends_at: string
+			amount: number
+			payment_reference: string
+			days_remaining: number
+			is_active: boolean
+		} | null
+		message?: string
+	}>("/subscriptions/current", { method: "GET" })
+}
+
+export async function getSubscriptionHistory() {
+	return apiFetch<{
+		subscriptions: Array<{
+			id: string
+			package_name: string
+			amount: number
+			status: string
+			starts_at: string
+			ends_at: string
+			payment_reference: string
+			created_at: string
+		}>
+	}>("/subscriptions/history", { method: "GET" })
+}
+
+export async function getSubscriptionPaymentMethods() {
+	return apiFetch<{
+		payment_methods: Array<{
+			id: string
+			name: string
+			description: string
+			icon: string
+			is_enabled: boolean
+		}>
+	}>("/subscriptions/payment-methods", { method: "GET" })
+}
+
+export async function initializeSubscription(data: {
+	package_id: string
+	payment_method: string
+}) {
+	return apiFetch<{
+		success: boolean
+		paymentUrl?: string
+		reference?: string
+		rrr?: string
+		message?: string
+	}>("/subscriptions/initialize", {
+		method: "POST",
+		body: data,
+	})
+}
+
+export async function verifySubscription(provider: string, reference: string) {
+	const query = new URLSearchParams()
+	query.set("provider", provider)
+	query.set("reference", reference)
+	return apiFetch<{
+		success: boolean
+		message: string
+	}>(`/subscriptions/verify?${query.toString()}`, {
+		method: "GET",
+	})
+}
+
+// Member Subscription API (for individual members)
+export async function getMemberSubscriptionPackages() {
+	return apiFetch<{
+		packages: Array<{
+			id: string
+			name: string
+			slug: string
+			description?: string
+			price: number
+			billing_cycle: string
+			duration_days: number
+			trial_days: number
+			features: any[]
+			benefits: any[]
+			is_popular: boolean
+			is_active: boolean
+		}>
+	}>("/user/member-subscriptions/packages", { method: "GET" })
+}
+
+export async function getMemberCurrentSubscription() {
+	return apiFetch<{
+		subscription: {
+			id: string
+			package_id: string
+			package_name: string
+			status: string
+			payment_status: string
+			start_date: string
+			end_date: string
+			amount_paid: number
+			payment_method: string
+			payment_reference: string
+			days_remaining: number
+			is_active: boolean
+		} | null
+		message?: string
+	}>("/user/member-subscriptions/current", { method: "GET" })
+}
+
+export async function getMemberSubscriptionHistory() {
+	return apiFetch<{
+		subscriptions: Array<{
+			id: string
+			package_name: string
+			amount_paid: number
+			status: string
+			payment_status: string
+			payment_method: string
+			start_date: string
+			end_date: string
+			payment_reference: string
+			created_at: string
+		}>
+	}>("/user/member-subscriptions/history", { method: "GET" })
+}
+
+export async function getMemberSubscriptionPaymentMethods() {
+	return apiFetch<{
+		payment_methods: Array<{
+			id: string
+			name: string
+			description: string
+			icon: string
+			is_enabled: boolean
+		}>
+	}>("/user/member-subscriptions/payment-methods", { method: "GET" })
+}
+
+export type MemberContributionFilters = {
+	search?: string
+	status?: string
+	type?: string
+	date_from?: string
+	date_to?: string
+	per_page?: number
+	page?: number
+}
+
+export async function getMemberContributions(params?: MemberContributionFilters) {
+	const query = new URLSearchParams()
+
+	if (params?.search) query.set("search", params.search)
+	if (params?.status && params.status !== "all") query.set("status", params.status)
+	if (params?.type && params.type !== "all") query.set("type", params.type)
+	if (params?.date_from) query.set("date_from", params.date_from)
+	if (params?.date_to) query.set("date_to", params.date_to)
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+	if (params?.page) query.set("page", String(params.page))
+
+	return apiFetch<{
+		stats: {
+			total_contributions: number
+			this_month: number
+			this_year: number
+			average_monthly: number
+			completed_payments: number
+			next_due_date?: string | null
+		}
+		contributions: Array<{
+			id: string
+			amount: number
+			status: string
+			frequency?: string | null
+			type?: string | null
+			contribution_date?: string | null
+			approved_at?: string | null
+			rejection_reason?: string | null
+			plan?: { id: string; name: string }
+		}>
+		pagination: {
+			current_page: number
+			last_page: number
+			per_page: number
+			total: number
+		}
+	}>(`/user/contributions${query.toString() ? `?${query.toString()}` : ""}`)
+}
+
+export async function getContributionAutoPaySetting() {
+	return apiFetch<{
+		setting: {
+			is_enabled: boolean
+			payment_method: "wallet" | "card"
+			amount: number | null
+			day_of_month: number
+			card_reference?: string | null
+			metadata?: Record<string, unknown>
+			last_run_at?: string | null
+			next_run_at?: string | null
+		}
+	}>("/user/contributions/auto-pay")
+}
+
+export async function getContributionPlans(params?: { search?: string }) {
+	const query = new URLSearchParams()
+
+	if (params?.search) {
+		query.append("search", params.search)
+	}
+
+	return apiFetch<{
+		plans: Array<{
+			id: string
+			name: string
+			description: string | null
+			amount: number
+			minimum_amount: number
+			frequency: string
+			is_mandatory: boolean
+			created_at?: string | null
+			updated_at?: string | null
+		}>
+		member_plan: {
+			plan: {
+				id: string
+				name: string
+				description: string | null
+				amount: number
+				minimum_amount: number
+				frequency: string
+				is_mandatory: boolean
+				created_at?: string | null
+				updated_at?: string | null
+			}
+			started_at: string | null
+			last_contribution_at: string | null
+			contributions_count: number
+			total_contributed: number
+		} | null
+	}>(`/user/contributions/plans${query.toString() ? `?${query.toString()}` : ""}`)
+}
+
+export async function getContributionPaymentMethods() {
+	return apiFetch<{
+		payment_methods: Array<{
+			id: string
+			name: string
+			description: string
+			icon: string
+			is_enabled: boolean
+			configuration?: Record<string, unknown>
+		}>
+	}>("/user/contributions/payment-methods")
+}
+
+export async function getEquityPlans() {
+	return apiFetch<{
+		success: boolean
+		data: Array<{
+			id: string
+			name: string
+			description?: string | null
+			min_amount: number
+			max_amount?: number | null
+			frequency: string
+			is_mandatory: boolean
+		}>
+	}>("/user/equity-plans?is_active=true&per_page=100")
+}
+
+export async function getEquityContributionPaymentMethods() {
+	return apiFetch<{
+		success: boolean
+		payment_methods: Array<{
+			id: string
+			name: string
+			description: string
+			icon?: string
+			is_enabled: boolean
+			configuration?: Record<string, unknown>
+		}>
+	}>("/user/equity-contributions/payment-methods")
+}
+
+export async function switchContributionPlan(planId: string) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		member_plan: {
+			plan: {
+				id: string
+				name: string
+				description: string | null
+				amount: number
+				minimum_amount: number
+				frequency: string
+				is_mandatory: boolean
+				created_at?: string | null
+				updated_at?: string | null
+			}
+			started_at: string | null
+			last_contribution_at: string | null
+			contributions_count: number
+			total_contributed: number
+		} | null
+	}>(`/user/contributions/plans/${planId}/switch`, {
+		method: "POST",
+	})
+}
+
+export async function initializeContributionPayment(
+	data:
+		| FormData
+		| {
+			amount: number
+			payment_method: string
+			plan_id?: string
+			notes?: string
+			payer_name?: string
+			payer_phone?: string
+			transaction_reference?: string
+			bank_account_id?: string
+			payment_evidence?: string[]
+		},
+) {
+	return apiFetch<{
+		success: boolean
+		message?: string
+		reference?: string
+		payment_id?: string
+		payment_method?: string
+		payment_url?: string | null
+		requires_approval?: boolean
+		manual_instructions?: {
+			account?: Record<string, unknown>
+			requires_payment_evidence?: boolean
+			message?: string
+		}
+		contribution?: {
+			id: string
+			status: string
+			amount: number
+			plan_id?: string | null
+		}
+	}>('/user/contributions/pay', {
+		method: 'POST',
+		body: data,
+	})
+}
+
+export async function createEquityContribution(
+	data:
+		| FormData
+		| {
+				plan_id?: string | null
+				amount: number
+				payment_method: string
+				payment_reference?: string | null
+				notes?: string | null
+				payer_name?: string | null
+				payer_phone?: string | null
+				transaction_reference?: string | null
+				bank_account_id?: string | null
+				payment_evidence?: string[]
+		  },
+) {
+	return apiFetch<{
+		success: boolean
+		message?: string
+		data?: Record<string, unknown>
+		reference?: string
+		payment_id?: string
+		payment_method?: string
+		payment_url?: string | null
+		requires_approval?: boolean
+		manual_instructions?: {
+			account?: Record<string, unknown>
+			requires_payment_evidence?: boolean
+			message?: string
+		} | null
+	}>("/user/equity-contributions", {
+		method: "POST",
+		body: data,
+	})
+}
+
+export async function verifyContributionPayment(provider: "paystack" | "remita" | "stripe", reference: string) {
+	const query = new URLSearchParams({ provider, reference })
+	return apiFetch<{
+		success: boolean
+		message?: string
+		data?: unknown
+	}>(`/payments/verify?${query.toString()}`, { method: "GET" })
+}
+
+export async function updateContributionAutoPaySetting(payload: {
+	is_enabled: boolean
+	payment_method?: "wallet" | "card"
+	amount?: number | null
+	day_of_month: number
+	card_reference?: string | null
+	metadata?: Record<string, unknown>
+}) {
+	const body: Record<string, unknown> = {
+		is_enabled: payload.is_enabled,
+		day_of_month: payload.day_of_month,
+	}
+
+	if (payload.payment_method) body.payment_method = payload.payment_method
+	if (payload.amount !== undefined) body.amount = payload.amount
+	if (payload.card_reference !== undefined) body.card_reference = payload.card_reference
+	if (payload.metadata !== undefined) body.metadata = payload.metadata
+
+	return apiFetch<{
+		success: boolean
+		message: string
+		setting: {
+			is_enabled: boolean
+			payment_method: "wallet" | "card"
+			amount: number | null
+			day_of_month: number
+			card_reference?: string | null
+			metadata?: Record<string, unknown>
+			last_run_at?: string | null
+			next_run_at?: string | null
+		}
+	}>("/user/contributions/auto-pay", {
+		method: "PUT",
+		body,
+	})
+}
+
+export async function initializeMemberSubscription(data: {
+	package_id: string
+	payment_method: string
+	notes?: string
+	payer_name?: string
+	payer_phone?: string
+	account_details?: string
+	payment_evidence?: string[]
+}) {
+	return apiFetch<{
+		success: boolean
+		paymentUrl?: string
+		reference?: string
+		subscription_id?: string
+		requires_approval?: boolean
+		message?: string
+	}>("/user/member-subscriptions/initialize", {
+		method: "POST",
+		body: data,
+	})
+}
+
+// Upload payment evidence file
+export async function uploadPaymentEvidence(file: File): Promise<string> {
+	const formData = new FormData()
+	formData.append('file', file)
+	formData.append('type', 'payment_evidence')
+	
+	const token = localStorage.getItem('auth_token')
+	const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/user/profile/upload-payment-evidence`, {
+		method: "POST",
+		body: formData,
+		headers: {
+			'Authorization': `Bearer ${token}`,
+			'X-Tenant-Slug': localStorage.getItem('tenant_slug') || '',
+		},
+	})
+	
+	if (!response.ok) {
+		const error = await response.json()
+		throw new Error(error.message || 'Failed to upload file')
+	}
+	
+	const data = await response.json()
+	return data.url || data.path
+}
+
+export async function verifyMemberSubscription(provider: string, reference: string) {
+	return apiFetch<{
+		success: boolean
+		message: string
+	}>("/user/member-subscriptions/verify", {
+		method: "POST",
+		body: { provider, reference },
+	})
+}
+
+// Super Admin Member Subscription Approval
+export async function approveMemberSubscription(subscriptionId: string) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		subscription: any
+	}>(`/super-admin/member-subscriptions/${subscriptionId}/approve`, {
+		method: "POST",
+	})
+}
+
+export async function rejectMemberSubscription(subscriptionId: string, rejectionReason: string) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		subscription: any
+	}>(`/super-admin/member-subscriptions/${subscriptionId}/reject`, {
+		method: "POST",
+		body: { rejection_reason: rejectionReason },
+	})
 }
 
 

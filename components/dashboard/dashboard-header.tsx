@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
+import { handleLogout } from "@/lib/auth/auth-utils"
 
 interface DashboardHeaderProps {
   mobileMenuOpen: boolean
@@ -83,8 +84,11 @@ export function DashboardHeader({ mobileMenuOpen, setMobileMenuOpen }: Dashboard
                 <Link href="/dashboard/settings">Settings</Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/login">Logout</Link>
+              <DropdownMenuItem 
+                className="text-destructive cursor-pointer"
+                onClick={() => handleLogout()}
+              >
+                Logout
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

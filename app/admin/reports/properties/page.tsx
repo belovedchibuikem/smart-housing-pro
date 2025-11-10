@@ -50,8 +50,8 @@ export default function PropertyReportsPage() {
     try {
       await exportReport('properties', { date_range: dateRange })
       toast({
-        title: "Export initiated",
-        description: "Your report is being generated.",
+        title: "Export completed",
+        description: "Your report has been downloaded.",
       })
     } catch (error: any) {
       toast({

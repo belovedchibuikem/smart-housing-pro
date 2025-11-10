@@ -98,12 +98,22 @@ const navItems: NavItem[] = [
     ],
   },
   {
+    label: "Equity Contributions",
+    icon: HandCoins,
+    subItems: [
+      { href: "/admin/equity-contributions", label: "All Equity Contributions", icon: HandCoins },
+      { href: "/admin/equity-plans", label: "Equity Plans", icon: Package },
+      { href: "/admin/bulk-upload/equity-contributions", label: "Bulk Upload Equity", icon: Upload },
+    ],
+  },
+  {
     label: "Loans",
     icon: TrendingUp,
     subItems: [
       { href: "/admin/loans", label: "All Loans", icon: TrendingUp },
       { href: "/admin/bulk-upload/loan-repayments", label: "Bulk Upload Repayments", icon: Upload },
-  { href: "/admin/loan-products", label: "Loan Products", icon: Package },
+      { href: "/admin/loan-repayments", label: "Individual Repayment", icon: Receipt },
+      { href: "/admin/loan-products", label: "Loan Products", icon: Package },
     ],
   },
   {
@@ -183,6 +193,7 @@ const navItems: NavItem[] = [
       { href: "/admin/reports/members", label: "Member Reports", icon: Users },
       { href: "/admin/reports/financial", label: "Financial Reports", icon: DollarSign },
       { href: "/admin/reports/contributions", label: "Contribution Reports", icon: CreditCard },
+      { href: "/admin/reports/equity-contributions", label: "Equity Contribution Reports", icon: HandCoins },
       { href: "/admin/reports/investments", label: "Investment Reports", icon: TrendingUp },
       { href: "/admin/reports/loans", label: "Loan Reports", icon: HandCoins },
       { href: "/admin/reports/properties", label: "Property Reports", icon: Home },

@@ -59,7 +59,8 @@ const navItems: NavItem[] = [
     label: "My Wallet",
     icon: Wallet,
     subItems: [
-      { href: "/dashboard/wallet/add-funds", label: "Add Funds", icon: Plus },
+      { href: "/dashboard/wallet", label: "Wallet", icon: Wallet },
+      { href: "/dashboard/wallet/add-funds", label: "Add Fund", icon: Plus },
       { href: "/dashboard/wallet/history", label: "History", icon: History },
     ],
   },
@@ -73,6 +74,25 @@ const navItems: NavItem[] = [
     ],
   },
   {
+    label: "Equity Contributions",
+    icon: HandCoins,
+    subItems: [
+      { href: "/dashboard/equity-contributions", label: "View Equity Contributions", icon: Eye },
+      { href: "/dashboard/equity-contributions/new", label: "Make Equity Contribution", icon: Plus },
+      { href: "/dashboard/equity-wallet", label: "Equity Wallet", icon: Wallet },
+      { href: "/dashboard/equity-plans", label: "Equity Plans", icon: Package },
+    ],
+  },
+  {
+    label: "My Loans",
+    icon: HandCoins,
+    subItems: [
+      { href: "/dashboard/loans", label: "View Loans", icon: Eye },
+      { href: "/dashboard/loans/apply", label: "Request Loan", icon: PlusCircle },
+      { href: "/dashboard/loans/plans", label: "Loan Plans", icon: ListChecks },
+    ],
+  },
+  {
     label: "My Investment",
     icon: TrendingUp,
     subItems: [
@@ -82,16 +102,7 @@ const navItems: NavItem[] = [
       { href: "/dashboard/investments/withdraw", label: "Withdraw Investment", icon: LogOut },
     ],
   },
-  {
-    label: "My Loans",
-    icon: HandCoins,
-    subItems: [
-      { href: "/dashboard/loans", label: "View Loans", icon: Eye },
-      { href: "/dashboard/loans/apply", label: "Request Loan", icon: PlusCircle },
-      { href: "/dashboard/loans/repay", label: "Repay Loan", icon: DollarSign },
-      { href: "/dashboard/loans/plans", label: "Loan Plans", icon: ListChecks },
-    ],
-  },
+  
   {
     label: "My Properties",
     icon: Home,
@@ -149,6 +160,7 @@ const navItems: NavItem[] = [
     icon: FileBarChart,
     subItems: [
       { href: "/dashboard/reports/contributions", label: "Contribution Report", icon: CreditCard },
+      { href: "/dashboard/reports/equity-contributions", label: "Equity Contribution Report", icon: HandCoins },
       { href: "/dashboard/reports/investments", label: "Investment Report", icon: TrendingUp },
       { href: "/dashboard/reports/loans", label: "Loan Report", icon: HandCoins },
       { href: "/dashboard/reports/properties", label: "Property Report", icon: Home },

@@ -40,7 +40,16 @@ export default function WalletTransferPage() {
       const data = await response.json()
 
       if (data.success) {
-        router.push("/dashboard/wallet/transfer/success")
+        const generatedReference = data.reference || data.transactionId || `TRF-${Date.now()}`
+        const recipientValue = data.recipientId || recipientId
+        const numericAmount = Number(amount)
+        const params = new URLSearchParams()
+        params.set("reference", String(generatedReference))
+        params.set("recipient", String(recipientValue))
+        if (Number.isFinite(numericAmount) && numericAmount > 0) {
+          params.set("amount", String(numericAmount))
+        }
+        router.push(`/dashboard/wallet/transfer/success?${params.toString()}`)
       } else {
         alert(data.message || "Transfer failed")
         setIsLoading(false)

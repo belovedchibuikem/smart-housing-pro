@@ -57,8 +57,8 @@ export default function ContributionReportsPage() {
     try {
       await exportReport('contributions', { date_range: dateRange, search: searchQuery })
       toast({
-        title: "Export initiated",
-        description: "Your report is being generated.",
+        title: "Export completed",
+        description: "Your report has been downloaded.",
       })
     } catch (error: any) {
       toast({

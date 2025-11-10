@@ -1,300 +1,463 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useEffect } from "react"
-import { Card } from "@/components/ui/card"
+import { useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
+import { toast } from "sonner"
+import { ArrowRight, Loader2, Upload } from "lucide-react"
+import type { LoanProduct } from "@/lib/api/loans"
+import { submitLoanApplication } from "@/lib/api/loans"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { useRouter } from "next/navigation"
-import { Upload } from "lucide-react"
 
-export function LoanApplicationForm() {
+type LoanApplicationFormProps = {
+	products: LoanProduct[]
+	isLoadingProducts?: boolean
+	onSubmitted?: (loanId: string) => void
+	redirectOnSuccess?: boolean
+	initialProductId?: string
+}
+
+const formatCurrency = (value: number) =>
+	new Intl.NumberFormat("en-NG", {
+		style: "currency",
+		currency: "NGN",
+		maximumFractionDigits: 2,
+	}).format(value || 0)
+
+const computeMonthlyRepayment = (product: LoanProduct | undefined, amount: number, months: number) => {
+	if (!product || !amount || !months) return { monthly: 0, total: 0, interest: 0 }
+
+	const interestRate = product.interest_rate ?? 0
+
+	if (product.interest_type === "compound") {
+		const monthlyRate = interestRate / 100
+		const totalAmount = amount * Math.pow(1 + monthlyRate, months)
+		const monthlyPayment = totalAmount / months
+		return { monthly: monthlyPayment, total: totalAmount, interest: totalAmount - amount }
+	}
+
+	const totalInterest = amount * (interestRate / 100) * months
+	const totalAmount = amount + totalInterest
+	const monthlyPayment = totalAmount / months
+
+	return { monthly: monthlyPayment, total: totalAmount, interest: totalInterest }
+}
+
+export function LoanApplicationForm({
+	products,
+	isLoadingProducts,
+	onSubmitted,
+	redirectOnSuccess = true,
+	initialProductId,
+}: LoanApplicationFormProps) {
   const router = useRouter()
-  const [isLoading, setIsLoading] = useState(false)
-  const [loanAmount, setLoanAmount] = useState("")
-  const [loanProduct, setLoanProduct] = useState("")
-  const [lastNetPay, setLastNetPay] = useState("")
-  const [tenure, setTenure] = useState("4")
-  const [monthlyRepayment, setMonthlyRepayment] = useState(0)
-  const [totalRepayment, setTotalRepayment] = useState(0)
-  const [interestRate, setInterestRate] = useState(10) // Default 10% simple interest
-  const [isQualified, setIsQualified] = useState(false)
+	const [isSubmitting, setIsSubmitting] = useState(false)
+
+	const [selectedProductId, setSelectedProductId] = useState<string>("")
+	const [loanAmount, setLoanAmount] = useState<string>("")
+	const [netPay, setNetPay] = useState<string>("")
+	const [tenureMonths, setTenureMonths] = useState<number>(0)
+	const [employmentStatus, setEmploymentStatus] = useState<"employed" | "self_employed" | "retired">("employed")
+	const [purpose, setPurpose] = useState<string>("")
+	const [guarantorName, setGuarantorName] = useState<string>("")
+	const [guarantorPhone, setGuarantorPhone] = useState<string>("")
+	const [guarantorRelationship, setGuarantorRelationship] = useState<string>("")
+	const [guarantorAddress, setGuarantorAddress] = useState<string>("")
+	const [additionalInfo, setAdditionalInfo] = useState<string>("")
 
   useEffect(() => {
-    if (loanAmount && lastNetPay && tenure) {
-      const principal = Number(loanAmount)
-      const netPay = Number(lastNetPay)
-      const months = Number(tenure)
+		if (initialProductId && products.some((product) => product.id === initialProductId)) {
+			setSelectedProductId(initialProductId)
+		}
+	}, [initialProductId, products])
 
-      const totalInterest = principal * (interestRate / 100)
-      const total = principal + totalInterest
-      const monthly = total / months
+	const selectedProduct = useMemo(
+		() => products.find((product) => product.id === selectedProductId),
+		[products, selectedProductId]
+	)
 
-      const requiredNetPay = monthly * 2
-      const qualified = netPay >= requiredNetPay
+	const tenureOptions = useMemo(() => {
+		if (!selectedProduct) return []
+		const min = Math.max(selectedProduct.min_tenure_months ?? 1, 1)
+		const max = Math.max(selectedProduct.max_tenure_months ?? min, min)
+		const options: number[] = []
+		for (let month = min; month <= max; month += 1) {
+			options.push(month)
+		}
+		return options
+	}, [selectedProduct])
 
-      setTotalRepayment(total)
-      setMonthlyRepayment(monthly)
-      setIsQualified(qualified)
-    }
-  }, [loanAmount, lastNetPay, tenure, interestRate])
+	useEffect(() => {
+		if (tenureOptions.length > 0) {
+			setTenureMonths((current) => (current ? current : tenureOptions[0]))
+		} else {
+			setTenureMonths(0)
+		}
+	}, [tenureOptions])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+	const numericAmount = Number(loanAmount) || 0
+	const numericNetPay = Number(netPay) || 0
 
+	const repaymentSummary = useMemo(() => {
+		if (!selectedProduct || !numericAmount || !tenureMonths) {
+			return { monthly: 0, total: 0, interest: 0 }
+		}
+
+		return computeMonthlyRepayment(selectedProduct, numericAmount, tenureMonths)
+	}, [selectedProduct, numericAmount, tenureMonths])
+
+	const processingFee =
+		selectedProduct?.processing_fee_percentage && numericAmount
+			? (numericAmount * (selectedProduct.processing_fee_percentage ?? 0)) / 100
+			: 0
+
+	const requiredNetPay = repaymentSummary.monthly * 2
+	const isQualified = numericNetPay >= requiredNetPay && repaymentSummary.monthly > 0
+
+	const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+		event.preventDefault()
+		if (!selectedProduct) return
     if (!isQualified) {
-      alert("Your net pay does not meet the minimum requirement for this loan amount and tenure.")
+			toast.error("Net pay requirement", {
+				description: "Your net pay must be at least twice the monthly repayment amount.",
+			})
       return
     }
 
-    setIsLoading(true)
+		try {
+			setIsSubmitting(true)
+			const response = await submitLoanApplication({
+				product_id: selectedProduct.id,
+				amount: numericAmount,
+				tenure_months: tenureMonths,
+				purpose,
+				net_pay: numericNetPay,
+				employment_status: employmentStatus,
+				guarantor_name: guarantorName,
+				guarantor_phone: guarantorPhone,
+				guarantor_relationship: guarantorRelationship,
+				guarantor_address: guarantorAddress,
+				additional_info: additionalInfo || undefined,
+			})
 
-    // TODO: Implement actual loan application submission
-    setTimeout(() => {
-      setIsLoading(false)
-      router.push("/dashboard/loans/application-success")
-    }, 2000)
+			toast.success(response.message || "Loan application submitted successfully")
+			onSubmitted?.(response.loan.id)
+
+			if (redirectOnSuccess) {
+				router.push(`/dashboard/loans/application-success?loanId=${response.loan.id}`)
+				return
+			}
+
+			setLoanAmount("")
+			setNetPay("")
+			setPurpose("")
+			setGuarantorName("")
+			setGuarantorPhone("")
+			setGuarantorRelationship("")
+			setGuarantorAddress("")
+			setAdditionalInfo("")
+		} catch (error: any) {
+			console.error("Loan application failed", error)
+			toast.error("Loan application failed", {
+				description: error?.message ?? "Please review the details and try again.",
+			})
+		} finally {
+			setIsSubmitting(false)
+		}
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Loan Details</h2>
+				<div className="mb-6 flex flex-col gap-2">
+					<h2 className="text-lg font-semibold">Loan Details</h2>
+					<p className="text-sm text-muted-foreground">
+						Select a loan product and provide the required information to proceed.
+					</p>
+				</div>
+
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="product">Loan Product</Label>
-            <Select value={loanProduct} onValueChange={setLoanProduct} required>
-              <SelectTrigger id="product">
-                <SelectValue placeholder="Select loan product" />
+						<Label htmlFor="loan-product">Loan Product</Label>
+						<Select
+							value={selectedProductId}
+							onValueChange={setSelectedProductId}
+							disabled={isLoadingProducts || products.length === 0}
+							required
+						>
+							<SelectTrigger id="loan-product">
+								<SelectValue placeholder={isLoadingProducts ? "Loading loan products..." : "Select loan product"} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="housing-dev">Housing Development Loan</SelectItem>
-                <SelectItem value="emergency">Emergency Loan</SelectItem>
-                <SelectItem value="renovation">Home Renovation Loan</SelectItem>
+								{products.map((product) => (
+									<SelectItem key={product.id} value={product.id}>
+										{product.name}
+									</SelectItem>
+								))}
               </SelectContent>
             </Select>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4">
+					<div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="amount">Loan Amount (₦)</Label>
+							<Label htmlFor="loan-amount">Loan Amount (₦)</Label>
               <Input
-                id="amount"
+								id="loan-amount"
                 type="number"
+								min={selectedProduct?.min_amount ?? 0}
+								max={selectedProduct?.max_amount ?? undefined}
+								step="1000"
                 placeholder="Enter amount"
                 value={loanAmount}
-                onChange={(e) => setLoanAmount(e.target.value)}
+								onChange={(event) => setLoanAmount(event.target.value)}
                 required
               />
+							{selectedProduct?.min_amount ? (
+								<p className="text-xs text-muted-foreground">
+									Minimum: {formatCurrency(selectedProduct.min_amount)} {selectedProduct.max_amount ? `• Maximum: ${formatCurrency(selectedProduct.max_amount)}` : ""}
+								</p>
+							) : null}
             </div>
+
             <div className="space-y-2">
-              <Label htmlFor="lastNetPay">Last Net Pay (₦)</Label>
+							<Label htmlFor="net-pay">Net Pay (₦)</Label>
               <Input
-                id="lastNetPay"
+								id="net-pay"
                 type="number"
-                placeholder="Enter your last net pay"
-                value={lastNetPay}
-                onChange={(e) => setLastNetPay(e.target.value)}
+								min="0"
+								step="1000"
+								placeholder="Enter your monthly net salary"
+								value={netPay}
+								onChange={(event) => setNetPay(event.target.value)}
                 required
               />
-              <p className="text-xs text-muted-foreground">Your most recent monthly net salary</p>
+							<p className="text-xs text-muted-foreground">
+								You need at least {formatCurrency(requiredNetPay)} monthly net pay to qualify.
+							</p>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="tenure">Repayment Tenure (months)</Label>
-            <Select value={tenure} onValueChange={setTenure} required>
+						<Label htmlFor="tenure">Repayment Tenure</Label>
+						<Select
+							value={tenureMonths ? String(tenureMonths) : ""}
+							onValueChange={(value) => setTenureMonths(Number(value))}
+							disabled={!tenureOptions.length}
+							required
+						>
               <SelectTrigger id="tenure">
                 <SelectValue placeholder="Select tenure" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="3">3 months</SelectItem>
-                <SelectItem value="4">4 months</SelectItem>
-                <SelectItem value="6">6 months</SelectItem>
-                <SelectItem value="12">12 months</SelectItem>
+								{tenureOptions.map((month) => (
+									<SelectItem key={month} value={String(month)}>
+										{month} {month === 1 ? "month" : "months"}
+									</SelectItem>
+								))}
               </SelectContent>
             </Select>
           </div>
 
-          {monthlyRepayment > 0 && (
+					{selectedProduct ? (
+						<div className="rounded-lg border bg-muted/40 p-4">
+							<div className="flex flex-wrap items-center gap-3">
+								<Badge variant="secondary">Interest: {selectedProduct.interest_rate ?? 0}%</Badge>
+								<Badge variant="secondary">Type: {selectedProduct.interest_type?.toUpperCase()}</Badge>
+								{selectedProduct.processing_fee_percentage ? (
+									<Badge variant="secondary">
+										Processing Fee: {selectedProduct.processing_fee_percentage}%
+									</Badge>
+								) : null}
+							</div>
+						</div>
+					) : null}
+
+					{repaymentSummary.monthly > 0 ? (
             <div
-              className={`p-4 rounded-lg ${isQualified ? "bg-green-50 border border-green-200" : "bg-red-50 border border-red-200"}`}
+							className={`rounded-lg border p-4 ${
+								isQualified ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"
+							}`}
             >
               <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Monthly Repayment:</span>
-                  <span className="text-lg font-bold">
-                    ₦{monthlyRepayment.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+								<div className="flex items-center justify-between">
+									<span className="text-sm font-medium">Monthly Repayment</span>
+									<span className="text-lg font-semibold text-primary">
+										{formatCurrency(repaymentSummary.monthly)}
                   </span>
                 </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Total Repayment:</span>
-                  <span className="font-medium">
-                    ₦{totalRepayment.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                  </span>
+								<div className="flex items-center justify-between text-sm text-muted-foreground">
+									<span>Total Repayment</span>
+									<span>{formatCurrency(repaymentSummary.total + processingFee)}</span>
                 </div>
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Required Net Pay (200%):</span>
-                  <span className="font-medium">
-                    ₦{(monthlyRepayment * 2).toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                  </span>
+								<div className="flex items-center justify-between text-sm text-muted-foreground">
+									<span>Processing Fee</span>
+									<span>{formatCurrency(processingFee)}</span>
                 </div>
-                <div className="pt-2 border-t">
-                  {isQualified ? (
-                    <p className="text-sm text-green-700 font-medium">✓ You qualify for this loan</p>
-                  ) : (
-                    <p className="text-sm text-red-700 font-medium">
-                      ✗ Your net pay must be at least ₦{(monthlyRepayment * 2).toLocaleString()} (200% of monthly
-                      repayment) to qualify
-                    </p>
-                  )}
+								<div className="flex items-center justify-between border-t pt-2 text-sm">
+									<span>Required Net Pay (200%)</span>
+									<span className="font-medium">{formatCurrency(requiredNetPay)}</span>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Calculation: ₦{Number(loanAmount).toLocaleString()} + {interestRate}% interest (₦
-                {(Number(loanAmount) * (interestRate / 100)).toLocaleString()}) = ₦{totalRepayment.toLocaleString()} ÷{" "}
-                {tenure} months
+							<p className="mt-3 text-xs">
+								Calculation based on {selectedProduct?.interest_type ?? "simple"} interest with rate of{" "}
+								{selectedProduct?.interest_rate ?? 0}% for {tenureMonths} months.
               </p>
             </div>
-          )}
+					) : null}
 
           <div className="space-y-2">
             <Label htmlFor="purpose">Purpose of Loan</Label>
-            <Textarea id="purpose" placeholder="Describe the purpose of this loan" required />
+						<Textarea
+							id="purpose"
+							placeholder="Describe the purpose of the loan"
+							value={purpose}
+							onChange={(event) => setPurpose(event.target.value)}
+							required
+						/>
           </div>
         </div>
       </Card>
 
       <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Employment Information</h2>
-        <div className="space-y-4">
-          <div className="grid md:grid-cols-2 gap-4">
+				<h2 className="mb-4 text-lg font-semibold">Employment Information</h2>
+				<div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="employer">Employer</Label>
-              <Input id="employer" defaultValue="Federal Road Safety Corps" disabled />
+						<Label htmlFor="employment-status">Employment Status</Label>
+						<Select value={employmentStatus} onValueChange={(value) => setEmploymentStatus(value as typeof employmentStatus)}>
+							<SelectTrigger id="employment-status">
+								<SelectValue placeholder="Select employment status" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="employed">Employed</SelectItem>
+								<SelectItem value="self_employed">Self-employed</SelectItem>
+								<SelectItem value="retired">Retired</SelectItem>
+							</SelectContent>
+						</Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="position">Position/Rank</Label>
-              <Input id="position" defaultValue="Route Commander" disabled />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="salary">Monthly Salary</Label>
-              <Input id="salary" type="number" placeholder="Enter monthly salary" required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="employment-date">Employment Date</Label>
-              <Input id="employment-date" type="date" required />
-            </div>
+						<Label htmlFor="additional-info">Additional Information (optional)</Label>
+						<Textarea
+							id="additional-info"
+							placeholder="Provide any additional information relevant to your loan request"
+							value={additionalInfo}
+							onChange={(event) => setAdditionalInfo(event.target.value)}
+							className="min-h-[96px]"
+						/>
           </div>
         </div>
       </Card>
 
       <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Guarantor Information</h2>
-        <div className="space-y-4">
-          <div className="grid md:grid-cols-2 gap-4">
+				<h2 className="mb-4 text-lg font-semibold">Guarantor Information</h2>
+				<div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="guarantor-name">Full Name</Label>
-              <Input id="guarantor-name" placeholder="Guarantor's full name" required />
+						<Input
+							id="guarantor-name"
+							placeholder="Guarantor's full name"
+							value={guarantorName}
+							onChange={(event) => setGuarantorName(event.target.value)}
+							required
+						/>
             </div>
             <div className="space-y-2">
               <Label htmlFor="guarantor-phone">Phone Number</Label>
-              <Input id="guarantor-phone" type="tel" placeholder="Guarantor's phone" required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="guarantor-email">Email Address</Label>
-              <Input id="guarantor-email" type="email" placeholder="Guarantor's email" required />
+						<Input
+							id="guarantor-phone"
+							placeholder="Guarantor's phone number"
+							value={guarantorPhone}
+							onChange={(event) => setGuarantorPhone(event.target.value)}
+							required
+						/>
             </div>
             <div className="space-y-2">
               <Label htmlFor="guarantor-relationship">Relationship</Label>
-              <Input id="guarantor-relationship" placeholder="e.g., Colleague, Friend" required />
+						<Input
+							id="guarantor-relationship"
+							placeholder="e.g. colleague, sibling"
+							value={guarantorRelationship}
+							onChange={(event) => setGuarantorRelationship(event.target.value)}
+							required
+						/>
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="guarantor-address">Address</Label>
-            <Textarea id="guarantor-address" placeholder="Guarantor's residential address" required />
+					<div className="space-y-2 md:col-span-2">
+						<Label htmlFor="guarantor-address">Residential Address</Label>
+						<Textarea
+							id="guarantor-address"
+							placeholder="Enter the guarantor's residential address"
+							value={guarantorAddress}
+							onChange={(event) => setGuarantorAddress(event.target.value)}
+							required
+						/>
           </div>
         </div>
       </Card>
 
       <Card className="p-6">
-        <h2 className="text-lg font-semibold mb-4">Supporting Documents</h2>
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="salary-slip">Recent Salary Slip</Label>
-            <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer">
-              <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Click to upload or drag and drop</p>
-              <p className="text-xs text-muted-foreground mt-1">PDF, PNG, JPG (max 5MB)</p>
+				<h2 className="mb-4 text-lg font-semibold">Supporting Documents (optional)</h2>
+				<div className="space-y-4 text-center">
+					<div className="rounded-lg border-2 border-dashed p-6">
+						<Upload className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+						<p className="text-sm font-medium">Upload supporting documents</p>
+						<p className="text-xs text-muted-foreground">
+							Salary slips, employment letters, bank statements (PDF, JPG, PNG up to 5MB)
+						</p>
             </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="id-card">Valid ID Card</Label>
-            <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer">
-              <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Click to upload or drag and drop</p>
-              <p className="text-xs text-muted-foreground mt-1">PDF, PNG, JPG (max 5MB)</p>
-            </div>
-          </div>
+					<p className="text-xs text-muted-foreground">
+						Document uploads are optional at this stage. Admins may request additional documents during review.
+					</p>
         </div>
       </Card>
 
-      {loanAmount && (
-        <Card className="p-6 bg-muted/50">
-          <h3 className="font-semibold mb-4">Loan Summary</h3>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Requested Amount</span>
-              <span className="font-medium">₦{Number(loanAmount).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Interest Rate (Simple)</span>
-              <span className="font-medium">{interestRate}%</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Repayment Tenure</span>
-              <span className="font-medium">{tenure} months</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Total Interest</span>
-              <span className="font-medium">₦{(Number(loanAmount) * (interestRate / 100)).toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Processing Fee (1%)</span>
-              <span className="font-medium">₦{(Number(loanAmount) * 0.01).toLocaleString()}</span>
-            </div>
-            <div className="border-t pt-2 flex justify-between">
-              <span className="font-semibold">Total Repayable</span>
-              <span className="font-bold text-lg">
-                ₦{(totalRepayment + Number(loanAmount) * 0.01).toLocaleString()}
-              </span>
-            </div>
-            {monthlyRepayment > 0 && (
-              <div className="flex justify-between text-sm pt-2 border-t">
-                <span className="text-muted-foreground">Monthly Repayment</span>
-                <span className="font-medium text-primary">
-                  ₦{monthlyRepayment.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                </span>
-              </div>
-            )}
-          </div>
-        </Card>
-      )}
-
-      <div className="flex gap-3">
-        <Button type="button" variant="outline" className="flex-1 bg-transparent" onClick={() => router.back()}>
+			<div className="flex flex-col gap-3 md:flex-row">
+				<Button
+					type="button"
+					variant="outline"
+					className="flex-1 bg-transparent"
+					onClick={() => router.back()}
+					disabled={isSubmitting}
+				>
           Cancel
         </Button>
         <Button
           type="submit"
           className="flex-1"
-          disabled={isLoading || !loanAmount || !loanProduct || !lastNetPay || !isQualified}
+					disabled={
+						isSubmitting ||
+						!selectedProduct ||
+						!loanAmount ||
+						!netPay ||
+						!tenureMonths ||
+						!purpose ||
+						!guarantorName ||
+						!guarantorPhone ||
+						!guarantorRelationship ||
+						!guarantorAddress ||
+						!isQualified
+					}
         >
-          {isLoading ? "Submitting..." : "Submit Application"}
+					{isSubmitting ? (
+						<>
+							<Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...
+						</>
+					) : (
+						<>
+							Submit Application
+							<ArrowRight className="ml-2 h-4 w-4" />
+						</>
+					)}
         </Button>
       </div>
     </form>

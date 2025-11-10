@@ -28,6 +28,7 @@ interface ContributionPlan {
   name: string
   description?: string
   amount: number
+  minimum_amount: number
   frequency: string
   is_mandatory: boolean
   is_active: boolean
@@ -50,6 +51,7 @@ export default function ContributionPlansPage() {
     name: "",
     description: "",
     amount: "",
+    minimum_amount: "",
     frequency: "monthly",
     is_mandatory: false,
     is_active: true,
@@ -94,13 +96,29 @@ export default function ContributionPlansPage() {
   const handleCreate = async () => {
     try {
       setProcessing(true)
+      if (!formData.minimum_amount) {
+        sonnerToast.error("Minimum amount is required")
+        setProcessing(false)
+        return
+      }
+
+      const min = parseFloat(formData.minimum_amount)
+      const amount = parseFloat(formData.amount)
+
+      if (Number.isFinite(amount) && Number.isFinite(min) && min > amount) {
+        sonnerToast.error("Minimum amount cannot exceed the plan amount")
+        setProcessing(false)
+        return
+      }
+
       const response = await apiFetch<{ success: boolean; message?: string; data?: ContributionPlan }>(
         '/admin/contribution-plans',
         {
           method: 'POST',
           body: {
             ...formData,
-            amount: parseFloat(formData.amount),
+            amount,
+            minimum_amount: min,
           }
         }
       )
@@ -177,6 +195,7 @@ export default function ContributionPlansPage() {
       name: "",
       description: "",
       amount: "",
+      minimum_amount: "",
       frequency: "monthly",
       is_mandatory: false,
       is_active: true,
@@ -245,10 +264,14 @@ export default function ContributionPlansPage() {
                       {plan.description && (
                         <p className="text-sm text-muted-foreground mt-1">{plan.description}</p>
                       )}
-                      <div className="grid sm:grid-cols-4 gap-4 mt-4">
+                      <div className="grid gap-4 mt-4 sm:grid-cols-5">
                         <div>
                           <p className="text-xs text-muted-foreground">Amount</p>
                           <p className="font-medium text-sm">{formatCurrency(plan.amount)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Minimum Amount</p>
+                          <p className="font-medium text-sm">{formatCurrency(plan.minimum_amount)}</p>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Frequency</p>
@@ -337,7 +360,7 @@ export default function ContributionPlansPage() {
                 rows={3}
               />
             </div>
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="amount">Amount (₦) *</Label>
                 <Input
@@ -347,6 +370,17 @@ export default function ContributionPlansPage() {
                   onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                   placeholder="e.g., 50000"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="minimum_amount">Minimum Amount (₦) *</Label>
+                <Input
+                  id="minimum_amount"
+                  type="number"
+                  value={formData.minimum_amount}
+                  onChange={(e) => setFormData({ ...formData, minimum_amount: e.target.value })}
+                  placeholder="e.g., 25000"
+                />
+                <p className="text-xs text-muted-foreground">Members must contribute at least this amount each cycle.</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="frequency">Frequency *</Label>
@@ -390,7 +424,7 @@ export default function ContributionPlansPage() {
             <Button variant="outline" onClick={() => { setShowCreateDialog(false); resetForm() }} disabled={processing}>
               Cancel
             </Button>
-            <Button onClick={handleCreate} disabled={processing || !formData.name || !formData.amount}>
+            <Button onClick={handleCreate} disabled={processing || !formData.name || !formData.amount || !formData.minimum_amount}>
               {processing ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />

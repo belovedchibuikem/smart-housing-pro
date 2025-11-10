@@ -33,7 +33,7 @@ export function LandingHeader({ isTenantPage = true }: LandingHeaderProps) {
             )}
             <div>
               <h1 className="font-bold text-xl">{settings?.company_name || "FRSC HMS"}</h1>
-              <p className="text-xs text-muted-foreground">{settings?.tagline || "Housing Management System"}</p>
+              <p className="text-xs text-muted-foreground">{settings?.company_tagline || "Housing Management System"}</p>
             </div>
           </div>
 

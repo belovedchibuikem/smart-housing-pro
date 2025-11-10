@@ -12,7 +12,11 @@ import { useRouter } from "next/navigation"
 import { loginRequest, setAuthToken } from "@/lib/api/client"
 import { getDashboardRoute } from "@/lib/auth/redirect-utils"
 
-export function LoginForm() {
+interface LoginFormProps {
+  allowRegistration?: boolean
+}
+
+export function LoginForm({ allowRegistration = true }: LoginFormProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [formData, setFormData] = useState({
@@ -36,14 +40,19 @@ export function LoginForm() {
       // Use user data from login response (no need to call /api/auth/me)
       const user = result.user
 
-      // Store user data in localStorage for super-admin role checking
-      if (user.role === 'super-admin' || (user.roles && user.roles.includes('super-admin'))) {
-        localStorage.setItem('user_data', JSON.stringify(user))
-      }
+      // Store user data in localStorage for ALL users (super-admin and tenants)
+      // This allows AuthGuard to validate without calling /auth/me
+      localStorage.setItem('user_data', JSON.stringify(user))
 
       // Role-based redirection using utility function
       const dashboardRoute = getDashboardRoute(user)
-      router.push(dashboardRoute)
+      
+      // Debug logging
+      console.log('Login successful - User data:', user)
+      console.log('Dashboard route:', dashboardRoute)
+      
+      // Use router.replace to avoid adding to history (prevents back button issues)
+      router.replace(dashboardRoute)
     } catch (err) {
       // basic error feedback
       const message = err instanceof Error ? err.message : "Login failed"

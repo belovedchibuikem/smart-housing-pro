@@ -18,8 +18,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Globe, Plus, CheckCircle2, XCircle, Clock, AlertCircle, Copy, ExternalLink, RefreshCw } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { Globe, Plus, CheckCircle2, XCircle, Clock, AlertCircle, Copy, ExternalLink, RefreshCw, Trash2 } from "lucide-react"
+import { toast as sonnerToast } from "sonner"
+import { apiFetch } from "@/lib/api/client"
 
 interface DomainRequest {
   id: string
@@ -36,12 +37,13 @@ interface DomainRequest {
 }
 
 export default function CustomDomainsPage() {
-  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [domains, setDomains] = useState<DomainRequest[]>([])
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [newDomain, setNewDomain] = useState({ domain_name: "", subdomain: "" })
   const [submitting, setSubmitting] = useState(false)
+  const [verifying, setVerifying] = useState<Record<string, boolean>>({})
+  const [deleting, setDeleting] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     fetchDomains()
@@ -49,15 +51,12 @@ export default function CustomDomainsPage() {
 
   const fetchDomains = async () => {
     try {
-      const response = await fetch("/api/admin/custom-domains")
-      const data = await response.json()
+      const data = await apiFetch<{ domains: DomainRequest[] }>("/admin/custom-domains")
       setDomains(data.domains || [])
-    } catch (error) {
-      console.error("[v0] Error fetching domains:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load custom domains",
-        variant: "destructive",
+    } catch (error: any) {
+      console.error("Error fetching domains:", error)
+      sonnerToast.error("Failed to load custom domains", {
+        description: error.message || "Please try again later"
       })
     } finally {
       setLoading(false)
@@ -66,53 +65,130 @@ export default function CustomDomainsPage() {
 
   const handleAddDomain = async () => {
     if (!newDomain.domain_name) {
-      toast({
-        title: "Error",
-        description: "Please enter a domain name",
-        variant: "destructive",
-      })
+      sonnerToast.error("Please enter a domain name")
+      return
+    }
+
+    // Basic domain validation
+    const domainRegex = /^[a-z0-9]+([\-\.]{1}[a-z0-9]+)*\.[a-z]{2,}$/
+    if (!domainRegex.test(newDomain.domain_name)) {
+      sonnerToast.error("Invalid domain name format")
       return
     }
 
     setSubmitting(true)
     try {
-      const response = await fetch("/api/admin/custom-domains", {
+      const data = await apiFetch("/admin/custom-domains", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newDomain),
+        body: newDomain,
       })
 
-      const data = await response.json()
-
       if (data.success) {
-        toast({
-          title: "Success",
-          description: "Custom domain request created successfully",
+        sonnerToast.success("Custom domain request created successfully", {
+          description: data.message || "Please configure the DNS records below"
         })
         setShowAddDialog(false)
         setNewDomain({ domain_name: "", subdomain: "" })
-        fetchDomains()
+        await fetchDomains()
       } else {
-        throw new Error(data.error)
+        throw new Error(data.message || "Failed to create domain request")
       }
-    } catch (error) {
-      console.error("[v0] Error adding domain:", error)
-      toast({
-        title: "Error",
-        description: "Failed to create custom domain request",
-        variant: "destructive",
+    } catch (error: any) {
+      console.error("Error adding domain:", error)
+      sonnerToast.error("Failed to create custom domain request", {
+        description: error.message || "Please check your input and try again"
       })
     } finally {
       setSubmitting(false)
     }
   }
 
+  const handleVerify = async (domainId: string) => {
+    setVerifying(prev => ({ ...prev, [domainId]: true }))
+    try {
+      const data = await apiFetch(`/admin/custom-domains/${domainId}/verify`, {
+        method: "POST",
+      })
+
+      if (data.success) {
+        sonnerToast.success("Domain verified successfully", {
+          description: data.message
+        })
+        await fetchDomains()
+      } else {
+        throw new Error(data.message || "Verification failed")
+      }
+    } catch (error: any) {
+      console.error("Error verifying domain:", error)
+      sonnerToast.error("Verification failed", {
+        description: error.message || "Please check your DNS records and try again"
+      })
+      await fetchDomains() // Refresh to get updated status
+    } finally {
+      setVerifying(prev => ({ ...prev, [domainId]: false }))
+    }
+  }
+
+  const handleCheckVerification = async (domainId: string) => {
+    setVerifying(prev => ({ ...prev, [domainId]: true }))
+    try {
+      const data = await apiFetch(`/admin/custom-domains/${domainId}/check-verification`, {
+        method: "POST",
+      })
+
+      if (data.verified) {
+        sonnerToast.success("Domain verified successfully", {
+          description: data.message
+        })
+      } else {
+        sonnerToast.info("Domain not yet verified", {
+          description: data.message || "Please ensure DNS records are configured correctly"
+        })
+      }
+      await fetchDomains()
+    } catch (error: any) {
+      console.error("Error checking verification:", error)
+      sonnerToast.error("Failed to check verification", {
+        description: error.message || "Please try again"
+      })
+      await fetchDomains()
+    } finally {
+      setVerifying(prev => ({ ...prev, [domainId]: false }))
+    }
+  }
+
+  const handleDelete = async (domainId: string) => {
+    if (!confirm("Are you sure you want to delete this domain request? This action cannot be undone.")) {
+      return
+    }
+
+    setDeleting(prev => ({ ...prev, [domainId]: true }))
+    try {
+      const data = await apiFetch(`/admin/custom-domains/${domainId}`, {
+        method: "DELETE",
+      })
+
+      if (data.success) {
+        sonnerToast.success("Domain deleted successfully", {
+          description: data.message
+        })
+        await fetchDomains()
+      } else {
+        throw new Error(data.message || "Failed to delete domain")
+      }
+    } catch (error: any) {
+      console.error("Error deleting domain:", error)
+      sonnerToast.error("Failed to delete domain", {
+        description: error.message || "Please try again"
+      })
+    } finally {
+      setDeleting(prev => ({ ...prev, [domainId]: false }))
+    }
+  }
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text)
-    toast({
-      title: "Copied",
-      description: "Copied to clipboard",
-    })
+    sonnerToast.success("Copied to clipboard")
   }
 
   const getStatusBadge = (status: string) => {
@@ -236,7 +312,13 @@ export default function CustomDomainsPage() {
                       <Globe className="h-5 w-5" />
                       {domain.full_domain}
                     </CardTitle>
-                    <CardDescription>Requested on {new Date(domain.requested_at).toLocaleDateString()}</CardDescription>
+                    <CardDescription>
+                      Requested on {new Date(domain.requested_at).toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      })}
+                    </CardDescription>
                   </div>
                   {getStatusBadge(domain.status)}
                 </div>
@@ -314,20 +396,61 @@ export default function CustomDomainsPage() {
                   <Alert>
                     <CheckCircle2 className="h-4 w-4" />
                     <AlertDescription>
-                      Domain verified on {new Date(domain.verified_at).toLocaleString()}
+                      Domain verified on {new Date(domain.verified_at).toLocaleString('en-US', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
                     </AlertDescription>
                   </Alert>
                 )}
 
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm">
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Check Verification
+                <div className="flex gap-2 flex-wrap">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => handleCheckVerification(domain.id)}
+                    disabled={verifying[domain.id] || domain.status === 'active'}
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${verifying[domain.id] ? 'animate-spin' : ''}`} />
+                    {verifying[domain.id] ? 'Checking...' : 'Check Verification'}
                   </Button>
-                  <Button variant="outline" size="sm">
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    View Documentation
-                  </Button>
+                  {domain.status !== 'active' && (
+                    <Button 
+                      variant="default" 
+                      size="sm"
+                      onClick={() => handleVerify(domain.id)}
+                      disabled={verifying[domain.id] || deleting[domain.id]}
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Verify Now
+                    </Button>
+                  )}
+                  {domain.status === 'active' && (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      asChild
+                    >
+                      <a href={`https://${domain.full_domain}`} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Visit Domain
+                      </a>
+                    </Button>
+                  )}
+                  {domain.status !== 'active' && (
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={() => handleDelete(domain.id)}
+                      disabled={deleting[domain.id] || verifying[domain.id]}
+                    >
+                      <Trash2 className={`h-4 w-4 mr-2 ${deleting[domain.id] ? 'animate-spin' : ''}`} />
+                      {deleting[domain.id] ? 'Deleting...' : 'Delete'}
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

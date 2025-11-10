@@ -1,5 +1,7 @@
 export type UserRole =
+  | "admin"
   | "super_admin"
+  | "super-admin"
   | "finance_manager"
   | "loan_officer"
   | "property_manager"
@@ -16,6 +18,18 @@ export interface RolePermissions {
 }
 
 export const rolePermissions: Record<UserRole, RolePermissions> = {
+  admin: {
+    role: "admin",
+    label: "Admin",
+    description: "Full access to all system features",
+    allowedRoutes: ["*"], // Access to everything
+  },
+  "super-admin": {
+    role: "super-admin",
+    label: "Super Admin",
+    description: "Full access to all system features",
+    allowedRoutes: ["*"], // Access to everything
+  },
   super_admin: {
     role: "super_admin",
     label: "Super Admin",
@@ -100,7 +114,15 @@ export const rolePermissions: Record<UserRole, RolePermissions> = {
 
 // Helper function to check if user has access to a route
 export function hasAccess(userRole: UserRole, route: string): boolean {
-  const permissions = rolePermissions[userRole]
+  // Normalize role to handle different formats
+  const normalizedRole = normalizeRole(userRole)
+  const permissions = rolePermissions[normalizedRole]
+
+  // If permissions not found, deny access for safety
+  if (!permissions) {
+    console.warn(`[roles] No permissions found for role: ${userRole} (normalized: ${normalizedRole})`)
+    return false
+  }
 
   // Super admin has access to everything
   if (permissions.allowedRoutes.includes("*")) {
@@ -117,9 +139,30 @@ export function hasAccess(userRole: UserRole, route: string): boolean {
   })
 }
 
+// Helper function to normalize role names (handle different formats)
+function normalizeRole(role: UserRole | string): UserRole {
+  // Handle common role variations
+  if (role === "super-admin" || role === "super_admin") {
+    return "super_admin"
+  }
+  if (role === "admin") {
+    return "admin"
+  }
+  // Return as-is if it's a valid UserRole
+  return role as UserRole
+}
+
 // Helper function to filter nav items based on role
 export function getFilteredNavItems(userRole: UserRole, navItems: any[]): any[] {
-  const permissions = rolePermissions[userRole]
+  // Normalize role to handle different formats
+  const normalizedRole = normalizeRole(userRole)
+  const permissions = rolePermissions[normalizedRole]
+
+  // If permissions not found, return empty array for safety
+  if (!permissions) {
+    console.warn(`[roles] No permissions found for role: ${userRole} (normalized: ${normalizedRole}), returning empty nav items`)
+    return []
+  }
 
   // Super admin sees everything
   if (permissions.allowedRoutes.includes("*")) {

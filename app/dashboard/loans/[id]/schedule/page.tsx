@@ -1,67 +1,117 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { ArrowLeft, Download, CheckCircle2, Clock } from "lucide-react"
+"use client"
+
+import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useParams } from "next/navigation"
+import { ArrowLeft, Download } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { fetchLoanRepaymentSchedule } from "@/lib/api/loans"
+import type { LoanRepaymentScheduleEntry, LoanRepaymentScheduleResponse } from "@/lib/api/loans"
 
-export default function LoanSchedulePage({ params }: { params: { id: string } }) {
-  // Calculate amortization schedule
-  const principal = 5000000
-  const annualRate = 0.08
-  const monthlyRate = annualRate / 12
-  const months = 48
-  const monthlyPayment =
-    (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) / (Math.pow(1 + monthlyRate, months) - 1)
+const currency = new Intl.NumberFormat("en-NG", {
+	style: "currency",
+	currency: "NGN",
+	maximumFractionDigits: 0,
+})
 
-  const schedule = []
-  let balance = principal
+const formatDate = (value: string) =>
+	new Date(value).toLocaleDateString("en-NG", {
+		month: "short",
+		day: "numeric",
+		year: "numeric",
+	})
 
-  for (let i = 1; i <= months; i++) {
-    const interest = balance * monthlyRate
-    const principalPayment = monthlyPayment - interest
-    balance -= principalPayment
+export default function LoanSchedulePage() {
+	const params = useParams<{ id: string }>()
+	const loanId = params?.id ?? ""
 
-    schedule.push({
-      month: i,
-      date: new Date(2024, i - 1, 15).toLocaleDateString("en-US", { month: "short", year: "numeric" }),
-      payment: monthlyPayment,
-      principal: principalPayment,
-      interest: interest,
-      balance: Math.max(0, balance),
-      status: i <= 5 ? "paid" : "pending",
-    })
-  }
+	const [scheduleResponse, setScheduleResponse] = useState<LoanRepaymentScheduleResponse | null>(null)
+	const [isLoading, setIsLoading] = useState<boolean>(true)
+	const [error, setError] = useState<string | null>(null)
+
+	useEffect(() => {
+		let mounted = true
+		const loadSchedule = async () => {
+			try {
+				setIsLoading(true)
+				setError(null)
+				const response = await fetchLoanRepaymentSchedule(loanId)
+				if (mounted) {
+					setScheduleResponse(response)
+				}
+			} catch (err: any) {
+				if (mounted) {
+					console.error("Failed to load repayment schedule", err)
+					setError(err?.message ?? "Unable to load repayment schedule.")
+				}
+			} finally {
+				if (mounted) {
+					setIsLoading(false)
+				}
+			}
+		}
+
+		if (loanId) {
+			loadSchedule()
+		}
+
+		return () => {
+			mounted = false
+		}
+	}, [loanId])
+
+	const schedule: LoanRepaymentScheduleEntry[] = scheduleResponse?.schedule ?? []
+	const summary = scheduleResponse?.repayment_summary
+	const loan = scheduleResponse?.loan
+
+	const completedPayments = schedule.filter((entry) => entry.status === "paid" || entry.status === "completed").length
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+		<div className="mx-auto max-w-7xl space-y-6">
       <div>
-        <Link href={`/dashboard/loans/${params.id}`}>
+				<Link href={`/dashboard/loans/${loanId}`}>
           <Button variant="ghost" size="sm" className="mb-4">
-            <ArrowLeft className="h-4 w-4 mr-2" />
+						<ArrowLeft className="mr-2 h-4 w-4" />
             Back to Loan Details
           </Button>
         </Link>
-        <div className="flex items-center justify-between">
+
+				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold">Repayment Schedule</h1>
-            <p className="text-muted-foreground mt-1">Loan ID: {params.id}</p>
+						<p className="text-sm text-muted-foreground">Loan ID: {loanId}</p>
           </div>
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Export Schedule
+					<Button variant="outline" disabled>
+						<Download className="mr-2 h-4 w-4" />
+						Export Schedule (coming soon)
           </Button>
         </div>
       </div>
 
-      {/* Summary */}
-      <div className="grid sm:grid-cols-4 gap-6">
+			{isLoading ? (
+				<Card className="border-dashed p-12 text-center text-sm text-muted-foreground">
+					Loading repayment schedule...
+				</Card>
+			) : null}
+
+			{error ? (
+				<Card className="border-red-200 bg-red-50 p-6 text-sm text-red-600">
+					{error}
+				</Card>
+			) : null}
+
+			{!isLoading && !error && scheduleResponse ? (
+				<>
+					<div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Payments</CardTitle>
+								<CardTitle className="text-sm font-medium text-muted-foreground">Total Installments</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{months}</div>
+								<div className="text-2xl font-bold">{schedule.length}</div>
           </CardContent>
         </Card>
         <Card>
@@ -69,7 +119,7 @@ export default function LoanSchedulePage({ params }: { params: { id: string } })
             <CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">5</div>
+								<div className="text-2xl font-bold text-green-600">{completedPayments}</div>
           </CardContent>
         </Card>
         <Card>
@@ -77,7 +127,9 @@ export default function LoanSchedulePage({ params }: { params: { id: string } })
             <CardTitle className="text-sm font-medium text-muted-foreground">Remaining</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">43</div>
+								<div className="text-2xl font-bold text-orange-600">
+									{Math.max(schedule.length - completedPayments, 0)}
+								</div>
           </CardContent>
         </Card>
         <Card>
@@ -85,54 +137,41 @@ export default function LoanSchedulePage({ params }: { params: { id: string } })
             <CardTitle className="text-sm font-medium text-muted-foreground">Monthly Payment</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₦{Math.round(monthlyPayment).toLocaleString()}</div>
+								<div className="text-2xl font-bold">
+									{currency.format(loan?.monthly_payment ?? 0)}
+								</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Schedule Table */}
       <Card>
         <CardHeader>
           <CardTitle>Payment Schedule</CardTitle>
-          <CardDescription>Detailed breakdown of your loan repayment plan</CardDescription>
+							<CardDescription>
+								Detailed breakdown of each repayment, including due dates and outstanding balance.
+							</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[80px]">Month</TableHead>
+											<TableHead className="w-[80px]">#</TableHead>
                   <TableHead>Due Date</TableHead>
-                  <TableHead className="text-right">Payment</TableHead>
-                  <TableHead className="text-right">Principal</TableHead>
-                  <TableHead className="text-right">Interest</TableHead>
-                  <TableHead className="text-right">Balance</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
+											<TableHead className="text-right">Amount</TableHead>
+											<TableHead className="text-right">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {schedule.map((item) => (
-                  <TableRow key={item.month}>
-                    <TableCell className="font-medium">{item.month}</TableCell>
-                    <TableCell>{item.date}</TableCell>
-                    <TableCell className="text-right">₦{Math.round(item.payment).toLocaleString()}</TableCell>
-                    <TableCell className="text-right">₦{Math.round(item.principal).toLocaleString()}</TableCell>
-                    <TableCell className="text-right">₦{Math.round(item.interest).toLocaleString()}</TableCell>
-                    <TableCell className="text-right font-medium">
-                      ₦{Math.round(item.balance).toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {item.status === "paid" ? (
-                        <Badge variant="default" className="gap-1">
-                          <CheckCircle2 className="h-3 w-3" />
-                          Paid
+										{schedule.map((entry) => (
+											<TableRow key={entry.installment}>
+												<TableCell className="font-medium">{entry.installment}</TableCell>
+												<TableCell>{formatDate(entry.due_date)}</TableCell>
+												<TableCell className="text-right">{currency.format(entry.amount ?? 0)}</TableCell>
+												<TableCell className="text-right">
+													<Badge variant={entry.status === "paid" || entry.status === "completed" ? "default" : "secondary"}>
+														{entry.status ? entry.status.replace("_", " ") : "pending"}
                         </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="gap-1">
-                          <Clock className="h-3 w-3" />
-                          Pending
-                        </Badge>
-                      )}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -141,6 +180,8 @@ export default function LoanSchedulePage({ params }: { params: { id: string } })
           </div>
         </CardContent>
       </Card>
+				</>
+			) : null}
     </div>
   )
 }

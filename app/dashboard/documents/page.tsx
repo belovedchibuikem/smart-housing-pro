@@ -1,261 +1,445 @@
+'use client'
+
+import { useMemo, useRef, useState } from "react"
+import Link from "next/link"
+import {
+	AlertCircle,
+	ArrowRight,
+	BadgeCheck,
+	Clock,
+	Download,
+	FileText,
+	Info,
+	Upload,
+} from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { FileText, Upload, Download, CheckCircle, Clock, XCircle, AlertCircle, Eye } from "lucide-react"
-import Link from "next/link"
+import { Skeleton } from "@/components/ui/skeleton"
 import { DocumentDownloadCard } from "@/components/document-download-card"
+import { useMemberKyc } from "@/lib/hooks/use-member-kyc"
+import { useMemberDocuments } from "@/lib/hooks/use-member-documents"
+import { useToast } from "@/hooks/use-toast"
+import { downloadDocument } from "@/lib/api/documents"
+
+const DOCUMENT_LABELS: Record<
+	string,
+	{
+		title: string
+		description: string
+	}
+> = {
+	passport: {
+		title: "Passport Photograph",
+		description: "A recent passport-sized photograph with a plain background.",
+    },
+	national_id: {
+		title: "National Identity",
+		description: "Upload a clear copy of your National ID or any government-issued ID.",
+	},
+	drivers_license: {
+		title: "Driver's License",
+		description: "Upload a valid driver's license (front page).",
+    },
+	utility_bill: {
+      title: "Proof of Address",
+		description: "Recent utility bill or tenancy agreement not older than 3 months.",
+	},
+	bank_statement: {
+		title: "Bank Statement",
+		description: "Your most recent bank statement (last 3 months).",
+	},
+}
+
+const STORAGE_BASE_URL =
+	process.env.NEXT_PUBLIC_STORAGE_URL ||
+	(process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/storage` : "http://127.0.0.1:8000/storage")
 
 export default function DocumentsPage() {
-  // Mock data - would come from database
-  const kycStatus = "approved" // approved, pending, rejected, incomplete
-  const documents = [
-    {
-      id: "1",
-      title: "National ID Card",
-      name: "National ID Card",
-      type: "ID Card",
-      status: "approved",
-      uploadedDate: "2024-01-15",
-      uploadDate: "Jan 15, 2024",
-      fileSize: "1.2 MB",
-      fileUrl: "#",
-    },
-    {
-      id: "2",
-      title: "Salary Payslip",
-      name: "Salary Payslip",
-      type: "Payslip",
-      status: "approved",
-      uploadedDate: "2024-01-15",
-      uploadDate: "Jan 15, 2024",
-      fileSize: "850 KB",
-      fileUrl: "#",
-    },
-    {
-      id: "3",
-      title: "Passport Photograph",
-      name: "Passport Photograph",
-      type: "Passport Photo",
-      status: "pending",
-      uploadedDate: "2024-01-20",
-      uploadDate: "Jan 20, 2024",
-      fileSize: "450 KB",
-      fileUrl: "#",
-    },
-    {
-      id: "4",
-      title: "Proof of Address",
-      name: "Proof of Address",
-      type: "Utility Bill",
-      status: "incomplete",
-      uploadedDate: null,
-      uploadDate: "Not uploaded",
-      fileSize: "-",
-      fileUrl: null,
-    },
-  ]
+	const { toast } = useToast()
+	const { status, rejection_reason, documents, requiredDocuments, isLoading, error, uploadDocument, resubmit } =
+		useMemberKyc()
+	const {
+		documents: memberDocuments,
+		isLoading: isLoadingDocuments,
+		error: documentsError,
+		refresh: refreshDocuments,
+	} = useMemberDocuments({ per_page: 100 })
+	const [uploadingType, setUploadingType] = useState<string | null>(null)
+	const hiddenFileInputs = useRef<Record<string, HTMLInputElement | null>>({})
 
-  const propertyDocuments = [
-    {
-      id: "5",
-      title: "Property Agreement - Block A Unit 12",
-      type: "Property Agreement",
-      uploadDate: "Jan 15, 2024",
-      fileSize: "2.5 MB",
-      status: "active",
-    },
-    {
-      id: "6",
-      title: "Investment Certificate - Modern Apartment",
-      type: "Investment Certificate",
-      uploadDate: "Feb 1, 2024",
-      fileSize: "1.8 MB",
-      status: "active",
-    },
-    {
-      id: "7",
-      title: "Loan Agreement - LN-2024-001",
-      type: "Loan Agreement",
-      uploadDate: "Mar 1, 2024",
-      fileSize: "3.2 MB",
-      status: "active",
-    },
-  ]
+	const documentStatus = useMemo(() => {
+		return requiredDocuments.map((type) => {
+			const existing = documents.find((doc) => doc.type === type)
+			return {
+				type,
+				exists: Boolean(existing),
+				uploaded_at: existing?.uploaded_at ?? null,
+				path: existing?.path ?? null,
+			}
+		})
+	}, [documents, requiredDocuments])
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "approved":
+	const missingDocuments = documentStatus.filter((doc) => !doc.exists)
+
+	const categorizedDocuments = useMemo(() => {
+		const kycTypes = new Set(requiredDocuments)
+		const supportDocs = memberDocuments.filter((doc) => !kycTypes.has(doc.type))
+		const byCategory = {
+			loan: [] as typeof supportDocs,
+			investment: [] as typeof supportDocs,
+			property: [] as typeof supportDocs,
+			other: [] as typeof supportDocs,
+		}
+
+		supportDocs.forEach((doc) => {
+			const type = doc.type.toLowerCase()
+			if (type.includes("loan")) {
+				byCategory.loan.push(doc)
+			} else if (type.includes("invest")) {
+				byCategory.investment.push(doc)
+			} else if (type.includes("property") || type.includes("mortgage")) {
+				byCategory.property.push(doc)
+			} else {
+				byCategory.other.push(doc)
+			}
+		})
+
+		return byCategory
+	}, [memberDocuments, requiredDocuments])
+
+	const buildStorageUrl = (path?: string | null) => {
+		if (!path) return null
+		if (path.startsWith("http://") || path.startsWith("https://")) {
+			return path
+		}
+		return `${STORAGE_BASE_URL.replace(/\/$/, "")}/${path.replace(/^\/+/, "")}`
+	}
+
+	const handleUploadClick = (type: string) => {
+		if (!hiddenFileInputs.current[type]) return
+		hiddenFileInputs.current[type]?.click()
+	}
+
+	const handleFileChange = async (type: string, files: FileList | null) => {
+		if (!files || files.length === 0) return
+		const file = files[0]
+		setUploadingType(type)
+		try {
+			await uploadDocument(type, file)
+			refreshDocuments()
+			toast({
+				title: "Document uploaded",
+				description: `${DOCUMENT_LABELS[type]?.title ?? "Document"} uploaded successfully.`,
+			})
+		} catch (err: any) {
+			toast({
+				title: "Upload failed",
+				description: err?.message ?? "Please try again.",
+				variant: "destructive",
+			})
+		} finally {
+			setUploadingType(null)
+			if (hiddenFileInputs.current[type]) {
+				hiddenFileInputs.current[type]!.value = ""
+			}
+		}
+	}
+
+	const handleResubmit = async () => {
+		try {
+			await resubmit()
+			refreshDocuments()
+			toast({
+				title: "KYC submitted",
+				description: "Your KYC documents were submitted for review.",
+			})
+		} catch (err: any) {
+			toast({
+				title: "Unable to submit KYC",
+				description: err?.message ?? "Please try again later.",
+				variant: "destructive",
+			})
+		}
+	}
+
+	const handleDownloadDocument = async (documentId: string) => {
+		try {
+			const data = await downloadDocument(documentId)
+			if (data.download_url) {
+				window.open(data.download_url, "_blank", "noopener,noreferrer")
+			} else {
+				throw new Error("Download URL not provided by the server.")
+			}
+		} catch (err: any) {
+			toast({
+				title: "Unable to download document",
+				description: err?.message ?? "Please try again later.",
+				variant: "destructive",
+			})
+		}
+	}
+
+	const renderStatusBanner = () => {
+		if (status === "verified") {
         return (
-          <Badge className="bg-green-500/10 text-green-700 hover:bg-green-500/20">
-            <CheckCircle className="h-3 w-3 mr-1" />
-            Approved
-          </Badge>
+				<div className="flex items-start gap-3 rounded-lg border border-green-500/20 bg-green-500/10 p-4">
+					<BadgeCheck className="mt-0.5 h-5 w-5 text-green-600" />
+					<div>
+						<p className="font-medium text-green-900">KYC Verified</p>
+						<p className="mt-1 text-sm text-green-700">
+							Your identity has been verified. You have full access to all platform features.
+						</p>
+					</div>
+				</div>
         )
-      case "pending":
+		}
+
+		if (status === "rejected") {
         return (
-          <Badge className="bg-yellow-500/10 text-yellow-700 hover:bg-yellow-500/20">
-            <Clock className="h-3 w-3 mr-1" />
-            Pending Review
-          </Badge>
+				<div className="flex items-start gap-3 rounded-lg border border-red-500/20 bg-red-500/10 p-4">
+					<AlertCircle className="mt-0.5 h-5 w-5 text-red-600" />
+					<div>
+						<p className="font-medium text-red-900">KYC Rejected</p>
+						<p className="mt-1 text-sm text-red-700">
+							Please review the rejection reason below, update your documents, and resubmit your KYC.
+						</p>
+						{rejection_reason ? (
+							<p className="mt-2 rounded-md bg-white/60 p-3 text-sm text-red-800">
+								<strong>Reason:</strong> {rejection_reason}
+							</p>
+						) : null}
+						<Button className="mt-3" size="sm" onClick={handleResubmit} disabled={uploadingType !== null}>
+							Resubmit KYC
+						</Button>
+					</div>
+				</div>
         )
-      case "rejected":
+		}
+
+		if (status === "submitted" || status === "pending") {
         return (
-          <Badge className="bg-red-500/10 text-red-700 hover:bg-red-500/20">
-            <XCircle className="h-3 w-3 mr-1" />
-            Rejected
-          </Badge>
-        )
-      case "incomplete":
+				<div className="flex items-start gap-3 rounded-lg border border-yellow-500/20 bg-yellow-500/10 p-4">
+					<Clock className="mt-0.5 h-5 w-5 text-yellow-600" />
+					<div>
+						<p className="font-medium text-yellow-900">Under Review</p>
+						<p className="mt-1 text-sm text-yellow-700">
+							Your KYC submission is currently under review. This usually takes 1-2 business days.
+						</p>
+					</div>
+				</div>
+			)
+		}
+
         return (
-          <Badge className="bg-gray-500/10 text-gray-700 hover:bg-gray-500/20">
-            <AlertCircle className="h-3 w-3 mr-1" />
-            Not Uploaded
-          </Badge>
-        )
-      default:
-        return null
-    }
+			<div className="flex items-start gap-3 rounded-lg border border-blue-500/20 bg-blue-500/10 p-4">
+				<Info className="mt-0.5 h-5 w-5 text-blue-600" />
+				<div>
+					<p className="font-medium text-blue-900">Action Required</p>
+					<p className="mt-1 text-sm text-blue-700">
+						Please upload the required documents to complete your KYC verification.
+					</p>
+				</div>
+			</div>
+		)
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Documents & KYC</h1>
-        <p className="text-muted-foreground mt-2">Manage your identity verification documents and KYC status</p>
+				<h1 className="text-3xl font-bold">Documents &amp; KYC</h1>
+				<p className="mt-2 text-muted-foreground">Manage your identity verification documents and track status.</p>
       </div>
 
-      {/* KYC Status Card */}
+			{error || documentsError ? (
+				<Card className="border-red-200 bg-red-50">
+					<CardContent className="py-6">
+						<div className="flex items-center gap-3 text-sm text-red-700">
+							<AlertCircle className="h-4 w-4" />
+							<span>{error ?? documentsError}</span>
+						</div>
+					</CardContent>
+				</Card>
+			) : null}
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>KYC Verification Status</CardTitle>
-              <CardDescription>Your identity verification status</CardDescription>
+							<CardDescription>Your identity verification progress</CardDescription>
             </div>
-            {getStatusBadge(kycStatus)}
+						<Badge
+							variant="outline"
+							className={
+								status === "verified"
+									? "border-green-500 text-green-700"
+									: status === "rejected"
+									? "border-red-500 text-red-700"
+									: "border-yellow-500 text-yellow-700"
+							}
+						>
+							{status.toUpperCase()}
+						</Badge>
           </div>
         </CardHeader>
         <CardContent>
-          {kycStatus === "approved" && (
-            <div className="flex items-start gap-3 p-4 bg-green-500/10 rounded-lg border border-green-500/20">
-              <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
-              <div>
-                <p className="font-medium text-green-900">KYC Verified</p>
-                <p className="text-sm text-green-700 mt-1">
-                  Your identity has been verified. You have full access to all platform features.
-                </p>
-              </div>
-            </div>
-          )}
-          {kycStatus === "pending" && (
-            <div className="flex items-start gap-3 p-4 bg-yellow-500/10 rounded-lg border border-yellow-500/20">
-              <Clock className="h-5 w-5 text-yellow-600 mt-0.5" />
-              <div>
-                <p className="font-medium text-yellow-900">Under Review</p>
-                <p className="text-sm text-yellow-700 mt-1">
-                  Your documents are being reviewed. This usually takes 1-2 business days.
-                </p>
-              </div>
-            </div>
-          )}
-          {kycStatus === "incomplete" && (
-            <div className="flex items-start gap-3 p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
-              <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
-              <div>
-                <p className="font-medium text-blue-900">Action Required</p>
-                <p className="text-sm text-blue-700 mt-1">
-                  Please upload all required documents to complete your KYC verification.
-                </p>
-                <Link href="/register/kyc">
-                  <Button className="mt-3" size="sm">
-                    Complete KYC
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          )}
+					{isLoading ? <Skeleton className="h-24 w-full" /> : renderStatusBanner()}
         </CardContent>
       </Card>
 
-      {/* Documents List */}
       <Card>
         <CardHeader>
-          <CardTitle>KYC Documents</CardTitle>
-          <CardDescription>View and manage your identity verification documents</CardDescription>
+					<CardTitle>Required Documents</CardTitle>
+					<CardDescription>Upload each requested document to complete your KYC verification.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {documents.map((doc) => (
+						{documentStatus.map((doc) => {
+							const label = DOCUMENT_LABELS[doc.type] ?? {
+								title: doc.type,
+								description: "",
+							}
+							const isUploading = uploadingType === doc.type
+							const fileUrl = buildStorageUrl(doc.path ?? undefined)
+
+							return (
               <div
-                key={doc.id}
-                className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+									key={doc.type}
+									className="flex flex-col gap-4 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
               >
-                <div className="flex items-center gap-4">
-                  <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
+									<div className="flex flex-1 items-start gap-4">
+										<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                     <FileText className="h-5 w-5 text-primary" />
                   </div>
                   <div>
-                    <p className="font-medium">{doc.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {doc.type}
-                      {doc.uploadedDate && ` • Uploaded ${doc.uploadedDate}`}
+											<p className="font-medium">{label.title}</p>
+											<p className="text-sm text-muted-foreground">{label.description}</p>
+											{doc.uploaded_at ? (
+												<p className="mt-1 text-xs text-muted-foreground">
+													Uploaded {new Date(doc.uploaded_at).toLocaleString()}
                     </p>
+											) : (
+												<p className="mt-1 text-xs text-muted-foreground">Not uploaded</p>
+											)}
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  {getStatusBadge(doc.status)}
-                  {doc.status === "incomplete" ? (
-                    <Button size="sm" variant="outline">
-                      <Upload className="h-4 w-4 mr-2" />
-                      Upload
+									<div className="flex items-center gap-2">
+										{doc.exists ? (
+											<Badge className="bg-green-500/10 text-green-700">Uploaded</Badge>
+										) : (
+											<Badge className="bg-gray-500/10 text-gray-700">Missing</Badge>
+										)}
+										{doc.exists && fileUrl ? (
+											<Button size="sm" variant="outline" asChild>
+												<Link href={fileUrl} target="_blank" rel="noopener noreferrer">
+													<Download className="mr-2 h-4 w-4" />
+													View
+												</Link>
                     </Button>
+										) : null}
+										<Button
+											size="sm"
+											variant="outline"
+											onClick={() => handleUploadClick(doc.type)}
+											disabled={isUploading}
+										>
+											{isUploading ? (
+												<>
+													<ArrowRight className="mr-2 h-4 w-4 animate-pulse" />
+													Uploading...
+												</>
                   ) : (
                     <>
-                      <Link href={`/dashboard/documents/view/${doc.id}`}>
-                        <Button size="sm" variant="outline">
-                          <Eye className="h-4 w-4 mr-2" />
-                          View
-                        </Button>
-                      </Link>
-                      <Button size="sm" variant="outline">
-                        <Download className="h-4 w-4 mr-2" />
-                        Download
-                      </Button>
+													<Upload className="mr-2 h-4 w-4" />
+													{doc.exists ? "Replace" : "Upload"}
                     </>
                   )}
+										</Button>
+										<input
+											ref={(ref) => {
+												hiddenFileInputs.current[doc.type] = ref
+											}}
+											type="file"
+											accept=".pdf,.jpg,.jpeg,.png"
+											className="hidden"
+											onChange={(event) => handleFileChange(doc.type, event.target.files)}
+										/>
                 </div>
               </div>
-            ))}
+							)
+						})}
+					</div>
+					{missingDocuments.length > 0 ? (
+						<p className="mt-4 text-sm text-muted-foreground">
+							Please upload all missing documents before submitting your KYC.
+						</p>
+					) : null}
+					<div className="mt-6 flex justify-end">
+						<Button
+							onClick={handleResubmit}
+							disabled={uploadingType !== null || missingDocuments.length > 0 || isLoading}
+						>
+							Submit for Review
+						</Button>
           </div>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Property & Investment Documents</CardTitle>
-          <CardDescription>Access your property agreements, certificates, and related documents</CardDescription>
+					<CardTitle>Loan &amp; Transaction Documents</CardTitle>
+					<CardDescription>Download agreements, statements, receipts, and other supporting documents.</CardDescription>
         </CardHeader>
         <CardContent>
+					{isLoadingDocuments ? (
+						<div className="space-y-4">
+							{Array.from({ length: 3 }).map((_, index) => (
+								<Skeleton key={`documents-skeleton-${index}`} className="h-20 w-full" />
+							))}
+						</div>
+					) : memberDocuments.length === 0 ? (
+						<p className="text-sm text-muted-foreground">You have not uploaded or received any documents yet.</p>
+					) : (
+						<div className="space-y-6">
+							{(["loan", "property", "investment", "other"] as const).map((category) => {
+								const docs = categorizedDocuments[category]
+								if (!docs.length) return null
+								const heading =
+									category === "loan"
+										? "Loan Documents"
+										: category === "property"
+										? "Property Documents"
+										: category === "investment"
+										? "Investment Documents"
+										: "Other Documents"
+								return (
+									<div key={category} className="space-y-3">
+										<h3 className="text-sm font-semibold text-muted-foreground">{heading}</h3>
           <div className="space-y-4">
-            {propertyDocuments.map((doc) => (
-              <DocumentDownloadCard key={doc.id} document={doc} />
+											{docs.map((doc) => (
+												<DocumentDownloadCard
+													key={doc.id}
+													document={{
+														id: doc.id,
+														title: doc.title,
+														type: doc.type,
+														description: doc.description,
+														fileSize: doc.file_size_human,
+														uploadDate: doc.created_at
+															? new Date(doc.created_at).toLocaleString()
+															: undefined,
+														status: doc.status,
+													}}
+													onDownload={handleDownloadDocument}
+												/>
             ))}
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Upload New Document */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Upload Additional Document</CardTitle>
-          <CardDescription>Submit additional documents if requested by admin</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary/50 transition-colors cursor-pointer">
-            <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-4" />
-            <p className="font-medium mb-1">Click to upload or drag and drop</p>
-            <p className="text-sm text-muted-foreground">PDF, PNG, JPG up to 5MB</p>
+									</div>
+								)
+							})}
           </div>
+					)}
         </CardContent>
       </Card>
     </div>

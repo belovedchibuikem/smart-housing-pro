@@ -4,6 +4,7 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import { TenantProvider } from "@/lib/tenant/tenant-context"
 import { WhiteLabelProvider } from "@/lib/context/white-label-context"
+import { TenantSettingsProvider } from "@/lib/context/tenant-settings-context"
 import { Toaster } from "sonner"
 
 const inter = Inter({
@@ -26,10 +27,12 @@ export default function RootLayout({
     <html lang="en" className={inter.variable}>
       <body className="font-sans antialiased">
         <TenantProvider>
-          <WhiteLabelProvider>
-            {children}
-            <Toaster position="top-right" />
-          </WhiteLabelProvider>
+          <TenantSettingsProvider>
+            <WhiteLabelProvider>
+              {children}
+              <Toaster position="top-right" />
+            </WhiteLabelProvider>
+          </TenantSettingsProvider>
         </TenantProvider>
       </body>
     </html>

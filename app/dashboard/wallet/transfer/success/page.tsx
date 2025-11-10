@@ -1,9 +1,21 @@
+"use client"
+
+import { useMemo } from "react"
+import { useSearchParams } from "next/navigation"
+import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { CheckCircle2, Download, ArrowLeft } from "lucide-react"
-import Link from "next/link"
+import { CheckCircle2, ArrowLeft } from "lucide-react"
+import { ReceiptDownloadButton } from "@/components/payments/receipt-download-button"
 
 export default function TransferSuccessPage() {
+  const searchParams = useSearchParams()
+  const reference = searchParams.get("reference") ?? "TXN-2024-001235"
+  const recipient = searchParams.get("recipient") ?? "FRSC-HMS-12345"
+  const amountParam = searchParams.get("amount")
+  const amount = amountParam ? Number(amountParam) : 25000
+  const issuedAt = useMemo(() => new Date(), [])
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <Card className="p-8 text-center">
@@ -23,19 +35,21 @@ export default function TransferSuccessPage() {
           <div className="space-y-3">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Transaction ID</span>
-              <span className="font-medium">TXN-2024-001235</span>
+              <span className="font-medium">{reference}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Recipient ID</span>
-              <span className="font-medium">FRSC-HMS-12345</span>
+              <span className="font-medium">{recipient}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Amount Transferred</span>
-              <span className="font-medium">₦25,000</span>
+              <span className="font-medium">
+                ₦{Number.isFinite(amount) ? Number(amount).toLocaleString() : "—"}
+              </span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Date</span>
-              <span className="font-medium">{new Date().toLocaleDateString()}</span>
+              <span className="font-medium">{issuedAt.toLocaleDateString()}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Status</span>
@@ -45,16 +59,31 @@ export default function TransferSuccessPage() {
         </Card>
 
         <div className="flex gap-3">
-          <Link href="/dashboard/contributions" className="flex-1">
+          <Link href="/dashboard/wallet" className="flex-1">
             <Button variant="outline" className="w-full bg-transparent">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Wallet
             </Button>
           </Link>
-          <Button className="flex-1">
-            <Download className="h-4 w-4 mr-2" />
-            Download Receipt
-          </Button>
+          <ReceiptDownloadButton
+            className="flex-1"
+            data={{
+              title: "Wallet Transfer Receipt",
+              subtitle: `Sent to ${recipient}`,
+              amount,
+              currency: "NGN",
+              status: "Successful",
+              paymentMethod: "Wallet Transfer",
+              reference,
+              date: issuedAt.toISOString(),
+              items: [
+                { label: "Recipient", value: recipient },
+                { label: "Issued On", value: issuedAt.toLocaleString() },
+              ],
+              footerNote:
+                "Wallet transfers are instant and irreversible. Please contact support immediately if you suspect an error.",
+            }}
+          />
         </div>
       </Card>
     </div>

@@ -12,6 +12,15 @@ export default function WalletPage() {
   const [showBalance, setShowBalance] = useState(true)
   const [loading, setLoading] = useState(true)
   const [walletBalance, setWalletBalance] = useState<number>(0)
+  const [transactionSummary, setTransactionSummary] = useState<{
+    totalCredit: number
+    totalDebit: number
+    totalTransactions: number
+  }>({
+    totalCredit: 0,
+    totalDebit: 0,
+    totalTransactions: 0,
+  })
   const [recentTransactions, setRecentTransactions] = useState<Array<{
     id: string
     type: "credit" | "debit"
@@ -29,14 +38,32 @@ export default function WalletPage() {
         setLoading(true)
         const [walletRes, txRes] = await Promise.all([
           getWallet().catch(() => ({ wallet: { balance: 0, currency: "NGN", id: "" } })),
-          getWalletTransactions({ page: 1, per_page: 5 }).catch(() => ({ transactions: { data: [] } } as any)),
+          getWalletTransactions({ page: 1, per_page: 10 }).catch(
+            () =>
+              ({
+                transactions: [],
+                summary: { total_credit: 0, total_debit: 0, total_transactions: 0 },
+              }) as any,
+          ),
         ])
         if (!isMounted) return
 
-        const balance = Number((walletRes as any)?.wallet?.balance ?? 0)
-        setWalletBalance(isFinite(balance) ? balance : 0)
+        const balanceFromWallet = Number((walletRes as any)?.wallet?.balance ?? 0)
+        const balanceFromTransactions = Number((txRes as any)?.balance ?? NaN)
+        if (Number.isFinite(balanceFromTransactions)) {
+          setWalletBalance(balanceFromTransactions)
+        } else {
+          setWalletBalance(Number.isFinite(balanceFromWallet) ? balanceFromWallet : 0)
+        }
 
-        const apiTx: any[] = (txRes as any)?.transactions?.data ?? []
+        const summaryData = (txRes as any)?.summary ?? {}
+        setTransactionSummary({
+          totalCredit: Number(summaryData?.total_credit ?? 0),
+          totalDebit: Number(summaryData?.total_debit ?? 0),
+          totalTransactions: Number(summaryData?.total_transactions ?? 0),
+        })
+
+        const apiTx: any[] = Array.isArray((txRes as any)?.transactions) ? (txRes as any).transactions : []
         const normalized = apiTx.map((t) => {
           const amountNum = Number(t.amount ?? 0)
           const createdAt = t.created_at || t.date || t.timestamp
@@ -51,7 +78,7 @@ export default function WalletPage() {
             status: t.status ?? t.state ?? 'completed',
           }
         })
-        setRecentTransactions(normalized)
+        setRecentTransactions(normalized.slice(0, 5))
       } finally {
         if (isMounted) setLoading(false)
       }
@@ -62,12 +89,6 @@ export default function WalletPage() {
   }, [])
 
   const stats = useMemo(() => {
-    const income = recentTransactions
-      .filter((t) => t.type === 'credit')
-      .reduce((sum, t) => sum + t.amount, 0)
-    const expenses = recentTransactions
-      .filter((t) => t.type === 'debit')
-      .reduce((sum, t) => sum + t.amount, 0)
     const monthTotal = recentTransactions
       .filter((t) => {
         const d = new Date(t.date)
@@ -76,11 +97,11 @@ export default function WalletPage() {
       })
       .reduce((sum, t) => sum + (t.type === 'credit' ? t.amount : -t.amount), 0)
     return [
-      { label: "Total Income", value: income, icon: ArrowDownRight, color: "text-green-600" },
-      { label: "Total Expenses", value: expenses, icon: ArrowUpRight, color: "text-red-600" },
+      { label: "Total Income", value: transactionSummary.totalCredit, icon: ArrowDownRight, color: "text-green-600" },
+      { label: "Total Expenses", value: transactionSummary.totalDebit, icon: ArrowUpRight, color: "text-red-600" },
       { label: "This Month", value: monthTotal, icon: TrendingUp, color: "text-blue-600" },
   ]
-  }, [recentTransactions])
+  }, [recentTransactions, transactionSummary])
 
   return (
     <div className="space-y-6">
@@ -120,7 +141,7 @@ export default function WalletPage() {
               <Button asChild size="sm" variant="secondary">
                 <Link href="/dashboard/wallet/add-funds">
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Funds
+                  Add Fund
                 </Link>
               </Button>
               <Button asChild size="sm" variant="secondary">
@@ -142,6 +163,7 @@ export default function WalletPage() {
       <div className="grid gap-4 md:grid-cols-3">
         {stats.map((stat) => {
           const Icon = stat.icon
+          const formattedValue = Number.isFinite(stat.value) ? stat.value : 0
           return (
             <Card key={stat.label}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -149,7 +171,7 @@ export default function WalletPage() {
                 <Icon className={`h-4 w-4 ${stat.color}`} />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">₦{stat.value.toLocaleString()}</div>
+                <div className="text-2xl font-bold">₦{formattedValue.toLocaleString()}</div>
               </CardContent>
             </Card>
           )

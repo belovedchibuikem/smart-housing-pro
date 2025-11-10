@@ -1,9 +1,21 @@
+"use client"
+
+import { useMemo } from "react"
+import { useSearchParams } from "next/navigation"
+import Link from "next/link"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { CheckCircle2, Download, ArrowLeft } from "lucide-react"
-import Link from "next/link"
+import { CheckCircle2, ArrowLeft } from "lucide-react"
+import { ReceiptDownloadButton } from "@/components/payments/receipt-download-button"
 
 export default function TopUpSuccessPage() {
+  const searchParams = useSearchParams()
+  const reference = searchParams.get("reference") ?? "TXN-2024-001234"
+  const amountParam = searchParams.get("amount")
+  const amount = amountParam ? Number(amountParam) : 50000
+  const method = searchParams.get("method") ?? "Bank Transfer"
+  const issuedAt = useMemo(() => new Date(), [])
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <Card className="p-8 text-center">
@@ -23,19 +35,21 @@ export default function TopUpSuccessPage() {
           <div className="space-y-3">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Transaction ID</span>
-              <span className="font-medium">TXN-2024-001234</span>
+              <span className="font-medium">{reference}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Amount</span>
-              <span className="font-medium">₦50,000</span>
+              <span className="font-medium">
+                ₦{Number.isFinite(amount) ? Number(amount).toLocaleString() : "—"}
+              </span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Payment Method</span>
-              <span className="font-medium">Bank Transfer</span>
+              <span className="font-medium">{method}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Date</span>
-              <span className="font-medium">{new Date().toLocaleDateString()}</span>
+              <span className="font-medium">{issuedAt.toLocaleDateString()}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Status</span>
@@ -52,16 +66,31 @@ export default function TopUpSuccessPage() {
         </div>
 
         <div className="flex gap-3">
-          <Link href="/dashboard/contributions" className="flex-1">
+          <Link href="/dashboard/wallet" className="flex-1">
             <Button variant="outline" className="w-full bg-transparent">
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back to Wallet
             </Button>
           </Link>
-          <Button className="flex-1">
-            <Download className="h-4 w-4 mr-2" />
-            Download Receipt
-          </Button>
+          <ReceiptDownloadButton
+            className="flex-1"
+            data={{
+              title: "Wallet Top-Up Receipt",
+              subtitle: "Top-Up Submitted",
+              amount,
+              currency: "NGN",
+              status: "Pending Verification",
+              paymentMethod: method,
+              reference,
+              date: issuedAt.toISOString(),
+              items: [
+                { label: "Issued On", value: issuedAt.toLocaleString() },
+                { label: "Current Status", value: "Pending verification" },
+              ],
+              footerNote:
+                "Your proof of payment is under review. Funds will appear in your wallet once verification is complete.",
+            }}
+          />
         </div>
       </Card>
     </div>

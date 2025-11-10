@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, Download, Eye, Wallet, TrendingUp, TrendingDown, DollarSign } from "lucide-react"
-import { apiFetch } from "@/lib/api/client"
+import { apiFetch, exportReport } from "@/lib/api/client"
+import { toast as sonnerToast } from "sonner"
 
 export default function AdminWalletsPage() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -60,6 +61,20 @@ export default function AdminWalletsPage() {
     fetchWallets()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, statusFilter])
+
+  const handleExport = async () => {
+    try {
+      // Export wallets data - we'll use members export since wallets are part of member data
+      await exportReport('members', {})
+      sonnerToast.success("Export completed", {
+        description: "Wallet data has been downloaded.",
+      })
+    } catch (error: any) {
+      sonnerToast.error("Failed to export wallets", {
+        description: error.message || "Please try again later",
+      })
+    }
+  }
 
   const stats = useMemo(() => {
     const totalBalance = meta?.total_balance ?? wallets.reduce((sum, w) => sum + (w.balance || 0), 0)
@@ -129,7 +144,7 @@ export default function AdminWalletsPage() {
                 <SelectItem value="suspended">Suspended</SelectItem>
               </SelectContent>
             </Select>
-            <Button variant="outline">
+            <Button variant="outline" onClick={handleExport}>
               <Download className="h-4 w-4 mr-2" />
               Export
             </Button>

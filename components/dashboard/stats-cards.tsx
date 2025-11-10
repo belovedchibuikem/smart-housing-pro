@@ -1,37 +1,95 @@
-import { Card } from "@/components/ui/card"
-import { Wallet, TrendingUp, Home, ArrowUpRight, ArrowDownRight } from "lucide-react"
+"use client"
 
-export function StatsCards() {
+import { Card } from "@/components/ui/card"
+import { Wallet, TrendingUp, Home, ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react"
+import { Skeleton } from "@/components/ui/skeleton"
+
+interface DashboardData {
+  wallet_balance: number
+  financial_summary: {
+    total_contributions: number
+    total_loans: number
+    outstanding_loans: number
+    total_investments: number
+    total_repayments: number
+  }
+}
+
+interface StatsCardsProps {
+  data: DashboardData | null
+  loading?: boolean
+}
+
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('en-NG', {
+    style: 'currency',
+    currency: 'NGN',
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount)
+}
+
+function formatCompactCurrency(amount: number): string {
+  if (amount >= 1000000) {
+    return `₦${(amount / 1000000).toFixed(1)}M`
+  } else if (amount >= 1000) {
+    return `₦${(amount / 1000).toFixed(1)}K`
+  }
+  return formatCurrency(amount)
+}
+
+export function StatsCards({ data, loading }: StatsCardsProps) {
+  if (loading && !data) {
+    return (
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1, 2, 3, 4].map((i) => (
+          <Card key={i} className="p-6">
+            <Skeleton className="h-10 w-10 rounded-lg mb-4" />
+            <Skeleton className="h-4 w-24 mb-2" />
+            <Skeleton className="h-8 w-32 mb-2" />
+            <Skeleton className="h-3 w-20" />
+          </Card>
+        ))}
+      </div>
+    )
+  }
+
+  if (!data) {
+    return null
+  }
+
+  // Calculate trends (simple comparison with previous period)
+  // For now, we'll show basic info without trend calculations
   const stats = [
     {
       title: "Total Contributions",
-      value: "₦2,450,000",
-      change: "+12.5%",
-      trend: "up",
+      value: formatCurrency(data.financial_summary.total_contributions),
+      change: null,
+      trend: "neutral" as const,
       icon: Wallet,
-      description: "From last month",
+      description: "All time contributions",
     },
     {
       title: "Active Loans",
-      value: "₦5,000,000",
-      change: "1 loan",
-      trend: "neutral",
+      value: formatCurrency(data.financial_summary.outstanding_loans),
+      change: data.financial_summary.total_loans > 0 ? `${Math.round((data.financial_summary.outstanding_loans / data.financial_summary.total_loans) * 100)}% outstanding` : null,
+      trend: "neutral" as const,
       icon: TrendingUp,
       description: "Outstanding balance",
     },
     {
-      title: "Property Value",
-      value: "₦15,000,000",
-      change: "+8.2%",
-      trend: "up",
+      title: "Total Investments",
+      value: formatCurrency(data.financial_summary.total_investments),
+      change: null,
+      trend: "neutral" as const,
       icon: Home,
-      description: "Appreciation this year",
+      description: "Active investments",
     },
     {
       title: "Wallet Balance",
-      value: "₦125,000",
-      change: "-₦50,000",
-      trend: "down",
+      value: formatCurrency(data.wallet_balance),
+      change: null,
+      trend: "neutral" as const,
       icon: Wallet,
       description: "Available balance",
     },
@@ -47,7 +105,7 @@ export function StatsCards() {
               <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Icon className="h-5 w-5 text-primary" />
               </div>
-              {stat.trend !== "neutral" && (
+              {stat.change && stat.trend !== "neutral" && (
                 <div
                   className={cn(
                     "flex items-center gap-1 text-xs font-medium",
@@ -55,6 +113,11 @@ export function StatsCards() {
                   )}
                 >
                   {stat.trend === "up" ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                  {stat.change}
+                </div>
+              )}
+              {stat.change && stat.trend === "neutral" && (
+                <div className="text-xs text-muted-foreground">
                   {stat.change}
                 </div>
               )}

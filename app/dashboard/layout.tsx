@@ -1,12 +1,13 @@
 "use client"
 
 import type React from "react"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
 import { MemberLoadingProvider } from "@/components/dashboard/member-loading-context"
-import { useState } from "react"
+import { AuthGuard } from "@/lib/tenant/auth-guard"
+import { getUserData } from "@/lib/auth/auth-utils"
 
 export default function DashboardLayout({
   children,
@@ -31,16 +32,18 @@ export default function DashboardLayout({
   }, [pathname, router])
 
   return (
-    <div className="min-h-screen bg-background">
-      <DashboardHeader mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
-      <div className="flex">
-        <DashboardSidebar mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-full overflow-x-hidden">
-          <MemberLoadingProvider>
-            {children}
-          </MemberLoadingProvider>
-        </main>
+    <AuthGuard requiredRole={["member", "user"]} redirectTo="/login">
+      <div className="min-h-screen bg-background">
+        <DashboardHeader mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
+        <div className="flex">
+          <DashboardSidebar mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-full overflow-x-hidden">
+            <MemberLoadingProvider>
+              {children}
+            </MemberLoadingProvider>
+          </main>
+        </div>
       </div>
-    </div>
+    </AuthGuard>
   )
 }

@@ -227,7 +227,17 @@ export function DynamicLandingPage({ isTenantPage = true }: DynamicLandingPagePr
         }
       }
       if (data.plans) {
-        setPlansData(data.plans)
+        console.log("[Landing Page] Received plans data:", {
+          loans: data.plans.loans?.length || 0,
+          investments: data.plans.investments?.length || 0,
+        })
+        setPlansData({
+          loans: data.plans.loans || [],
+          investments: data.plans.investments || [],
+        })
+      } else {
+        // If no plans data, set empty arrays to avoid showing mock data
+        setPlansData({ loans: [], investments: [] })
       }
       if (data.properties) {
         setPropertiesData(data.properties)

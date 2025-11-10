@@ -23,6 +23,15 @@ import { toast } from "sonner"
 import { MemberService, Member, Document, MemberStats } from "@/lib/api/member-service"
 import { Skeleton } from "@/components/ui/skeleton"
 
+const currencyFormatter = new Intl.NumberFormat("en-NG", {
+  style: "currency",
+  currency: "NGN",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+})
+
+const formatCurrency = (value?: number) => currencyFormatter.format(value ?? 0)
+
 export default function MemberDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   
@@ -103,6 +112,18 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
     } finally {
       setLoading(false)
     }
+  }
+
+  const storageBaseUrl =
+    process.env.NEXT_PUBLIC_STORAGE_URL ||
+    (process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/storage` : "http://127.0.0.1:8000/storage")
+
+  const buildStorageUrl = (path?: string | null) => {
+    if (!path) return null
+    if (path.startsWith("http://") || path.startsWith("https://")) {
+      return path
+    }
+    return `${storageBaseUrl.replace(/\/$/, "")}/${path.replace(/^\/+/, "")}`
   }
 
   const handleApproveKyc = async () => {
@@ -265,7 +286,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
       </div>
 
       {/* KYC Status Alert */}
-      {member.kyc_status === "pending" && (
+      {["pending", "submitted"].includes((member.kyc_status || "").toLowerCase()) && (
         <Card className="border-orange-200 bg-orange-50">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -456,6 +477,50 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
 
         {/* Documents Tab */}
         <TabsContent value="documents" className="space-y-6">
+          {(member.kyc_documents?.length ?? 0) > 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Member KYC Documents</CardTitle>
+                <CardDescription>Files submitted directly by the member during KYC</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {member.kyc_documents?.map((doc, index) => {
+                  const downloadUrl = buildStorageUrl(doc.path)
+                  return (
+                    <div key={`${doc.type}-${index}`} className="flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <p className="font-medium capitalize">{doc.type.replace(/_/g, " ")}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Uploaded {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : "—"}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {downloadUrl ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => window.open(downloadUrl, "_blank", "noopener,noreferrer")}
+                          >
+                            <Download className="h-3 w-3 mr-1" />
+                            View File
+                          </Button>
+                        ) : (
+                          <Badge variant="secondary">File missing</Badge>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Member KYC Documents</CardTitle>
+                <CardDescription>No direct member uploads found for KYC</CardDescription>
+              </CardHeader>
+            </Card>
+          )}
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -592,11 +657,11 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                 <CardContent className="space-y-4">
                   <div>
                     <label className="text-sm text-muted-foreground">Total Contributions</label>
-                    <p className="text-2xl font-bold">₦{financialStats?.total_contributions.toLocaleString() || '0'}</p>
+                    <p className="text-2xl font-bold">{formatCurrency(financialStats?.total_contributions)}</p>
                   </div>
                   <div>
                     <label className="text-sm text-muted-foreground">Monthly Contribution</label>
-                    <p className="text-lg font-semibold">₦{financialStats?.monthly_contribution.toLocaleString() || '0'}</p>
+                    <p className="text-lg font-semibold">{formatCurrency(financialStats?.monthly_contribution)}</p>
                   </div>
                   <div>
                     <label className="text-sm text-muted-foreground">Last Payment</label>
@@ -622,11 +687,11 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                   </div>
                   <div>
                     <label className="text-sm text-muted-foreground">Total Borrowed</label>
-                    <p className="text-lg font-semibold">₦{financialStats?.total_borrowed.toLocaleString() || '0'}</p>
+                    <p className="text-lg font-semibold">{formatCurrency(financialStats?.total_borrowed)}</p>
                   </div>
                   <div>
                     <label className="text-sm text-muted-foreground">Outstanding Balance</label>
-                    <p className="font-medium text-orange-600">₦{financialStats?.outstanding_balance.toLocaleString() || '0'}</p>
+                    <p className="font-medium text-orange-600">{formatCurrency(financialStats?.outstanding_balance)}</p>
                   </div>
                 </CardContent>
               </Card>

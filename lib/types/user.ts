@@ -19,28 +19,43 @@ export interface User {
   }>
 }
 
+export interface KycDocument {
+  type: string
+  path: string
+  uploaded_at?: string | null
+}
+
 export interface Member {
   id: string
   user_id: string
   member_number: string
-  staff_id?: string
-  ippis_number?: string
-  date_of_birth?: string
-  gender?: 'Male' | 'Female'
-  marital_status?: 'Single' | 'Married' | 'Divorced' | 'Widowed'
-  nationality?: string
-  state_of_origin?: string
-  lga?: string
-  residential_address?: string
-  city?: string
-  state?: string
-  rank?: string
-  department?: string
-  command_state?: string
-  employment_date?: string
-  years_of_service?: number
-  membership_type?: 'Regular' | 'Associate'
-  kyc_status: 'pending' | 'verified' | 'rejected'
+  staff_id?: string | null
+  ippis_number?: string | null
+  date_of_birth?: string | null
+  gender?: string | null
+  marital_status?: string | null
+  nationality?: string | null
+  state_of_origin?: string | null
+  lga?: string | null
+  residential_address?: string | null
+  city?: string | null
+  state?: string | null
+  rank?: string | null
+  department?: string | null
+  command_state?: string | null
+  employment_date?: string | null
+  years_of_service?: number | null
+  next_of_kin_name?: string | null
+  next_of_kin_relationship?: string | null
+  next_of_kin_phone?: string | null
+  next_of_kin_email?: string | null
+  next_of_kin_address?: string | null
+  membership_type?: string | null
+  kyc_status: 'pending' | 'submitted' | 'verified' | 'rejected'
+  kyc_submitted_at?: string | null
+  kyc_verified_at?: string | null
+  kyc_rejection_reason?: string | null
+  kyc_documents?: KycDocument[]
   created_at: string
   updated_at: string
 }

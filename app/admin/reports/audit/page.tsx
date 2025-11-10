@@ -58,8 +58,8 @@ export default function AuditReportsPage() {
     try {
       await exportReport('audit', { date_range: dateRange, search: searchQuery, action: actionFilter })
       toast({
-        title: "Export initiated",
-        description: "Your report is being generated.",
+        title: "Export completed",
+        description: "Your report has been downloaded.",
       })
     } catch (error: any) {
       toast({

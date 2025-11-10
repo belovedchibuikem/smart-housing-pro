@@ -33,6 +33,7 @@ export default function WalletTopUpPage() {
     setIsLoading(true)
 
     try {
+      const generatedReference = `WALLET-TOPUP-${Date.now()}`
       // Initialize payment
       const response = await fetch("/api/payments/initialize", {
         method: "POST",
@@ -43,7 +44,7 @@ export default function WalletTopUpPage() {
           amount: Number(amount),
           email: "user@example.com", // TODO: Get from user session
           paymentMethod,
-          reference: `WALLET-TOPUP-${Date.now()}`,
+          reference: generatedReference,
           metadata: {
             type: "wallet_topup",
             description: `Wallet top-up of ₦${Number(amount).toLocaleString()}`,
@@ -59,11 +60,25 @@ export default function WalletTopUpPage() {
           window.location.href = data.data.authorizationUrl
         } else if (paymentMethod === "bank") {
           // For bank transfer, redirect to success page
-          router.push("/dashboard/wallet/top-up/success")
+          const params = new URLSearchParams()
+          params.set("reference", generatedReference)
+          params.set("method", paymentMethod)
+          const numericAmount = Number(amount)
+          if (Number.isFinite(numericAmount) && numericAmount > 0) {
+            params.set("amount", String(numericAmount))
+          }
+          router.push(`/dashboard/wallet/top-up/success?${params.toString()}`)
         } else if (paymentMethod === "remita" && data.data.rrr) {
           // Show RRR to user for Remita payment
           alert(`Your RRR is: ${data.data.rrr}. Please complete payment using this RRR.`)
-          router.push("/dashboard/wallet/top-up/success")
+          const params = new URLSearchParams()
+          params.set("reference", data.data.rrr)
+          params.set("method", paymentMethod)
+          const numericAmount = Number(amount)
+          if (Number.isFinite(numericAmount) && numericAmount > 0) {
+            params.set("amount", String(numericAmount))
+          }
+          router.push(`/dashboard/wallet/top-up/success?${params.toString()}`)
         }
       } else {
         alert(data.message || "Payment initialization failed")

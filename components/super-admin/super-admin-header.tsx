@@ -15,6 +15,7 @@ import Link from "next/link"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { NotificationDropdown } from "./notification-dropdown"
+import { handleLogout } from "@/lib/auth/auth-utils"
 
 interface SuperAdminHeaderProps {
   onMenuClick: () => void
@@ -50,12 +51,8 @@ export function SuperAdminHeader({ onMenuClick }: SuperAdminHeaderProps) {
     }
   }, [])
 
-  const handleLogout = () => {
-    // Clear user data and token from localStorage
-    localStorage.removeItem('user_data')
-    localStorage.removeItem('auth_token')
-    // Redirect to login page
-    router.push('/login')
+  const handleLogoutClick = async () => {
+    await handleLogout()
   }
   return (
     <header className="sticky top-0 z-30 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -105,7 +102,7 @@ export function SuperAdminHeader({ onMenuClick }: SuperAdminHeaderProps) {
               <Link href="/super-admin/profile">Profile</Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive" onClick={handleLogout}>
+            <DropdownMenuItem className="text-destructive cursor-pointer" onClick={handleLogoutClick}>
               Logout
             </DropdownMenuItem>
           </DropdownMenuContent>

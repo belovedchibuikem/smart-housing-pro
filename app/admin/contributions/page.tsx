@@ -11,7 +11,7 @@ import { Search, Download, Eye, CheckCircle, XCircle, Loader2 } from "lucide-rea
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast as sonnerToast } from "sonner"
-import { apiFetch } from "@/lib/api/client"
+import { apiFetch, exportReport } from "@/lib/api/client"
 
 interface Contribution {
   id: string
@@ -89,10 +89,23 @@ export default function AdminContributionsPage() {
           return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
         })
 
-        const totalThisMonth = thisMonth.reduce((sum: number, c: Contribution) => sum + (c.amount || 0), 0)
-        const pending = allResponse.data.filter((c: Contribution) => c.status === 'pending').length
-        const completed = allResponse.data.filter((c: Contribution) => c.status === 'approved' || c.status === 'completed').length
-        const totalAllTime = allResponse.data.reduce((sum: number, c: Contribution) => sum + (c.amount || 0), 0)
+        const normalizeAmount = (value: unknown): number => {
+          const parsed = Number(value)
+          return Number.isFinite(parsed) ? parsed : 0
+        }
+
+        const totalThisMonth = thisMonth.reduce(
+          (sum: number, contribution: Contribution) => sum + normalizeAmount(contribution.amount),
+          0,
+        )
+        const pending = allResponse.data.filter((c: Contribution) => c.status === "pending").length
+        const completed = allResponse.data.filter(
+          (c: Contribution) => c.status === "approved" || c.status === "completed",
+        ).length
+        const totalAllTime = allResponse.data.reduce(
+          (sum: number, contribution: Contribution) => sum + normalizeAmount(contribution.amount),
+          0,
+        )
 
         setStats({ totalThisMonth, pending, completed, totalAllTime })
       }
@@ -118,6 +131,19 @@ export default function AdminContributionsPage() {
 
   const handleViewContribution = (id: string) => {
     router.push(`/admin/contributions/${id}`)
+  }
+
+  const handleExport = async () => {
+    try {
+      await exportReport('contributions', { status: statusFilter, search: searchQuery })
+      sonnerToast.success("Export completed", {
+        description: "Your report has been downloaded.",
+      })
+    } catch (error: any) {
+      sonnerToast.error("Failed to export report", {
+        description: error.message || "Please try again later",
+      })
+    }
   }
 
   const handleApproveContribution = async (id: string) => {
@@ -208,7 +234,7 @@ export default function AdminContributionsPage() {
           <Button variant="outline" asChild>
             <Link href="/admin/bulk-upload/contributions">Bulk Upload</Link>
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExport}>
             <Download className="h-4 w-4 mr-2" />
             Export
           </Button>

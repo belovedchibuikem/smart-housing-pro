@@ -52,8 +52,8 @@ export default function MailServiceReportsPage() {
     try {
       await exportReport('mail-service', { date_range: dateRange })
       toast({
-        title: "Export initiated",
-        description: "Your report is being generated.",
+        title: "Export completed",
+        description: "Your report has been downloaded.",
       })
     } catch (error: any) {
       toast({

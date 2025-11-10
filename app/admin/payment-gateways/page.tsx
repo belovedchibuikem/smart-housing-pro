@@ -35,6 +35,7 @@ interface PaymentGateway {
   description: string
   is_active: boolean
   settings: Record<string, any>
+  configuration?: Record<string, any>
   supported_currencies?: string[]
   supported_countries?: string[]
   transaction_fee_percentage?: number
@@ -62,7 +63,7 @@ export default function TenantPaymentGatewaysPage() {
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({})
   const [activeTab, setActiveTab] = useState<string>("paystack")
   const [localSettings, setLocalSettings] = useState<Record<string, Record<string, any>>>({})
-  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
+  const [localConfigs, setLocalConfigs] = useState<Record<string, Record<string, any>>>({})
   const [newBankAccount, setNewBankAccount] = useState({
     bank_name: "",
     account_number: "",
@@ -70,129 +71,158 @@ export default function TenantPaymentGatewaysPage() {
     is_primary: false
   })
 
+  const getDefaultManualConfig = () => ({
+    require_payer_name: true,
+    require_payer_phone: false,
+    require_transaction_reference: true,
+    require_payment_evidence: true,
+    bank_accounts: [] as BankAccount[],
+  })
+
+  const prepareGatewayConfig = (gateway: PaymentGateway) => {
+    if (gateway.name === "manual") {
+      const merged = {
+        ...getDefaultManualConfig(),
+        ...(gateway.configuration || {}),
+      }
+
+      if (Array.isArray(merged.bank_accounts)) {
+        merged.bank_accounts = merged.bank_accounts.map((account: BankAccount) => ({
+          ...account,
+          id:
+            account.id ||
+            (typeof crypto !== "undefined" && crypto.randomUUID
+              ? crypto.randomUUID()
+              : `${Date.now()}-${Math.random().toString(16).slice(2)}`),
+        }))
+      } else {
+        merged.bank_accounts = []
+      }
+
+      return merged
+    }
+
+    return gateway.configuration || {}
+  }
+
   useEffect(() => {
     loadGateways()
   }, [])
+
+  const createDefaultGateways = (): PaymentGateway[] => [
+    {
+      id: "default-paystack",
+      name: "paystack",
+      display_name: "Paystack",
+      description: "Accept payments via Paystack",
+      is_active: false,
+      settings: {},
+      configuration: {},
+    },
+    {
+      id: "default-remita",
+      name: "remita",
+      display_name: "Remita",
+      description: "Accept payments via Remita",
+      is_active: false,
+      settings: {},
+      configuration: {},
+    },
+    {
+      id: "default-stripe",
+      name: "stripe",
+      display_name: "Stripe",
+      description: "Accept payments via Stripe",
+      is_active: false,
+      settings: {},
+      configuration: {},
+    },
+    {
+      id: "default-manual",
+      name: "manual",
+      display_name: "Manual Transfer",
+      description: "Manual bank transfer payments",
+      is_active: false,
+      settings: {},
+      configuration: getDefaultManualConfig(),
+    },
+  ]
 
   const loadGateways = async () => {
     try {
       setLoading(true)
       const response = await apiFetch<{ gateways: PaymentGateway[] }>("/admin/payment-gateways")
-      
-      console.log("Payment gateways API response:", response)
-      
       const gatewaysList = response.gateways || []
       
-      // If no gateways from API, create default gateways structure
-      if (gatewaysList.length === 0) {
-        console.log("No gateways found, creating default structure")
-        const defaultGateways: PaymentGateway[] = [
-          {
-            id: 'default-paystack',
-            name: 'paystack',
-            display_name: 'Paystack',
-            description: 'Accept payments via Paystack',
-            is_active: false,
-            settings: {}
-          },
-          {
-            id: 'default-remita',
-            name: 'remita',
-            display_name: 'Remita',
-            description: 'Accept payments via Remita',
-            is_active: false,
-            settings: {}
-          },
-          {
-            id: 'default-stripe',
-            name: 'stripe',
-            display_name: 'Stripe',
-            description: 'Accept payments via Stripe',
-            is_active: false,
-            settings: {}
-          },
-          {
-            id: 'default-manual',
-            name: 'manual',
-            display_name: 'Manual Transfer',
-            description: 'Manual bank transfer payments',
-            is_active: false,
-            settings: {}
-          }
-        ]
-        setGateways(defaultGateways)
-        
-        // Initialize local settings
-        const settingsMap: Record<string, Record<string, any>> = {}
-        defaultGateways.forEach(gateway => {
-          settingsMap[gateway.name] = gateway.settings || {}
-        })
-        setLocalSettings(settingsMap)
-        setActiveTab(defaultGateways[0].name)
-      } else {
-        setGateways(gatewaysList)
-        
-        // Initialize local settings from API response
-        const settingsMap: Record<string, Record<string, any>> = {}
-        gatewaysList.forEach(gateway => {
-          settingsMap[gateway.name] = gateway.settings || {}
-        })
-        setLocalSettings(settingsMap)
-        
-        // Set active tab to first available gateway
-        if (gatewaysList.length > 0) {
-          setActiveTab(gatewaysList[0].name)
+      const defaultGateways = createDefaultGateways()
+      const existingByName = new Map<string, PaymentGateway>()
+      gatewaysList.forEach((gateway) => {
+        existingByName.set(gateway.name, gateway)
+      })
+
+      const merged = defaultGateways.map((template) => {
+        const existing = existingByName.get(template.name)
+        if (!existing) {
+          return template
         }
+
+        return {
+          ...template,
+          ...existing,
+          id: existing.id,
+          display_name: existing.display_name || template.display_name,
+          description: existing.description || template.description,
+          settings: existing.settings || existing.credentials || {},
+          configuration:
+            existing.name === "manual"
+              ? prepareGatewayConfig(existing)
+              : existing.configuration || template.configuration || {},
+          is_active: existing.is_active,
+        }
+      })
+
+      const additionalGateways = gatewaysList.filter(
+        (gateway) => !merged.some((item) => item.name === gateway.name),
+      )
+
+      const combinedGateways = [...merged, ...additionalGateways]
+
+      setGateways(combinedGateways)
+
+        const settingsMap: Record<string, Record<string, any>> = {}
+      const configMap: Record<string, Record<string, any>> = {}
+
+      combinedGateways.forEach((gateway) => {
+          settingsMap[gateway.name] = gateway.settings || {}
+        configMap[gateway.name] = gateway.name === "manual"
+          ? prepareGatewayConfig(gateway)
+          : gateway.configuration || {}
+        })
+
+        setLocalSettings(settingsMap)
+      setLocalConfigs(configMap)
+
+      if (combinedGateways.length > 0) {
+        setActiveTab(combinedGateways[0].name)
       }
     } catch (error: any) {
       console.error("Error loading gateways:", error)
       
-      // Even on error, show default gateways so page is usable
-      const defaultGateways: PaymentGateway[] = [
-        {
-          id: 'default-paystack',
-          name: 'paystack',
-          display_name: 'Paystack',
-          description: 'Accept payments via Paystack',
-          is_active: false,
-          settings: {}
-        },
-        {
-          id: 'default-remita',
-          name: 'remita',
-          display_name: 'Remita',
-          description: 'Accept payments via Remita',
-          is_active: false,
-          settings: {}
-        },
-        {
-          id: 'default-stripe',
-          name: 'stripe',
-          display_name: 'Stripe',
-          description: 'Accept payments via Stripe',
-          is_active: false,
-          settings: {}
-        },
-        {
-          id: 'default-manual',
-          name: 'manual',
-          display_name: 'Manual Transfer',
-          description: 'Manual bank transfer payments',
-          is_active: false,
-          settings: {}
-        }
-      ]
+      const defaultGateways = createDefaultGateways()
       setGateways(defaultGateways)
       
       const settingsMap: Record<string, Record<string, any>> = {}
-      defaultGateways.forEach(gateway => {
+      const configMap: Record<string, Record<string, any>> = {}
+      defaultGateways.forEach((gateway) => {
         settingsMap[gateway.name] = gateway.settings || {}
+        configMap[gateway.name] = gateway.configuration || {}
       })
       setLocalSettings(settingsMap)
+      setLocalConfigs(configMap)
       setActiveTab(defaultGateways[0].name)
       
       sonnerToast.error("Failed to load payment gateways", {
-        description: error.message || "Please try again later."
+        description: error.message || "Please try again later.",
       })
     } finally {
       setLoading(false)
@@ -209,11 +239,24 @@ export default function TenantPaymentGatewaysPage() {
     }))
   }
 
+  const updateLocalConfig = (gatewayName: string, key: string, value: any) => {
+    setLocalConfigs(prev => ({
+      ...prev,
+      [gatewayName]: {
+        ...(prev[gatewayName] || {}),
+        [key]: value
+      }
+    }))
+  }
+
   const saveGatewaySettings = async (gateway: PaymentGateway) => {
     try {
       setSaving(prev => ({ ...prev, [gateway.id]: true }))
       
       const settings = localSettings[gateway.name] || gateway.settings || {}
+    const configuration = gateway.name === 'manual'
+      ? (localConfigs[gateway.name] || gateway.configuration || {})
+      : (gateway.configuration || {})
       
       // Use gateway name for lookup (works for both real IDs and default names)
       // The backend will handle finding by name if ID doesn't exist
@@ -223,7 +266,8 @@ export default function TenantPaymentGatewaysPage() {
         method: "PUT",
         body: {
           is_active: gateway.is_active,
-          settings: settings
+        settings: settings,
+        configuration
         }
       })
 
@@ -318,11 +362,21 @@ export default function TenantPaymentGatewaysPage() {
     }
 
     const account: BankAccount = {
-      id: Date.now().toString(),
+      id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
       ...newBankAccount
     }
 
-    setBankAccounts(prev => [...prev, account])
+    const existingAccounts = getConfig('manual', 'bank_accounts', []) as BankAccount[]
+    const hasPrimary = existingAccounts.some(acc => acc.is_primary)
+    const accounts = [
+      ...existingAccounts,
+      {
+        ...account,
+        is_primary: hasPrimary ? account.is_primary : true,
+      },
+    ]
+
+    updateLocalConfig('manual', 'bank_accounts', accounts)
     setNewBankAccount({
       bank_name: "",
       account_number: "",
@@ -336,20 +390,31 @@ export default function TenantPaymentGatewaysPage() {
   }
 
   const removeBankAccount = (accountId: string) => {
-    setBankAccounts(prev => prev.filter(account => account.id !== accountId))
+    const updated = (getConfig('manual', 'bank_accounts', []) as BankAccount[]).filter(account => account.id !== accountId)
+    updateLocalConfig('manual', 'bank_accounts', updated)
     sonnerToast.success("Bank account removed", {
       description: "Bank account has been removed."
     })
   }
 
   const updateBankAccount = (accountId: string, updates: Partial<BankAccount>) => {
-    setBankAccounts(prev => 
-      prev.map(account => 
-        account.id === accountId 
-          ? { ...account, ...updates }
-          : account
-      )
-    )
+    const accounts = (getConfig('manual', 'bank_accounts', []) as BankAccount[])
+    const updatedAccounts = accounts.map(account => {
+      if (account.id !== accountId) {
+        if (updates.is_primary) {
+          return { ...account, is_primary: false }
+        }
+        return account
+      }
+
+      return {
+        ...account,
+        ...updates,
+        is_primary: updates.is_primary !== undefined ? updates.is_primary : account.is_primary,
+      }
+    })
+
+    updateLocalConfig('manual', 'bank_accounts', updatedAccounts)
   }
 
   const getGateway = (name: string): PaymentGateway | undefined => {
@@ -362,6 +427,14 @@ export default function TenantPaymentGatewaysPage() {
       return localSettings[gatewayName][key]
     }
     return gateway?.settings?.[key] || defaultValue
+  }
+
+  const getConfig = (gatewayName: string, key: string, defaultValue: any = ""): any => {
+    if (localConfigs[gatewayName] && localConfigs[gatewayName][key] !== undefined) {
+      return localConfigs[gatewayName][key]
+    }
+    const gateway = getGateway(gatewayName)
+    return gateway?.configuration?.[key] ?? defaultValue
   }
 
   const getGatewayIcon = (name: string) => {
@@ -651,7 +724,7 @@ export default function TenantPaymentGatewaysPage() {
                         </p>
                         
                         <div className="space-y-4">
-                          {bankAccounts.map((account) => (
+                          {(getConfig('manual', 'bank_accounts', []) as BankAccount[]).map((account) => (
                             <Card key={account.id} className="p-4">
                               <div className="flex items-center justify-between">
                                 <div className="flex-1">
@@ -734,6 +807,48 @@ export default function TenantPaymentGatewaysPage() {
                               Add Bank Account
                             </Button>
                           </div>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="flex items-center justify-between border rounded-lg p-3">
+                          <div>
+                            <Label className="text-sm">Require payer name</Label>
+                            <p className="text-xs text-muted-foreground">Member must provide the sender's full name</p>
+                          </div>
+                          <Switch
+                            checked={getConfig('manual', 'require_payer_name', true)}
+                            onCheckedChange={(checked) => updateLocalConfig('manual', 'require_payer_name', checked)}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between border rounded-lg p-3">
+                          <div>
+                            <Label className="text-sm">Require payer phone</Label>
+                            <p className="text-xs text-muted-foreground">Collect member contact for follow-up</p>
+                          </div>
+                          <Switch
+                            checked={getConfig('manual', 'require_payer_phone', false)}
+                            onCheckedChange={(checked) => updateLocalConfig('manual', 'require_payer_phone', checked)}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between border rounded-lg p-3">
+                          <div>
+                            <Label className="text-sm">Require transaction reference</Label>
+                            <p className="text-xs text-muted-foreground">Member must provide bank transfer reference/ID</p>
+                          </div>
+                          <Switch
+                            checked={getConfig('manual', 'require_transaction_reference', true)}
+                            onCheckedChange={(checked) => updateLocalConfig('manual', 'require_transaction_reference', checked)}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between border rounded-lg p-3">
+                          <div>
+                            <Label className="text-sm">Require payment evidence upload</Label>
+                            <p className="text-xs text-muted-foreground">Member must upload receipt or screenshot</p>
+                          </div>
+                          <Switch
+                            checked={getConfig('manual', 'require_payment_evidence', true)}
+                            onCheckedChange={(checked) => updateLocalConfig('manual', 'require_payment_evidence', checked)}
+                          />
                         </div>
                       </div>
                     </div>

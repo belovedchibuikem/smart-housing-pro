@@ -26,6 +26,11 @@ export interface Member {
   kyc_submitted_at?: string
   kyc_verified_at?: string
   kyc_rejection_reason?: string
+  kyc_documents?: Array<{
+    type: string
+    path: string
+    uploaded_at?: string
+  }>
   status?: string
   first_name?: string
   last_name?: string
@@ -213,13 +218,22 @@ export class MemberService {
       const loans = loansResponse.status === 'fulfilled' ? (loansResponse.value.loans || []) : []
       const contributions = contributionsResponse.status === 'fulfilled' ? (contributionsResponse.value.contributions || []) : []
 
+      const toNumber = (value: unknown) => {
+        if (typeof value === 'number') return value
+        if (typeof value === 'string') {
+          const parsed = Number(value)
+          return Number.isFinite(parsed) ? parsed : 0
+        }
+        return 0
+      }
+
       const totalContributions = contributions
         .filter(c => c.status === 'approved')
-        .reduce((sum, c) => sum + c.amount, 0)
+        .reduce((sum, c) => sum + toNumber(c.amount), 0)
 
       const monthlyContribution = contributions
         .filter(c => c.status === 'approved' && c.frequency === 'monthly')
-        .reduce((sum, c) => sum + c.amount, 0)
+        .reduce((sum, c) => sum + toNumber(c.amount), 0)
 
       const lastPayment = contributions
         .filter(c => c.status === 'approved')
@@ -228,11 +242,18 @@ export class MemberService {
       const activeLoans = loans.filter(l => l.status === 'approved').length
       const totalBorrowed = loans
         .filter(l => l.status === 'approved')
-        .reduce((sum, l) => sum + l.amount, 0)
+        .reduce((sum, l) => sum + toNumber(l.total_amount ?? l.amount), 0)
 
       const outstandingBalance = loans
         .filter(l => l.status === 'approved')
-        .reduce((sum, l) => sum + (l.total_amount - (l.monthly_payment * l.duration_months)), 0)
+        .reduce((sum, l) => {
+          const total = toNumber(l.total_amount ?? l.amount)
+          const monthly = toNumber(l.monthly_payment)
+          const duration = toNumber(l.duration_months)
+          const scheduled = monthly * duration
+          const remaining = Math.max(0, total - scheduled)
+          return sum + remaining
+        }, 0)
 
       return {
         total_contributions: totalContributions,
@@ -322,6 +343,13 @@ export class MemberService {
     })
   }
 }
+
+
+
+
+
+
+
 
 
 

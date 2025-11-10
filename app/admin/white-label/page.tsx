@@ -151,6 +151,10 @@ export default function WhiteLabelPage() {
           description: "Your changes have been applied to the platform"
         })
         await fetchSettings()
+        // Trigger white label update event
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('white-label-settings-updated'))
+        }
       } else {
         throw new Error(data.message || "Failed to save settings")
       }
