@@ -5,9 +5,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { FileText, Search, Download, Eye, Loader2 } from "lucide-react"
+import { FileText, Search, Download, Eye, Loader2, CheckCircle, XCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { apiFetch } from "@/lib/api/client"
+import { apiFetch, approveEoiForm, rejectEoiForm, getApiBaseUrl, getAuthToken, getTenantSlug } from "@/lib/api/client"
 import { useRouter } from "next/navigation"
 
 interface EoiForm {
@@ -29,6 +29,8 @@ interface EoiForm {
   status: string
   message?: string
   created_at: string
+  funding_option?: string
+  mortgage_preferences?: Record<string, unknown> | null
 }
 
 export default function EOIFormsPage() {
@@ -37,6 +39,7 @@ export default function EOIFormsPage() {
   const [loading, setLoading] = useState(true)
   const [eoiForms, setEoiForms] = useState<EoiForm[]>([])
   const [searchQuery, setSearchQuery] = useState("")
+  const [processingId, setProcessingId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchEOIForms()
@@ -71,31 +74,95 @@ export default function EOIFormsPage() {
 
   const handleDownloadForm = async (id: string) => {
     try {
-      const response = await apiFetch<{ success: boolean; data: any }>(
-        `/admin/eoi-forms/${id}/download`
-      )
-      if (response.success && response.data) {
-        // Create a blob and download
-        const data = JSON.stringify(response.data, null, 2)
-        const blob = new Blob([data], { type: 'application/json' })
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `eoi-form-${id}.json`
-        a.click()
-        window.URL.revokeObjectURL(url)
+      const baseUrl = getApiBaseUrl()
+      const headers: Record<string, string> = {
+        Accept: "application/pdf",
+      }
+      const token = getAuthToken()
+      if (token) headers["Authorization"] = `Bearer ${token}`
+      if (typeof window !== "undefined") {
+        headers["X-Forwarded-Host"] = window.location.host
+        const tenantSlug = getTenantSlug()
+        if (tenantSlug) headers["X-Tenant-Slug"] = tenantSlug
+      }
+
+      const response = await fetch(`${baseUrl}/admin/eoi-forms/${id}/download`, {
+        method: "GET",
+        headers,
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to download document")
+      }
+
+      const blob = await response.blob()
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const anchor = document.createElement("a")
+      anchor.href = downloadUrl
+      const disposition = response.headers.get("Content-Disposition")
+      const filenameMatch = disposition?.match(/filename="?([^"]+)"?/)
+      anchor.download = filenameMatch?.[1] ?? `eoi-form-${id}.pdf`
+      document.body.appendChild(anchor)
+      anchor.click()
+      document.body.removeChild(anchor)
+      window.URL.revokeObjectURL(downloadUrl)
         
         toast({
           title: "Success",
           description: "EOI form downloaded successfully",
         })
-      }
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to download EOI form",
         variant: "destructive",
       })
+    }
+  }
+
+  const handleApprove = async (id: string) => {
+    try {
+      setProcessingId(id)
+      const response = await approveEoiForm(id)
+      if (response.success) {
+        toast({
+          title: "EOI Approved",
+          description: response.message || "The submission has been approved.",
+        })
+        fetchEOIForms()
+      }
+    } catch (error: any) {
+      toast({
+        title: "Approval failed",
+        description: error?.message || "Unable to approve this EOI submission.",
+        variant: "destructive",
+      })
+    } finally {
+      setProcessingId(null)
+    }
+  }
+
+  const handleReject = async (id: string) => {
+    const reason = window.prompt("Provide a reason for rejection")
+    if (!reason) return
+    try {
+      setProcessingId(id)
+      const response = await rejectEoiForm(id, reason)
+      if (response.success) {
+        toast({
+          title: "EOI Rejected",
+          description: response.message || "The submission has been rejected.",
+        })
+        fetchEOIForms()
+      }
+    } catch (error: any) {
+      toast({
+        title: "Rejection failed",
+        description: error?.message || "Unable to reject this EOI submission.",
+        variant: "destructive",
+      })
+    } finally {
+      setProcessingId(null)
     }
   }
 
@@ -209,6 +276,35 @@ export default function EOIFormsPage() {
                       <Download className="h-4 w-4 mr-2" />
                       Download
                     </Button>
+                    {(form.status === "pending" || form.status === "under_review") && (
+                      <>
+                        <Button
+                          size="sm"
+                          onClick={() => handleApprove(form.id)}
+                          disabled={processingId === form.id}
+                        >
+                          {processingId === form.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <CheckCircle className="h-4 w-4 mr-2" />
+                          )}
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleReject(form.id)}
+                          disabled={processingId === form.id}
+                        >
+                          {processingId === form.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <XCircle className="h-4 w-4 mr-2" />
+                          )}
+                          Reject
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               ))}

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import Link from "next/link"
 import Image from "next/image"
-import { useWhiteLabel } from "@/lib/hooks/use-white-label"
+import { useWhiteLabelSettings } from "@/lib/hooks/use-white-label"
 import { useTenantSettings } from "@/lib/context/tenant-settings-context"
 import { AdminNotificationBell } from "./admin-notification-bell"
 import { handleLogout } from "@/lib/auth/auth-utils"
@@ -23,12 +23,12 @@ interface AdminHeaderProps {
 }
 
 export function AdminHeader({ mobileMenuOpen, setMobileMenuOpen }: AdminHeaderProps) {
-  const { settings: whiteLabelSettings } = useWhiteLabel()
+  const { getCompanyName, getCompanyTagline, getLogo } = useWhiteLabelSettings()
   const { getSetting } = useTenantSettings()
   
-  const siteName = whiteLabelSettings?.company_name || getSetting('site_name', 'FRSC HMS Admin')
-  const siteTagline = whiteLabelSettings?.company_tagline || 'System Administration'
-  const logoUrl = whiteLabelSettings?.logo_url
+  const siteName = getCompanyName() || getSetting("site_name", "FRSC HMS Admin")
+  const siteTagline = getCompanyTagline() || "System Administration"
+  const logoUrl = getLogo()
 
   return (
     <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">

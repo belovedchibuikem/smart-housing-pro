@@ -1,6 +1,6 @@
 "use client"
 
-import { Building2, Bell, User, Menu } from "lucide-react"
+import { Bell, User, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -13,6 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { handleLogout } from "@/lib/auth/auth-utils"
+import { useWhiteLabelSettings } from "@/lib/hooks/use-white-label"
 
 interface DashboardHeaderProps {
   mobileMenuOpen: boolean
@@ -20,6 +21,12 @@ interface DashboardHeaderProps {
 }
 
 export function DashboardHeader({ mobileMenuOpen, setMobileMenuOpen }: DashboardHeaderProps) {
+  const { getCompanyName, getCompanyTagline, getLogo } = useWhiteLabelSettings()
+
+  const siteName = getCompanyName() || "FRSC HMS"
+  const siteTagline = getCompanyTagline() || "Housing Management"
+  const logoUrl = getLogo()
+
   return (
     <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
       <div className="flex items-center justify-between px-4 lg:px-6 py-4">
@@ -28,10 +35,16 @@ export function DashboardHeader({ mobileMenuOpen, setMobileMenuOpen }: Dashboard
             <Menu className="h-5 w-5" />
           </Button>
           <Link href="/dashboard" className="flex items-center gap-2">
-            <Building2 className="h-8 w-8 text-primary" />
+            {logoUrl ? (
+              <img src={logoUrl ?? ""} alt="Dashboard Logo" className="h-8 w-8 object-contain" />
+            ) : (
+              <div className="flex h-8 w-8 items-center justify-center rounded bg-primary/10 text-xs font-semibold text-primary">
+                HMS
+              </div>
+            )}
             <div className="hidden sm:block">
-              <h1 className="font-bold text-lg">FRSC HMS</h1>
-              <p className="text-xs text-muted-foreground">Housing Management</p>
+              <h1 className="font-bold text-lg">{siteName}</h1>
+              <p className="text-xs text-muted-foreground">{siteTagline}</p>
             </div>
           </Link>
         </div>

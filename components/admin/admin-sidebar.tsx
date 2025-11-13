@@ -40,6 +40,7 @@ import {
   CheckCircle,
   UserPlus,
   Plus,
+  Calculator,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
@@ -133,6 +134,8 @@ const navItems: NavItem[] = [
       { href: "/admin/mortgage-providers", label: "Mortgage Providers", icon: Building },
       { href: "/admin/mortgages/new", label: "Create Mortgage", icon: Plus },
       { href: "/admin/bulk-upload/mortgages", label: "Bulk Upload", icon: Upload },
+      { href: "/admin/internal-mortgages", label: "Internal Mortgage Plans", icon: Wrench },
+      { href: "/admin/tools/mortgage-calculators", label: "Mortgage Calculators", icon: Calculator },
     ],
   },
   {
@@ -140,7 +143,9 @@ const navItems: NavItem[] = [
     icon: Home,
     subItems: [
       { href: "/admin/properties", label: "All Properties", icon: Home },
-  { href: "/admin/eoi-forms", label: "EOI Forms", icon: ClipboardList },
+      { href: "/admin/properties/new", label: "Create Property", icon: Plus },
+      { href: "/admin/eoi-forms", label: "EOI Forms", icon: ClipboardList },
+      { href: "/admin/property-payment-plans", label: "Payment Plans", icon: CreditCard },
       { href: "/admin/bulk-upload/properties", label: "Bulk Upload", icon: Upload },
     ],
   },

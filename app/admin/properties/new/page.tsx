@@ -1,13 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Upload, X, Loader2 } from "lucide-react"
+import { ArrowLeft, Upload, X, Loader2, ImageIcon } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
@@ -18,7 +18,10 @@ export default function NewPropertyPage() {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [propertyType, setPropertyType] = useState<string>("house")
-  const [images, setImages] = useState<string[]>([])
+  const fileInputRef = useRef<HTMLInputElement | null>(null)
+  const [images, setImages] = useState<Array<{ url: string; preview?: string; name?: string }>>([])
+  const [uploadingImages, setUploadingImages] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
   
   const [formData, setFormData] = useState({
     title: "",
@@ -35,6 +38,105 @@ export default function NewPropertyPage() {
     features: "",
     status: "available",
   })
+
+  useEffect(() => {
+    return () => {
+      images.forEach((image) => {
+        if (image.preview) {
+          URL.revokeObjectURL(image.preview)
+        }
+      })
+    }
+  }, [images])
+
+  const handleFilesUpload = useCallback(
+    async (files: FileList | null) => {
+      if (!files || files.length === 0) {
+        return
+      }
+
+      setUploadError(null)
+      setUploadingImages(true)
+
+      const fileArray = Array.from(files)
+
+      for (const file of fileArray) {
+        if (!file.type.startsWith("image/")) {
+          setUploadError("Unsupported file type. Please upload image files only.")
+          continue
+        }
+
+        const previewUrl = URL.createObjectURL(file)
+
+        try {
+          const formPayload = new FormData()
+          formPayload.append("image", file)
+
+          const response = await apiFetch<{
+            success: boolean
+            url?: string
+            image?: { id: string; url: string }
+            message?: string
+          }>("/admin/properties/upload-image", {
+            method: "POST",
+            body: formPayload,
+          })
+
+          if (response?.success && response.url) {
+            setImages((prev) => [
+              ...prev,
+              {
+                url: response.url,
+                preview: previewUrl,
+                name: file.name,
+              },
+            ])
+          } else {
+            URL.revokeObjectURL(previewUrl)
+            setUploadError(response?.message || "Failed to upload image. Please try again.")
+          }
+        } catch (error: any) {
+          URL.revokeObjectURL(previewUrl)
+          console.error("Image upload failed", error)
+          setUploadError(error?.message || "Failed to upload image. Please try again.")
+        }
+      }
+
+      setUploadingImages(false)
+    },
+    [],
+  )
+
+  const handleDrop = useCallback(
+    (event: React.DragEvent<HTMLDivElement>) => {
+      event.preventDefault()
+      const files = event.dataTransfer.files
+      if (files?.length) {
+        void handleFilesUpload(files)
+      }
+    },
+    [handleFilesUpload],
+  )
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    event.dataTransfer.dropEffect = "copy"
+  }
+
+  const removeImage = (index: number) => {
+    setImages((prev) => {
+      const next = [...prev]
+      const [removed] = next.splice(index, 1)
+      if (removed?.preview) {
+        URL.revokeObjectURL(removed.preview)
+      }
+      return next
+    })
+  }
+
+  const triggerFileDialog = () => {
+    fileInputRef.current?.click()
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -67,7 +169,13 @@ export default function NewPropertyPage() {
       if (formData.bedrooms) submitData.bedrooms = parseInt(formData.bedrooms)
       if (formData.bathrooms) submitData.bathrooms = parseInt(formData.bathrooms)
       if (formData.features) {
-        submitData.features = formData.features.split(',').map(f => f.trim()).filter(f => f)
+        submitData.features = formData.features
+          .split(',')
+          .map(f => f.trim())
+          .filter(f => f)
+      }
+      if (images.length > 0) {
+        submitData.images = images.map((image) => image.url)
       }
 
       const response = await apiFetch<{ success: boolean; message?: string; data?: any }>(
@@ -83,7 +191,7 @@ export default function NewPropertyPage() {
           title: "Success",
           description: response.message || "Property created successfully",
         })
-        router.push("/admin/properties")
+        router.push("/admin/properties?flash=property_created")
       }
     } catch (error: any) {
       toast({
@@ -297,27 +405,69 @@ export default function NewPropertyPage() {
 
           <div className="space-y-2">
             <Label>Property Images</Label>
-            <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer">
-              <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <div className="text-sm text-muted-foreground mb-2">Click to upload or drag and drop</div>
-              <div className="text-xs text-muted-foreground">PNG, JPG up to 10MB (multiple images allowed)</div>
+            <div
+              className="group relative flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/40 p-8 text-center transition hover:border-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              onClick={triggerFileDialog}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault()
+                  triggerFileDialog()
+                }
+              }}
+            >
+              <Upload className="h-10 w-10 text-muted-foreground transition-colors group-hover:text-primary" />
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">Click to upload or drag and drop</p>
+                <p className="text-xs text-muted-foreground">PNG, JPG up to 10MB each. Upload multiple images.</p>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(event) => handleFilesUpload(event.target.files)}
+              />
+              {uploadingImages && (
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-lg bg-background/80 backdrop-blur">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <p className="text-xs text-muted-foreground">Uploading images...</p>
+                </div>
+              )}
             </div>
+            {uploadError && (
+              <p className="text-sm text-destructive">{uploadError}</p>
+            )}
             {images.length > 0 && (
-              <div className="grid grid-cols-4 gap-4 mt-4">
+              <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
                 {images.map((image, index) => (
-                  <div key={index} className="relative group">
+                  <div key={`${image.url}-${index}`} className="relative group flex flex-col overflow-hidden rounded-lg border">
+                    {image.preview ? (
                     <img
-                      src={image || "/placeholder.svg"}
-                      alt={`Property ${index + 1}`}
-                      className="w-full h-24 object-cover rounded-lg"
-                    />
+                        src={image.preview}
+                        alt={image.name || `Property image ${index + 1}`}
+                        className="h-32 w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-32 w-full items-center justify-center bg-muted/40 text-muted-foreground">
+                        <ImageIcon className="h-8 w-8" />
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between gap-2 border-t bg-background px-3 py-2 text-xs">
+                      <span className="truncate font-medium">{image.name || `Image ${index + 1}`}</span>
                       <button
                         type="button"
-                        className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => setImages(images.filter((_, i) => i !== index))}
+                        className="rounded-full bg-destructive p-1 text-destructive-foreground opacity-0 transition group-hover:opacity-100"
+                        onClick={() => removeImage(index)}
+                        aria-label="Remove image"
                       >
-                      <X className="h-4 w-4" />
+                        <X className="h-3 w-3" />
                     </button>
+                    </div>
                   </div>
                 ))}
               </div>

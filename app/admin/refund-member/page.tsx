@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -8,8 +8,15 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Search, DollarSign, User, Wallet, TrendingUp, CreditCard, Loader2, AlertCircle } from "lucide-react"
-import { apiFetch } from "@/lib/api/client"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Search, DollarSign, Wallet, TrendingUp, CreditCard, Loader2, AlertCircle, PiggyBank, Coins } from "lucide-react"
+import {
+  apiFetch,
+  getAdminRefundMemberSummary,
+  createAdminRefund,
+  type AdminRefundMemberSummary,
+  type CreateRefundPayload,
+} from "@/lib/api/client"
 import { toast } from "sonner"
 import {
   Dialog,
@@ -19,6 +26,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+
+const SOURCE_LABELS = {
+  wallet: "Wallet",
+  contribution: "Contribution",
+  investment_return: "Investment Profit",
+  equity_wallet: "Equity Wallet",
+} as const
 
 interface Member {
   id: string
@@ -33,23 +47,41 @@ export default function RefundMemberPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedMember, setSelectedMember] = useState<Member | null>(null)
   const [members, setMembers] = useState<Member[]>([])
-  const [loading, setLoading] = useState(false)
   const [searching, setSearching] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
+  const [summary, setSummary] = useState<AdminRefundMemberSummary["summary"] | null>(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
 
   // Refund form data
   const [refundData, setRefundData] = useState({
-    source: "contribution", // contribution, investment_return, investment
+    source: "wallet",
     amount: "",
     reason: "",
     notes: "",
   })
 
+  const loadMemberSummary = async (memberId: string) => {
+    setSummary(null)
+    setSummaryLoading(true)
+    try {
+      const response = await getAdminRefundMemberSummary(memberId)
+      if (response?.success) {
+        setSummary(response.summary)
+      }
+    } catch (error: any) {
+      console.error("Failed to load refund summary", error)
+      toast.error(error?.message || "Failed to load member balances")
+    } finally {
+      setSummaryLoading(false)
+    }
+  }
+
   const searchMembers = async () => {
     if (!searchQuery.trim()) {
       setMembers([])
       setSelectedMember(null)
+      setSummary(null)
       return
     }
 
@@ -72,7 +104,7 @@ export default function RefundMemberPage() {
       })
       setMembers(normalized)
       if (normalized.length === 1) {
-        setSelectedMember(normalized[0])
+        handleSelectMember(normalized[0])
       }
     } catch (error: any) {
       toast.error(error.message || 'Failed to search members')
@@ -91,6 +123,45 @@ export default function RefundMemberPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery])
 
+  const formatCurrency = (value?: number | null) => {
+    const numeric = Number(value ?? 0)
+    if (!Number.isFinite(numeric)) {
+      return "₦0"
+    }
+    return `₦${numeric.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+  }
+
+  const sourceOptions = useMemo(() => {
+    return [
+      {
+        value: "wallet",
+        label: SOURCE_LABELS.wallet,
+        available: summary?.wallet.balance ?? 0,
+      },
+      {
+        value: "contribution",
+        label: SOURCE_LABELS.contribution,
+        available: summary?.contribution.available ?? 0,
+      },
+      {
+        value: "investment_return",
+        label: SOURCE_LABELS.investment_return,
+        available: summary?.investment_returns.available ?? 0,
+      },
+      {
+        value: "equity_wallet",
+        label: SOURCE_LABELS.equity_wallet,
+        available: summary?.equity_wallet.balance ?? 0,
+      },
+    ]
+  }, [summary])
+
+  const handleSelectMember = (member: Member) => {
+    setSelectedMember(member)
+    setRefundData({ source: "wallet", amount: "", reason: "", notes: "" })
+    loadMemberSummary(member.id)
+  }
+
   const handleSubmitRefund = async () => {
     if (!selectedMember) {
       toast.error('Please select a member')
@@ -103,19 +174,14 @@ export default function RefundMemberPage() {
       return
     }
 
-    // Check if member has sufficient balance based on source
-    if (refundData.source === 'contribution' && amount > (selectedMember.contribution_balance || 0)) {
-      toast.error('Insufficient contribution balance')
+    const maxAvailable = getMaxAmount()
+    if (!summary || maxAvailable <= 0) {
+      toast.error('Insufficient balance for the selected source')
       return
     }
 
-    if (refundData.source === 'investment' && amount > (selectedMember.investment_balance || 0)) {
-      toast.error('Insufficient investment balance')
-      return
-    }
-
-    if (amount > selectedMember.wallet_balance) {
-      toast.error('Insufficient wallet balance')
+    if (amount > maxAvailable) {
+      toast.error(`Amount exceeds available balance (${maxAvailable.toLocaleString(undefined, { minimumFractionDigits: 0 })})`)
       return
     }
 
@@ -129,23 +195,26 @@ export default function RefundMemberPage() {
     try {
       const payload = {
         member_id: selectedMember.id,
-        source: refundData.source,
+        source: refundData.source as CreateRefundPayload['source'],
         amount: parseFloat(refundData.amount),
         reason: refundData.reason,
         notes: refundData.notes,
-        auto_approve: true, // Automatically approved
+        auto_approve: true,
       }
 
-      await apiFetch<any>('/admin/refund-member', {
-        method: 'POST',
-        body: payload,
-      })
+      const response = await createAdminRefund(payload)
 
-      toast.success('Refund processed successfully')
-      setRefundData({ source: "contribution", amount: "", reason: "", notes: "" })
-      setSelectedMember(null)
-      setSearchQuery("")
-      setMembers([])
+      if (!response.success) {
+        throw new Error(response.message || 'Refund failed')
+      }
+
+      toast.success(response.message || 'Refund processed successfully')
+      setRefundData({ source: refundData.source, amount: "", reason: "", notes: "" })
+      if (response.data?.summary) {
+        setSummary(response.data.summary)
+      } else if (selectedMember) {
+        await loadMemberSummary(selectedMember.id)
+      }
       setShowConfirmDialog(false)
       
       // Refresh member data if still selected
@@ -160,30 +229,33 @@ export default function RefundMemberPage() {
   }
 
   const getMaxAmount = () => {
-    if (!selectedMember) return 0
-    if (refundData.source === 'contribution') return selectedMember.contribution_balance || 0
-    if (refundData.source === 'investment') return selectedMember.investment_balance || 0
-    return selectedMember.wallet_balance || 0
+    if (!summary) return 0
+    switch (refundData.source) {
+      case "wallet":
+        return summary.wallet.balance || 0
+      case "contribution":
+        return summary.contribution.available || 0
+      case "investment_return":
+        return summary.investment_returns.available || 0
+      case "equity_wallet":
+        return summary.equity_wallet.balance || 0
+      default:
+        return 0
+    }
   }
 
   const getSourceLabel = (source: string) => {
-    switch (source) {
-      case 'contribution':
-        return 'Contribution'
-      case 'investment_return':
-        return 'Investment Return'
-      case 'investment':
-        return 'Investment'
-      default:
-        return source
-    }
+    return SOURCE_LABELS[source as keyof typeof SOURCE_LABELS] ?? source
   }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Refund Member</h1>
-        <p className="text-muted-foreground mt-2">Process refunds from contributions, investment returns, or investments on behalf of members</p>
+        <p className="text-muted-foreground mt-2">
+          Process refunds from wallet balances, contributions, investment returns, or equity wallet on behalf of members.
+          Refunds are recorded automatically and deducted from the selected source.
+        </p>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -218,7 +290,7 @@ export default function RefundMemberPage() {
                     className={`cursor-pointer transition-colors ${
                       selectedMember?.id === member.id ? 'border-primary bg-primary/5' : ''
                     }`}
-                    onClick={() => setSelectedMember(member)}
+                    onClick={() => handleSelectMember(member)}
                   >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">
@@ -226,7 +298,9 @@ export default function RefundMemberPage() {
                           <p className="font-medium">{member.name}</p>
                           <p className="text-sm text-muted-foreground">{member.member_id}</p>
                         </div>
-                        <Badge variant="secondary">₦{member.wallet_balance.toLocaleString()}</Badge>
+                        <Badge variant="secondary">
+                          {formatCurrency(member.wallet_balance)}
+                        </Badge>
                       </div>
                     </CardContent>
                   </Card>
@@ -258,33 +332,111 @@ export default function RefundMemberPage() {
                 <Label className="text-sm text-muted-foreground">Member ID</Label>
                 <p className="font-medium">{selectedMember.member_id}</p>
               </div>
-              <div className="grid grid-cols-3 gap-4 pt-4 border-t">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <Wallet className="h-4 w-4 text-blue-500" />
-                    <Label className="text-xs text-muted-foreground">Wallet</Label>
-                  </div>
-                  <p className="font-semibold">₦{selectedMember.wallet_balance.toLocaleString()}</p>
+              {summaryLoading && (
+                <div className="flex items-center justify-center py-6">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
                 </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <CreditCard className="h-4 w-4 text-green-500" />
-                    <Label className="text-xs text-muted-foreground">Contributions</Label>
+              )}
+              {!summaryLoading && summary && (
+                <div className="space-y-3 pt-4 border-t">
+                  <div className="grid grid-cols-2 gap-4">
+                    <Card className="bg-blue-50 border-blue-200">
+                      <CardContent className="p-4 space-y-2">
+                        <div className="flex items-center gap-2 text-blue-600">
+                          <Wallet className="h-4 w-4" />
+                          <span className="text-xs uppercase font-semibold">Wallet</span>
+                        </div>
+                        <p className="text-lg font-bold text-blue-900">{formatCurrency(summary.wallet.balance)}</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-green-50 border-green-200">
+                      <CardContent className="p-4 space-y-2">
+                        <div className="flex items-center gap-2 text-green-600">
+                          <CreditCard className="h-4 w-4" />
+                          <span className="text-xs uppercase font-semibold">Contributions</span>
+                        </div>
+                        <p className="text-lg font-bold text-green-900">{formatCurrency(summary.contribution.available)}</p>
+                        <p className="text-xs text-green-700">
+                          Total: {formatCurrency(summary.contribution.total)} • Refunded: {formatCurrency(summary.contribution.refunded)}
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-purple-50 border-purple-200">
+                      <CardContent className="p-4 space-y-2">
+                        <div className="flex items-center gap-2 text-purple-600">
+                          <TrendingUp className="h-4 w-4" />
+                          <span className="text-xs uppercase font-semibold">Investment Profit</span>
+                        </div>
+                        <p className="text-lg font-bold text-purple-900">{formatCurrency(summary.investment_returns.available)}</p>
+                        <p className="text-xs text-purple-700">
+                          Total: {formatCurrency(summary.investment_returns.total)} • Refunded: {formatCurrency(summary.investment_returns.refunded)}
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card className="bg-amber-50 border-amber-200">
+                      <CardContent className="p-4 space-y-2">
+                        <div className="flex items-center gap-2 text-amber-600">
+                          <PiggyBank className="h-4 w-4" />
+                          <span className="text-xs uppercase font-semibold">Equity Wallet</span>
+                        </div>
+                        <p className="text-lg font-bold text-amber-900">{formatCurrency(summary.equity_wallet.balance)}</p>
+                      </CardContent>
+                    </Card>
                   </div>
-                  <p className="font-semibold">₦{(selectedMember.contribution_balance || 0).toLocaleString()}</p>
                 </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <TrendingUp className="h-4 w-4 text-purple-500" />
-                    <Label className="text-xs text-muted-foreground">Investments</Label>
-                  </div>
-                  <p className="font-semibold">₦{(selectedMember.investment_balance || 0).toLocaleString()}</p>
-                </div>
-              </div>
+              )}
+              {!summaryLoading && !summary && (
+                <Alert variant="default">
+                  <AlertTitle>Balances unavailable</AlertTitle>
+                  <AlertDescription>
+                    Select a member to load wallet, contribution, investment, and equity balances.
+                  </AlertDescription>
+                </Alert>
+              )}
             </CardContent>
           </Card>
         )}
       </div>
+
+      {summary && summary.loans.items.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Coins className="h-5 w-5 text-primary" />
+              Loan Overview
+            </CardTitle>
+            <CardDescription>
+              Total outstanding across loans: {formatCurrency(summary.loans.outstanding_total)}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-muted-foreground">
+                  <tr className="text-left">
+                    <th className="pb-2 font-medium">Loan ID</th>
+                    <th className="pb-2 font-medium">Status</th>
+                    <th className="pb-2 font-medium text-right">Principal</th>
+                    <th className="pb-2 font-medium text-right">Repaid</th>
+                    <th className="pb-2 font-medium text-right">Outstanding</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {summary.loans.items.map((loan) => (
+                    <tr key={loan.id} className="hover:bg-muted/50">
+                      <td className="py-2 font-medium">{loan.id}</td>
+                      <td className="py-2 capitalize">{loan.status.replace(/_/g, " ")}</td>
+                      <td className="py-2 text-right">{formatCurrency(loan.principal)}</td>
+                      <td className="py-2 text-right text-green-600">{formatCurrency(loan.repaid)}</td>
+                      <td className="py-2 text-right font-semibold text-blue-600">{formatCurrency(loan.outstanding)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Refund Form */}
       {selectedMember && (
@@ -299,19 +451,34 @@ export default function RefundMemberPage() {
                 <Label htmlFor="source">Refund Source *</Label>
                 <Select
                   value={refundData.source}
-                  onValueChange={(value) => setRefundData({ ...refundData, source: value })}
+                  onValueChange={(value: "wallet" | "contribution" | "investment_return" | "equity_wallet") =>
+                    setRefundData({ ...refundData, source: value })
+                  }
                 >
                   <SelectTrigger id="source">
-                    <SelectValue />
+                      <SelectValue placeholder="Select refund source" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="contribution">Contribution</SelectItem>
-                    <SelectItem value="investment_return">Investment Return</SelectItem>
-                    <SelectItem value="investment">Investment</SelectItem>
+                      {sourceOptions.map((option) => (
+                        <SelectItem
+                          key={option.value}
+                          value={option.value}
+                          disabled={!summary || option.available <= 0}
+                        >
+                          <div className="flex flex-col">
+                            <span>{option.label}</span>
+                            <span className="text-xs text-muted-foreground">
+                              Available: {formatCurrency(option.available)}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Available: ₦{getMaxAmount().toLocaleString()}
+                  {summary
+                    ? `Available: ${formatCurrency(getMaxAmount())}`
+                    : "Balances appear once member data loads"}
                 </p>
               </div>
 
@@ -357,8 +524,10 @@ export default function RefundMemberPage() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  setRefundData({ source: "contribution", amount: "", reason: "", notes: "" })
+                  setRefundData({ source: "wallet", amount: "", reason: "", notes: "" })
                   setSelectedMember(null)
+                  setSummary(null)
+                  setSummaryLoading(false)
                   setSearchQuery("")
                   setMembers([])
                 }}
@@ -400,7 +569,7 @@ export default function RefundMemberPage() {
                 <span className="text-muted-foreground">Source:</span>
                 <span className="font-medium">{getSourceLabel(refundData.source)}</span>
                 <span className="text-muted-foreground">Amount:</span>
-                <span className="font-medium text-lg">₦{parseFloat(refundData.amount || '0').toLocaleString()}</span>
+                <span className="font-medium text-lg">{formatCurrency(parseFloat(refundData.amount || "0"))}</span>
                 <span className="text-muted-foreground">Reason:</span>
                 <span className="font-medium">{refundData.reason}</span>
               </div>

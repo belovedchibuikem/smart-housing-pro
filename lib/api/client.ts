@@ -340,6 +340,639 @@ export async function getWalletTransactions(params?: { page?: number; per_page?:
 	return apiFetch<WalletTransactionsResponse>(path, { method: "GET" })
 }
 
+export interface PropertyImage {
+	id: string
+	url: string
+	is_primary?: boolean
+	caption?: string | null
+}
+
+export interface AvailableProperty {
+	id: string
+	title: string
+	description?: string | null
+	type: string
+	location: string
+	price: number
+	size?: number | null
+	bedrooms?: number | null
+	bathrooms?: number | null
+	created_at?: string | null
+	status: string
+	images: PropertyImage[]
+}
+
+export interface MemberHouse {
+	id: string
+	title: string
+	type: string
+	location: string
+	price: number
+	description?: string | null
+	features?: string[] | null
+	size?: number | string | null
+	bedrooms?: number | null
+	bathrooms?: number | null
+	total_paid: number
+	current_value: number
+	predictive_value: number
+	progress: number
+	status: string
+	interest_status?: string
+	interest_type?: string
+	interest_id?: string
+	interest_created_at?: string | null
+	funding_option?: PropertyFundingOption | null
+	preferred_payment_methods?: PropertyFundingOption[] | null
+	mortgage_preferences?: Record<string, unknown> | null
+	mortgage_flagged?: boolean | null
+	allocation_status?: string | null
+	allocation_date?: string | null
+	images: PropertyImage[]
+}
+
+export interface PropertyPaymentHistoryEntry {
+	id: string
+	amount: number
+	status: string
+	approval_status?: string | null
+	payment_method?: string | null
+	reference?: string | null
+	description?: string | null
+	created_at?: string | null
+	metadata?: Record<string, unknown> | null
+}
+
+export interface PropertyPaymentSetup {
+	property: {
+		id: string
+		title: string
+		location?: string | null
+		price: number
+		total_paid: number
+		balance: number
+		progress: number
+		status: string
+	}
+	funding_option?: PropertyFundingOption | null
+	preferred_payment_methods: PropertyFundingOption[]
+	mortgage_preferences?: Record<string, unknown> | null
+	equity_wallet: {
+		balance: number
+		currency: string
+		is_active: boolean
+		total_contributed?: number
+		total_used?: number
+	}
+	payment_history: PropertyPaymentHistoryEntry[]
+	ledger_entries: PropertyLedgerEntry[]
+	ledger_total_paid: number
+	payment_plan?: PropertyPaymentPlan | null
+}
+
+export interface PropertyLedgerEntry {
+	id: string
+	amount: number
+	direction: "credit" | "debit"
+	source: string
+	reference?: string | null
+	status: string
+	paid_at?: string | null
+	metadata?: Record<string, unknown> | null
+	payment_id?: string | null
+	plan_id?: string | null
+	mortgage_plan_id?: string | null
+	created_at?: string | null
+}
+
+export interface PropertyDocument {
+	id: string
+	property_id: string
+	member_id?: string | null
+	uploaded_by: string
+	uploaded_by_role: "member" | "admin" | "system"
+	title: string
+	description?: string | null
+	document_type?: string | null
+	file_path: string
+	file_url?: string | null
+	file_name: string
+	mime_type?: string | null
+	file_size?: number | null
+	created_at: string
+	updated_at: string
+	uploader?: {
+		id: string
+		first_name?: string | null
+		last_name?: string | null
+		email?: string | null
+	} | null
+	metadata?: Record<string, unknown> | null
+}
+
+export type PropertyFundingOption = "equity_wallet" | "cash" | "loan" | "mix" | "mortgage" | "cooperative"
+
+export type MixFundingAllocationMap = Partial<Record<PropertyFundingOption, number>>
+
+export interface MixFundingAllocationDetail {
+	percentages: MixFundingAllocationMap
+	amounts: Partial<Record<PropertyFundingOption, number>>
+	total_amount: number
+}
+
+export type PropertyPaymentPlanConfiguration = (Record<string, unknown> & {
+	mix_allocations?: MixFundingAllocationDetail
+}) |
+	null
+
+export interface PropertyPaymentPlan {
+	id: string
+	property_id: string
+	member_id: string
+	interest_id?: string | null
+	configured_by: string
+	status: "draft" | "active" | "completed" | "cancelled"
+	funding_option?: PropertyFundingOption | null
+	selected_methods?: PropertyFundingOption[] | null
+	configuration?: PropertyPaymentPlanConfiguration
+	schedule?: Record<string, unknown> | null
+	total_amount?: number | null
+	initial_balance?: number | null
+	remaining_balance?: number | null
+	starts_on?: string | null
+	ends_on?: string | null
+	metadata?: Record<string, unknown> | null
+	created_at: string
+	updated_at: string
+	property?: AvailableProperty | null
+	member?: {
+		id: string
+		user?: {
+			first_name?: string | null
+			last_name?: string | null
+			email?: string | null
+			phone?: string | null
+		} | null
+	} | null
+	interest?: {
+		id: string
+		status: string
+		funding_option?: PropertyFundingOption | null
+	} | null
+	configured_by?: {
+		id: string
+		first_name?: string | null
+		last_name?: string | null
+	} | null
+}
+
+export interface PendingPlanInterest {
+	id: string
+	property_id: string
+	member_id: string
+	status: string
+	funding_option?: PropertyFundingOption | null
+	preferred_payment_methods?: PropertyFundingOption[] | null
+	property?: AvailableProperty | null
+	member?: {
+		id: string
+		user?: {
+			first_name?: string | null
+			last_name?: string | null
+			email?: string | null
+			phone?: string | null
+		} | null
+	} | null
+}
+
+export interface MemberPropertiesSummary {
+	total_properties: number
+	houses_owned: number
+	total_paid: number
+	current_value: number
+	predictive_value: number
+}
+
+export type ExistingLoanType = "fmbn" | "fgshlb" | "home_renovation" | "cooperative" | "other"
+
+export interface SubmitPropertyInterestPayload {
+	interest_type: "rental" | "purchase" | "investment"
+	message?: string | null
+	applicant: {
+		name: string
+		rank?: string | null
+		pin?: string | null
+		ippis_number?: string | null
+		command?: string | null
+		phone: string
+		email?: string | null
+	}
+	financial: {
+		net_salary: number
+		has_existing_loan: boolean
+		existing_loan_types?: ExistingLoanType[]
+	}
+	next_of_kin: {
+		name: string
+		phone: string
+		address: string
+		relationship?: string | null
+		email?: string | null
+	}
+	property_snapshot: {
+		id?: string
+		title: string
+		description?: string | null
+		type?: string | null
+		location?: string | null
+		address?: string | null
+		city?: string | null
+		state?: string | null
+		price?: number | null
+		size?: string | number | null
+		bedrooms?: number | null
+		bathrooms?: number | null
+	}
+	funding_option: PropertyFundingOption
+	funding_breakdown?: Record<string, unknown> | null
+	preferred_payment_methods?: PropertyFundingOption[]
+	documents?: {
+		passport?: string | null
+		pay_slip?: string | null
+	}
+	signature: {
+		data_url: string
+		signed_at?: string | null
+	}
+	mortgage_id?: string | null
+	mortgage?: {
+		provider?: string | null
+		tenure_years?: number | null
+		interest_rate?: number | null
+		loan_amount?: number | null
+		monthly_payment?: number | null
+	}
+}
+
+export interface PropertyMortgage {
+	id: string
+	status: string
+	loan_amount: number
+	interest_rate: number
+	tenure_years: number
+	monthly_payment: number
+	provider?: {
+		id: string
+		name: string
+		contact_email?: string | null
+		contact_phone?: string | null
+	} | null
+	notes?: string | null
+	updated_at?: string | null
+}
+
+export interface PropertyInterestResponse {
+	success: boolean
+	message: string
+	interest: {
+		id: string
+		property_id: string
+		interest_type: string
+		status: string
+		priority: number
+		funding_option?: PropertyFundingOption | null
+		preferred_payment_methods?: PropertyFundingOption[] | null
+		signature_url?: string | null
+		mortgage_flagged?: boolean
+		created_at: string
+	}
+}
+
+export async function getAvailableProperties() {
+	return apiFetch<{ properties: AvailableProperty[] }>("/properties/available", { method: "GET" })
+}
+
+export async function getMemberProperties() {
+	return apiFetch<{
+		success: boolean
+		summary: MemberPropertiesSummary
+		properties: MemberHouse[]
+	}>("/properties/my", { method: "GET" })
+}
+
+export async function getPropertyMortgage(propertyId: string) {
+	return apiFetch<{ success: boolean; mortgage: PropertyMortgage | null }>(`/properties/${propertyId}/mortgage`, { method: "GET" })
+}
+
+export async function approveEoiForm(id: string) {
+	return apiFetch<{ success: boolean; message: string; data: any }>(`/admin/eoi-forms/${id}/approve`, {
+		method: "POST",
+	})
+}
+
+export async function getPropertyPaymentSetup(propertyId: string) {
+	return apiFetch<{ success: boolean; data: PropertyPaymentSetup; message?: string }>(`/properties/${propertyId}/payment-setup`, {
+		method: "GET",
+	})
+}
+
+export async function getPropertyDocuments(propertyId: string, params?: { page?: number; per_page?: number }) {
+	const query = new URLSearchParams()
+	if (params?.page) query.set("page", String(params.page))
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+
+	return apiFetch<{
+		success: boolean
+		data: PropertyDocument[]
+		pagination: { current_page: number; last_page: number; per_page: number; total: number }
+	}>(`/properties/${propertyId}/documents?${query.toString()}`, { method: "GET" })
+}
+
+export async function uploadPropertyDocument(body: FormData) {
+	return apiFetch<{ success: boolean; message: string; data: PropertyDocument }>(`/properties/documents`, {
+		method: "POST",
+		body,
+		headers: {}, // let browser set multipart headers
+	})
+}
+
+export async function deletePropertyDocument(documentId: string) {
+	return apiFetch<{ success: boolean; message: string }>(`/properties/documents/${documentId}`, {
+		method: "DELETE",
+	})
+}
+
+export async function getPropertyPaymentPlans(params?: {
+	status?: string
+	property_id?: string
+	member_id?: string
+	page?: number
+	per_page?: number
+}) {
+	const query = new URLSearchParams()
+	if (params?.status) query.set("status", params.status)
+	if (params?.property_id) query.set("property_id", params.property_id)
+	if (params?.member_id) query.set("member_id", params.member_id)
+	if (params?.page) query.set("page", String(params.page))
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+
+	return apiFetch<{
+		success: boolean
+		data: PropertyPaymentPlan[]
+		pagination: { current_page: number; last_page: number; per_page: number; total: number }
+	}>(
+		`/admin/property-payment-plans?${query.toString()}`,
+		{ method: "GET" },
+	)
+}
+
+export async function getPendingPropertyPaymentInterests(params?: {
+	property_id?: string
+	member_id?: string
+	page?: number
+	per_page?: number
+}) {
+	const query = new URLSearchParams()
+	if (params?.property_id) query.set("property_id", params.property_id)
+	if (params?.member_id) query.set("member_id", params.member_id)
+	if (params?.page) query.set("page", String(params.page))
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+
+	return apiFetch<{
+		success: boolean
+		data: PendingPlanInterest[]
+		pagination: { current_page: number; last_page: number; per_page: number; total: number }
+	}>(
+		`/admin/property-payment-plans/pending-interests?${query.toString()}`,
+		{ method: "GET" },
+	)
+}
+
+export async function createPropertyPaymentPlan(body: {
+	property_id: string
+	member_id: string
+	interest_id?: string | null
+	funding_option?: PropertyFundingOption | null
+	selected_methods?: PropertyFundingOption[]
+	mix_allocations?: MixFundingAllocationMap | null
+	configuration?: Record<string, unknown> | null
+	schedule?: Record<string, unknown> | null
+	total_amount?: number | null
+	initial_balance?: number | null
+	remaining_balance?: number | null
+	starts_on?: string | null
+	ends_on?: string | null
+	status?: "draft" | "active" | "completed" | "cancelled"
+	metadata?: Record<string, unknown> | null
+}) {
+	return apiFetch<{ success: boolean; message: string; data: PropertyPaymentPlan }>(`/admin/property-payment-plans`, {
+		method: "POST",
+		body,
+	})
+}
+
+export async function updatePropertyPaymentPlan(
+	planId: string,
+	body: {
+		funding_option?: PropertyFundingOption | null
+		selected_methods?: PropertyFundingOption[]
+		mix_allocations?: MixFundingAllocationMap | null
+		configuration?: Record<string, unknown> | null
+		schedule?: Record<string, unknown> | null
+		total_amount?: number | null
+		initial_balance?: number | null
+		remaining_balance?: number | null
+		starts_on?: string | null
+		ends_on?: string | null
+		status?: "draft" | "active" | "completed" | "cancelled"
+		metadata?: Record<string, unknown> | null
+	},
+) {
+	return apiFetch<{ success: boolean; message: string; data: PropertyPaymentPlan }>(`/admin/property-payment-plans/${planId}`, {
+		method: "PUT",
+		body,
+	})
+}
+
+export async function getPropertyPaymentPlan(planId: string) {
+	return apiFetch<{ success: boolean; data: PropertyPaymentPlan }>(`/admin/property-payment-plans/${planId}`, { method: "GET" })
+}
+
+export interface InternalMortgagePlan {
+	id: string
+	property_id?: string | null
+	member_id?: string | null
+	title: string
+	description?: string | null
+	principal: number
+	interest_rate: number
+	tenure_months: number
+	monthly_payment?: number | null
+	frequency: "monthly" | "quarterly" | "biannually" | "annually"
+	status: "draft" | "active" | "completed" | "cancelled"
+	starts_on?: string | null
+	ends_on?: string | null
+	schedule?: Record<string, unknown> | null
+	metadata?: Record<string, unknown> | null
+	configured_by: {
+		id: string
+		first_name?: string | null
+		last_name?: string | null
+	} | null
+	property?: AvailableProperty | null
+	member?: {
+		id: string
+		user?: {
+			first_name?: string | null
+			last_name?: string | null
+			email?: string | null
+			phone?: string | null
+		} | null
+	} | null
+	created_at: string
+	updated_at: string
+}
+
+export async function getInternalMortgagePlans(params?: {
+	status?: string
+	property_id?: string
+	member_id?: string
+	page?: number
+	per_page?: number
+}) {
+	const query = new URLSearchParams()
+	if (params?.status) query.set("status", params.status)
+	if (params?.property_id) query.set("property_id", params.property_id)
+	if (params?.member_id) query.set("member_id", params.member_id)
+	if (params?.page) query.set("page", String(params.page))
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+
+	return apiFetch<{
+		success: boolean
+		data: InternalMortgagePlan[]
+		pagination: { current_page: number; last_page: number; per_page: number; total: number }
+	}>(
+		`/admin/internal-mortgages?${query.toString()}`,
+		{ method: "GET" },
+	)
+}
+
+export async function createInternalMortgagePlan(body: {
+	title: string
+	property_id?: string | null
+	member_id?: string | null
+	description?: string | null
+	principal: number
+	interest_rate: number
+	tenure_months: number
+	frequency: "monthly" | "quarterly" | "biannually" | "annually"
+	starts_on?: string | null
+	ends_on?: string | null
+	status?: "draft" | "active" | "completed" | "cancelled"
+	metadata?: Record<string, unknown> | null
+}) {
+	return apiFetch<{ success: boolean; message: string; data: InternalMortgagePlan }>(`/admin/internal-mortgages`, {
+		method: "POST",
+		body,
+	})
+}
+
+export async function getInternalMortgagePlan(planId: string) {
+	return apiFetch<{ success: boolean; data: InternalMortgagePlan }>(`/admin/internal-mortgages/${planId}`, {
+		method: "GET",
+	})
+}
+
+export async function rejectEoiForm(id: string, reason: string) {
+	return apiFetch<{ success: boolean; message: string; data: any }>(`/admin/eoi-forms/${id}/reject`, {
+		method: "POST",
+		body: { reason },
+	})
+}
+
+export async function submitPropertyInterest(propertyId: string, payload: SubmitPropertyInterestPayload) {
+	return apiFetch<PropertyInterestResponse>(`/properties/${propertyId}/express-interest`, {
+		method: "POST",
+		body: payload,
+	})
+}
+
+export interface AdminRefundMemberSummary {
+	member: {
+		id: string
+		member_number?: string | null
+		name?: string | null
+		staff_id?: string | null
+	}
+	summary: {
+		wallet: {
+			balance: number
+		}
+		contribution: {
+			total: number
+			refunded: number
+			available: number
+		}
+		investment_returns: {
+			total: number
+			refunded: number
+			available: number
+		}
+		equity_wallet: {
+			balance: number
+		}
+		loans: {
+			count: number
+			outstanding_total: number
+			items: Array<{
+				id: string
+				status: string
+				principal: number
+				total_amount: number
+				repaid: number
+				outstanding: number
+			}>
+		}
+	}
+}
+
+export async function getAdminRefundMemberSummary(memberId: string) {
+	return apiFetch<{
+		success: boolean
+		member: AdminRefundMemberSummary["member"]
+		summary: AdminRefundMemberSummary["summary"]
+	}>(`/admin/refund-member/${memberId}`, { method: "GET" })
+}
+
+export interface CreateRefundPayload {
+	member_id: string
+	source: "wallet" | "contribution" | "investment_return" | "equity_wallet"
+	amount: number
+	reason: string
+	notes?: string
+	auto_approve?: boolean
+}
+
+export async function createAdminRefund(payload: CreateRefundPayload) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		data?: {
+			refund: {
+				id: string
+				amount: number
+				source: string
+				reason: string
+				reference?: string | null
+			}
+			summary: AdminRefundMemberSummary["summary"]
+		}
+	}>("/admin/refund-member", {
+		method: "POST",
+		body: payload,
+	})
+}
+
 // Investment Plans API
 export async function getInvestmentPlans(params?: { search?: string; is_active?: string; risk_level?: string; return_type?: string; page?: number; per_page?: number }) {
 	const query = new URLSearchParams()
@@ -1864,4 +2497,69 @@ export async function rejectMemberSubscription(subscriptionId: string, rejection
 	})
 }
 
+export interface SubmitPropertyPaymentPayload {
+	method: PropertyFundingOption
+	amount: number
+	notes?: string
+	payer_name?: string
+	payer_phone?: string
+	payment_date?: string
+	reference?: string
+	metadata?: Record<string, unknown>
+}
 
+export async function submitPropertyPayment(propertyId: string, payload: SubmitPropertyPaymentPayload | FormData) {
+	const isFormData = payload instanceof FormData
+
+	return apiFetch<{ success: boolean; data: PropertyPaymentSetup; message?: string; transaction?: { id: string; status: string; reference: string } }>(
+		`/properties/${propertyId}/payments`,
+		{
+			method: "POST",
+			body: payload,
+			headers: isFormData ? {} : undefined,
+		},
+	)
+}
+
+export interface SearchedMember {
+	id: string
+	member_number: string
+	name: string
+	email: string | null
+	phone_number: string | null
+	active_loans: number
+	outstanding_balance: number
+}
+
+export async function searchMembers(query: string) {
+	if (!query || query.length < 2) {
+		return { success: true, data: [] as SearchedMember[] }
+	}
+
+	return apiFetch<{ success: boolean; data: SearchedMember[]; message?: string }>(
+		`/admin/loan-repayments/members?query=${encodeURIComponent(query)}`,
+		{ method: "GET" },
+	)
+}
+
+export interface ApprovedPropertyInterest {
+	id: string
+	property_id: string
+	member_id: string
+	status: string
+	property: {
+		id: string
+		title: string
+		location?: string | null
+		address?: string | null
+		price?: number | null
+	}
+	created_at: string
+}
+
+export async function getApprovedPropertyInterests(memberId: string) {
+	return apiFetch<{ success: boolean; data: ApprovedPropertyInterest[]; pagination?: { current_page: number; last_page: number; per_page: number; total: number } }>(
+		`/admin/property-payment-plans/pending-interests?member_id=${memberId}&per_page=100`,
+		{ method: "GET" },
+	)
+}

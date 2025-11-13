@@ -1,138 +1,161 @@
 "use client"
 
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { MapPin, Ruler, Home, Calendar } from "lucide-react"
-import Image from "next/image"
-import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { MapPin, Home, Ruler, BedDouble, CalendarDays } from "lucide-react"
 
-export function PropertyDetailsTab() {
-  // Mock data - replace with actual data fetching
-  const property = {
-    id: "1",
-    name: "Luxury 3-Bedroom Apartment",
-    type: "House",
-    description:
-      "Modern 3-bedroom apartment with spacious living areas, contemporary finishes, and excellent natural lighting. Located in a prime residential area with easy access to major roads and amenities.",
-    price: 25000000,
-    size: "150 sqm",
-    location: "Maitama, Abuja",
-    bedrooms: 3,
-    bathrooms: 2,
-    status: "Available",
-    dateAdded: "2024-01-15",
-    images: ["/modern-apartment-exterior.png", "/modern-living-room.png", "/modern-kitchen.png", "/modern-bedroom.png"],
-    features: ["24/7 Security", "Parking Space", "Generator", "Water Supply", "Fitted Kitchen", "Balcony"],
-  }
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+
+type PropertyDetailsTabProps = {
+  property?: {
+    id?: string
+    title?: string
+    type?: string
+    status?: string
+    location?: string
+    size?: number | string | null
+    price?: number | null
+    bedrooms?: number | null
+    listedAt?: string | null
+    description?: string | null
+    features?: string[] | null
+    interestStatus?: string | null
+  } | null
+}
+
+function formatSize(size?: number | string | null) {
+  if (!size && size !== 0) return "—"
+  const numeric = Number(size)
+  if (!Number.isFinite(numeric)) return String(size)
+  return `${numeric} sqm`
+}
+
+function formatCurrency(amount?: number | null) {
+  if (!amount && amount !== 0) return "—"
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 0,
+  }).format(amount)
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return "—"
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return "—"
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+  })
+}
+
+export function PropertyDetailsTab({ property }: PropertyDetailsTabProps) {
+  if (!property) return null
+
+  const features = Array.isArray(property.features) ? property.features.filter(Boolean) : []
+  const statusLabel = property.status?.replace(/_/g, " ") ?? "Available"
+  const interestStatus = property.interestStatus?.toLowerCase()
+  const interestDisabled = interestStatus === "pending" || interestStatus === "approved"
 
   return (
     <div className="space-y-6">
-      {/* Image Gallery */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <Image
-                src={property.images[0] || "/placeholder.svg"}
-                alt={property.name}
-                width={600}
-                height={400}
-                className="w-full h-[400px] object-cover rounded-lg"
-              />
+      <Card className="border border-amber-100 shadow-sm">
+        <div className="space-y-6 p-6">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold text-foreground">{property.title ?? "Property"}</h2>
+              {property.location && (
+                <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <MapPin className="h-4 w-4 text-amber-500" />
+                  {property.location}
+                </p>
+              )}
             </div>
-            {property.images.slice(1).map((image, index) => (
-              <Image
-                key={index}
-                src={image || "/placeholder.svg"}
-                alt={`${property.name} ${index + 2}`}
-                width={300}
-                height={200}
-                className="w-full h-[200px] object-cover rounded-lg"
-              />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Property Information */}
-      <Card>
-        <CardContent className="p-6 space-y-6">
-          <div className="flex items-start justify-between">
-            <div>
-              <h2 className="text-2xl font-bold">{property.name}</h2>
-              <div className="flex items-center gap-2 mt-2 text-muted-foreground">
-                <MapPin className="h-4 w-4" />
-                <span>{property.location}</span>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-3xl font-bold text-primary">₦{property.price.toLocaleString()}</div>
-              <Badge variant={property.status === "Available" ? "default" : "secondary"} className="mt-2">
-                {property.status}
+            <div className="flex flex-col items-start gap-2 md:items-end">
+              <p className="text-2xl font-bold text-amber-600">{formatCurrency(property.price)}</p>
+              <Badge variant="secondary" className="bg-amber-100 text-amber-700 capitalize">
+                {statusLabel}
               </Badge>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-4 border-y">
-            <div className="flex items-center gap-2">
-              <Home className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <div className="text-sm text-muted-foreground">Type</div>
-                <div className="font-semibold">{property.type}</div>
-              </div>
+          <div className="grid gap-4 rounded-lg border border-amber-100 bg-amber-50/40 p-4 md:grid-cols-4">
+            <div className="flex flex-col gap-1">
+              <span className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                <Home className="h-4 w-4 text-amber-500" />
+                Type
+              </span>
+              <span className="text-sm font-semibold capitalize">{property.type ?? "—"}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Ruler className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <div className="text-sm text-muted-foreground">Size</div>
-                <div className="font-semibold">{property.size}</div>
-              </div>
+            <div className="flex flex-col gap-1">
+              <span className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                <Ruler className="h-4 w-4 text-amber-500" />
+                Size
+              </span>
+              <span className="text-sm font-semibold">{formatSize(property.size)}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Home className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <div className="text-sm text-muted-foreground">Bedrooms</div>
-                <div className="font-semibold">{property.bedrooms}</div>
-              </div>
+            <div className="flex flex-col gap-1">
+              <span className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                <BedDouble className="h-4 w-4 text-amber-500" />
+                Bedrooms
+              </span>
+              <span className="text-sm font-semibold">{property.bedrooms ?? "—"}</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <div className="text-sm text-muted-foreground">Listed</div>
-                <div className="font-semibold">{new Date(property.dateAdded).toLocaleDateString()}</div>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h3 className="font-semibold text-lg mb-2">Description</h3>
-            <p className="text-muted-foreground leading-relaxed">{property.description}</p>
-          </div>
-
-          <div>
-            <h3 className="font-semibold text-lg mb-3">Features & Amenities</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-              {property.features.map((feature, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-primary" />
-                  <span className="text-sm">{feature}</span>
-                </div>
-              ))}
+            <div className="flex flex-col gap-1">
+              <span className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
+                <CalendarDays className="h-4 w-4 text-amber-500" />
+                Listed
+              </span>
+              <span className="text-sm font-semibold">{formatDate(property.listedAt)}</span>
             </div>
           </div>
 
-          <div className="pt-4 border-t">
-            <Link href={`/dashboard/properties/${property.id}/subscribe`}>
-              <Button size="lg" className="w-full">
-                Subscribe to This Property
-              </Button>
-            </Link>
-            <p className="text-sm text-muted-foreground text-center mt-2">
-              Fill the Expression of Interest form to begin your property subscription
+          {property.description && (
+            <div>
+              <h4 className="mb-2 text-lg font-semibold text-foreground">Description</h4>
+              <p className="whitespace-pre-line text-sm leading-6 text-muted-foreground">{property.description}</p>
+            </div>
+          )}
+
+          {features.length > 0 && (
+            <div>
+              <h4 className="mb-4 text-lg font-semibold text-foreground">Features & Amenities</h4>
+              <div className="grid gap-x-6 gap-y-3 sm:grid-cols-2 md:grid-cols-3">
+                {features.map((feature) => (
+                  <div key={feature} className="flex items-center gap-2 text-sm text-foreground">
+                    <span className="h-2 w-2 rounded-full bg-amber-500" />
+                    {feature}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="space-y-2 border-t pt-4">
+            <Button
+              asChild
+              disabled={interestDisabled}
+              className="h-12 w-full rounded-md bg-amber-500 text-sm font-semibold text-white transition hover:bg-amber-600"
+              variant={interestDisabled ? "secondary" : "default"}
+            >
+              <Link href={property.id ? `/dashboard/properties/${property.id}/subscribe` : "#"}>
+                {interestDisabled ? "Interest Submitted" : "Subscribe to This Property"}
+              </Link>
+            </Button>
+            <p className="text-center text-xs text-muted-foreground">
+              {interestDisabled
+                ? "You have already submitted an expression of interest for this property."
+                : "Fill the Expression of Interest form to begin your property subscription"}
             </p>
+            {interestStatus && (
+              <p className="text-center text-xs text-muted-foreground">
+                Current status: <span className="font-semibold capitalize">{interestStatus}</span>
+              </p>
+            )}
           </div>
-        </CardContent>
+        </div>
       </Card>
     </div>
   )

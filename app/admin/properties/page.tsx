@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Plus, Search, Home, MapPin, DollarSign, Users, Eye, Edit, Trash2, CheckCircle, XCircle, Loader2 } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
@@ -30,6 +30,9 @@ interface Property {
 
 export default function AdminPropertiesPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const flash = searchParams.get("flash")
+  const searchParamsString = searchParams.toString()
   const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [properties, setProperties] = useState<Property[]>([])
@@ -52,6 +55,28 @@ export default function AdminPropertiesPage() {
     fetchPendingPayments()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paymentFilter])
+
+  useEffect(() => {
+    if (!flash) return
+
+    if (flash === "property_created") {
+      toast({
+        title: "Property Created",
+        description: "The property has been added successfully.",
+      })
+    } else if (flash === "property_updated") {
+      toast({
+        title: "Property Updated",
+        description: "Changes to the property were saved.",
+      })
+    }
+
+    const params = new URLSearchParams(searchParamsString)
+    params.delete("flash")
+    const queryString = params.toString()
+    router.replace(queryString ? `/admin/properties?${queryString}` : "/admin/properties", { scroll: false })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flash, searchParamsString])
 
   const fetchProperties = async () => {
     try {

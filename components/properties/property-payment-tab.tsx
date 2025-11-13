@@ -1,329 +1,1130 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo, useCallback, type ChangeEvent } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Upload, CreditCard, Building2, Users, Receipt, CheckCircle2, Wallet, Loader2 } from "lucide-react"
+import {
+	Upload,
+	CreditCard,
+	Building2,
+	Users,
+	Receipt,
+	CheckCircle2,
+	Wallet,
+	Loader2,
+	AlertTriangle,
+} from "lucide-react"
 import { Progress } from "@/components/ui/progress"
-import { apiFetch } from "@/lib/api/client"
-import { toast as sonnerToast } from "sonner"
+import type {
+	MemberHouse,
+	PropertyPaymentSetup,
+	PropertyLedgerEntry,
+	PropertyPaymentHistoryEntry,
+	PropertyFundingOption,
+	SubmitPropertyPaymentPayload,
+} from "@/lib/api/client"
+import { getPropertyPaymentSetup, submitPropertyPayment } from "@/lib/api/client"
+import { useToast } from "@/hooks/use-toast"
 
-export function PropertyPaymentTab() {
-  const [paymentMethod, setPaymentMethod] = useState<string>("cash")
-  const [fundingType, setFundingType] = useState<string>("single")
-  const [equityWalletBalance, setEquityWalletBalance] = useState<number>(0)
-  const [loadingBalance, setLoadingBalance] = useState(true)
+type PropertyPaymentTabProps = {
+	propertyId: string
+	house?: MemberHouse | null
+}
 
-  // Mock data
-  const property = {
-    price: 25000000,
-    name: "Luxury 3-Bedroom Apartment",
-  }
+type MethodInfo = {
+	label: string
+	description?: string
+	icon: React.ComponentType<{ className?: string }>
+}
 
-  const paymentHistory = [
-    { id: 1, date: "2024-01-15", amount: 10000000, method: "Cash", status: "Verified", receipt: "RCP-001" },
-    { id: 2, date: "2024-02-15", amount: 5000000, method: "Cooperative", status: "Verified", receipt: "RCP-002" },
-    { id: 3, date: "2024-03-15", amount: 5000000, method: "Cash", status: "Pending", receipt: "RCP-003" },
-  ]
+const METHOD_INFO: Record<string, MethodInfo> = {
+	equity_wallet: {
+		label: "Equity Wallet",
+		description: "Use your accumulated equity wallet balance to pay for this property.",
+		icon: Wallet,
+	},
+	cash: {
+		label: "Cash Payment",
+		description: "Record a bank transfer or cash deposit with evidence.",
+		icon: CreditCard,
+	},
+	cooperative: {
+		label: "Cooperative Deduction",
+		description: "Set up periodic deductions through the cooperative.",
+		icon: Users,
+	},
+	mortgage: {
+		label: "Mortgage",
+		description: "Apply a mortgage plan configured for this property.",
+		icon: Building2,
+	},
+	loan: {
+		label: "Loan",
+		description: "Fund this payment using an approved loan facility.",
+		icon: Building2,
+	},
+}
 
-  const totalPaid = paymentHistory.reduce((sum, payment) => sum + payment.amount, 0)
-  const balance = property.price - totalPaid
-  const progress = (totalPaid / property.price) * 100
+const formatCurrency = (value?: number) => {
+	const amount = Number.isFinite(value) ? Number(value) : 0
+	return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 }).format(amount)
+}
 
-  useEffect(() => {
-    // Fetch equity wallet balance
-    const fetchEquityBalance = async () => {
-      try {
-        setLoadingBalance(true)
-        const response = await apiFetch<{ success: boolean; data: { balance: number } }>('/user/equity-wallet/balance')
-        if (response.success && response.data) {
-          setEquityWalletBalance(response.data.balance || 0)
-        }
-      } catch (error) {
-        console.error('Error fetching equity wallet balance:', error)
-        // Silently fail - user can still use other payment methods
-      } finally {
-        setLoadingBalance(false)
-      }
-    }
-    fetchEquityBalance()
-  }, [])
+const formatDate = (value?: string | null) => {
+	if (!value) return "—"
+	const date = new Date(value)
+	if (Number.isNaN(date.getTime())) return value
+	return date.toLocaleDateString(undefined, {
+		year: "numeric",
+		month: "short",
+		day: "numeric",
+	})
+}
 
-  return (
-    <div className="space-y-6">
-      {/* Payment Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Payment Summary</CardTitle>
-          <CardDescription>Track your payment progress for {property.name}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 border rounded-lg">
-              <div className="text-sm text-muted-foreground">Total Price</div>
-              <div className="text-2xl font-bold">₦{property.price.toLocaleString()}</div>
-            </div>
-            <div className="p-4 border rounded-lg">
-              <div className="text-sm text-muted-foreground">Amount Paid</div>
-              <div className="text-2xl font-bold text-green-600">₦{totalPaid.toLocaleString()}</div>
-            </div>
-            <div className="p-4 border rounded-lg">
-              <div className="text-sm text-muted-foreground">Balance</div>
-              <div className="text-2xl font-bold text-orange-600">₦{balance.toLocaleString()}</div>
-            </div>
-          </div>
+export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProps) {
+	const [setup, setSetup] = useState<PropertyPaymentSetup | null>(null)
+	const [paymentMethod, setPaymentMethod] = useState<string>("")
+	const [fundingType, setFundingType] = useState<"single" | "mixed">("single")
+	const [loading, setLoading] = useState<boolean>(true)
+	const [refreshKey, setRefreshKey] = useState<number>(0)
+	const [error, setError] = useState<string | null>(null)
+	const [equityAmount, setEquityAmount] = useState<string>("")
+	const [equityNotes, setEquityNotes] = useState<string>("")
+	const [cashAmount, setCashAmount] = useState<string>("")
+	const [cashPayerName, setCashPayerName] = useState<string>("")
+	const [cashPayerPhone, setCashPayerPhone] = useState<string>("")
+	const [cashNotes, setCashNotes] = useState<string>("")
+	const [cashEvidence, setCashEvidence] = useState<File | null>(null)
+	const [cashEvidenceInputKey, setCashEvidenceInputKey] = useState<number>(0)
+	const [cooperativeAmount, setCooperativeAmount] = useState<string>("")
+	const [cooperativeStart, setCooperativeStart] = useState<string>("")
+	const [cooperativeDuration, setCooperativeDuration] = useState<string>("")
+	const [cooperativeNotes, setCooperativeNotes] = useState<string>("")
+	const [mortgageProvider, setMortgageProvider] = useState<string>("")
+	const [mortgageInterest, setMortgageInterest] = useState<string>("")
+	const [mortgageTenure, setMortgageTenure] = useState<string>("")
+	const [mortgageDownPayment, setMortgageDownPayment] = useState<string>("")
+	const [mortgageNotes, setMortgageNotes] = useState<string>("")
+	const [submittingMethod, setSubmittingMethod] = useState<PropertyFundingOption | null>(null)
+	const isSubmitting = submittingMethod !== null
 
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>Payment Progress</span>
-              <span className="font-semibold">{progress.toFixed(1)}%</span>
-            </div>
-            <Progress value={progress} className="h-3" />
-          </div>
+	const { toast } = useToast()
 
-          {progress === 100 && (
-            <div className="flex items-center gap-2 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <CheckCircle2 className="h-5 w-5 text-green-600" />
-              <div>
-                <div className="font-semibold text-green-900">Payment Complete!</div>
-                <div className="text-sm text-green-700">
-                  Your certificate of payment completion is ready for download.
-                </div>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+	const fetchSetup = useCallback(async () => {
+		if (!propertyId) return
+		try {
+			setLoading(true)
+			setError(null)
+			const response = await getPropertyPaymentSetup(propertyId)
+			if (!response.success) {
+				setSetup(null)
+				setError(response.message ?? "Unable to load payment setup for this property.")
+				return
+			}
+			setSetup(response.data)
+		} catch (err: any) {
+			setSetup(null)
+			setError(err?.message ?? "Failed to load payment setup.")
+		} finally {
+			setLoading(false)
+		}
+	}, [propertyId])
 
-      {/* Make Payment */}
-      {balance > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Make Payment</CardTitle>
-            <CardDescription>Choose your payment method and funding type</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Funding Type */}
-            <div className="space-y-3">
-              <Label>Funding Type</Label>
-              <RadioGroup value={fundingType} onValueChange={setFundingType}>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="single" id="single" />
-                  <Label htmlFor="single" className="font-normal cursor-pointer">
-                    Single Payment Method
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="mixed" id="mixed" />
-                  <Label htmlFor="mixed" className="font-normal cursor-pointer">
-                    Mixed Funding (Cash + Cooperative Deduction)
-                  </Label>
-                </div>
-              </RadioGroup>
-            </div>
+	useEffect(() => {
+		void fetchSetup()
+	}, [fetchSetup, refreshKey])
 
-            {/* Payment Method */}
-            <div className="space-y-3">
-              <Label>Payment Method</Label>
-              <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
-                <div className="flex items-center space-x-2 p-3 border rounded-lg">
-                  <RadioGroupItem value="equity_wallet" id="equity_wallet" />
-                  <Label htmlFor="equity_wallet" className="flex items-center gap-2 font-normal cursor-pointer flex-1">
-                    <Wallet className="h-4 w-4" />
-                    Equity Wallet (Property Deposit)
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2 p-3 border rounded-lg">
-                  <RadioGroupItem value="cash" id="cash" />
-                  <Label htmlFor="cash" className="flex items-center gap-2 font-normal cursor-pointer flex-1">
-                    <CreditCard className="h-4 w-4" />
-                    Cash Payment (with evidence upload)
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2 p-3 border rounded-lg">
-                  <RadioGroupItem value="mortgage" id="mortgage" />
-                  <Label htmlFor="mortgage" className="flex items-center gap-2 font-normal cursor-pointer flex-1">
-                    <Building2 className="h-4 w-4" />
-                    Mortgage
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2 p-3 border rounded-lg">
-                  <RadioGroupItem value="cooperative" id="cooperative" />
-                  <Label htmlFor="cooperative" className="flex items-center gap-2 font-normal cursor-pointer flex-1">
-                    <Users className="h-4 w-4" />
-                    Cooperative Deduction
-                  </Label>
-                </div>
-              </RadioGroup>
-            </div>
+	const propertySummary = setup?.property ?? (house
+		? {
+				id: house.id,
+				title: house.title,
+				location: house.location,
+				price: house.price,
+				total_paid: house.total_paid,
+				balance: Math.max(0, house.price - house.total_paid),
+				progress: house.progress ?? 0,
+				status: house.interest_status ?? house.status ?? "pending",
+			}
+		: null)
 
-            {/* Payment Forms */}
-            {paymentMethod === "equity_wallet" && (
-              <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="font-semibold text-blue-900 mb-2">Equity Wallet Payment</div>
-                  <div className="text-sm text-blue-700">
-                    Pay from your equity wallet balance. This option is specifically for property deposits.
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="equity-amount">Amount to Pay from Equity Wallet</Label>
-                  <Input 
-                    id="equity-amount" 
-                    type="number" 
-                    placeholder="Enter amount" 
-                    max={Math.min(balance, equityWalletBalance)}
-                    min="0"
-                  />
-                  <div className="text-sm text-muted-foreground">
-                    Available balance: ₦{loadingBalance ? (
-                      <Loader2 className="h-3 w-3 inline animate-spin" />
-                    ) : (
-                      equityWalletBalance.toLocaleString()
-                    )}
-                  </div>
-                  {equityWalletBalance < balance && (
-                    <div className="text-sm text-orange-600">
-                      Your equity wallet balance is less than the remaining balance. You can pay ₦{equityWalletBalance.toLocaleString()} from equity wallet and pay the rest using another method.
-                    </div>
-                  )}
-                </div>
-                <Button 
-                  className="w-full" 
-                  disabled={equityWalletBalance === 0 || loadingBalance}
-                >
-                  Pay from Equity Wallet
-                </Button>
-              </div>
-            )}
+	const progressValue = propertySummary ? Math.min(100, Math.max(0, propertySummary.progress ?? 0)) : 0
+	const balance = propertySummary?.balance ?? Math.max(0, (house?.price ?? 0) - (house?.total_paid ?? 0))
+	const equityWalletBalance = setup?.equity_wallet.balance ?? 0
+	const paymentHistory = setup?.payment_history ?? []
+	const paymentPlan = setup?.payment_plan ?? null
+	const ledgerEntries = setup?.ledger_entries ?? []
+	const ledgerTotalPaid = setup?.ledger_total_paid ?? null
 
-            {paymentMethod === "cash" && (
-              <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
-                <div className="space-y-2">
-                  <Label htmlFor="amount">Payment Amount</Label>
-                  <Input id="amount" type="number" placeholder="Enter amount" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="evidence">Upload Payment Evidence</Label>
-                  <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary transition-colors cursor-pointer">
-                    <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                    <div className="text-sm text-muted-foreground">
-                      Click to upload payment evidence (receipt, bank statement, etc.)
-                    </div>
-                  </div>
-                </div>
-                <Button className="w-full">Submit Payment Evidence</Button>
-              </div>
-            )}
+	const isMixPlan = paymentPlan?.funding_option === "mix"
+	const mixAllocations = isMixPlan ? paymentPlan?.configuration?.mix_allocations ?? null : null
+	const totalMixAmount = mixAllocations?.total_amount ?? paymentPlan?.total_amount ?? propertySummary?.price ?? 0
 
-            {paymentMethod === "mortgage" && (
-              <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
-                <div className="space-y-2">
-                  <Label htmlFor="mortgage-house">Mortgage House</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select mortgage provider" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="fmbn">Federal Mortgage Bank of Nigeria</SelectItem>
-                      <SelectItem value="abbey">Abbey Mortgage Bank</SelectItem>
-                      <SelectItem value="infinity">Infinity Trust Mortgage Bank</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="interest-rate">Interest Rate (%)</Label>
-                  <Input id="interest-rate" type="number" placeholder="e.g., 12.5" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="duration">Loan Duration (Years)</Label>
-                  <Input id="duration" type="number" placeholder="e.g., 20" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="down-payment">Down Payment</Label>
-                  <Input id="down-payment" type="number" placeholder="Enter down payment amount" />
-                </div>
-                <Button className="w-full">Apply for Mortgage</Button>
-              </div>
-            )}
+	const ledgerTotalsBySource = useMemo(() => {
+		return ledgerEntries.reduce((acc, entry) => {
+			const key = entry.source
+			if (!key || entry.direction !== "credit") {
+				return acc
+			}
+			const amount = Number(entry.amount ?? 0)
+			if (!Number.isFinite(amount)) {
+				return acc
+			}
+			acc[key] = (acc[key] ?? 0) + amount
+			return acc
+		}, {} as Record<string, number>)
+	}, [ledgerEntries])
 
-            {paymentMethod === "cooperative" && (
-              <div className="space-y-4 p-4 border rounded-lg bg-muted/50">
-                <div className="space-y-2">
-                  <Label htmlFor="monthly-deduction">Monthly Deduction Amount</Label>
-                  <Input id="monthly-deduction" type="number" placeholder="Enter monthly deduction" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="start-date">Start Date</Label>
-                  <Input id="start-date" type="date" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="duration-months">Duration (Months)</Label>
-                  <Input id="duration-months" type="number" placeholder="e.g., 24" />
-                </div>
-                <Button className="w-full">Setup Cooperative Deduction</Button>
-              </div>
-            )}
+	const mixAllocationSummary = useMemo(() => {
+		if (!isMixPlan || !mixAllocations) return [] as Array<{
+			method: string
+			label: string
+			percentage: number
+			targetAmount: number
+			settledAmount: number
+			remainingAmount: number
+		}>
 
-            {fundingType === "mixed" && (
-              <div className="p-4 border-2 border-dashed rounded-lg bg-blue-50">
-                <div className="text-sm font-semibold mb-2">Mixed Funding Setup</div>
-                <div className="text-sm text-muted-foreground mb-4">
-                  You can combine cash payment with cooperative deduction. Set up both payment methods above.
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-xs">Cash Portion</Label>
-                    <Input type="number" placeholder="Amount" />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Cooperative Portion</Label>
-                    <Input type="number" placeholder="Amount" />
-                  </div>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+		const percentages = (mixAllocations.percentages ?? {}) as Record<string, number>
+		const amountsRecord = (mixAllocations.amounts ?? {}) as Record<string, number>
+		const entries: Array<{
+			method: string
+			label: string
+			percentage: number
+			targetAmount: number
+			settledAmount: number
+			remainingAmount: number
+		}> = []
 
-      {/* Payment History */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Payment History</CardTitle>
-          <CardDescription>All your payment transactions for this property</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {paymentHistory.map((payment) => (
-              <div key={payment.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className="p-2 bg-primary/10 rounded-lg">
-                    <Receipt className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <div className="font-semibold">₦{payment.amount.toLocaleString()}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {payment.method} • {new Date(payment.date).toLocaleDateString()}
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge variant={payment.status === "Verified" ? "default" : "secondary"}>{payment.status}</Badge>
-                  <Button variant="outline" size="sm">
-                    View Receipt
-                  </Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
+		Object.keys(percentages).forEach((method) => {
+			const percentage = Number(percentages[method] ?? 0)
+			const targetAmount = Number(
+				(amountsRecord[method] ?? ((percentage / 100) * (totalMixAmount ?? 0))).toFixed(2),
+			)
+			const settledAmount = Number((ledgerTotalsBySource[method] ?? 0).toFixed(2))
+			const remainingAmount = Math.max(0, Number((targetAmount - settledAmount).toFixed(2)))
+			entries.push({
+				method,
+				label: method.replace(/_/g, " "),
+				percentage,
+				targetAmount,
+				settledAmount,
+				remainingAmount,
+			})
+		})
+
+		return entries
+	}, [isMixPlan, mixAllocations, totalMixAmount, ledgerTotalsBySource])
+
+	const availableMethods = useMemo(() => {
+		if (isMixPlan && mixAllocationSummary.length > 0) {
+			return mixAllocationSummary.map((entry) => entry.method)
+		}
+
+		const planMethods = paymentPlan?.selected_methods?.filter((method) => method !== "mix") ?? []
+		if (planMethods.length > 0) {
+			return planMethods
+		}
+
+		const setupPreferred = setup?.preferred_payment_methods?.filter((method) => method !== "mix") ?? []
+		if (setupPreferred.length > 0) {
+			return setupPreferred
+		}
+
+		const housePreferred = house?.preferred_payment_methods?.filter((method) => method !== "mix") ?? []
+		if (housePreferred.length > 0) {
+			return housePreferred
+		}
+
+		if (setup?.funding_option && setup.funding_option !== "mix") {
+			return [setup.funding_option]
+		}
+		if (house?.funding_option && house.funding_option !== "mix") {
+			return [house.funding_option]
+		}
+		return ["cash"]
+	}, [isMixPlan, mixAllocationSummary, paymentPlan?.selected_methods, setup?.preferred_payment_methods, house?.preferred_payment_methods, setup?.funding_option, house?.funding_option])
+
+	useEffect(() => {
+		if (!paymentMethod && availableMethods.length > 0) {
+			setPaymentMethod(availableMethods[0])
+			return
+		}
+
+		if (paymentMethod && !availableMethods.includes(paymentMethod)) {
+			setPaymentMethod(availableMethods[0])
+		}
+	}, [availableMethods, paymentMethod])
+
+	useEffect(() => {
+		const shouldBeMixed =
+			setup?.funding_option === "mix" ||
+			house?.funding_option === "mix" ||
+			availableMethods.includes("equity_wallet") && availableMethods.includes("cooperative")
+		setFundingType(shouldBeMixed ? "mixed" : "single")
+	}, [setup?.funding_option, house?.funding_option, availableMethods])
+
+	useEffect(() => {
+		if (!isMixPlan) return
+
+		const equityAllocation = getMixAllocation("equity_wallet")
+		if (equityAllocation && !equityAmount) {
+			setEquityAmount(equityAllocation.remainingAmount > 0 ? equityAllocation.remainingAmount.toFixed(2) : "")
+		}
+
+		const cooperativeAllocation = getMixAllocation("cooperative")
+		if (cooperativeAllocation && !cooperativeAmount) {
+			setCooperativeAmount(
+				cooperativeAllocation.remainingAmount > 0 ? cooperativeAllocation.remainingAmount.toFixed(2) : "",
+			)
+		}
+	}, [isMixPlan, mixAllocationSummary, equityAmount, cooperativeAmount])
+
+	const supportsMixedFunding = !isMixPlan && availableMethods.includes("equity_wallet") && availableMethods.includes("cooperative")
+
+	const renderMixAllocationReminder = (method: string) => {
+		if (!isMixPlan) return null
+		const allocation = mixAllocationSummary.find((entry) => entry.method === method)
+		if (!allocation) return null
+
+		return (
+			<div className="rounded-md border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800">
+				<div className="font-semibold text-blue-900">Plan allocation</div>
+				<div>Target: {formatCurrency(allocation.targetAmount)}</div>
+				<div>Recorded so far: {formatCurrency(allocation.settledAmount)}</div>
+				<div>Remaining to assign: {formatCurrency(allocation.remainingAmount)}</div>
+			</div>
+		)
+	}
+
+	const getMixAllocation = (method: string) =>
+		isMixPlan ? mixAllocationSummary.find((entry) => entry.method === method) ?? null : null
+
+	const handleRetry = () => setRefreshKey((prev) => prev + 1)
+
+	const handleCashEvidenceChange = (event: ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0] ?? null
+		setCashEvidence(file)
+		setCashEvidenceInputKey((prev) => prev + 1)
+	}
+
+	const handleSubmitPayment = async (
+		method: PropertyFundingOption,
+		overrides: { amount?: number; metadata?: Record<string, unknown>; notes?: string } = {},
+	) => {
+		if (!propertyId) {
+			toast({
+				title: "Missing property",
+				description: "We could not determine which property to apply this payment to.",
+				variant: "destructive",
+			})
+			return
+		}
+
+		const allocation = getMixAllocation(method)
+		const planRemaining = typeof paymentPlan?.remaining_balance === "number" ? paymentPlan.remaining_balance : balance
+		const effectiveRemaining = allocation ? allocation.remainingAmount : planRemaining
+
+		let amountValue = overrides.amount
+
+		if (amountValue === undefined) {
+			switch (method) {
+				case "equity_wallet":
+					amountValue = Number.parseFloat(equityAmount || "0")
+					break
+				case "cash":
+					amountValue = Number.parseFloat(cashAmount || "0")
+					break
+				case "cooperative":
+					amountValue = Number.parseFloat(cooperativeAmount || "0")
+					break
+				case "mortgage":
+					amountValue = allocation ? allocation.remainingAmount : balance
+					break
+				case "loan":
+					amountValue = Number.parseFloat(cooperativeAmount || "0")
+					break
+				default:
+					amountValue = Number.parseFloat(equityAmount || "0")
+			}
+		}
+
+		if (!Number.isFinite(amountValue) || amountValue === undefined || amountValue <= 0) {
+			toast({
+				title: "Invalid amount",
+				description: "Enter an amount greater than zero to proceed.",
+				variant: "destructive",
+			})
+			return
+		}
+
+		const remainingCap = effectiveRemaining ?? balance
+
+		if (remainingCap <= 0.01) {
+			toast({
+				title: "Allocation fulfilled",
+				description: "This funding method has no remaining allocation on the plan.",
+				variant: "destructive",
+			})
+			return
+		}
+
+		if (amountValue - remainingCap > 0.01) {
+			toast({
+				title: "Amount too high",
+				description: "The amount exceeds the remaining allocation for this payment method.",
+				variant: "destructive",
+			})
+			return
+		}
+
+		if (method === "equity_wallet" && amountValue > equityWalletBalance) {
+			toast({
+				title: "Insufficient balance",
+				description: "Your equity wallet balance is not enough to cover this payment.",
+				variant: "destructive",
+			})
+			return
+		}
+
+		if (method === "cash" && !cashPayerName.trim()) {
+			toast({
+				title: "Payer name required",
+				description: "Please provide the payer name for manual payments.",
+				variant: "destructive",
+			})
+			return
+		}
+
+		setSubmittingMethod(method)
+
+		try {
+			const normalizedAmount = Number(Number(amountValue).toFixed(2))
+			const metadata: Record<string, unknown> = { ...(overrides.metadata ?? {}) }
+
+			if (method === "cooperative") {
+				if (cooperativeStart) metadata.start_date = cooperativeStart
+				if (cooperativeDuration) metadata.duration_months = cooperativeDuration
+				if (cooperativeAmount) metadata.scheduled_amount = cooperativeAmount
+			}
+
+			if (method === "mortgage") {
+				if (mortgageProvider) metadata.provider = mortgageProvider
+				if (mortgageInterest) metadata.interest_rate = mortgageInterest
+				if (mortgageTenure) metadata.tenure_years = mortgageTenure
+				if (mortgageDownPayment) metadata.down_payment = mortgageDownPayment
+			}
+
+			let body: SubmitPropertyPaymentPayload | FormData
+
+			if (method === "cash") {
+				const formData = new FormData()
+				formData.append("method", method)
+				formData.append("amount", normalizedAmount.toString())
+				formData.append("payer_name", cashPayerName)
+				if (cashPayerPhone) formData.append("payer_phone", cashPayerPhone)
+				if (cashNotes) formData.append("notes", cashNotes)
+				if (cashEvidence) formData.append("evidence", cashEvidence)
+				Object.entries(metadata).forEach(([key, value]) => {
+					if (value !== undefined && value !== null && value !== "") {
+						formData.append(`metadata[${key}]`, String(value))
+					}
+				})
+				body = formData
+			} else {
+				const payload: SubmitPropertyPaymentPayload = {
+					method,
+					amount: normalizedAmount,
+				}
+
+				const implicitNotes =
+					overrides.notes ??
+					(method === "equity_wallet"
+						? equityNotes
+						: method === "cooperative"
+							? cooperativeNotes
+							: method === "mortgage"
+								? mortgageNotes
+								: undefined)
+
+				if (implicitNotes) {
+					payload.notes = implicitNotes
+				}
+
+				if (Object.keys(metadata).length > 0) {
+					payload.metadata = metadata
+				}
+
+				body = payload
+			}
+
+			const response = await submitPropertyPayment(propertyId, body)
+
+			if (!response.success) {
+				throw new Error(response.message ?? "Unable to record payment at this time.")
+			}
+
+			toast({
+				title: "Payment recorded",
+				description: response.message ?? "Your payment has been recorded successfully.",
+			})
+
+			if (response.data) {
+				setSetup(response.data)
+			}
+
+			setEquityAmount("")
+			setEquityNotes("")
+			setCashAmount("")
+			setCashPayerName("")
+			setCashPayerPhone("")
+			setCashNotes("")
+			setCashEvidence(null)
+			setCashEvidenceInputKey((prev) => prev + 1)
+			setCooperativeAmount("")
+			setCooperativeStart("")
+			setCooperativeDuration("")
+			setCooperativeNotes("")
+			setMortgageProvider("")
+			setMortgageInterest("")
+			setMortgageTenure("")
+			setMortgageDownPayment("")
+			setMortgageNotes("")
+			setRefreshKey((prev) => prev + 1)
+		} catch (error: any) {
+			toast({
+				title: "Payment failed",
+				description: error?.message ?? "Unable to record payment at this time.",
+				variant: "destructive",
+			})
+		} finally {
+			setSubmittingMethod(null)
+		}
+	}
+
+	const renderPaymentMethodOption = (method: string) => {
+		const info = METHOD_INFO[method] ?? {
+			label: method.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()),
+			icon: CreditCard,
+		}
+		const Icon = info.icon
+		return (
+			<div key={method} className="flex items-center space-x-2 p-3 border rounded-lg">
+				<RadioGroupItem value={method} id={`method-${method}`} />
+				<Label htmlFor={`method-${method}`} className="flex items-start gap-3 font-normal cursor-pointer flex-1">
+					<span className="mt-0.5">
+						<Icon className="h-4 w-4 text-primary" />
+					</span>
+					<span className="flex flex-col">
+						<span className="font-medium capitalize">{info.label}</span>
+						{info.description && <span className="text-xs text-muted-foreground">{info.description}</span>}
+					</span>
+				</Label>
+			</div>
+		)
+	}
+
+	const renderPaymentHistory = (entries: PropertyPaymentHistoryEntry[]) => {
+		if (!entries.length) {
+			return (
+				<div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+					No recorded payments for this property yet.
+				</div>
+			)
+		}
+
+		return (
+			<div className="space-y-4">
+				{entries.map((payment) => (
+					<div key={payment.id} className="flex flex-col gap-4 rounded-lg border p-4 md:flex-row md:items-center md:justify-between">
+						<div className="flex items-center gap-4">
+							<div className="p-2 bg-primary/10 rounded-lg">
+								<Receipt className="h-5 w-5 text-primary" />
+							</div>
+							<div>
+								<div className="font-semibold">{formatCurrency(payment.amount)}</div>
+								<div className="text-sm text-muted-foreground">
+									{payment.payment_method?.replace(/_/g, " ") || "—"} • {formatDate(payment.created_at)}
+								</div>
+								{payment.reference && (
+									<div className="text-xs text-muted-foreground">Reference: {payment.reference}</div>
+								)}
+							</div>
+						</div>
+						<div className="flex flex-wrap items-center gap-3">
+							<Badge variant={payment.status === "completed" || payment.status === "success" ? "default" : "secondary"}>
+								{payment.status?.replace(/_/g, " ") ?? "Pending"}
+							</Badge>
+							{payment.approval_status && payment.approval_status !== "approved" && (
+								<Badge variant="outline" className="capitalize">
+									Approval {payment.approval_status}
+								</Badge>
+							)}
+							<Button variant="outline" size="sm">
+								View Receipt
+							</Button>
+						</div>
+					</div>
+				))}
+			</div>
+		)
+	}
+
+	if (loading) {
+		return (
+			<div className="rounded-lg border p-12 text-center text-muted-foreground">
+				<div className="flex flex-col items-center gap-3">
+					<Loader2 className="h-6 w-6 animate-spin text-primary" />
+					<span>Loading payment setup…</span>
+				</div>
+			</div>
+		)
+	}
+
+	if (error || !propertySummary) {
+		return (
+			<Card>
+				<CardHeader>
+					<CardTitle>Payment Setup Unavailable</CardTitle>
+					<CardDescription>{error ?? "We could not load payment details for this property."}</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<Button onClick={handleRetry}>Retry</Button>
+				</CardContent>
+			</Card>
+		)
+	}
+
+	return (
+		<div className="space-y-6">
+			<Card>
+				<CardHeader>
+					<CardTitle>Payment Summary</CardTitle>
+					<CardDescription>Track your payment progress for {propertySummary.title}</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-6">
+					<div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+						<div className="rounded-lg border p-4">
+							<div className="text-xs uppercase text-muted-foreground">Total Price</div>
+							<div className="text-2xl font-bold">{formatCurrency(propertySummary.price)}</div>
+						</div>
+						<div className="rounded-lg border p-4">
+							<div className="text-xs uppercase text-muted-foreground">Amount Paid</div>
+							<div className="text-2xl font-bold text-green-600">{formatCurrency(propertySummary.total_paid)}</div>
+						</div>
+						<div className="rounded-lg border p-4">
+							<div className="text-xs uppercase text-muted-foreground">Balance</div>
+							<div className="text-2xl font-bold text-orange-600">{formatCurrency(balance)}</div>
+						</div>
+						<div className="rounded-lg border p-4">
+							<div className="text-xs uppercase text-muted-foreground">Interest Status</div>
+							<div className="text-lg font-semibold capitalize">
+								{propertySummary.status?.replace(/_/g, " ") ?? "Pending"}
+							</div>
+						</div>
+					</div>
+
+					<div className="space-y-2">
+						<div className="flex justify-between text-sm">
+							<span>Payment Progress</span>
+							<span className="font-semibold">{progressValue.toFixed(1)}%</span>
+						</div>
+						<Progress value={progressValue} className="h-3" />
+					</div>
+
+					{isMixPlan && mixAllocationSummary.length > 0 && (
+						<div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
+							<div className="flex items-center justify-between">
+								<h4 className="text-sm font-semibold text-primary">Mix Funding Allocation</h4>
+								<span className="text-xs text-muted-foreground">
+									Plan total: {formatCurrency(totalMixAmount)}
+								</span>
+							</div>
+							<div className="grid gap-3 md:grid-cols-2">
+								{mixAllocationSummary.map((item) => (
+									<div key={item.method} className="rounded-md border border-dashed border-primary/40 bg-background p-3 text-sm">
+										<div className="flex items-center justify-between font-semibold capitalize">
+											<span>{item.label}</span>
+											<span>{item.percentage.toFixed(2)}%</span>
+										</div>
+										<div className="mt-1 text-xs text-muted-foreground">
+											Target: {formatCurrency(item.targetAmount)}
+										</div>
+										<div className="text-xs text-muted-foreground">
+											Paid: {formatCurrency(item.settledAmount)} • Remaining: {formatCurrency(item.remainingAmount)}
+										</div>
+									</div>
+								))}
+							</div>
+							<p className="text-xs text-muted-foreground">
+								Payments must be recorded against the exact methods and amounts configured above. Contact your cooperative if
+								you need this plan updated.
+							</p>
+						</div>
+					)}
+
+					{progressValue >= 100 && (
+						<div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 p-4">
+							<CheckCircle2 className="h-5 w-5 text-green-600" />
+							<div>
+								<div className="font-semibold text-green-900">Payment Complete!</div>
+								<div className="text-sm text-green-700">
+									Your certificate of payment completion is ready for download.
+								</div>
+							</div>
+						</div>
+					)}
+
+					{paymentPlan && (
+						<div className="rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm">
+							<div className="flex flex-wrap items-center gap-3">
+								<Badge variant="outline" className="capitalize">
+									Plan Status: {paymentPlan.status}
+								</Badge>
+								{paymentPlan.funding_option && (
+									<Badge variant="secondary" className="capitalize">
+										Funding: {paymentPlan.funding_option.replace(/_/g, " ")}
+									</Badge>
+								)}
+								{paymentPlan.selected_methods && paymentPlan.selected_methods.length > 0 && (
+									<Badge className="capitalize">
+										Methods: {paymentPlan.selected_methods.map((method) => method.replace(/_/g, " ")).join(", ")}
+									</Badge>
+								)}
+							</div>
+							<p className="mt-2 text-muted-foreground">
+								This payment plan was configured by your cooperative. Please follow the instructions provided for each
+								payment method. Deductions or payments recorded under the plan will appear in the history below.
+							</p>
+						</div>
+					)}
+				</CardContent>
+			</Card>
+
+			{balance > 0 && (
+				<Card>
+					<CardHeader>
+						<CardTitle>Make Payment</CardTitle>
+						<CardDescription>
+							Choose from the available payment methods configured for this property.
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-6">
+						{isMixPlan && mixAllocationSummary.length > 0 && (
+							<div className="space-y-2 rounded-lg border border-primary/40 bg-primary/10 p-4 text-sm text-primary-foreground">
+								<div className="font-semibold text-primary-foreground">Mix funding plan enforced</div>
+								<p className="text-sm text-primary-foreground/90">
+									This property&apos;s payment plan splits the cost across specific funding sources. Only the methods listed below
+									and their respective amounts can be used unless your cooperative reconfigures the plan.
+								</p>
+							</div>
+						)}
+
+						{supportsMixedFunding && (
+							<div className="space-y-3">
+								<Label>Funding Type</Label>
+								<RadioGroup
+									value={fundingType}
+									onValueChange={(value) => setFundingType(value as "single" | "mixed")}
+								>
+									<div className="flex items-center space-x-2">
+										<RadioGroupItem value="single" id="funding-single" />
+										<Label htmlFor="funding-single" className="cursor-pointer font-normal">
+											Single Payment Method
+										</Label>
+									</div>
+									<div className="flex items-center space-x-2">
+										<RadioGroupItem value="mixed" id="funding-mixed" />
+										<Label htmlFor="funding-mixed" className="cursor-pointer font-normal">
+											Mixed Funding (Equity Wallet + Cooperative Deduction)
+										</Label>
+									</div>
+								</RadioGroup>
+							</div>
+						)}
+
+						<div className="space-y-3">
+							<Label>Payment Method</Label>
+							{availableMethods.length === 0 ? (
+								<div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+									<AlertTriangle className="mt-0.5 h-4 w-4" />
+									<span>
+										Payment methods for this property have not been configured yet. Please contact the cooperative
+										for assistance.
+									</span>
+								</div>
+							) : (
+								<RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
+									{availableMethods.map((method) => renderPaymentMethodOption(method))}
+								</RadioGroup>
+							)}
+						</div>
+
+						{paymentMethod === "equity_wallet" && (
+							<div className="space-y-4 rounded-lg border bg-muted/50 p-4">
+								{renderMixAllocationReminder("equity_wallet")}
+								<div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+									<div className="font-semibold text-blue-900">Equity Wallet Payment</div>
+									<div className="text-sm text-blue-700">
+										Use your equity wallet balance to continue payment for this property.
+									</div>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="equity-amount">Amount to Pay</Label>
+									<Input
+										id="equity-amount"
+										type="number"
+										min={0}
+										max={getMixAllocation("equity_wallet")?.remainingAmount ?? balance}
+										placeholder="Enter amount"
+										value={equityAmount}
+										onChange={(event) => setEquityAmount(event.target.value)}
+									/>
+									<div className="text-sm text-muted-foreground">
+										Available balance: {formatCurrency(equityWalletBalance)}
+									</div>
+									{!isMixPlan && equityWalletBalance < balance && (
+										<div className="text-sm text-orange-600">
+											Your balance is lower than the outstanding amount. You can combine this with another payment
+											method.
+										</div>
+									)}
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="equity-notes">Notes (optional)</Label>
+									<Textarea
+										id="equity-notes"
+										rows={2}
+										placeholder="Add any extra information for this payment"
+										value={equityNotes}
+										onChange={(event) => setEquityNotes(event.target.value)}
+									/>
+								</div>
+								<Button
+									className="w-full"
+									disabled={
+										equityWalletBalance <= 0 || isSubmitting || (getMixAllocation("equity_wallet")?.remainingAmount ?? balance) <= 0
+									}
+									onClick={() => handleSubmitPayment("equity_wallet")}
+								>
+									{submittingMethod === "equity_wallet" ? (
+										<Loader2 className="h-4 w-4 animate-spin" />
+									) : (
+										<span>Pay from Equity Wallet</span>
+									)}
+								</Button>
+							</div>
+						)}
+
+						{paymentMethod === "cash" && (
+							<div className="space-y-4 rounded-lg border bg-muted/50 p-4">
+								{renderMixAllocationReminder("cash")}
+								<div className="space-y-2">
+									<Label htmlFor="cash-amount">Payment Amount</Label>
+									<Input
+										id="cash-amount"
+										type="number"
+										placeholder="Enter amount"
+										min={0}
+										max={getMixAllocation("cash")?.remainingAmount ?? balance}
+										value={cashAmount}
+										onChange={(event) => setCashAmount(event.target.value)}
+									/>
+								</div>
+								<div className="grid gap-4 md:grid-cols-2">
+									<div className="space-y-2">
+										<Label htmlFor="cash-payer-name">Payer Name</Label>
+										<Input
+											id="cash-payer-name"
+											placeholder="Name of the payer"
+											value={cashPayerName}
+											onChange={(event) => setCashPayerName(event.target.value)}
+										/>
+									</div>
+									<div className="space-y-2">
+										<Label htmlFor="cash-payer-phone">Payer Phone (optional)</Label>
+										<Input
+											id="cash-payer-phone"
+											placeholder="Phone number"
+											value={cashPayerPhone}
+											onChange={(event) => setCashPayerPhone(event.target.value)}
+										/>
+									</div>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="cash-notes">Notes (optional)</Label>
+									<Textarea
+										id="cash-notes"
+										placeholder="Describe this payment or include bank details"
+										rows={2}
+										value={cashNotes}
+										onChange={(event) => setCashNotes(event.target.value)}
+									/>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="cash-evidence">Upload Payment Evidence</Label>
+									<input
+										key={cashEvidenceInputKey}
+										id="cash-evidence"
+										type="file"
+										accept="image/*,application/pdf"
+										className="hidden"
+										onChange={handleCashEvidenceChange}
+									/>
+									<label
+										htmlFor="cash-evidence"
+										className="flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 text-center transition-colors hover:border-primary"
+									>
+										<Upload className="mb-2 h-8 w-8 text-muted-foreground" />
+										<div className="text-sm text-muted-foreground">
+											{cashEvidence ? `Selected: ${cashEvidence.name}` : "Click to upload payment evidence (receipt, bank statement, etc.)"}
+										</div>
+									</label>
+								</div>
+								<Button
+									className="w-full"
+									disabled={
+										isSubmitting ||
+										!cashAmount ||
+										!cashPayerName.trim() ||
+										(getMixAllocation("cash")?.remainingAmount ?? balance) <= 0
+									}
+									onClick={() => handleSubmitPayment("cash")}
+								>
+									{submittingMethod === "cash" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Submit Payment Evidence"}
+								</Button>
+							</div>
+						)}
+
+						{paymentMethod === "mortgage" && (
+							<div className="space-y-4 rounded-lg border bg-muted/50 p-4">
+								{renderMixAllocationReminder("mortgage")}
+								<div className="space-y-2">
+									<Label htmlFor="mortgage-provider">Mortgage Provider</Label>
+									<Select value={mortgageProvider} onValueChange={setMortgageProvider}>
+										<SelectTrigger>
+											<SelectValue placeholder="Select mortgage provider" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="fmbn">Federal Mortgage Bank of Nigeria</SelectItem>
+											<SelectItem value="abbey">Abbey Mortgage Bank</SelectItem>
+											<SelectItem value="infinity">Infinity Trust Mortgage Bank</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
+								<div className="grid gap-4 md:grid-cols-2">
+									<div className="space-y-2">
+										<Label htmlFor="mortgage-interest">Interest Rate (%)</Label>
+										<Input
+											id="mortgage-interest"
+											type="number"
+											placeholder="e.g., 12.5"
+											value={mortgageInterest}
+											onChange={(event) => setMortgageInterest(event.target.value)}
+										/>
+									</div>
+									<div className="space-y-2">
+										<Label htmlFor="mortgage-tenure">Loan Duration (Years)</Label>
+										<Input
+											id="mortgage-tenure"
+											type="number"
+											placeholder="e.g., 20"
+											value={mortgageTenure}
+											onChange={(event) => setMortgageTenure(event.target.value)}
+										/>
+									</div>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="mortgage-down-payment">Down Payment</Label>
+									<Input
+										id="mortgage-down-payment"
+										type="number"
+										placeholder="Enter down payment amount"
+										value={mortgageDownPayment}
+										onChange={(event) => setMortgageDownPayment(event.target.value)}
+									/>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="mortgage-notes">Notes (optional)</Label>
+									<Textarea
+										id="mortgage-notes"
+										placeholder="Add internal notes for the cooperative mortgage team"
+										rows={2}
+										value={mortgageNotes}
+										onChange={(event) => setMortgageNotes(event.target.value)}
+									/>
+								</div>
+								<Button
+									className="w-full"
+									disabled={(getMixAllocation("mortgage")?.remainingAmount ?? balance) <= 0 || isSubmitting}
+									onClick={() =>
+										handleSubmitPayment("mortgage", {
+											amount: getMixAllocation("mortgage")?.remainingAmount ?? balance,
+										})
+									}
+								>
+									{submittingMethod === "mortgage" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply for Mortgage"}
+								</Button>
+							</div>
+						)}
+
+						{paymentMethod === "cooperative" && (
+							<div className="space-y-4 rounded-lg border bg-muted/50 p-4">
+								{renderMixAllocationReminder("cooperative")}
+								<div className="space-y-2">
+									<Label htmlFor="cooperative-amount">Monthly Deduction Amount</Label>
+									<Input
+										id="cooperative-amount"
+										type="number"
+										placeholder="Enter monthly deduction"
+										min={0}
+										max={getMixAllocation("cooperative")?.remainingAmount ?? balance}
+										value={cooperativeAmount}
+										onChange={(event) => setCooperativeAmount(event.target.value)}
+									/>
+								</div>
+								<div className="grid gap-4 md:grid-cols-2">
+									<div className="space-y-2">
+										<Label htmlFor="cooperative-start">Start Date</Label>
+										<Input
+											id="cooperative-start"
+											type="date"
+											value={cooperativeStart}
+											onChange={(event) => setCooperativeStart(event.target.value)}
+										/>
+									</div>
+									<div className="space-y-2">
+										<Label htmlFor="cooperative-duration">Duration (Months)</Label>
+										<Input
+											id="cooperative-duration"
+											type="number"
+											placeholder="e.g., 24"
+											value={cooperativeDuration}
+											onChange={(event) => setCooperativeDuration(event.target.value)}
+										/>
+									</div>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="cooperative-notes">Notes (optional)</Label>
+									<Textarea
+										id="cooperative-notes"
+										placeholder="Provide details for the cooperative deduction setup"
+										rows={2}
+										value={cooperativeNotes}
+										onChange={(event) => setCooperativeNotes(event.target.value)}
+									/>
+								</div>
+								<Button
+									className="w-full"
+									disabled={
+										isSubmitting ||
+										!cooperativeAmount ||
+										(getMixAllocation("cooperative")?.remainingAmount ?? balance) <= 0
+									}
+									onClick={() => handleSubmitPayment("cooperative")}
+								>
+									{submittingMethod === "cooperative" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Setup Cooperative Deduction"}
+								</Button>
+							</div>
+						)}
+
+						{!isMixPlan && fundingType === "mixed" && (
+							<div className="space-y-3 rounded-lg border-2 border-dashed bg-blue-50 p-4">
+								<div className="text-sm font-semibold">Mixed Funding Setup</div>
+								<div className="text-sm text-muted-foreground">
+									Allocate how much should be paid from your equity wallet versus cooperative deduction.
+								</div>
+								<div className="grid gap-4 md:grid-cols-2">
+									<div>
+										<Label className="text-xs uppercase text-muted-foreground">Equity Wallet Portion</Label>
+										<Input type="number" placeholder="Amount" min={0} max={equityWalletBalance} />
+									</div>
+									<div>
+										<Label className="text-xs uppercase text-muted-foreground">Cooperative Portion</Label>
+										<Input type="number" placeholder="Amount" min={0} max={balance} />
+									</div>
+								</div>
+							</div>
+						)}
+					</CardContent>
+				</Card>
+			)}
+
+			<Card>
+				<CardHeader>
+					<CardTitle>Payment History</CardTitle>
+					<CardDescription>All recorded transactions for this property.</CardDescription>
+				</CardHeader>
+				<CardContent>{renderPaymentHistory(paymentHistory)}</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>Property Ledger</CardTitle>
+					<CardDescription>
+						Consolidated entries from all funding sources (loans, mortgage, cooperative deductions, equity wallet, cash).
+					</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-4">
+					{ledgerEntries.length === 0 ? (
+						<div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
+							No ledger entries recorded yet. Once payments begin, you will see consolidated transactions here.
+						</div>
+					) : (
+						<div className="space-y-4">
+							{ledgerEntries.map((entry) => (
+								<div
+									key={entry.id}
+									className="flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:justify-between"
+								>
+									<div>
+										<div className="flex items-center gap-2 text-sm">
+											<Badge variant={entry.direction === "credit" ? "default" : "destructive"}>
+												{entry.direction === "credit" ? "Credit" : "Debit"}
+											</Badge>
+											<span className="capitalize">{entry.source.replace(/_/g, " ")}</span>
+											{entry.status && (
+												<Badge variant="outline" className="capitalize">
+													{entry.status}
+												</Badge>
+											)}
+										</div>
+										<div className="mt-2 text-lg font-semibold">
+											{entry.direction === "credit" ? "+" : "-"} {formatCurrency(entry.amount)}
+										</div>
+										<div className="mt-1 text-xs text-muted-foreground">
+											{entry.paid_at
+												? new Date(entry.paid_at).toLocaleString()
+												: entry.created_at
+													? new Date(entry.created_at).toLocaleString()
+													: "Date not available"}
+										</div>
+										{entry.reference && (
+											<div className="text-xs text-muted-foreground">Reference: {entry.reference}</div>
+										)}
+									</div>
+									<div className="text-xs text-muted-foreground">
+										{entry.payment_id && <div>Payment ID: {entry.payment_id}</div>}
+										{entry.plan_id && <div>Plan ID: {entry.plan_id}</div>}
+										{entry.mortgage_plan_id && <div>Mortgage Plan: {entry.mortgage_plan_id}</div>}
+									</div>
+								</div>
+							))}
+						</div>
+					)}
+
+					{typeof ledgerTotalPaid === "number" && ledgerTotalPaid > 0 && (
+						<div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
+							Total credited via ledger: <span className="font-semibold text-primary">{formatCurrency(ledgerTotalPaid)}</span>
+						</div>
+					)}
+				</CardContent>
+			</Card>
+		</div>
+	)
 }
