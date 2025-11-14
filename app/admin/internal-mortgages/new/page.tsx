@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useToast } from "@/hooks/use-toast"
-import { createInternalMortgagePlan, searchMembers, getApprovedPropertyInterests, type SearchedMember, type ApprovedPropertyInterest } from "@/lib/api/client"
+import { createInternalMortgagePlan, searchMembers, getApprovedPropertyInterests, getPropertyPaymentPlanDetails, type SearchedMember, type ApprovedPropertyInterest } from "@/lib/api/client"
 import { ArrowLeft, Calculator, Search, Check, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -37,7 +37,8 @@ export default function NewInternalMortgagePlanPage() {
 	const [description, setDescription] = useState("")
 	const [principal, setPrincipal] = useState("")
 	const [interestRate, setInterestRate] = useState("")
-	const [tenureMonths, setTenureMonths] = useState("")
+	const [tenureYears, setTenureYears] = useState("")
+	const [monthlyPayment, setMonthlyPayment] = useState("")
 	const [frequency, setFrequency] = useState<FrequencyOption>("monthly")
 	const [propertyId, setPropertyId] = useState("")
 	const [memberId, setMemberId] = useState("")
@@ -48,6 +49,8 @@ export default function NewInternalMortgagePlanPage() {
 	const [linkProperty, setLinkProperty] = useState(false)
 	const [linkMember, setLinkMember] = useState(false)
 	const [submitting, setSubmitting] = useState(false)
+	const [titleLocked, setTitleLocked] = useState(false)
+	const [principalLocked, setPrincipalLocked] = useState(false)
 
 	// Member search state
 	const [memberSearchQuery, setMemberSearchQuery] = useState("")
@@ -127,6 +130,68 @@ export default function NewInternalMortgagePlanPage() {
 		}
 	}, [memberId, linkMember])
 
+	// Load property payment plan details when property is selected
+	useEffect(() => {
+		if (propertyId && memberId && linkProperty && linkMember) {
+			getPropertyPaymentPlanDetails(propertyId, memberId)
+				.then((response) => {
+					if (response.success && response.data) {
+						const planData = response.data
+						// Auto-fill title with property title (locked)
+						if (planData.property.title) {
+							setTitle(planData.property.title)
+							setTitleLocked(true)
+						}
+						// Auto-fill principal with cooperative deduction amount (locked)
+						if (planData.cooperative_amount) {
+							setPrincipal(planData.cooperative_amount.toString())
+							setPrincipalLocked(true)
+						}
+					}
+				})
+				.catch((error) => {
+					console.error("Failed to load property payment plan details:", error)
+				})
+		} else {
+			// Reset locks when property is deselected
+			if (!propertyId) {
+				setTitleLocked(false)
+				setPrincipalLocked(false)
+			}
+		}
+	}, [propertyId, memberId, linkProperty, linkMember])
+
+	// Calculate monthly payment using amortization formula (PMT)
+	useEffect(() => {
+		if (principal && interestRate && tenureYears) {
+			const principalAmount = parseFloat(principal)
+			const rate = parseFloat(interestRate)
+			const years = parseFloat(tenureYears)
+
+			if (!isNaN(principalAmount) && !isNaN(rate) && !isNaN(years) && years > 0 && principalAmount > 0) {
+				const numberOfPayments = years * 12
+				const monthlyRate = rate > 0 ? (rate / 100) / 12 : 0
+
+				let calculatedPayment: number
+				if (monthlyRate <= 0) {
+					calculatedPayment = principalAmount / numberOfPayments
+				} else {
+					const factor = Math.pow(1 + monthlyRate, numberOfPayments)
+					if (factor === 1.0) {
+						calculatedPayment = principalAmount / numberOfPayments
+					} else {
+						calculatedPayment = principalAmount * (monthlyRate * factor) / (factor - 1)
+					}
+				}
+				setMonthlyPayment(calculatedPayment.toFixed(2))
+			} else {
+				setMonthlyPayment("")
+			}
+		} else {
+			setMonthlyPayment("")
+		}
+	}, [principal, interestRate, tenureYears])
+
 	// Reset member when link is unchecked
 	useEffect(() => {
 		if (!linkMember) {
@@ -168,10 +233,10 @@ export default function NewInternalMortgagePlanPage() {
 			return
 		}
 
-		if (!tenureMonths || Number(tenureMonths) <= 0) {
+		if (!tenureYears || Number(tenureYears) <= 0) {
 			toast({
 				title: "Tenure required",
-				description: "Please enter the tenure in months.",
+				description: "Please select the tenure in years.",
 				variant: "destructive",
 			})
 			return
@@ -184,7 +249,7 @@ export default function NewInternalMortgagePlanPage() {
 				description: description || undefined,
 				principal: Number(principal),
 				interest_rate: Number(interestRate),
-				tenure_months: Number(tenureMonths),
+				tenure_years: Number(tenureYears),
 				frequency,
 				property_id: linkProperty && propertyId ? propertyId : undefined,
 				member_id: linkMember && memberId ? memberId : undefined,
@@ -236,104 +301,6 @@ export default function NewInternalMortgagePlanPage() {
 					</p>
 				</div>
 			</div>
-
-			<Card>
-				<CardHeader>
-					<CardTitle>Plan Details</CardTitle>
-					<CardDescription>Start with the core information for this internal mortgage plan.</CardDescription>
-				</CardHeader>
-				<CardContent className="space-y-6">
-					<div className="grid gap-4 md:grid-cols-2">
-						<div className="space-y-2">
-							<Label htmlFor="title">Title</Label>
-							<Input
-								id="title"
-								value={title}
-								onChange={(event) => setTitle(event.target.value)}
-								placeholder="e.g., Corporate Mortgage Plan – 5 Years"
-								required
-							/>
-						</div>
-						<div className="space-y-2">
-							<Label htmlFor="principal">Principal Amount</Label>
-							<Input
-								id="principal"
-								type="number"
-								min="0"
-								value={principal}
-								onChange={(event) => setPrincipal(event.target.value)}
-								placeholder="e.g., 25000000"
-								required
-							/>
-						</div>
-						<div className="space-y-2">
-							<Label htmlFor="interest-rate">Interest Rate (%)</Label>
-							<Input
-								id="interest-rate"
-								type="number"
-								min="0"
-								step="0.01"
-								value={interestRate}
-								onChange={(event) => setInterestRate(event.target.value)}
-								placeholder="e.g., 12.5"
-								required
-							/>
-						</div>
-						<div className="space-y-2">
-							<Label htmlFor="tenure-months">Tenure (Months)</Label>
-							<Input
-								id="tenure-months"
-								type="number"
-								min="1"
-								value={tenureMonths}
-								onChange={(event) => setTenureMonths(event.target.value)}
-								placeholder="e.g., 60"
-								required
-							/>
-						</div>
-					</div>
-
-					<div className="grid gap-4 md:grid-cols-2">
-						<div className="space-y-2">
-							<Label>Repayment Frequency</Label>
-							<Select value={frequency} onValueChange={handleFrequencyChange}>
-								<SelectTrigger>
-									<SelectValue placeholder="Select frequency" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="monthly">Monthly</SelectItem>
-									<SelectItem value="quarterly">Quarterly</SelectItem>
-									<SelectItem value="biannually">Biannually</SelectItem>
-									<SelectItem value="annually">Annually</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
-						<div className="space-y-2">
-							<Label>Plan Status</Label>
-							<Select value={status} onValueChange={handleStatusChange}>
-								<SelectTrigger>
-									<SelectValue placeholder="Select status" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="draft">Draft</SelectItem>
-									<SelectItem value="active">Active</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
-					</div>
-
-					<div className="space-y-2">
-						<Label htmlFor="description">Description (optional)</Label>
-						<Textarea
-							id="description"
-							rows={3}
-							value={description}
-							onChange={(event) => setDescription(event.target.value)}
-							placeholder="Provide additional context or terms for this mortgage plan."
-						/>
-					</div>
-				</CardContent>
-			</Card>
 
 			<Card>
 				<CardHeader>
@@ -449,6 +416,126 @@ export default function NewInternalMortgagePlanPage() {
 							)}
 						</div>
 					)}
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>Plan Details</CardTitle>
+					<CardDescription>Start with the core information for this internal mortgage plan.</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-6">
+					<div className="grid gap-4 md:grid-cols-2">
+						<div className="space-y-2">
+							<Label htmlFor="title">Title</Label>
+							<Input
+								id="title"
+								value={title}
+								onChange={(event) => setTitle(event.target.value)}
+								placeholder="e.g., Corporate Mortgage Plan – 5 Years"
+								required
+								disabled={titleLocked}
+							/>
+							{titleLocked && <p className="text-xs text-muted-foreground">Auto-filled from property selection</p>}
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="principal">Principal Amount</Label>
+							<Input
+								id="principal"
+								type="number"
+								min="0"
+								value={principal}
+								onChange={(event) => setPrincipal(event.target.value)}
+								placeholder="e.g., 25000000"
+								required
+								disabled={principalLocked}
+							/>
+							{principalLocked && <p className="text-xs text-muted-foreground">Auto-filled from cooperative deduction allocation</p>}
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="interest-rate">Interest Rate (%)</Label>
+							<Input
+								id="interest-rate"
+								type="number"
+								min="0"
+								step="0.01"
+								value={interestRate}
+								onChange={(event) => setInterestRate(event.target.value)}
+								placeholder="e.g., 12.5"
+								required
+							/>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="tenure-years">Tenure (Years)</Label>
+							<Select value={tenureYears} onValueChange={setTenureYears} required>
+								<SelectTrigger id="tenure-years">
+									<SelectValue placeholder="Select tenure" />
+								</SelectTrigger>
+								<SelectContent>
+									{Array.from({ length: 35 }, (_, i) => i + 1).map((year) => (
+										<SelectItem key={year} value={year.toString()}>
+											{year} {year === 1 ? "Year" : "Years"}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+					</div>
+
+					<div className="grid gap-4 md:grid-cols-2">
+						<div className="space-y-2">
+							<Label htmlFor="monthly-payment">Monthly Payment (Calculated)</Label>
+							<Input
+								id="monthly-payment"
+								type="text"
+								value={monthlyPayment ? `₦${Number.parseFloat(monthlyPayment).toLocaleString("en-NG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : ""}
+								placeholder="Calculated automatically"
+								disabled
+								className="bg-muted"
+							/>
+							<p className="text-xs text-muted-foreground">Calculated using amortization formula</p>
+						</div>
+					</div>
+
+					<div className="grid gap-4 md:grid-cols-2">
+						<div className="space-y-2">
+							<Label>Repayment Frequency</Label>
+							<Select value={frequency} onValueChange={handleFrequencyChange}>
+								<SelectTrigger>
+									<SelectValue placeholder="Select frequency" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="monthly">Monthly</SelectItem>
+									<SelectItem value="quarterly">Quarterly</SelectItem>
+									<SelectItem value="biannually">Biannually</SelectItem>
+									<SelectItem value="annually">Annually</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+						<div className="space-y-2">
+							<Label>Plan Status</Label>
+							<Select value={status} onValueChange={handleStatusChange}>
+								<SelectTrigger>
+									<SelectValue placeholder="Select status" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="draft">Draft</SelectItem>
+									<SelectItem value="active">Active</SelectItem>
+								</SelectContent>
+							</Select>
+						</div>
+					</div>
+
+					<div className="space-y-2">
+						<Label htmlFor="description">Description (optional)</Label>
+						<Textarea
+							id="description"
+							rows={3}
+							value={description}
+							onChange={(event) => setDescription(event.target.value)}
+							placeholder="Provide additional context or terms for this mortgage plan."
+						/>
+					</div>
 				</CardContent>
 			</Card>
 

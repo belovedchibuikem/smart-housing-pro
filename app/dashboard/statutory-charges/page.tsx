@@ -1,113 +1,138 @@
 "use client"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Plus, CheckCircle, Clock, XCircle } from "lucide-react"
+import { Plus, CheckCircle, Clock, XCircle, Loader2, AlertCircle } from "lucide-react"
 import Link from "next/link"
+import { getMemberStatutoryCharges, getMemberStatutoryChargeTypes } from "@/lib/api/client"
+import { toast as sonnerToast } from "sonner"
+
+interface StatutoryCharge {
+  id: string
+  type: string
+  amount: number
+  description?: string
+  due_date?: string
+  status: string
+  total_paid?: number
+  remaining_amount?: number
+  created_at: string
+}
 
 export default function StatutoryChargesPage() {
-  const charges = [
-    {
-      id: 1,
-      name: "Title Document Processing (TDP)",
-      description: "Processing fee for property title documents",
-      amount: "₦150,000",
-      status: "paid",
-      date: "2024-01-15",
-      reference: "TDP-2024-001",
-    },
-    {
-      id: 2,
-      name: "Building Plan Approval",
-      description: "Approval fee for building construction plans",
-      amount: "₦75,000",
-      status: "pending",
-      date: "2024-02-20",
-      reference: "BPA-2024-002",
-    },
-    {
-      id: 3,
-      name: "Property Alteration Fee",
-      description: "Fee for approved property modifications",
-      amount: "₦50,000",
-      status: "overdue",
-      date: "2024-01-10",
-      reference: "ALT-2024-003",
-    },
-    {
-      id: 4,
-      name: "Development Levy",
-      description: "Annual estate development and maintenance levy",
-      amount: "₦100,000",
-      status: "paid",
-      date: "2024-03-01",
-      reference: "DEV-2024-004",
-    },
-  ]
+  const [loading, setLoading] = useState(true)
+  const [charges, setCharges] = useState<StatutoryCharge[]>([])
+  const [chargeTypes, setChargeTypes] = useState<any[]>([])
+  const [stats, setStats] = useState({
+    totalPaid: 0,
+    pending: 0,
+    overdue: 0,
+  })
 
-  const availableCharges = [
-    {
-      name: "Title Document Processing (TDP)",
-      description: "Required for all property title transfers and registrations",
-      amount: "₦150,000",
-      category: "Legal",
-    },
-    {
-      name: "Building Plan Approval",
-      description: "Mandatory approval for new construction or major renovations",
-      amount: "₦75,000",
-      category: "Engineering",
-    },
-    {
-      name: "Property Alteration Fee",
-      description: "Fee for approved modifications to existing structures",
-      amount: "₦50,000",
-      category: "Engineering",
-    },
-    {
-      name: "Development Levy",
-      description: "Annual contribution for estate infrastructure and maintenance",
-      amount: "₦100,000",
-      category: "Accounts",
-    },
-    {
-      name: "Survey and Demarcation",
-      description: "Professional land survey and boundary marking services",
-      amount: "₦200,000",
-      category: "Engineering",
-    },
-    {
-      name: "Environmental Impact Assessment",
-      description: "Required assessment for large-scale developments",
-      amount: "₦300,000",
-      category: "Legal",
-    },
-  ]
+  useEffect(() => {
+    fetchData()
+  }, [])
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "paid":
-        return "default"
-      case "pending":
-        return "secondary"
-      case "overdue":
-        return "destructive"
-      default:
-        return "outline"
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      const [chargesResponse, typesResponse] = await Promise.all([
+        getMemberStatutoryCharges({ per_page: 100 }),
+        getMemberStatutoryChargeTypes().catch(() => ({ success: false, data: [] })),
+      ])
+
+      if (chargesResponse.success) {
+        const chargesData = Array.isArray(chargesResponse.charges) 
+          ? chargesResponse.charges 
+          : (chargesResponse as any).data || []
+        setCharges(chargesData)
+
+        // Calculate stats
+        const totalPaid = chargesData
+          .filter((c: StatutoryCharge) => c.status === "paid")
+          .reduce((sum: number, c: StatutoryCharge) => sum + (Number(c.total_paid) || Number(c.amount) || 0), 0)
+        
+        const pending = chargesData.filter((c: StatutoryCharge) => c.status === "approved" || c.status === "pending").length
+        
+        const now = new Date()
+        const overdue = chargesData.filter((c: StatutoryCharge) => {
+          if (c.status === "paid") return false
+          if (!c.due_date) return false
+          const dueDate = new Date(c.due_date)
+          return dueDate < now
+        }).length
+
+        setStats({ totalPaid, pending, overdue })
+      }
+
+      if (typesResponse.success && Array.isArray(typesResponse.data)) {
+        setChargeTypes(typesResponse.data)
+      }
+    } catch (error: any) {
+      console.error("Error fetching statutory charges:", error)
+      sonnerToast.error("Failed to load statutory charges", {
+        description: error.message || "Please try again later",
+      })
+    } finally {
+      setLoading(false)
     }
+  }
+
+  const getStatusColor = (status: string, dueDate?: string) => {
+    if (status === "paid") return "default"
+    if (status === "rejected") return "destructive"
+    if (dueDate) {
+      const due = new Date(dueDate)
+      if (due < new Date() && status !== "paid") return "destructive"
+    }
+    if (status === "approved" || status === "pending") return "secondary"
+    return "outline"
   }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "paid":
         return <CheckCircle className="h-4 w-4" />
+      case "approved":
       case "pending":
         return <Clock className="h-4 w-4" />
-      case "overdue":
+      case "rejected":
         return <XCircle className="h-4 w-4" />
       default:
         return null
     }
+  }
+
+  const getStatusLabel = (status: string, dueDate?: string) => {
+    if (status === "paid") return "Paid"
+    if (status === "rejected") return "Rejected"
+    if (dueDate) {
+      const due = new Date(dueDate)
+      if (due < new Date() && status !== "paid") return "Overdue"
+    }
+    return status.charAt(0).toUpperCase() + status.slice(1)
+  }
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
+      minimumFractionDigits: 0,
+    }).format(amount)
+  }
+
+  const getChargeTypeName = (type: string) => {
+    const chargeType = chargeTypes.find((ct) => ct.type === type)
+    return chargeType?.type || type
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
   }
 
   return (
@@ -132,8 +157,10 @@ export default function StatutoryChargesPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Paid</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₦250,000</div>
-            <p className="text-xs text-muted-foreground mt-1">2 payments completed</p>
+            <div className="text-2xl font-bold">{formatCurrency(stats.totalPaid)}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {charges.filter((c) => c.status === "paid").length} payment{charges.filter((c) => c.status === "paid").length !== 1 ? "s" : ""} completed
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -141,8 +168,12 @@ export default function StatutoryChargesPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₦75,000</div>
-            <p className="text-xs text-muted-foreground mt-1">1 payment pending</p>
+            <div className="text-2xl font-bold">{formatCurrency(
+              charges
+                .filter((c) => c.status === "approved" || c.status === "pending")
+                .reduce((sum, c) => sum + (Number(c.remaining_amount) || Number(c.amount) || 0), 0)
+            )}</div>
+            <p className="text-xs text-muted-foreground mt-1">{stats.pending} payment{stats.pending !== 1 ? "s" : ""} pending</p>
           </CardContent>
         </Card>
         <Card>
@@ -150,8 +181,18 @@ export default function StatutoryChargesPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Overdue</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">₦50,000</div>
-            <p className="text-xs text-muted-foreground mt-1">1 payment overdue</p>
+            <div className="text-2xl font-bold text-red-600">
+              {formatCurrency(
+                charges
+                  .filter((c) => {
+                    if (c.status === "paid") return false
+                    if (!c.due_date) return false
+                    return new Date(c.due_date) < new Date()
+                  })
+                  .reduce((sum, c) => sum + (Number(c.remaining_amount) || Number(c.amount) || 0), 0)
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">{stats.overdue} payment{stats.overdue !== 1 ? "s" : ""} overdue</p>
           </CardContent>
         </Card>
       </div>
@@ -159,71 +200,79 @@ export default function StatutoryChargesPage() {
       {/* Payment History */}
       <Card>
         <CardHeader>
-          <CardTitle>Payment History</CardTitle>
+          <CardTitle>Your Charges</CardTitle>
           <CardDescription>Your statutory charge payments and their status</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {charges.map((charge) => (
-              <div key={charge.id} className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-semibold">{charge.name}</h3>
-                    <Badge variant={getStatusColor(charge.status)} className="capitalize">
-                      {getStatusIcon(charge.status)}
-                      <span className="ml-1">{charge.status}</span>
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">{charge.description}</p>
-                  <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                    <span>Ref: {charge.reference}</span>
-                    <span>Date: {charge.date}</span>
-                  </div>
-                </div>
-                <div className="text-right ml-4">
-                  <p className="text-xl font-bold">{charge.amount}</p>
-                  {charge.status === "pending" && (
-                    <Button size="sm" className="mt-2">
-                      Pay Now
-                    </Button>
-                  )}
-                  {charge.status === "overdue" && (
-                    <Button size="sm" variant="destructive" className="mt-2">
-                      Pay Now
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+          {charges.length === 0 ? (
+            <div className="text-center py-12">
+              <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No statutory charges found</p>
+              <Link href="/dashboard/statutory-charges/pay">
+                <Button className="mt-4">Make a Payment</Button>
+              </Link>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {charges.map((charge) => {
+                const isOverdue = charge.due_date && new Date(charge.due_date) < new Date() && charge.status !== "paid"
+                const canPay = (charge.status === "approved" || charge.status === "pending") && !isOverdue
+                const remaining = Number(charge.remaining_amount) || Number(charge.amount) || 0
 
-      {/* Available Charges */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Available Statutory Charges</CardTitle>
-          <CardDescription>Common fees and charges for property-related services</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid sm:grid-cols-2 gap-4">
-            {availableCharges.map((charge, index) => (
-              <div key={index} className="p-4 border rounded-lg hover:bg-muted/50 transition-colors">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h3 className="font-semibold">{charge.name}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">{charge.description}</p>
-                    <Badge variant="outline" className="mt-2">
-                      {charge.category}
-                    </Badge>
+                return (
+                  <div key={charge.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold">{getChargeTypeName(charge.type)}</h3>
+                        <Badge variant={getStatusColor(charge.status, charge.due_date)} className="capitalize">
+                          {getStatusIcon(charge.status)}
+                          <span className="ml-1">{getStatusLabel(charge.status, charge.due_date)}</span>
+                        </Badge>
+                      </div>
+                      {charge.description && (
+                        <p className="text-sm text-muted-foreground mt-1">{charge.description}</p>
+                      )}
+                      <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                        {charge.due_date && (
+                          <span>Due: {new Date(charge.due_date).toLocaleDateString()}</span>
+                        )}
+                        <span>Amount: {formatCurrency(Number(charge.amount) || 0)}</span>
+                        {charge.status === "paid" && charge.total_paid && (
+                          <span>Paid: {formatCurrency(Number(charge.total_paid))}</span>
+                        )}
+                        {remaining > 0 && charge.status !== "paid" && (
+                          <span>Remaining: {formatCurrency(remaining)}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right ml-4">
+                      {charge.status === "paid" ? (
+                        <p className="text-xl font-bold text-green-600">{formatCurrency(Number(charge.total_paid) || Number(charge.amount) || 0)}</p>
+                      ) : (
+                        <>
+                          <p className="text-xl font-bold">{formatCurrency(Number(charge.amount) || 0)}</p>
+                          {canPay && (
+                            <Link href={`/dashboard/statutory-charges/pay?charge=${charge.id}`}>
+                              <Button size="sm" className="mt-2">
+                                Pay Now
+                              </Button>
+                            </Link>
+                          )}
+                          {isOverdue && (
+                            <Link href={`/dashboard/statutory-charges/pay?charge=${charge.id}`}>
+                              <Button size="sm" variant="destructive" className="mt-2">
+                                Pay Now
+                              </Button>
+                            </Link>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right ml-4">
-                    <p className="font-bold text-lg">{charge.amount}</p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+                )
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

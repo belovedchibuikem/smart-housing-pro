@@ -403,6 +403,56 @@ export interface PropertyPaymentHistoryEntry {
 	metadata?: Record<string, unknown> | null
 }
 
+export interface RepaymentScheduleEntry {
+	installment?: number
+	month?: number
+	period?: number
+	frequency?: string
+	due_date: string
+	principal: number
+	interest: number
+	total: number
+	remaining_balance: number
+	status: 'paid' | 'pending' | 'overdue'
+	paid_date?: string | null
+	repayment_id?: string
+}
+
+export interface MortgageProvider {
+	id: string
+	name: string
+	code?: string | null
+	contact_email?: string | null
+	contact_phone?: string | null
+	address?: string | null
+}
+
+export interface RepaymentSchedule {
+	schedule_approved?: boolean
+	schedule_approved_at?: string | null
+	loan_id?: string
+	mortgage_id?: string
+	plan_id?: string
+	loan_amount?: number
+	principal?: number
+	interest_rate: number
+	duration_months?: number
+	tenure_years?: number
+	tenure_months?: number
+	monthly_payment?: number
+	periodic_payment?: number
+	frequency?: string
+	total_principal_repaid: number
+	total_interest_paid: number
+	remaining_principal: number
+	is_fully_repaid: boolean
+	provider?: MortgageProvider | null
+	title?: string | null
+	starts_on?: string | null
+	notes?: string | null
+	schedule: RepaymentScheduleEntry[]
+}
+
 export interface PropertyPaymentSetup {
 	property: {
 		id: string
@@ -428,6 +478,11 @@ export interface PropertyPaymentSetup {
 	ledger_entries: PropertyLedgerEntry[]
 	ledger_total_paid: number
 	payment_plan?: PropertyPaymentPlan | null
+	repayment_schedules?: {
+		loan?: RepaymentSchedule
+		mortgage?: RepaymentSchedule
+		cooperative?: RepaymentSchedule
+	}
 }
 
 export interface PropertyLedgerEntry {
@@ -548,6 +603,7 @@ export interface PendingPlanInterest {
 export interface MemberPropertiesSummary {
 	total_properties: number
 	houses_owned: number
+	lands_owned?: number
 	total_paid: number
 	current_value: number
 	predictive_value: number
@@ -648,16 +704,18 @@ export interface PropertyInterestResponse {
 	}
 }
 
-export async function getAvailableProperties() {
-	return apiFetch<{ properties: AvailableProperty[] }>("/properties/available", { method: "GET" })
+export async function getAvailableProperties(type?: string) {
+	const params = type ? `?type=${encodeURIComponent(type)}` : ""
+	return apiFetch<{ properties: AvailableProperty[] }>(`/properties/available${params}`, { method: "GET" })
 }
 
-export async function getMemberProperties() {
+export async function getMemberProperties(type?: string) {
+	const params = type ? `?type=${encodeURIComponent(type)}` : ""
 	return apiFetch<{
 		success: boolean
 		summary: MemberPropertiesSummary
 		properties: MemberHouse[]
-	}>("/properties/my", { method: "GET" })
+	}>(`/properties/my${params}`, { method: "GET" })
 }
 
 export async function getPropertyMortgage(propertyId: string) {
@@ -810,6 +868,8 @@ export interface InternalMortgagePlan {
 	monthly_payment?: number | null
 	frequency: "monthly" | "quarterly" | "biannually" | "annually"
 	status: "draft" | "active" | "completed" | "cancelled"
+	schedule_approved?: boolean
+	schedule_approved_at?: string | null
 	starts_on?: string | null
 	ends_on?: string | null
 	schedule?: Record<string, unknown> | null
@@ -864,7 +924,7 @@ export async function createInternalMortgagePlan(body: {
 	description?: string | null
 	principal: number
 	interest_rate: number
-	tenure_months: number
+	tenure_years: number
 	frequency: "monthly" | "quarterly" | "biannually" | "annually"
 	starts_on?: string | null
 	ends_on?: string | null
@@ -1048,16 +1108,16 @@ export async function getStatutoryChargeTypes() {
 	return apiFetch<{ success: boolean; data: any[] }>("/admin/statutory-charges/types", { method: "GET" })
 }
 
-export async function createStatutoryChargeType(data: { type: string; description?: string }) {
+export async function createStatutoryChargeType(data: { type: string; description?: string; default_amount?: number | string; frequency?: string; is_active?: boolean; sort_order?: number }) {
 	return apiFetch<{ success: boolean; message: string; data: any }>("/admin/statutory-charges/types", { method: "POST", body: data })
 }
 
-export async function updateStatutoryChargeType(oldType: string, data: { new_type: string }) {
-	return apiFetch<{ success: boolean; message: string }>(`/admin/statutory-charges/types/${oldType}`, { method: "PUT", body: { old_type: oldType, new_type: data.new_type } })
+export async function updateStatutoryChargeType(id: string, data: { type?: string; description?: string; default_amount?: number | string | null; frequency?: string; is_active?: boolean; sort_order?: number }) {
+	return apiFetch<{ success: boolean; message: string; data: any }>(`/admin/statutory-charges/types/${id}`, { method: "PUT", body: data })
 }
 
-export async function deleteStatutoryChargeType(type: string) {
-	return apiFetch<{ success: boolean; message: string }>(`/admin/statutory-charges/types/${type}`, { method: "DELETE" })
+export async function deleteStatutoryChargeType(id: string) {
+	return apiFetch<{ success: boolean; message: string }>(`/admin/statutory-charges/types/${id}`, { method: "DELETE" })
 }
 
 export async function createStatutoryChargeDepartment(data: { name: string; description?: string }) {
@@ -1091,6 +1151,36 @@ export async function createStatutoryChargePayment(data: any) {
 
 export async function getStatutoryChargeDepartments() {
 	return apiFetch<{ success: boolean; data: any[] }>("/admin/statutory-charges/departments", { method: "GET" })
+}
+
+// Member Statutory Charges API
+export async function getMemberStatutoryCharges(params?: { status?: string; type?: string; page?: number; per_page?: number }) {
+	const query = new URLSearchParams()
+	if (params?.status) query.set("status", params.status)
+	if (params?.type) query.set("type", params.type)
+	if (params?.page) query.set("page", String(params.page))
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+	return apiFetch<{ success: boolean; charges: any[]; pagination?: any }>(`/user/statutory/charges?${query.toString()}`, { method: "GET" })
+}
+
+export async function getMemberStatutoryCharge(chargeId: string) {
+	return apiFetch<{ success: boolean; charge: any }>(`/user/statutory/charges/${chargeId}`, { method: "GET" })
+}
+
+export async function payStatutoryCharge(chargeId: string, data: { amount: number; payment_method: string; reference?: string }) {
+	return apiFetch<{ success: boolean; message: string; payment: any; payment_url?: string; requires_approval?: boolean }>(`/user/statutory/charges/${chargeId}/pay`, { method: "POST", body: data })
+}
+
+export async function createAndPayStatutoryCharge(data: { charge_type: string; amount: number; payment_method: string; property_id?: string; description?: string; reference?: string }) {
+	return apiFetch<{ success: boolean; message: string; payment: any; payment_url?: string; requires_approval?: boolean }>("/user/statutory/charges/create-and-pay", { method: "POST", body: data })
+}
+
+export async function getStatutoryChargePaymentMethods() {
+	return apiFetch<{ success: boolean; payment_methods: any[] }>("/user/statutory/charges/payment-methods", { method: "GET" })
+}
+
+export async function getMemberStatutoryChargeTypes() {
+	return apiFetch<{ success: boolean; data: any[] }>("/user/statutory/charges/types", { method: "GET" })
 }
 
 // Property Management API
@@ -1199,6 +1289,109 @@ export async function getAllotteeReport(allotteeId: string) {
 
 export async function getMaintenanceReport(maintenanceId: string) {
 	return apiFetch<{ success: boolean; data: any }>(`/admin/property-management/reports/maintenance?maintenance_id=${maintenanceId}`, { method: "GET" })
+}
+
+// Member Property Management API
+export interface MemberEstate {
+	id: string
+	name: string
+	location: string
+	total_units: number
+	occupied_units: number
+	my_properties: number
+	status: string
+	description: string
+}
+
+export interface AllotteeInfo {
+	status: string
+	allottee_id: string
+	date_allocated: string | null
+	properties: Array<{
+		id: string
+		property_id: string
+		type: string
+		estate: string
+		unit: string
+		allocation_date: string | null
+		status: string
+	}>
+}
+
+export interface MaintenanceRequest {
+	id: string
+	request_id: string
+	title: string
+	description: string
+	property: string
+	estate: string
+	status: string
+	priority: string
+	category: string
+	date_submitted: string | null
+	date_assigned: string | null
+	estimated_completion: string | null
+	assigned_to: string | null
+	resolution_notes?: string | null
+	estimated_cost?: number | null
+	actual_cost?: number | null
+}
+
+export interface MemberProperty {
+	id: string
+	title: string
+	location: string
+	type: string
+}
+
+export async function getMyEstates() {
+	return apiFetch<{ success: boolean; estates: MemberEstate[] }>("/property-management/my-estates", { method: "GET" })
+}
+
+export async function getAllotteeStatus() {
+	return apiFetch<{ success: boolean; allottee_info: AllotteeInfo }>("/property-management/allottee-status", { method: "GET" })
+}
+
+export async function getMyMaintenanceRequests(params?: { search?: string; status?: string }) {
+	const query = new URLSearchParams()
+	if (params?.search) query.set("search", params.search)
+	if (params?.status) query.set("status", params.status)
+	return apiFetch<{ success: boolean; requests: MaintenanceRequest[] }>(`/property-management/maintenance?${query.toString()}`, { method: "GET" })
+}
+
+export async function getMaintenanceRequest(id: string) {
+	return apiFetch<{ success: boolean; request: MaintenanceRequest }>(`/property-management/maintenance/${id}`, { method: "GET" })
+}
+
+export async function createMaintenanceRequest(data: {
+	property_id: string
+	issue_type: string
+	priority: string
+	title: string
+	description: string
+	attachments?: File[]
+}) {
+	const formData = new FormData()
+	formData.append("property_id", data.property_id)
+	formData.append("issue_type", data.issue_type)
+	formData.append("priority", data.priority)
+	formData.append("title", data.title)
+	formData.append("description", data.description)
+	
+	if (data.attachments) {
+		data.attachments.forEach((file) => {
+			formData.append("attachments[]", file)
+		})
+	}
+
+	return apiFetch<{ success: boolean; message: string; request: { id: string; request_id: string } }>("/property-management/maintenance", {
+		method: "POST",
+		body: formData,
+	})
+}
+
+export async function getMyPropertiesForMaintenance() {
+	return apiFetch<{ success: boolean; properties: MemberProperty[] }>("/property-management/my-properties", { method: "GET" })
 }
 
 // Blockchain Property Management API
@@ -2561,5 +2754,386 @@ export async function getApprovedPropertyInterests(memberId: string) {
 	return apiFetch<{ success: boolean; data: ApprovedPropertyInterest[]; pagination?: { current_page: number; last_page: number; per_page: number; total: number } }>(
 		`/admin/property-payment-plans/pending-interests?member_id=${memberId}&per_page=100`,
 		{ method: "GET" },
+	)
+}
+
+export interface PropertyPaymentPlanDetails {
+	property: {
+		id: string
+		title: string
+	}
+	cooperative_amount: number | null
+	mortgage_amount: number | null
+	funding_option: string
+	selected_methods: string[]
+}
+
+export async function getPropertyPaymentPlanDetails(propertyId: string, memberId: string) {
+	return apiFetch<{ success: boolean; data: PropertyPaymentPlanDetails }>(
+		`/admin/property-payment-plans/details?property_id=${propertyId}&member_id=${memberId}`,
+		{ method: "GET" },
+	)
+}
+
+// Get repayment schedule for a loan
+export async function getLoanRepaymentSchedule(loanId: string) {
+	return apiFetch<{ success: boolean; data: RepaymentSchedule }>(
+		`/loans/${loanId}/schedule`,
+		{ method: "GET" },
+	)
+}
+
+// Get repayment schedule for a mortgage
+export async function getMortgageRepaymentSchedule(mortgageId: string) {
+	return apiFetch<{ success: boolean; data: RepaymentSchedule }>(
+		`/admin/mortgages/${mortgageId}/repayment-schedule`,
+		{ method: "GET" },
+	)
+}
+
+export interface NextPaymentDetails {
+	principal_paid: number
+	interest_paid: number
+	total_amount: number
+	due_date: string
+	remaining_principal: number
+	payment_method: string
+}
+
+export async function getMortgageNextPayment(mortgageId: string) {
+	return apiFetch<{ success: boolean; data: NextPaymentDetails; message?: string }>(
+		`/admin/mortgages/${mortgageId}/next-payment`,
+		{ method: "GET" },
+	)
+}
+
+// Get repayment schedule for an internal mortgage plan
+export async function getInternalMortgageRepaymentSchedule(planId: string) {
+	return apiFetch<{ success: boolean; data: RepaymentSchedule }>(
+		`/admin/internal-mortgages/${planId}/repayment-schedule`,
+		{ method: "GET" },
+	)
+}
+
+export async function getInternalMortgageNextPayment(planId: string) {
+	return apiFetch<{ success: boolean; data: NextPaymentDetails; message?: string }>(
+		`/admin/internal-mortgages/${planId}/next-payment`,
+		{ method: "GET" },
+	)
+}
+
+// Approve mortgage repayment schedule
+export async function approveMortgageSchedule(mortgageId: string) {
+	return apiFetch<{ success: boolean; message: string; data: { mortgage: any } }>(
+		`/properties/mortgages/${mortgageId}/approve-schedule`,
+		{ method: "POST" },
+	)
+}
+
+// Approve internal mortgage repayment schedule
+export async function approveInternalMortgageSchedule(planId: string) {
+	return apiFetch<{ success: boolean; message: string; data: { plan: any } }>(
+		`/properties/internal-mortgages/${planId}/approve-schedule`,
+		{ method: "POST" },
+	)
+}
+
+// Record a mortgage repayment (admin)
+export interface RepayMortgagePayload {
+	amount: number
+	principal_paid: number
+	interest_paid: number
+	due_date: string
+	payment_method: "monthly" | "yearly" | "bi-yearly"
+	notes?: string
+}
+
+export async function repayMortgage(mortgageId: string, payload: RepayMortgagePayload) {
+	return apiFetch<{ success: boolean; message: string; data?: unknown }>(
+		`/admin/mortgages/${mortgageId}/repay`,
+		{
+			method: "POST",
+			body: payload,
+		},
+	)
+}
+
+// Record an internal mortgage repayment (admin)
+export interface RepayInternalMortgagePayload {
+	amount: number
+	principal_paid: number
+	interest_paid: number
+	due_date: string
+	payment_method: "monthly" | "yearly" | "bi-yearly"
+	notes?: string
+}
+
+export async function repayInternalMortgage(planId: string, payload: RepayInternalMortgagePayload) {
+	return apiFetch<{ success: boolean; message: string; data?: unknown }>(
+		`/admin/internal-mortgages/${planId}/repay`,
+		{
+			method: "POST",
+			body: payload,
+		},
+	)
+}
+
+// Download bulk mortgage repayment template
+export async function downloadMortgageRepaymentTemplate() {
+	const response = await fetch(`${getApiBaseUrl()}/admin/bulk/mortgage-repayments/template`, {
+		method: "GET",
+		headers: {
+			Authorization: `Bearer ${getAuthToken()}`,
+			"X-Tenant-Slug": getTenantSlug() || "",
+		},
+	})
+	if (!response.ok) throw new Error("Failed to download template")
+	const blob = await response.blob()
+	const url = window.URL.createObjectURL(blob)
+	const a = document.createElement("a")
+	a.href = url
+	a.download = "mortgage_repayments_template.csv"
+	a.click()
+	window.URL.revokeObjectURL(url)
+}
+
+// Upload bulk mortgage repayments
+export async function uploadBulkMortgageRepayments(file: File) {
+	const formData = new FormData()
+	formData.append("file", file)
+	return apiFetch<{ success: boolean; message: string; data?: { successful: number; failed: number; errors?: unknown[] } }>(
+		"/admin/bulk/mortgage-repayments/upload",
+		{
+			method: "POST",
+			body: formData,
+		},
+	)
+}
+
+// Download bulk internal mortgage repayment template
+export async function downloadInternalMortgageRepaymentTemplate() {
+	const response = await fetch(`${getApiBaseUrl()}/admin/bulk/internal-mortgage-repayments/template`, {
+		method: "GET",
+		headers: {
+			Authorization: `Bearer ${getAuthToken()}`,
+			"X-Tenant-Slug": getTenantSlug() || "",
+		},
+	})
+	if (!response.ok) throw new Error("Failed to download template")
+	const blob = await response.blob()
+	const url = window.URL.createObjectURL(blob)
+	const a = document.createElement("a")
+	a.href = url
+	a.download = "internal_mortgage_repayments_template.csv"
+	a.click()
+	window.URL.revokeObjectURL(url)
+}
+
+// Upload bulk internal mortgage repayments
+export async function uploadBulkInternalMortgageRepayments(file: File) {
+	const formData = new FormData()
+	formData.append("file", file)
+	return apiFetch<{ success: boolean; message: string; data?: { successful: number; failed: number; errors?: unknown[] } }>(
+		"/admin/bulk/internal-mortgage-repayments/upload",
+		{
+			method: "POST",
+			body: formData,
+		},
+	)
+}
+
+// Mail/Messaging API Functions
+export interface MailMessage {
+	id: string
+	sender_id: string
+	recipient_id: string | null
+	subject: string
+	body: string
+	type: string
+	status: "draft" | "sent" | "delivered" | "failed"
+	category?: string | null
+	folder?: string | null
+	is_starred: boolean
+	is_read: boolean
+	is_unread: boolean
+	has_attachment: boolean
+	sent_at?: string | null
+	read_at?: string | null
+	delivered_at?: string | null
+	parent_id?: string | null
+	cc?: string[]
+	bcc?: string[]
+	sender: {
+		id: string
+		name: string
+		email: string
+	}
+	recipient: {
+		id: string
+		name: string
+		email: string
+	} | null
+	attachments: Array<{
+		id: string
+		file_name: string
+		file_path: string
+		file_size: number
+		mime_type: string
+		download_url: string
+	}>
+	from?: string | null
+	fromEmail?: string | null
+	to?: string | null
+	toEmail?: string | null
+	preview: string
+	date: string
+	created_at: string
+	updated_at: string
+}
+
+export interface MailListResponse {
+	success: boolean
+	messages: MailMessage[]
+	pagination: {
+		current_page: number
+		last_page: number
+		per_page: number
+		total: number
+	}
+}
+
+export interface ComposeMailPayload {
+	recipient_id?: string
+	subject?: string
+	body?: string
+	type?: "internal" | "system" | "notification"
+	status?: "draft" | "sent"
+	save_as_draft?: boolean
+	cc?: string[]
+	bcc?: string[]
+	category?: string
+	attachments?: File[]
+}
+
+// Get inbox messages (member-facing)
+export async function getMemberInboxMessages(params?: { filter?: "all" | "unread" | "read"; search?: string; starred?: boolean; page?: number; per_page?: number }) {
+	const query = new URLSearchParams()
+	if (params?.filter) query.set("filter", params.filter)
+	if (params?.search) query.set("search", params.search)
+	if (params?.starred) query.set("starred", "true")
+	if (params?.page) query.set("page", params.page.toString())
+	if (params?.per_page) query.set("per_page", params.per_page.toString())
+	return apiFetch<MailListResponse>(`/communication/mail/inbox?${query.toString()}`, { method: "GET" })
+}
+
+// Get sent messages (member-facing)
+export async function getMemberSentMessages(params?: { search?: string; category?: string; page?: number; per_page?: number }) {
+	const query = new URLSearchParams()
+	if (params?.search) query.set("search", params.search)
+	if (params?.category) query.set("category", params.category)
+	if (params?.page) query.set("page", params.page.toString())
+	if (params?.per_page) query.set("per_page", params.per_page.toString())
+	return apiFetch<MailListResponse>(`/communication/mail/sent?${query.toString()}`, { method: "GET" })
+}
+
+// Get outbox messages (member-facing)
+export async function getMemberOutboxMessages(params?: { search?: string; page?: number; per_page?: number }) {
+	const query = new URLSearchParams()
+	if (params?.search) query.set("search", params.search)
+	if (params?.page) query.set("page", params.page.toString())
+	if (params?.per_page) query.set("per_page", params.per_page.toString())
+	return apiFetch<MailListResponse>(`/communication/mail/outbox?${query.toString()}`, { method: "GET" })
+}
+
+// Get draft messages (member-facing)
+export async function getMemberDraftMessages(params?: { search?: string; page?: number; per_page?: number }) {
+	const query = new URLSearchParams()
+	if (params?.search) query.set("search", params.search)
+	if (params?.page) query.set("page", params.page.toString())
+	if (params?.per_page) query.set("per_page", params.per_page.toString())
+	return apiFetch<MailListResponse>(`/communication/mail/drafts?${query.toString()}`, { method: "GET" })
+}
+
+// Get single mail message
+export async function getMailMessage(mailId: string) {
+	return apiFetch<{ success: boolean; mail: MailMessage }>(`/communication/mail/${mailId}`, { method: "GET" })
+}
+
+// Compose and send mail
+export async function composeMail(payload: ComposeMailPayload) {
+	const formData = new FormData()
+	if (payload.recipient_id) formData.append("recipient_id", payload.recipient_id)
+	if (payload.subject) formData.append("subject", payload.subject)
+	if (payload.body) formData.append("body", payload.body)
+	if (payload.type) formData.append("type", payload.type)
+	if (payload.status) formData.append("status", payload.status)
+	if (payload.save_as_draft) formData.append("save_as_draft", "true")
+	if (payload.category) formData.append("category", payload.category)
+	if (payload.cc && payload.cc.length > 0) {
+		payload.cc.forEach((id) => formData.append("cc[]", id))
+	}
+	if (payload.bcc && payload.bcc.length > 0) {
+		payload.bcc.forEach((id) => formData.append("bcc[]", id))
+	}
+	if (payload.attachments && payload.attachments.length > 0) {
+		payload.attachments.forEach((file) => formData.append("attachments[]", file))
+	}
+	return apiFetch<{ success: boolean; message: string; mail: MailMessage }>("/communication/mail", {
+		method: "POST",
+		body: formData,
+	})
+}
+
+// Mark mail as read
+export async function markMailAsRead(mailId: string) {
+	return apiFetch<{ success: boolean; message: string }>(`/communication/mail/${mailId}/read`, { method: "POST" })
+}
+
+// Mark mail as unread
+export async function markMailAsUnread(mailId: string) {
+	return apiFetch<{ success: boolean; message: string }>(`/communication/mail/${mailId}/unread`, { method: "POST" })
+}
+
+// Toggle star status
+export async function toggleMailStar(mailId: string) {
+	return apiFetch<{ success: boolean; message: string; is_starred: boolean }>(`/communication/mail/${mailId}/star`, { method: "POST" })
+}
+
+// Delete mail
+export async function deleteMail(mailId: string) {
+	return apiFetch<{ success: boolean; message: string }>(`/communication/mail/${mailId}`, { method: "DELETE" })
+}
+
+// Bulk delete mails
+export async function bulkDeleteMails(ids: string[]) {
+	return apiFetch<{ success: boolean; message: string }>("/communication/mail/bulk-delete", {
+		method: "POST",
+		body: { ids },
+	})
+}
+
+// Bulk mark as read
+export async function bulkMarkMailsAsRead(ids: string[]) {
+	return apiFetch<{ success: boolean; message: string }>("/communication/mail/bulk-mark-read", {
+		method: "POST",
+		body: { ids },
+	})
+}
+
+// Reply to mail
+export async function replyToMail(mailId: string, payload: { subject: string; body: string }) {
+	return apiFetch<{ success: boolean; message: string; mail: MailMessage }>(`/communication/mail/${mailId}/reply`, {
+		method: "POST",
+		body: payload,
+	})
+}
+
+// Get available recipients (users/admins for dropdown)
+export async function getAvailableRecipients(search?: string) {
+	const query = new URLSearchParams()
+	if (search) query.set("search", search)
+	return apiFetch<{ success: boolean; users: Array<{ id: string; name: string; email: string; role: string }> }>(
+		`/communication/mail/recipients?${query.toString()}`,
+		{ method: "GET" }
 	)
 }

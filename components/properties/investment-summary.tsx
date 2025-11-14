@@ -1,16 +1,19 @@
 import { Card } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Home, TrendingUp, Wallet, PiggyBank } from "lucide-react"
+import { Home, TrendingUp, Wallet, PiggyBank, MapPinned } from "lucide-react"
 import type { MemberPropertiesSummary } from "@/lib/api/client"
 
 type PropertiesSummaryProps = {
 	summary?: MemberPropertiesSummary | null
 	loading?: boolean
+	propertyType?: "house" | "land"
 }
 
 const currency = new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 })
 
-export function PropertiesSummary({ summary, loading }: PropertiesSummaryProps) {
+export function PropertiesSummary({ summary, loading, propertyType = "house" }: PropertiesSummaryProps) {
+	const isLand = propertyType === "land"
+	
 	if (loading) {
 		return (
 			<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -31,17 +34,20 @@ export function PropertiesSummary({ summary, loading }: PropertiesSummaryProps) 
 	const data = summary ?? {
 		total_properties: 0,
 		houses_owned: 0,
+		lands_owned: 0,
 		total_paid: 0,
 		current_value: 0,
 		predictive_value: 0,
 	}
 
+	const totalOwned = isLand ? (data.lands_owned ?? 0) : data.houses_owned
+
   const stats = [
     {
-			title: "Total Houses",
-			value: data.houses_owned,
-			description: `${data.total_properties} total properties expressed`,
-			icon: Home,
+			title: isLand ? "Total Lands" : "Total Houses",
+			value: totalOwned,
+			description: `${data.total_properties} total ${isLand ? "lands" : "properties"} expressed`,
+			icon: isLand ? MapPinned : Home,
 		},
 		{
 			title: "Total Paid",

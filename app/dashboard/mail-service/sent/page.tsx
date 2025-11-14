@@ -1,62 +1,44 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Mail, Search, ArrowLeft, Trash2, Paperclip } from "lucide-react"
+import { Mail, Search, ArrowLeft, Trash2, Paperclip, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { Checkbox } from "@/components/ui/checkbox"
+import { getMemberSentMessages, deleteMail, bulkDeleteMails, MailMessage } from "@/lib/api/client"
+import { toast } from "sonner"
 
 export default function SentPage() {
-  const [selectedMessages, setSelectedMessages] = useState<number[]>([])
+  const [selectedMessages, setSelectedMessages] = useState<string[]>([])
   const [filter, setFilter] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
+  const [messages, setMessages] = useState<MailMessage[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      to: "Housing Admin",
-      subject: "Re: New Investment Opportunity Available",
-      preview: "Thank you for the information. I would like to know more about...",
-      date: "2024-01-15 11:45 AM",
-      status: "delivered",
-      category: "Investment",
-      hasAttachment: false,
-    },
-    {
-      id: 2,
-      to: "Accounts Department",
-      subject: "Contribution Payment Confirmation",
-      preview: "Please find attached the payment receipt for January 2024...",
-      date: "2024-01-14 03:30 PM",
-      status: "delivered",
-      category: "Contribution",
-      hasAttachment: true,
-    },
-    {
-      id: 3,
-      to: "Loan Department",
-      subject: "Loan Application Inquiry",
-      preview: "I would like to inquire about the status of my loan application...",
-      date: "2024-01-13 10:15 AM",
-      status: "delivered",
-      category: "Loan",
-      hasAttachment: false,
-    },
-    {
-      id: 4,
-      to: "Property Department",
-      subject: "Property Viewing Request",
-      preview: "I am interested in viewing the property at Apo Wasa...",
-      date: "2024-01-12 02:20 PM",
-      status: "delivered",
-      category: "Property",
-      hasAttachment: false,
-    },
-  ])
+  const loadMessages = async () => {
+    try {
+      setLoading(true)
+      const response = await getMemberSentMessages({
+        search: searchQuery || undefined,
+        category: filter !== "all" ? filter : undefined,
+      })
+      if (response.success) {
+        setMessages(response.messages)
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to load messages")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadMessages()
+  }, [filter, searchQuery])
 
   const handleSelectAll = () => {
     if (selectedMessages.length === filteredMessages.length) {
@@ -66,16 +48,33 @@ export default function SentPage() {
     }
   }
 
-  const handleBulkDelete = () => {
-    setMessages(messages.filter((m) => !selectedMessages.includes(m.id)))
-    setSelectedMessages([])
+  const handleBulkDelete = async () => {
+    if (selectedMessages.length === 0) return
+    try {
+      await bulkDeleteMails(selectedMessages)
+      toast.success("Messages deleted successfully")
+      setSelectedMessages([])
+      await loadMessages()
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete messages")
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteMail(id)
+      toast.success("Message deleted successfully")
+      await loadMessages()
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete message")
+    }
   }
 
   const filteredMessages = messages.filter((msg) => {
-    const matchesFilter = filter === "all" || msg.category.toLowerCase() === filter.toLowerCase()
+    const matchesFilter = filter === "all" || msg.category?.toLowerCase() === filter.toLowerCase()
     const matchesSearch =
       msg.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      msg.to.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      msg.to?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       msg.preview.toLowerCase().includes(searchQuery.toLowerCase())
     return matchesFilter && matchesSearch
   })
@@ -97,6 +96,14 @@ export default function SentPage() {
     } else {
       return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
   }
 
   return (
@@ -192,21 +199,20 @@ export default function SentPage() {
               />
 
               <Link href={`/dashboard/mail-service/${message.id}`} className="flex-1 flex items-center gap-4 min-w-0">
-                {/* Recipient info */}
                 <div className="w-48 flex-shrink-0">
-                  <p className="text-sm font-medium truncate">To: {message.to}</p>
+                  <p className="text-sm font-medium truncate">To: {message.to || message.recipient?.name || "Unknown"}</p>
                 </div>
 
-                {/* Subject and preview */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
                     <p className="text-sm font-medium truncate">{message.subject}</p>
-                    {message.hasAttachment && <Paperclip className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />}
+                    {message.has_attachment && (
+                      <Paperclip className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                    )}
                   </div>
                   <p className="text-sm text-muted-foreground truncate">{message.preview}</p>
                 </div>
 
-                {/* Status and time */}
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <Badge
                     variant={message.status === "delivered" ? "default" : "secondary"}
@@ -220,7 +226,6 @@ export default function SentPage() {
                 </div>
               </Link>
 
-              {/* Action button on hover */}
               <div className="opacity-0 group-hover:opacity-100 transition-opacity">
                 <Button
                   variant="ghost"
@@ -229,7 +234,7 @@ export default function SentPage() {
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
-                    setMessages(messages.filter((m) => m.id !== message.id))
+                    handleDelete(message.id)
                   }}
                 >
                   <Trash2 className="h-4 w-4" />

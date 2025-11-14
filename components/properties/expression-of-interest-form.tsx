@@ -663,7 +663,7 @@ useEffect(() => {
 		)
   }
 
-	return (
+  return (
 		<form onSubmit={handleSubmit} noValidate>
 			<Card className="mx-auto max-w-4xl">
 				<CardHeader className="border-b text-center">
@@ -980,7 +980,7 @@ useEffect(() => {
 						<div className="rounded-md border border-dashed bg-muted/50 p-3 text-sm text-muted-foreground">
 							Select a funding plan that matches how you intend to complete your purchase. Mix funding allows you to combine
 							up to three payment options (for example: Equity + Mortgage, Mortgage + Cooperative, or Equity + Loan).
-						</div>
+          </div>
 
 						{fundingOption === "loan" && (
 							<div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm">
@@ -990,7 +990,7 @@ useEffect(() => {
 						)}
 
 						{fundingOption === "mix" && (
-							<div className="space-y-4">
+          <div className="space-y-4">
 								<div className="rounded-lg border border-dashed p-4">
 									<p className="text-sm text-muted-foreground">
 										Choose up to three payment options to combine. Your selections will guide the tenant admin in setting up
@@ -1066,27 +1066,27 @@ useEffect(() => {
 															{mortgageTerms.status}
 														</div>
 													</div>
-												</div>
+                </div>
 												<div className="grid gap-4 md:grid-cols-3">
 													<div className="space-y-2">
 														<Label className="text-xs uppercase text-muted-foreground">Loan Amount</Label>
 														<div className="rounded border border-dotted bg-white px-3 py-2 text-sm font-medium">
 															{formatCurrency(mortgageTerms.loan_amount)}
-														</div>
-													</div>
+                </div>
+                </div>
 													<div className="space-y-2">
 														<Label className="text-xs uppercase text-muted-foreground">Interest Rate</Label>
 														<div className="rounded border border-dotted bg-white px-3 py-2 text-sm font-medium">
 															{mortgageTerms.interest_rate}%
-														</div>
-													</div>
+                </div>
+              </div>
 													<div className="space-y-2">
 														<Label className="text-xs uppercase text-muted-foreground">Tenure (Years)</Label>
 														<div className="rounded border border-dotted bg-white px-3 py-2 text-sm font-medium">
 															{mortgageTerms.tenure_years}
 														</div>
-													</div>
-												</div>
+            </div>
+          </div>
 
 												{mortgageTenureRestriction && (
 													<div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">

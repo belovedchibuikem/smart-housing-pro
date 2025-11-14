@@ -1,50 +1,61 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, Plus, Calendar, Eye } from "lucide-react"
+import { Search, Plus, Calendar, Eye, Loader2 } from "lucide-react"
 import Link from "next/link"
+import { getMyMaintenanceRequests, type MaintenanceRequest } from "@/lib/api/client"
+import { toast as sonnerToast } from "sonner"
 
 export default function MaintenanceRequestsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [requests, setRequests] = useState<MaintenanceRequest[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const requests = [
-    {
-      id: "MNT-001",
-      title: "Plumbing Issue",
-      property: "Block A, Unit 12",
-      estate: "FRSC Estate Phase 1",
-      status: "in_progress",
-      priority: "high",
-      dateSubmitted: "2024-01-15",
-      description: "Leaking pipe in the kitchen",
-    },
-    {
-      id: "MNT-002",
-      title: "Electrical Fault",
-      property: "Plot 45",
-      estate: "FRSC Estate Phase 2",
-      status: "pending",
-      priority: "medium",
-      dateSubmitted: "2024-01-20",
-      description: "Power outlet not working in bedroom",
-    },
-    {
-      id: "MNT-003",
-      title: "Gate Repair",
-      property: "Block A, Unit 12",
-      estate: "FRSC Estate Phase 1",
-      status: "completed",
-      priority: "low",
-      dateSubmitted: "2024-01-10",
-      description: "Main gate hinge needs replacement",
-    },
-  ]
+  useEffect(() => {
+    const fetchRequests = async () => {
+      try {
+        setLoading(true)
+        const params: { status?: string } = {}
+        if (statusFilter !== "all") {
+          params.status = statusFilter
+        }
+        const response = await getMyMaintenanceRequests(params)
+        if (response.success) {
+          setRequests(response.requests)
+        } else {
+          sonnerToast.error("Failed to load maintenance requests")
+        }
+      } catch (error: any) {
+        console.error("Error fetching maintenance requests:", error)
+        sonnerToast.error("Failed to load maintenance requests", {
+          description: error?.message || "Please try again later",
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchRequests()
+  }, [statusFilter])
+
+  const filteredRequests = useMemo(() => {
+    if (!searchQuery) return requests
+    const query = searchQuery.toLowerCase()
+    return requests.filter(
+      (request) =>
+        request.title.toLowerCase().includes(query) ||
+        request.description.toLowerCase().includes(query) ||
+        request.property.toLowerCase().includes(query) ||
+        request.estate.toLowerCase().includes(query) ||
+        request.request_id.toLowerCase().includes(query)
+    )
+  }, [requests, searchQuery])
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -62,6 +73,7 @@ export default function MaintenanceRequestsPage() {
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case "high":
+      case "urgent":
         return "destructive"
       case "medium":
         return "secondary"
@@ -70,6 +82,16 @@ export default function MaintenanceRequestsPage() {
       default:
         return "outline"
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="w-full space-y-6 px-4 sm:px-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -119,45 +141,60 @@ export default function MaintenanceRequestsPage() {
         </CardContent>
       </Card>
 
-      <div className="space-y-4">
-        {requests.map((request) => (
-          <Card key={request.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-4 sm:p-6">
-              <div className="flex flex-col gap-4">
-                <div className="space-y-3 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="font-semibold text-base sm:text-lg">{request.title}</h3>
-                    <Badge variant={getStatusColor(request.status)}>{request.status.replace("_", " ")}</Badge>
-                    <Badge variant={getPriorityColor(request.priority)}>{request.priority} priority</Badge>
+      {filteredRequests.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Search className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+            <p className="text-muted-foreground">
+              {searchQuery || statusFilter !== "all"
+                ? "No maintenance requests found matching your filters"
+                : "You haven't submitted any maintenance requests yet"}
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {filteredRequests.map((request) => (
+            <Card key={request.id} className="hover:shadow-md transition-shadow">
+              <CardContent className="p-4 sm:p-6">
+                <div className="flex flex-col gap-4">
+                  <div className="space-y-3 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="font-semibold text-base sm:text-lg">{request.title}</h3>
+                      <Badge variant={getStatusColor(request.status)}>{request.status.replace("_", " ")}</Badge>
+                      <Badge variant={getPriorityColor(request.priority)}>{request.priority} priority</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{request.description}</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-sm text-muted-foreground">
+                      <div>
+                        <span className="font-medium">Request ID:</span> {request.request_id}
+                      </div>
+                      <div>
+                        <span className="font-medium">Property:</span> {request.property}
+                      </div>
+                      <div>
+                        <span className="font-medium">Estate:</span> {request.estate}
+                      </div>
+                      {request.date_submitted && (
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          {new Date(request.date_submitted).toLocaleDateString()}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-sm text-muted-foreground">{request.description}</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 text-sm text-muted-foreground">
-                    <div>
-                      <span className="font-medium">Request ID:</span> {request.id}
-                    </div>
-                    <div>
-                      <span className="font-medium">Property:</span> {request.property}
-                    </div>
-                    <div>
-                      <span className="font-medium">Estate:</span> {request.estate}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4" />
-                      {new Date(request.dateSubmitted).toLocaleDateString()}
-                    </div>
-                  </div>
+                  <Button variant="outline" size="sm" className="w-full sm:w-auto sm:self-end bg-transparent" asChild>
+                    <Link href={`/dashboard/property-management/maintenance/${request.id}`}>
+                      <Eye className="h-4 w-4 mr-2" />
+                      View Details
+                    </Link>
+                  </Button>
                 </div>
-                <Button variant="outline" size="sm" className="w-full sm:w-auto sm:self-end bg-transparent" asChild>
-                  <Link href={`/dashboard/property-management/maintenance/${request.id}`}>
-                    <Eye className="h-4 w-4 mr-2" />
-                    View Details
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

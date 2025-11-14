@@ -7,8 +7,9 @@ import { useToast } from "@/hooks/use-toast"
 import { PropertyHeader } from "./(components)/property-header"
 import { PropertyGallery } from "./(components)/property-gallery"
 import { PropertyFinancials } from "./(components)/property-financials"
+import { PropertyPaymentJourney } from "./(components)/property-payment-journey"
 import { PropertyDetailsTab } from "@/components/properties/property-details-tab"
-import { MyHouses } from "@/components/properties/my-houses"
+import { MyProperties } from "@/components/properties/my-properties"
 import { PropertyDocuments } from "@/components/properties/property-documents"
 import { PropertyPaymentTab } from "@/components/properties/property-payment-tab"
 import {
@@ -36,43 +37,53 @@ export default function PropertyDetailPage() {
     const fetchData = async () => {
       try {
         setLoading(true)
-        const [memberResult, availableResult] = await Promise.allSettled([getMemberProperties(), getAvailableProperties()])
+        // First, get the property to determine its type
+        const availableResult = await Promise.allSettled([getAvailableProperties()])
+        let propertyType: "house" | "land" | undefined = undefined
+        
+        if (availableResult[0].status === "fulfilled") {
+          const property = availableResult[0].value?.properties?.find((prop) => prop.id === propertyId) ?? null
+          if (property) {
+            propertyType = property.type?.toLowerCase() === "land" ? "land" : "house"
+            setAvailableProperty(
+              {
+                ...property,
+                images: (property.images ?? []).map((image) => ({
+                  ...image,
+                  url: image.url ?? (image as any).image_url ?? "",
+                })),
+              }
+            )
+          }
+        }
+
+        // Load member properties filtered by type
+        const memberResult = await Promise.allSettled([
+          propertyType ? getMemberProperties(propertyType) : getMemberProperties()
+        ])
 
         if (!isMounted) return
 
-        if (memberResult.status === "fulfilled" && memberResult.value.success) {
-          setHouses(memberResult.value.properties ?? [])
-        } else if (memberResult.status === "fulfilled" && !memberResult.value.success) {
+        if (memberResult[0].status === "fulfilled" && memberResult[0].value.success) {
+          setHouses(memberResult[0].value.properties ?? [])
+        } else if (memberResult[0].status === "fulfilled" && !memberResult[0].value.success) {
           toast({
-            title: "Unable to load your houses",
-            description: "We could not load your houses. Please try again later.",
+            title: "Unable to load your properties",
+            description: "We could not load your properties. Please try again later.",
             variant: "destructive",
           })
-        } else if (memberResult.status === "rejected") {
+        } else if (memberResult[0].status === "rejected") {
           toast({
-            title: "Unable to load your houses",
-            description: memberResult.reason?.message || "We could not load your houses. Please try again later.",
+            title: "Unable to load your properties",
+            description: memberResult[0].reason?.message || "We could not load your properties. Please try again later.",
             variant: "destructive",
           })
         }
 
-        if (availableResult.status === "fulfilled") {
-          const property = availableResult.value?.properties?.find((prop) => prop.id === propertyId) ?? null
-          setAvailableProperty(
-            property
-              ? {
-                  ...property,
-                  images: (property.images ?? []).map((image) => ({
-                    ...image,
-                    url: image.url ?? (image as any).image_url ?? "",
-                  })),
-                }
-              : null,
-          )
-        } else if (availableResult.status === "rejected") {
+        if (availableResult[0].status === "rejected") {
           toast({
             title: "Unable to load available property",
-            description: availableResult.reason?.message || "We could not load the property details. Please try again later.",
+            description: availableResult[0].reason?.message || "We could not load the property details. Please try again later.",
             variant: "destructive",
           })
         }
@@ -118,9 +129,13 @@ export default function PropertyDetailPage() {
     return availableProperty ?? undefined
   }, [activeHouse, availableProperty])
 
-  const similarHouses = useMemo(() => {
-    return houses.filter((house) => house.id !== propertyId)
-  }, [houses, propertyId])
+  const propertyType = useMemo(() => {
+    return property?.type?.toLowerCase() === "land" ? "land" : "house"
+  }, [property])
+
+  const similarProperties = useMemo(() => {
+    return houses.filter((house) => house.id !== propertyId && house.type?.toLowerCase() === propertyType)
+  }, [houses, propertyId, propertyType])
 
   const detailsProps = useMemo(() => {
     if (!property) return undefined
@@ -209,11 +224,11 @@ export default function PropertyDetailPage() {
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList>
-          <TabsTrigger value="details">House Details</TabsTrigger>
+          <TabsTrigger value="details">{propertyType === "land" ? "Land Details" : "House Details"}</TabsTrigger>
           <TabsTrigger value="payments" disabled={!activeHouse}>Payments</TabsTrigger>
           <TabsTrigger value="documents" disabled={!activeHouse}>Documents</TabsTrigger>
           <TabsTrigger value="journey">Payment Journey</TabsTrigger>
-          <TabsTrigger value="similar">Similar Houses</TabsTrigger>
+          <TabsTrigger value="similar">{propertyType === "land" ? "Similar Lands" : "Similar Houses"}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="details">
@@ -221,13 +236,13 @@ export default function PropertyDetailPage() {
         </TabsContent>
 
         <TabsContent value="journey">
-          <div className="rounded-lg border bg-muted/40 p-6">
-            <h3 className="text-lg font-semibold">House Ownership Progress</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Keep track of your payments and ensure you stay on track to complete your house ownership.
-            </p>
-            {/* Placeholder for detailed journey once backend provides timeline/payment breakdown */}
-          </div>
+          {activeHouse ? (
+            <PropertyPaymentJourney house={activeHouse} />
+          ) : (
+            <div className="rounded-lg border p-6 text-sm text-muted-foreground">
+              Payment journey is only available for properties you have expressed interest in.
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="payments">
@@ -235,7 +250,7 @@ export default function PropertyDetailPage() {
             <PropertyPaymentTab propertyId={activeHouse.id} house={activeHouse} />
           ) : (
             <div className="rounded-lg border p-6 text-sm text-muted-foreground">
-              Payment setup is only available for houses you have expressed interest in.
+              Payment setup is only available for properties you have expressed interest in.
             </div>
           )}
         </TabsContent>
@@ -251,7 +266,7 @@ export default function PropertyDetailPage() {
         </TabsContent>
 
         <TabsContent value="similar">
-          <MyHouses houses={similarHouses} />
+          <MyProperties properties={similarProperties} propertyType={propertyType} />
         </TabsContent>
       </Tabs>
     </div>

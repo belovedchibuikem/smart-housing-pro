@@ -1,25 +1,33 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
+import { useSearchParams } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { PropertyListings } from "@/components/properties/property-listings"
-import { MyHouses } from "@/components/properties/my-houses"
+import { MyProperties } from "@/components/properties/my-properties"
 import { PropertiesSummary } from "@/components/properties/investment-summary"
 import { getAvailableProperties, getMemberProperties, type AvailableProperty, type MemberHouse, type MemberPropertiesSummary } from "@/lib/api/client"
 
 export default function PropertiesPage() {
   const { toast } = useToast()
+  const searchParams = useSearchParams()
+  const propertyType = useMemo(() => {
+    const type = searchParams?.get("type")?.toLowerCase()
+    return type === "land" ? "land" : "house"
+  }, [searchParams])
+
+  const [activeTab, setActiveTab] = useState<string>("available-houses")
   const [availableProperties, setAvailableProperties] = useState<AvailableProperty[]>([])
-  const [houses, setHouses] = useState<MemberHouse[]>([])
+  const [memberProperties, setMemberProperties] = useState<MemberHouse[]>([])
   const [summary, setSummary] = useState<MemberPropertiesSummary | null>(null)
   const [loadingAvailable, setLoadingAvailable] = useState<boolean>(true)
-  const [loadingHouses, setLoadingHouses] = useState<boolean>(true)
+  const [loadingMember, setLoadingMember] = useState<boolean>(true)
 
-  const loadAvailableProperties = useCallback(async () => {
+  const loadAvailableProperties = useCallback(async (type: "house" | "land") => {
     try {
       setLoadingAvailable(true)
-      const response = await getAvailableProperties()
+      const response = await getAvailableProperties(type)
       const formatted = (response.properties ?? []).map((property) => ({
         ...property,
         price: Number(property.price ?? 0),
@@ -34,8 +42,8 @@ export default function PropertiesPage() {
       setAvailableProperties(formatted)
     } catch (error: any) {
       toast({
-        title: "Unable to load properties",
-        description: error?.message || "We could not load available properties. Please try again later.",
+        title: `Unable to load ${type === "house" ? "houses" : "lands"}`,
+        description: error?.message || `We could not load available ${type === "house" ? "houses" : "lands"}. Please try again later.`,
         variant: "destructive",
       })
     } finally {
@@ -43,67 +51,78 @@ export default function PropertiesPage() {
     }
   }, [toast])
 
-  const loadMemberHouses = useCallback(async () => {
+  const loadMemberProperties = useCallback(async (type: "house" | "land") => {
     try {
-      setLoadingHouses(true)
-      const response = await getMemberProperties()
+      setLoadingMember(true)
+      const response = await getMemberProperties(type)
       if (response.success) {
-        setSummary(response.summary)
-        setHouses(
-          (response.properties ?? []).map((house) => ({
-            ...house,
-            price: Number(house.price ?? 0),
-            total_paid: Number(house.total_paid ?? 0),
-            current_value: Number(house.current_value ?? 0),
-            predictive_value: Number(house.predictive_value ?? 0),
-            progress: Number(house.progress ?? 0),
-            images: (house.images ?? []).map((image) => ({
-              ...image,
-              url: image.url ?? (image as any).image_url ?? "",
-            })),
+        const formatted = (response.properties ?? []).map((property) => ({
+          ...property,
+          price: Number(property.price ?? 0),
+          total_paid: Number(property.total_paid ?? 0),
+          current_value: Number(property.current_value ?? 0),
+          predictive_value: Number(property.predictive_value ?? 0),
+          progress: Number(property.progress ?? 0),
+          images: (property.images ?? []).map((image) => ({
+            ...image,
+            url: image.url ?? (image as any).image_url ?? "",
           })),
-        )
+        }))
+        setMemberProperties(formatted)
+        setSummary(response.summary)
       } else {
-        setSummary(null)
-        setHouses([])
+        setMemberProperties([])
       }
     } catch (error: any) {
       toast({
-        title: "Unable to load your houses",
-        description: error?.message || "We could not load your house information. Please try again later.",
+        title: `Unable to load your ${type === "house" ? "houses" : "lands"}`,
+        description: error?.message || `We could not load your ${type === "house" ? "house" : "land"} information. Please try again later.`,
         variant: "destructive",
       })
     } finally {
-      setLoadingHouses(false)
+      setLoadingMember(false)
     }
   }, [toast])
 
   useEffect(() => {
-    void loadAvailableProperties()
-    void loadMemberHouses()
-  }, [loadAvailableProperties, loadMemberHouses])
+    void loadAvailableProperties(propertyType)
+    void loadMemberProperties(propertyType)
+  }, [propertyType, loadAvailableProperties, loadMemberProperties])
+
+  useEffect(() => {
+    // Set default tab based on type
+    setActiveTab(propertyType === "land" ? "available-lands" : "available-houses")
+  }, [propertyType])
+
+  const isLand = propertyType === "land"
+  const availableTabValue = isLand ? "available-lands" : "available-houses"
+  const myTabValue = isLand ? "lands" : "houses"
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">My Properties</h1>
-        <p className="mt-1 text-muted-foreground">Browse available homes and track your journey to ownership.</p>
+        <h1 className="text-3xl font-bold">{isLand ? "My Lands" : "My Houses"}</h1>
+        <p className="mt-1 text-muted-foreground">
+          {isLand 
+            ? "Browse available lands and track your journey to ownership."
+            : "Browse available houses and track your journey to ownership."}
+        </p>
       </div>
 
-      <PropertiesSummary summary={summary} loading={loadingHouses} />
+      <PropertiesSummary summary={summary} loading={loadingAvailable || loadingMember} propertyType={propertyType} />
 
-      <Tabs defaultValue="available" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
-          <TabsTrigger value="available">Available Properties</TabsTrigger>
-          <TabsTrigger value="houses">My Houses</TabsTrigger>
+          <TabsTrigger value={availableTabValue}>{isLand ? "Available Lands" : "Available Houses"}</TabsTrigger>
+          <TabsTrigger value={myTabValue}>{isLand ? "My Lands" : "My Houses"}</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="available">
+        <TabsContent value={availableTabValue}>
           <PropertyListings properties={availableProperties} loading={loadingAvailable} />
         </TabsContent>
 
-        <TabsContent value="houses">
-          <MyHouses houses={houses} loading={loadingHouses} />
+        <TabsContent value={myTabValue}>
+          <MyProperties properties={memberProperties} loading={loadingMember} propertyType={propertyType} />
         </TabsContent>
       </Tabs>
     </div>

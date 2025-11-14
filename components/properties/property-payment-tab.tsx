@@ -9,6 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
 	Upload,
 	CreditCard,
@@ -19,6 +20,8 @@ import {
 	Wallet,
 	Loader2,
 	AlertTriangle,
+	Download,
+	Printer,
 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import type {
@@ -28,8 +31,10 @@ import type {
 	PropertyPaymentHistoryEntry,
 	PropertyFundingOption,
 	SubmitPropertyPaymentPayload,
+	RepaymentSchedule,
+	RepaymentScheduleEntry,
 } from "@/lib/api/client"
-import { getPropertyPaymentSetup, submitPropertyPayment } from "@/lib/api/client"
+import { getPropertyPaymentSetup, submitPropertyPayment, approveMortgageSchedule, approveInternalMortgageSchedule } from "@/lib/api/client"
 import { useToast } from "@/hooks/use-toast"
 
 type PropertyPaymentTabProps = {
@@ -160,6 +165,10 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 	const paymentPlan = setup?.payment_plan ?? null
 	const ledgerEntries = setup?.ledger_entries ?? []
 	const ledgerTotalPaid = setup?.ledger_total_paid ?? null
+	const repaymentSchedules = setup?.repayment_schedules ?? {}
+	const [approvingSchedules, setApprovingSchedules] = useState<Record<string, boolean>>({})
+	const [receiptDialogOpen, setReceiptDialogOpen] = useState(false)
+	const [selectedReceipt, setSelectedReceipt] = useState<PropertyPaymentHistoryEntry | null>(null)
 
 	const isMixPlan = paymentPlan?.funding_option === "mix"
 	const mixAllocations = isMixPlan ? paymentPlan?.configuration?.mix_allocations ?? null : null
@@ -304,6 +313,158 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 
 	const getMixAllocation = (method: string) =>
 		isMixPlan ? mixAllocationSummary.find((entry) => entry.method === method) ?? null : null
+
+	const renderRepaymentSchedule = (schedule: RepaymentSchedule, type: "mortgage" | "loan" | "cooperative", mortgageId?: string, planId?: string) => {
+		if (!schedule || !schedule.schedule || schedule.schedule.length === 0) {
+			return null
+		}
+
+		const paidCount = schedule.schedule.filter((entry) => entry.status === "paid").length
+		const totalCount = schedule.schedule.length
+		const progressPercent = totalCount > 0 ? (paidCount / totalCount) * 100 : 0
+		const scheduleKey = mortgageId || planId || `${type}-${schedule.mortgage_id || schedule.plan_id}`
+		const approving = approvingSchedules[scheduleKey] || false
+
+		const handleApproveSchedule = async () => {
+			if (!mortgageId && !planId) return
+			
+			setApprovingSchedules(prev => ({ ...prev, [scheduleKey]: true }))
+			try {
+				if (type === "mortgage" && mortgageId) {
+					await approveMortgageSchedule(mortgageId)
+				} else if (type === "cooperative" && planId) {
+					await approveInternalMortgageSchedule(planId)
+				}
+				toast({
+					title: "Schedule Approved",
+					description: "Repayment schedule has been approved. Deductions can now proceed.",
+				})
+				// Refresh the payment setup to get updated schedule
+				setRefreshKey((prev) => prev + 1)
+			} catch (error: any) {
+				toast({
+					title: "Approval Failed",
+					description: error?.message || "Failed to approve schedule",
+					variant: "destructive",
+				})
+			} finally {
+				setApprovingSchedules(prev => ({ ...prev, [scheduleKey]: false }))
+			}
+		}
+
+		return (
+			<div className="space-y-4 rounded-lg border border-blue-200 bg-blue-50 p-4">
+				<div className="flex items-center justify-between">
+					<div>
+						<h4 className="font-semibold text-blue-900">
+							{type === "mortgage" ? "Mortgage" : type === "loan" ? "Loan" : "Cooperative Deduction"} Repayment Schedule
+						</h4>
+						<p className="text-sm text-blue-700">
+							{schedule.is_fully_repaid ? (
+								<span className="font-semibold text-green-700">Fully Repaid</span>
+							) : (
+								<>
+									Principal Repaid: {formatCurrency(schedule.total_principal_repaid)} /{" "}
+									{formatCurrency(schedule.loan_amount ?? schedule.principal ?? 0)} • Remaining:{" "}
+									{formatCurrency(schedule.remaining_principal)}
+								</>
+							)}
+						</p>
+						{schedule.schedule_approved ? (
+							<p className="text-xs text-green-700 mt-1 flex items-center gap-1">
+								<CheckCircle2 className="h-3 w-3" />
+								Schedule approved on {schedule.schedule_approved_at ? new Date(schedule.schedule_approved_at).toLocaleDateString() : ""}
+							</p>
+						) : (type === "mortgage" || type === "cooperative") && (
+							<div className="mt-2 rounded-md border border-amber-300 bg-amber-50 p-2">
+								<p className="text-xs text-amber-800 mb-2">
+									<AlertTriangle className="inline h-3 w-3 mr-1" />
+									You must approve this repayment schedule before deductions can begin.
+								</p>
+								<Button
+									size="sm"
+									variant="default"
+									onClick={handleApproveSchedule}
+									disabled={approving}
+									className="h-7 text-xs"
+								>
+									{approving ? (
+										<>
+											<Loader2 className="mr-1 h-3 w-3 animate-spin" />
+											Approving...
+										</>
+									) : (
+										<>
+											<CheckCircle2 className="mr-1 h-3 w-3" />
+											Approve Schedule
+										</>
+									)}
+								</Button>
+							</div>
+						)}
+					</div>
+					<Badge variant={schedule.is_fully_repaid ? "default" : "secondary"}>
+						{paidCount} / {totalCount} Payments
+					</Badge>
+				</div>
+
+				<div className="space-y-2">
+					<div className="flex justify-between text-xs">
+						<span>Repayment Progress</span>
+						<span className="font-semibold">{progressPercent.toFixed(1)}%</span>
+					</div>
+					<Progress value={progressPercent} className="h-2" />
+				</div>
+
+				<div className="max-h-64 space-y-2 overflow-y-auto rounded-md border bg-white p-2">
+					<div className="sticky top-0 grid grid-cols-6 gap-2 border-b bg-gray-50 px-2 py-2 text-xs font-semibold">
+						<div>Period</div>
+						<div>Due Date</div>
+						<div>Principal</div>
+						<div>Interest</div>
+						<div>Total</div>
+						<div>Status</div>
+					</div>
+					{schedule.schedule.map((entry, idx) => (
+						<div
+							key={idx}
+							className={`grid grid-cols-6 gap-2 px-2 py-2 text-xs ${
+								entry.status === "paid" ? "bg-green-50" : entry.status === "overdue" ? "bg-red-50" : ""
+							}`}
+						>
+							<div>{entry.installment ?? entry.month ?? entry.period ?? idx + 1}</div>
+							<div>{new Date(entry.due_date).toLocaleDateString()}</div>
+							<div>{formatCurrency(entry.principal)}</div>
+							<div>{formatCurrency(entry.interest)}</div>
+							<div className="font-semibold">{formatCurrency(entry.total)}</div>
+							<div>
+								{entry.status === "paid" ? (
+									<Badge variant="default" className="text-xs">
+										<CheckCircle2 className="mr-1 h-3 w-3" />
+										Paid
+									</Badge>
+								) : entry.status === "overdue" ? (
+									<Badge variant="destructive" className="text-xs">
+										Overdue
+									</Badge>
+								) : (
+									<Badge variant="outline" className="text-xs">
+										Pending
+									</Badge>
+								)}
+							</div>
+						</div>
+					))}
+				</div>
+
+				{schedule.total_interest_paid > 0 && (
+					<div className="text-xs text-muted-foreground">
+						Total Interest Paid: {formatCurrency(schedule.total_interest_paid)} (excluded from property progress)
+					</div>
+				)}
+			</div>
+		)
+	}
 
 	const handleRetry = () => setRefreshKey((prev) => prev + 1)
 
@@ -565,7 +726,15 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 									Approval {payment.approval_status}
 								</Badge>
 							)}
-							<Button variant="outline" size="sm">
+							<Button 
+								variant="outline" 
+								size="sm"
+								onClick={() => {
+									setSelectedReceipt(payment)
+									setReceiptDialogOpen(true)
+								}}
+							>
+								<Receipt className="mr-2 h-4 w-4" />
 								View Receipt
 							</Button>
 						</div>
@@ -903,133 +1072,176 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 
 						{paymentMethod === "mortgage" && (
 							<div className="space-y-4 rounded-lg border bg-muted/50 p-4">
-								{renderMixAllocationReminder("mortgage")}
-								<div className="space-y-2">
-									<Label htmlFor="mortgage-provider">Mortgage Provider</Label>
-									<Select value={mortgageProvider} onValueChange={setMortgageProvider}>
-										<SelectTrigger>
-											<SelectValue placeholder="Select mortgage provider" />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="fmbn">Federal Mortgage Bank of Nigeria</SelectItem>
-											<SelectItem value="abbey">Abbey Mortgage Bank</SelectItem>
-											<SelectItem value="infinity">Infinity Trust Mortgage Bank</SelectItem>
-										</SelectContent>
-									</Select>
-								</div>
-								<div className="grid gap-4 md:grid-cols-2">
-									<div className="space-y-2">
-										<Label htmlFor="mortgage-interest">Interest Rate (%)</Label>
-										<Input
-											id="mortgage-interest"
-											type="number"
-											placeholder="e.g., 12.5"
-											value={mortgageInterest}
-											onChange={(event) => setMortgageInterest(event.target.value)}
-										/>
+								{repaymentSchedules.mortgage && renderRepaymentSchedule(repaymentSchedules.mortgage, "mortgage", repaymentSchedules.mortgage.mortgage_id)}
+								
+								{/* Plan Allocation Section */}
+								{(() => {
+									const mortgageAllocation = getMixAllocation("mortgage")
+									if (!mortgageAllocation) return null
+									
+									return (
+										<div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+											<h4 className="text-sm font-semibold text-blue-900 mb-3">Plan allocation</h4>
+											<div className="space-y-2 text-sm">
+												<div className="flex justify-between">
+													<span className="text-blue-700">Target:</span>
+													<span className="font-semibold text-blue-900">{formatCurrency(mortgageAllocation.targetAmount)}</span>
+												</div>
+												<div className="flex justify-between">
+													<span className="text-blue-700">Recorded so far:</span>
+													<span className="font-semibold text-blue-900">{formatCurrency(mortgageAllocation.settledAmount)}</span>
+												</div>
+												<div className="flex justify-between border-t border-blue-200 pt-2">
+													<span className="text-blue-700 font-semibold">Remaining to assign:</span>
+													<span className="font-bold text-blue-900">{formatCurrency(mortgageAllocation.remainingAmount)}</span>
+												</div>
+											</div>
+										</div>
+									)
+								})()}
+
+								{/* Mortgage Provider Information */}
+								{repaymentSchedules.mortgage?.provider && (
+									<div className="rounded-lg border border-gray-200 bg-white p-4">
+										<h4 className="text-sm font-semibold text-gray-900 mb-3">Mortgage Provider Information</h4>
+										<div className="space-y-2 text-sm">
+											<div className="flex justify-between">
+												<span className="text-gray-600">Provider Name:</span>
+												<span className="font-semibold text-gray-900">{repaymentSchedules.mortgage.provider.name}</span>
+											</div>
+											{repaymentSchedules.mortgage.provider.code && (
+												<div className="flex justify-between">
+													<span className="text-gray-600">Provider Code:</span>
+													<span className="font-semibold text-gray-900">{repaymentSchedules.mortgage.provider.code}</span>
+												</div>
+											)}
+											{repaymentSchedules.mortgage.provider.contact_phone && (
+												<div className="flex justify-between">
+													<span className="text-gray-600">Contact Phone:</span>
+													<span className="font-semibold text-gray-900">{repaymentSchedules.mortgage.provider.contact_phone}</span>
+												</div>
+											)}
+											{repaymentSchedules.mortgage.provider.contact_email && (
+												<div className="flex justify-between">
+													<span className="text-gray-600">Contact Email:</span>
+													<span className="font-semibold text-gray-900">{repaymentSchedules.mortgage.provider.contact_email}</span>
+												</div>
+											)}
+											{repaymentSchedules.mortgage.provider.address && (
+												<div className="flex justify-between">
+													<span className="text-gray-600">Address:</span>
+													<span className="font-semibold text-gray-900 text-right">{repaymentSchedules.mortgage.provider.address}</span>
+												</div>
+											)}
+										</div>
 									</div>
-									<div className="space-y-2">
-										<Label htmlFor="mortgage-tenure">Loan Duration (Years)</Label>
-										<Input
-											id="mortgage-tenure"
-											type="number"
-											placeholder="e.g., 20"
-											value={mortgageTenure}
-											onChange={(event) => setMortgageTenure(event.target.value)}
-										/>
+								)}
+
+								{/* Mortgage Details */}
+								{repaymentSchedules.mortgage && (
+									<div className="rounded-lg border border-gray-200 bg-white p-4">
+										<h4 className="text-sm font-semibold text-gray-900 mb-3">Mortgage Details</h4>
+										<div className="grid gap-4 md:grid-cols-2 text-sm">
+											<div className="flex justify-between">
+												<span className="text-gray-600">Interest Rate:</span>
+												<span className="font-semibold text-gray-900">{repaymentSchedules.mortgage.interest_rate}%</span>
+											</div>
+											<div className="flex justify-between">
+												<span className="text-gray-600">Loan Duration:</span>
+												<span className="font-semibold text-gray-900">{repaymentSchedules.mortgage.tenure_years} years</span>
+											</div>
+											<div className="flex justify-between">
+												<span className="text-gray-600">Loan Amount:</span>
+												<span className="font-semibold text-gray-900">{formatCurrency(repaymentSchedules.mortgage.loan_amount)}</span>
+											</div>
+											<div className="flex justify-between">
+												<span className="text-gray-600">Monthly Payment:</span>
+												<span className="font-semibold text-gray-900">{formatCurrency(repaymentSchedules.mortgage.monthly_payment)}</span>
+											</div>
+										</div>
 									</div>
-								</div>
-								<div className="space-y-2">
-									<Label htmlFor="mortgage-down-payment">Down Payment</Label>
-									<Input
-										id="mortgage-down-payment"
-										type="number"
-										placeholder="Enter down payment amount"
-										value={mortgageDownPayment}
-										onChange={(event) => setMortgageDownPayment(event.target.value)}
-									/>
-								</div>
-								<div className="space-y-2">
-									<Label htmlFor="mortgage-notes">Notes (optional)</Label>
-									<Textarea
-										id="mortgage-notes"
-										placeholder="Add internal notes for the cooperative mortgage team"
-										rows={2}
-										value={mortgageNotes}
-										onChange={(event) => setMortgageNotes(event.target.value)}
-									/>
-								</div>
-								<Button
-									className="w-full"
-									disabled={(getMixAllocation("mortgage")?.remainingAmount ?? balance) <= 0 || isSubmitting}
-									onClick={() =>
-										handleSubmitPayment("mortgage", {
-											amount: getMixAllocation("mortgage")?.remainingAmount ?? balance,
-										})
-									}
-								>
-									{submittingMethod === "mortgage" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Apply for Mortgage"}
-								</Button>
+								)}
 							</div>
 						)}
 
 						{paymentMethod === "cooperative" && (
 							<div className="space-y-4 rounded-lg border bg-muted/50 p-4">
-								{renderMixAllocationReminder("cooperative")}
-								<div className="space-y-2">
-									<Label htmlFor="cooperative-amount">Monthly Deduction Amount</Label>
-									<Input
-										id="cooperative-amount"
-										type="number"
-										placeholder="Enter monthly deduction"
-										min={0}
-										max={getMixAllocation("cooperative")?.remainingAmount ?? balance}
-										value={cooperativeAmount}
-										onChange={(event) => setCooperativeAmount(event.target.value)}
-									/>
-								</div>
-								<div className="grid gap-4 md:grid-cols-2">
-									<div className="space-y-2">
-										<Label htmlFor="cooperative-start">Start Date</Label>
-										<Input
-											id="cooperative-start"
-											type="date"
-											value={cooperativeStart}
-											onChange={(event) => setCooperativeStart(event.target.value)}
-										/>
+								{repaymentSchedules.cooperative && renderRepaymentSchedule(repaymentSchedules.cooperative, "cooperative", undefined, repaymentSchedules.cooperative.plan_id)}
+								
+								{/* Plan Allocation Section */}
+								{(() => {
+									const cooperativeAllocation = getMixAllocation("cooperative")
+									if (!cooperativeAllocation) return null
+									
+									return (
+										<div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+											<h4 className="text-sm font-semibold text-blue-900 mb-3">Plan allocation</h4>
+											<div className="space-y-2 text-sm">
+												<div className="flex justify-between">
+													<span className="text-blue-700">Target:</span>
+													<span className="font-semibold text-blue-900">{formatCurrency(cooperativeAllocation.targetAmount)}</span>
+												</div>
+												<div className="flex justify-between">
+													<span className="text-blue-700">Recorded so far:</span>
+													<span className="font-semibold text-blue-900">{formatCurrency(cooperativeAllocation.settledAmount)}</span>
+												</div>
+												<div className="flex justify-between border-t border-blue-200 pt-2">
+													<span className="text-blue-700 font-semibold">Remaining to assign:</span>
+													<span className="font-bold text-blue-900">{formatCurrency(cooperativeAllocation.remainingAmount)}</span>
+												</div>
+											</div>
+										</div>
+									)
+								})()}
+
+								{/* Internal Mortgage Plan Information */}
+								{repaymentSchedules.cooperative && (
+									<div className="rounded-lg border border-gray-200 bg-white p-4">
+										<h4 className="text-sm font-semibold text-gray-900 mb-3">Cooperative Deduction Plan Information</h4>
+										<div className="space-y-2 text-sm">
+											{repaymentSchedules.cooperative.title && (
+												<div className="flex justify-between">
+													<span className="text-gray-600">Plan Title:</span>
+													<span className="font-semibold text-gray-900">{repaymentSchedules.cooperative.title}</span>
+												</div>
+											)}
+											<div className="flex justify-between">
+												<span className="text-gray-600">Principal Amount:</span>
+												<span className="font-semibold text-gray-900">{formatCurrency(repaymentSchedules.cooperative.principal)}</span>
+											</div>
+											<div className="flex justify-between">
+												<span className="text-gray-600">Interest Rate:</span>
+												<span className="font-semibold text-gray-900">{repaymentSchedules.cooperative.interest_rate}%</span>
+											</div>
+											<div className="flex justify-between">
+												<span className="text-gray-600">Tenure:</span>
+												<span className="font-semibold text-gray-900">
+													{repaymentSchedules.cooperative.tenure_months} months ({repaymentSchedules.cooperative.tenure_years} years)
+												</span>
+											</div>
+											<div className="flex justify-between">
+												<span className="text-gray-600">Payment Frequency:</span>
+												<span className="font-semibold text-gray-900 capitalize">{repaymentSchedules.cooperative.frequency}</span>
+											</div>
+											<div className="flex justify-between">
+												<span className="text-gray-600">Periodic Payment:</span>
+												<span className="font-semibold text-gray-900">{formatCurrency(repaymentSchedules.cooperative.periodic_payment)}</span>
+											</div>
+											{repaymentSchedules.cooperative.starts_on && (
+												<div className="flex justify-between">
+													<span className="text-gray-600">Start Date:</span>
+													<span className="font-semibold text-gray-900">{formatDate(repaymentSchedules.cooperative.starts_on)}</span>
+												</div>
+											)}
+											{repaymentSchedules.cooperative.notes && (
+												<div className="flex justify-between">
+													<span className="text-gray-600">Notes:</span>
+													<span className="font-semibold text-gray-900 text-right">{repaymentSchedules.cooperative.notes}</span>
+												</div>
+											)}
+										</div>
 									</div>
-									<div className="space-y-2">
-										<Label htmlFor="cooperative-duration">Duration (Months)</Label>
-										<Input
-											id="cooperative-duration"
-											type="number"
-											placeholder="e.g., 24"
-											value={cooperativeDuration}
-											onChange={(event) => setCooperativeDuration(event.target.value)}
-										/>
-									</div>
-								</div>
-								<div className="space-y-2">
-									<Label htmlFor="cooperative-notes">Notes (optional)</Label>
-									<Textarea
-										id="cooperative-notes"
-										placeholder="Provide details for the cooperative deduction setup"
-										rows={2}
-										value={cooperativeNotes}
-										onChange={(event) => setCooperativeNotes(event.target.value)}
-									/>
-								</div>
-								<Button
-									className="w-full"
-									disabled={
-										isSubmitting ||
-										!cooperativeAmount ||
-										(getMixAllocation("cooperative")?.remainingAmount ?? balance) <= 0
-									}
-									onClick={() => handleSubmitPayment("cooperative")}
-								>
-									{submittingMethod === "cooperative" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Setup Cooperative Deduction"}
-								</Button>
+								)}
 							</div>
 						)}
 
@@ -1062,6 +1274,197 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 				</CardHeader>
 				<CardContent>{renderPaymentHistory(paymentHistory)}</CardContent>
 			</Card>
+
+			{/* Receipt Dialog */}
+			<Dialog open={receiptDialogOpen} onOpenChange={setReceiptDialogOpen}>
+				<DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>Payment Receipt</DialogTitle>
+					</DialogHeader>
+					{selectedReceipt && (
+						<div className="space-y-6">
+							{/* Receipt Content - Printable */}
+							<div id="receipt-content" className="bg-white p-8 space-y-6 border rounded-lg">
+								{/* Header */}
+								<div className="text-center border-b pb-4">
+									<h2 className="text-2xl font-bold text-gray-900">PAYMENT RECEIPT</h2>
+									<p className="text-sm text-gray-600 mt-2">Official Receipt for Property Payment</p>
+								</div>
+
+								{/* Receipt Details */}
+								<div className="grid grid-cols-2 gap-6">
+									<div>
+										<p className="text-xs text-gray-500 uppercase mb-1">Receipt Number</p>
+										<p className="text-sm font-semibold">{selectedReceipt.reference || selectedReceipt.id}</p>
+									</div>
+									<div className="text-right">
+										<p className="text-xs text-gray-500 uppercase mb-1">Date</p>
+										<p className="text-sm font-semibold">{formatDate(selectedReceipt.created_at)}</p>
+									</div>
+								</div>
+
+								{/* Property Information */}
+								{setup?.property && (
+									<div className="border-t pt-4">
+										<h3 className="text-sm font-semibold text-gray-900 mb-3">Property Information</h3>
+										<div className="space-y-2 text-sm">
+											<div className="flex justify-between">
+												<span className="text-gray-600">Property:</span>
+												<span className="font-semibold">{setup.property.title}</span>
+											</div>
+											{setup.property.location && (
+												<div className="flex justify-between">
+													<span className="text-gray-600">Location:</span>
+													<span className="font-semibold">{setup.property.location}</span>
+												</div>
+											)}
+											<div className="flex justify-between">
+												<span className="text-gray-600">Property Value:</span>
+												<span className="font-semibold">{formatCurrency(setup.property.price)}</span>
+											</div>
+										</div>
+									</div>
+								)}
+
+								{/* Payment Details */}
+								<div className="border-t pt-4">
+									<h3 className="text-sm font-semibold text-gray-900 mb-3">Payment Details</h3>
+									<div className="space-y-2 text-sm">
+										<div className="flex justify-between">
+											<span className="text-gray-600">Payment Method:</span>
+											<span className="font-semibold capitalize">
+												{selectedReceipt.payment_method?.replace(/_/g, " ") || "N/A"}
+											</span>
+										</div>
+										<div className="flex justify-between">
+											<span className="text-gray-600">Amount Paid:</span>
+											<span className="font-bold text-lg">{formatCurrency(selectedReceipt.amount)}</span>
+										</div>
+										<div className="flex justify-between">
+											<span className="text-gray-600">Status:</span>
+											<Badge variant={selectedReceipt.status === "completed" || selectedReceipt.status === "success" ? "default" : "secondary"}>
+												{selectedReceipt.status?.replace(/_/g, " ") ?? "Pending"}
+											</Badge>
+										</div>
+										{selectedReceipt.approval_status && (
+											<div className="flex justify-between">
+												<span className="text-gray-600">Approval Status:</span>
+												<Badge variant={selectedReceipt.approval_status === "approved" ? "default" : "outline"}>
+													{selectedReceipt.approval_status}
+												</Badge>
+											</div>
+										)}
+										{selectedReceipt.description && (
+											<div className="pt-2 border-t">
+												<p className="text-xs text-gray-500 uppercase mb-1">Description</p>
+												<p className="text-sm">{selectedReceipt.description}</p>
+											</div>
+										)}
+									</div>
+								</div>
+
+								{/* Payment Summary */}
+								{setup?.property && (
+									<div className="border-t pt-4 bg-gray-50 p-4 rounded">
+										<h3 className="text-sm font-semibold text-gray-900 mb-3">Payment Summary</h3>
+										<div className="space-y-2 text-sm">
+											<div className="flex justify-between">
+												<span className="text-gray-600">Total Paid:</span>
+												<span className="font-semibold">{formatCurrency(setup.property.total_paid)}</span>
+											</div>
+											<div className="flex justify-between">
+												<span className="text-gray-600">Remaining Balance:</span>
+												<span className="font-semibold">{formatCurrency(setup.property.balance)}</span>
+											</div>
+											<div className="flex justify-between pt-2 border-t">
+												<span className="text-gray-900 font-semibold">Progress:</span>
+												<span className="font-bold">{setup.property.progress?.toFixed(1) || 0}%</span>
+											</div>
+										</div>
+									</div>
+								)}
+
+								{/* Footer */}
+								<div className="border-t pt-4 text-center text-xs text-gray-500">
+									<p>This is an official receipt for the payment made.</p>
+									<p className="mt-1">Please keep this receipt for your records.</p>
+									<p className="mt-2 text-gray-400">Generated on {new Date().toLocaleString()}</p>
+								</div>
+							</div>
+
+							{/* Action Buttons */}
+							<div className="flex justify-end gap-2">
+								<Button
+									variant="outline"
+									onClick={() => {
+										const printWindow = window.open("", "_blank")
+										if (printWindow) {
+											const receiptContent = document.getElementById("receipt-content")?.innerHTML || ""
+											printWindow.document.write(`
+												<!DOCTYPE html>
+												<html>
+													<head>
+														<title>Payment Receipt - ${selectedReceipt.reference || selectedReceipt.id}</title>
+														<style>
+															body { font-family: Arial, sans-serif; padding: 20px; }
+															@media print {
+																body { padding: 0; }
+																.no-print { display: none; }
+															}
+														</style>
+													</head>
+													<body>
+														${receiptContent}
+													</body>
+												</html>
+											`)
+											printWindow.document.close()
+											setTimeout(() => {
+												printWindow.print()
+											}, 250)
+										}
+									}}
+								>
+									<Printer className="mr-2 h-4 w-4" />
+									Print Receipt
+								</Button>
+								<Button
+									variant="outline"
+									onClick={() => {
+										const receiptContent = document.getElementById("receipt-content")
+										if (receiptContent) {
+											const printWindow = window.open("", "_blank")
+											if (printWindow) {
+												printWindow.document.write(`
+													<!DOCTYPE html>
+													<html>
+														<head>
+															<title>Payment Receipt - ${selectedReceipt.reference || selectedReceipt.id}</title>
+															<style>
+																body { font-family: Arial, sans-serif; padding: 20px; }
+															</style>
+														</head>
+														<body>
+															${receiptContent.innerHTML}
+														</body>
+													</html>
+												`)
+												printWindow.document.close()
+											}
+										}
+									}}
+								>
+									<Download className="mr-2 h-4 w-4" />
+									Download PDF
+								</Button>
+								<Button onClick={() => setReceiptDialogOpen(false)}>
+									Close
+								</Button>
+							</div>
+						</div>
+					)}
+				</DialogContent>
+			</Dialog>
 
 			<Card>
 				<CardHeader>

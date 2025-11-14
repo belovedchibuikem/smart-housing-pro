@@ -3,37 +3,38 @@
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { FileText, Search, ArrowLeft, Edit, Trash2 } from "lucide-react"
+import { FileText, Search, ArrowLeft, Edit, Trash2, Loader2 } from "lucide-react"
 import Link from "next/link"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { getMemberDraftMessages, deleteMail, MailMessage } from "@/lib/api/client"
+import { toast } from "sonner"
 
 export default function DraftsPage() {
   const router = useRouter()
-  const [drafts, setDrafts] = useState([
-    {
-      id: 1,
-      to: "Housing Admin",
-      subject: "Question about Property Allocation",
-      preview: "I have some questions regarding the property allocation process...",
-      lastEdited: "2024-01-15 04:20 PM",
-    },
-    {
-      id: 2,
-      to: "Accounts Department",
-      subject: "",
-      preview: "Dear Accounts Team, I would like to...",
-      lastEdited: "2024-01-14 01:30 PM",
-    },
-    {
-      id: 3,
-      to: "Loan Department",
-      subject: "Loan Extension Request",
-      preview: "I am writing to request an extension on my loan repayment...",
-      lastEdited: "2024-01-12 10:15 AM",
-    },
-  ])
+  const [drafts, setDrafts] = useState<MailMessage[]>([])
   const [searchQuery, setSearchQuery] = useState("")
+  const [loading, setLoading] = useState(true)
+
+  const loadDrafts = async () => {
+    try {
+      setLoading(true)
+      const response = await getMemberDraftMessages({
+        search: searchQuery || undefined,
+      })
+      if (response.success) {
+        setDrafts(response.messages)
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to load drafts")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadDrafts()
+  }, [searchQuery])
 
   const formatRelativeTime = (dateString: string) => {
     const date = new Date(dateString)
@@ -54,21 +55,34 @@ export default function DraftsPage() {
     }
   }
 
-  const handleContinueEditing = (draftId: number) => {
-    // In a real app, this would pass the draft data to the compose page
+  const handleContinueEditing = (draftId: string) => {
     router.push(`/dashboard/mail-service/compose?draftId=${draftId}`)
   }
 
-  const handleDelete = (draftId: number) => {
-    setDrafts(drafts.filter((d) => d.id !== draftId))
+  const handleDelete = async (draftId: string) => {
+    try {
+      await deleteMail(draftId)
+      toast.success("Draft deleted successfully")
+      await loadDrafts()
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete draft")
+    }
   }
 
   const filteredDrafts = drafts.filter(
     (draft) =>
-      draft.to.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      draft.to?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       draft.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
       draft.preview.toLowerCase().includes(searchQuery.toLowerCase()),
   )
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -106,25 +120,23 @@ export default function DraftsPage() {
                 <FileText className="h-5 w-5 text-muted-foreground flex-shrink-0" />
 
                 <div className="flex-1 min-w-0">
-                  {/* Recipient */}
                   <div className="flex items-center gap-2 mb-1">
-                    <p className="text-sm font-medium">To: {draft.to}</p>
+                    <p className="text-sm font-medium">
+                      To: {draft.to || draft.recipient?.name || "No recipient"}
+                    </p>
                     <span className="text-xs text-muted-foreground">• Draft</span>
                   </div>
 
-                  {/* Subject and preview */}
                   <p className="text-sm font-medium mb-0.5">{draft.subject || "(No subject)"}</p>
                   <p className="text-sm text-muted-foreground truncate">{draft.preview}</p>
                 </div>
 
-                {/* Last edited time */}
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <span className="text-xs text-muted-foreground whitespace-nowrap">
-                    {formatRelativeTime(draft.lastEdited)}
+                    {formatRelativeTime(draft.updated_at)}
                   </span>
                 </div>
 
-                {/* Action buttons on hover */}
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <Button
                     variant="outline"

@@ -5,45 +5,35 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import Link from "next/link"
-import { Send, Search, ArrowLeft, RefreshCw, Trash2 } from "lucide-react"
-import { useState } from "react"
+import { Send, Search, ArrowLeft, RefreshCw, Trash2, Loader2 } from "lucide-react"
+import { useState, useEffect } from "react"
+import { getMemberOutboxMessages, deleteMail, MailMessage } from "@/lib/api/client"
+import { toast } from "sonner"
 
 export default function OutboxPage() {
-  const [sentMessages, setSentMessages] = useState([
-    {
-      id: 1,
-      to: "Housing Admin",
-      subject: "Inquiry about Investment Plan",
-      preview: "I would like to know more details about the new investment...",
-      date: "2024-01-14 03:30 PM",
-      status: "Delivered",
-    },
-    {
-      id: 2,
-      to: "Accounts Department",
-      subject: "Contribution Payment Confirmation",
-      preview: "Please confirm receipt of my January contribution payment...",
-      date: "2024-01-13 11:20 AM",
-      status: "Read",
-    },
-    {
-      id: 3,
-      to: "Loan Department",
-      subject: "Loan Repayment Schedule Request",
-      preview: "Could you please send me my updated loan repayment schedule...",
-      date: "2024-01-12 09:15 AM",
-      status: "Read",
-    },
-    {
-      id: 4,
-      to: "Property Department",
-      subject: "Property Inspection Request",
-      preview: "I would like to schedule an inspection for property...",
-      date: "2024-01-10 02:45 PM",
-      status: "Delivered",
-    },
-  ])
+  const [messages, setMessages] = useState<MailMessage[]>([])
   const [searchQuery, setSearchQuery] = useState("")
+  const [loading, setLoading] = useState(true)
+
+  const loadMessages = async () => {
+    try {
+      setLoading(true)
+      const response = await getMemberOutboxMessages({
+        search: searchQuery || undefined,
+      })
+      if (response.success) {
+        setMessages(response.messages)
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to load messages")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadMessages()
+  }, [searchQuery])
 
   const formatRelativeTime = (dateString: string) => {
     const date = new Date(dateString)
@@ -64,20 +54,30 @@ export default function OutboxPage() {
     }
   }
 
-  const handleResend = (messageId: number) => {
-    setSentMessages(sentMessages.map((msg) => (msg.id === messageId ? { ...msg, status: "Sending..." } : msg)))
-    // Simulate resend
-    setTimeout(() => {
-      setSentMessages(sentMessages.map((msg) => (msg.id === messageId ? { ...msg, status: "Delivered" } : msg)))
-    }, 2000)
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteMail(id)
+      toast.success("Message deleted successfully")
+      await loadMessages()
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete message")
+    }
   }
 
-  const filteredMessages = sentMessages.filter(
+  const filteredMessages = messages.filter(
     (msg) =>
-      msg.to.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      msg.to?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       msg.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
       msg.preview.toLowerCase().includes(searchQuery.toLowerCase()),
   )
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -89,7 +89,7 @@ export default function OutboxPage() {
         </Link>
         <div className="flex-1">
           <h1 className="text-3xl font-bold">Sent Messages</h1>
-          <p className="text-muted-foreground mt-1">{sentMessages.length} messages sent</p>
+          <p className="text-muted-foreground mt-1">{messages.length} messages sent</p>
         </div>
       </div>
 
@@ -111,24 +111,25 @@ export default function OutboxPage() {
               className="group relative flex items-center gap-4 p-4 rounded-lg border transition-all hover:shadow-sm hover:bg-accent/50 cursor-pointer"
             >
               <Link href={`/dashboard/mail-service/${message.id}`} className="flex-1 flex items-center gap-4 min-w-0">
-                {/* Recipient info */}
                 <div className="w-48 flex-shrink-0">
-                  <p className="text-sm font-medium truncate">To: {message.to}</p>
+                  <p className="text-sm font-medium truncate">To: {message.to || message.recipient?.name || "Unknown"}</p>
                 </div>
 
-                {/* Subject and preview */}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate mb-0.5">{message.subject}</p>
                   <p className="text-sm text-muted-foreground truncate">{message.preview}</p>
                 </div>
 
-                {/* Status and time */}
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <Badge
                     variant={
-                      message.status === "Read" ? "default" : message.status === "Delivered" ? "secondary" : "outline"
+                      message.status === "delivered"
+                        ? "default"
+                        : message.status === "sent"
+                          ? "secondary"
+                          : "outline"
                     }
-                    className="text-xs"
+                    className="text-xs capitalize"
                   >
                     {message.status}
                   </Badge>
@@ -138,23 +139,7 @@ export default function OutboxPage() {
                 </div>
               </Link>
 
-              {/* Action buttons on hover */}
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                {message.status === "Delivered" && (
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      handleResend(message.id)
-                    }}
-                    title="Resend message"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
-                )}
                 <Button
                   variant="ghost"
                   size="icon"
@@ -162,7 +147,20 @@ export default function OutboxPage() {
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
-                    setSentMessages(sentMessages.filter((m) => m.id !== message.id))
+                    loadMessages()
+                  }}
+                  title="Refresh"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handleDelete(message.id)
                   }}
                 >
                   <Trash2 className="h-4 w-4" />

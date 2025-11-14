@@ -1,82 +1,51 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Mail, Search, ArrowLeft, Trash2, MailOpen, Star, Paperclip, RefreshCw } from "lucide-react"
+import { Mail, Search, ArrowLeft, Trash2, MailOpen, Star, Paperclip, RefreshCw, Loader2 } from "lucide-react"
 import Link from "next/link"
+import { getMemberInboxMessages, toggleMailStar, deleteMail, markMailAsRead, markMailAsUnread, bulkDeleteMails, bulkMarkMailsAsRead, MailMessage } from "@/lib/api/client"
+import { toast } from "sonner"
 
 export default function InboxPage() {
-  const [selectedMessages, setSelectedMessages] = useState<number[]>([])
-  const [filter, setFilter] = useState("all")
+  const [selectedMessages, setSelectedMessages] = useState<string[]>([])
+  const [filter, setFilter] = useState<"all" | "unread" | "read">("all")
   const [searchQuery, setSearchQuery] = useState("")
+  const [messages, setMessages] = useState<MailMessage[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
 
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      from: "Housing Admin",
-      fromEmail: "admin@frschousing.org",
-      subject: "New Investment Opportunity Available",
-      preview: "We are pleased to announce a new investment plan for Q1 2024...",
-      date: "2024-01-15T10:30:00",
-      unread: true,
-      category: "Investment",
-      hasAttachment: true,
-      starred: false,
-    },
-    {
-      id: 2,
-      from: "Accounts Department",
-      fromEmail: "accounts@frschousing.org",
-      subject: "Monthly Contribution Receipt",
-      preview: "Your contribution for January 2024 has been received and processed...",
-      date: "2024-01-14T14:15:00",
-      unread: true,
-      category: "Contribution",
-      hasAttachment: false,
-      starred: true,
-    },
-    {
-      id: 3,
-      from: "Loan Department",
-      fromEmail: "loan@frschousing.org",
-      subject: "Loan Application Status Update",
-      preview: "Your loan application #LN-2024-001 has been approved...",
-      date: "2024-01-13T09:45:00",
-      unread: false,
-      category: "Loan",
-      hasAttachment: false,
-      starred: false,
-    },
-    {
-      id: 4,
-      from: "Property Department",
-      fromEmail: "property@frschousing.org",
-      subject: "Property Allocation Notice",
-      preview: "Congratulations! A property has been allocated to you...",
-      date: "2024-01-12T11:20:00",
-      unread: false,
-      category: "Property",
-      hasAttachment: true,
-      starred: true,
-    },
-    {
-      id: 5,
-      from: "Housing Admin",
-      fromEmail: "admin@frschousing.org",
-      subject: "System Maintenance Notice",
-      preview: "Please be informed that the system will undergo maintenance...",
-      date: "2024-01-11T08:00:00",
-      unread: false,
-      category: "General",
-      hasAttachment: false,
-      starred: false,
-    },
-  ])
+  const loadMessages = async () => {
+    try {
+      setLoading(true)
+      const response = await getMemberInboxMessages({
+        filter: filter === "all" ? undefined : filter,
+        search: searchQuery || undefined,
+      })
+      if (response.success) {
+        setMessages(response.messages)
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to load messages")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    loadMessages()
+  }, [filter, searchQuery])
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await loadMessages()
+    setRefreshing(false)
+  }
 
   const formatRelativeTime = (dateString: string) => {
     const date = new Date(dateString)
@@ -97,12 +66,26 @@ export default function InboxPage() {
     }
   }
 
-  const toggleRead = (id: number) => {
-    setMessages(messages.map((msg) => (msg.id === id ? { ...msg, unread: !msg.unread } : msg)))
+  const toggleRead = async (id: string, isRead: boolean) => {
+    try {
+      if (isRead) {
+        await markMailAsUnread(id)
+      } else {
+        await markMailAsRead(id)
+      }
+      await loadMessages()
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update message")
+    }
   }
 
-  const toggleStar = (id: number) => {
-    setMessages(messages.map((msg) => (msg.id === id ? { ...msg, starred: !msg.starred } : msg)))
+  const toggleStar = async (id: string) => {
+    try {
+      await toggleMailStar(id)
+      await loadMessages()
+    } catch (error: any) {
+      toast.error(error.message || "Failed to toggle star")
+    }
   }
 
   const handleSelectAll = () => {
@@ -113,24 +96,59 @@ export default function InboxPage() {
     }
   }
 
-  const handleBulkDelete = () => {
-    setMessages(messages.filter((m) => !selectedMessages.includes(m.id)))
-    setSelectedMessages([])
+  const handleBulkDelete = async () => {
+    if (selectedMessages.length === 0) return
+    try {
+      await bulkDeleteMails(selectedMessages)
+      toast.success("Messages deleted successfully")
+      setSelectedMessages([])
+      await loadMessages()
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete messages")
+    }
   }
 
-  const handleBulkMarkAsRead = () => {
-    setMessages(messages.map((m) => (selectedMessages.includes(m.id) ? { ...m, unread: false } : m)))
-    setSelectedMessages([])
+  const handleBulkMarkAsRead = async () => {
+    if (selectedMessages.length === 0) return
+    try {
+      await bulkMarkMailsAsRead(selectedMessages)
+      toast.success("Messages marked as read")
+      setSelectedMessages([])
+      await loadMessages()
+    } catch (error: any) {
+      toast.error(error.message || "Failed to mark messages as read")
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteMail(id)
+      toast.success("Message deleted successfully")
+      await loadMessages()
+    } catch (error: any) {
+      toast.error(error.message || "Failed to delete message")
+    }
   }
 
   const filteredMessages = messages.filter((msg) => {
-    const matchesFilter = filter === "all" || (filter === "unread" && msg.unread) || (filter === "read" && !msg.unread)
+    const matchesFilter =
+      filter === "all" ||
+      (filter === "unread" && msg.is_unread) ||
+      (filter === "read" && msg.is_read)
     const matchesSearch =
       msg.subject.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      msg.from.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      msg.from?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       msg.preview.toLowerCase().includes(searchQuery.toLowerCase())
     return matchesFilter && matchesSearch
   })
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -142,10 +160,18 @@ export default function InboxPage() {
         </Link>
         <div>
           <h1 className="text-3xl font-bold">Inbox</h1>
-          <p className="text-muted-foreground mt-1">{messages.filter((m) => m.unread).length} unread messages</p>
+          <p className="text-muted-foreground mt-1">
+            {messages.filter((m) => m.is_unread).length} unread messages
+          </p>
         </div>
-        <Button variant="outline" size="icon" className="ml-auto bg-transparent">
-          <RefreshCw className="h-4 w-4" />
+        <Button
+          variant="outline"
+          size="icon"
+          className="ml-auto bg-transparent"
+          onClick={handleRefresh}
+          disabled={refreshing}
+        >
+          <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
         </Button>
       </div>
 
@@ -160,7 +186,7 @@ export default function InboxPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Select value={filter} onValueChange={setFilter}>
+          <Select value={filter} onValueChange={(value: "all" | "unread" | "read") => setFilter(value)}>
             <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>
@@ -189,10 +215,9 @@ export default function InboxPage() {
         )}
 
         <div className="flex items-center gap-3 mb-3 pb-3 border-b">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={selectedMessages.length === filteredMessages.length && filteredMessages.length > 0}
-            onChange={handleSelectAll}
+            onCheckedChange={handleSelectAll}
             className="h-4 w-4 rounded border-gray-300"
           />
           <span className="text-sm text-muted-foreground">Select all</span>
@@ -203,7 +228,7 @@ export default function InboxPage() {
             <div
               key={message.id}
               className={`group relative flex items-center gap-4 p-4 rounded-lg border transition-all hover:shadow-sm cursor-pointer ${
-                message.unread ? "bg-accent/30 border-primary/20" : "hover:bg-accent/50"
+                message.is_unread ? "bg-accent/30 border-primary/20" : "hover:bg-accent/50"
               }`}
             >
               <Checkbox
@@ -228,28 +253,34 @@ export default function InboxPage() {
                   toggleStar(message.id)
                 }}
               >
-                <Star className={`h-4 w-4 ${message.starred ? "fill-yellow-400 text-yellow-400" : ""}`} />
+                <Star className={`h-4 w-4 ${message.is_starred ? "fill-yellow-400 text-yellow-400" : ""}`} />
               </Button>
 
               <Link href={`/dashboard/mail-service/${message.id}`} className="flex-1 flex items-center gap-4 min-w-0">
                 <div className="w-48 flex-shrink-0">
-                  <p className={`text-sm truncate ${message.unread ? "font-semibold" : "font-medium"}`}>
-                    {message.from}
+                  <p className={`text-sm truncate ${message.is_unread ? "font-semibold" : "font-medium"}`}>
+                    {message.from || message.sender.name}
                   </p>
                 </div>
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
-                    <p className={`text-sm truncate ${message.unread ? "font-semibold" : ""}`}>{message.subject}</p>
-                    {message.hasAttachment && <Paperclip className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />}
+                    <p className={`text-sm truncate ${message.is_unread ? "font-semibold" : ""}`}>
+                      {message.subject}
+                    </p>
+                    {message.has_attachment && (
+                      <Paperclip className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+                    )}
                   </div>
                   <p className="text-sm text-muted-foreground truncate">{message.preview}</p>
                 </div>
 
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  <Badge variant="outline" className="text-xs">
-                    {message.category}
-                  </Badge>
+                  {message.category && (
+                    <Badge variant="outline" className="text-xs">
+                      {message.category}
+                    </Badge>
+                  )}
                   <span className="text-xs text-muted-foreground whitespace-nowrap">
                     {formatRelativeTime(message.date)}
                   </span>
@@ -264,11 +295,11 @@ export default function InboxPage() {
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
-                    toggleRead(message.id)
+                    toggleRead(message.id, message.is_read)
                   }}
-                  title={message.unread ? "Mark as read" : "Mark as unread"}
+                  title={message.is_unread ? "Mark as read" : "Mark as unread"}
                 >
-                  {message.unread ? <MailOpen className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
+                  {message.is_unread ? <MailOpen className="h-4 w-4" /> : <Mail className="h-4 w-4" />}
                 </Button>
                 <Button
                   variant="ghost"
@@ -277,7 +308,7 @@ export default function InboxPage() {
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
-                    setMessages(messages.filter((m) => m.id !== message.id))
+                    handleDelete(message.id)
                   }}
                 >
                   <Trash2 className="h-4 w-4" />

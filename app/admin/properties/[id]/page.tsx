@@ -128,6 +128,28 @@ export default function PropertyDetailPage() {
   const [activeIndex, setActiveIndex] = useState(0)
   const [isViewerOpen, setIsViewerOpen] = useState(false)
 
+  const features = useMemo(() => {
+    return Array.isArray(property?.features) ? property.features : []
+  }, [property?.features])
+
+  const allocations = useMemo(() => {
+    return Array.isArray(property?.allocations) ? property.allocations : []
+  }, [property?.allocations])
+
+  const documentMemberOptions = useMemo(
+    () =>
+      allocations
+        .filter((allocation) => allocation.member?.id)
+        .map((allocation) => ({
+          id: allocation.member!.id,
+          label:
+            `${allocation.member?.user?.first_name ?? ""} ${allocation.member?.user?.last_name ?? ""}`.trim() ||
+            allocation.member?.member_id ||
+            "Member",
+        })),
+    [allocations],
+  )
+
   useEffect(() => {
     if (imageList.length === 0) {
       setActiveIndex(0)
@@ -164,22 +186,6 @@ export default function PropertyDetailPage() {
   if (!property) {
     return null
   }
-
-  const features = Array.isArray(property.features) ? property.features : []
-  const allocations = Array.isArray(property.allocations) ? property.allocations : []
-  const documentMemberOptions = useMemo(
-    () =>
-      allocations
-        .filter((allocation) => allocation.member?.id)
-        .map((allocation) => ({
-          id: allocation.member!.id,
-          label:
-            `${allocation.member?.user?.first_name ?? ""} ${allocation.member?.user?.last_name ?? ""}`.trim() ||
-            allocation.member?.member_id ||
-            "Member",
-        })),
-    [allocations],
-  )
 
   return (
     <div className="space-y-6">
