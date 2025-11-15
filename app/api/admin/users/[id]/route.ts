@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000/api'
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
@@ -63,9 +62,6 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   const data = await res.json()
   return NextResponse.json(data)
 }
-
-import { NextRequest, NextResponse } from 'next/server'
-
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }

@@ -1,5 +1,4 @@
 import { type NextRequest, NextResponse } from "next/server"
-
 const apiBase = ("http://127.0.0.1:8000/api").replace(/\/$/, "")
 
 export async function POST(request: NextRequest) {
@@ -24,8 +23,6 @@ export async function POST(request: NextRequest) {
 		return NextResponse.json({ message: "Failed to publish" }, { status: 500 })
 	}
 }
-
-import { type NextRequest, NextResponse } from "next/server"
 
 // POST - Publish/Unpublish landing page
 export async function POST(request: NextRequest) {
