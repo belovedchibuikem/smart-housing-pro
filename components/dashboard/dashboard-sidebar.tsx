@@ -40,6 +40,7 @@ import {
   Receipt,
   Wrench,
   Users,
+  FileText,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
@@ -97,9 +98,8 @@ const navItems: NavItem[] = [
     icon: TrendingUp,
     subItems: [
       { href: "/dashboard/investment-plans", label: "Investment Plan", icon: ListChecks },
-      { href: "/dashboard/investment-plans/invest", label: "Invest", icon: PlusCircle },
-      { href: "/dashboard/investments", label: "View My Investments", icon: Eye },
-      { href: "/dashboard/investments/withdraw", label: "Withdraw Investment", icon: LogOut },
+      { href: "/dashboard/investments", label: "View My Investment", icon: Eye },
+      { href: "/dashboard/investments/withdraw", label: "Withdraw my Investment", icon: LogOut },
     ],
   },
   
@@ -169,6 +169,14 @@ const navItems: NavItem[] = [
   },
   { href: "/dashboard/ai-recommendations", label: "AI", icon: Sparkles },
   { href: "/dashboard/blockchain-ledger", label: "Block Chain Ledger", icon: Shield },
+  {
+    label: "Refunds & Requests",
+    icon: Receipt,
+    subItems: [
+      { href: "/dashboard/refunds", label: "My Requests", icon: FileText },
+      { href: "/dashboard/refunds/new", label: "New Request", icon: Plus },
+    ],
+  },
   { href: "/dashboard/withdraw-membership", label: "Withdraw Membership", icon: UserMinus },
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ]

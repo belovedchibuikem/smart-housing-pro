@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -36,6 +37,12 @@ interface PaymentGateway {
     service_type_id?: string
     webhook_secret?: string
     test_mode?: boolean
+    bank_accounts?: BankAccount[]
+    require_payer_name?: boolean
+    require_payer_phone?: boolean
+    require_account_details?: boolean
+    require_payment_evidence?: boolean
+    account_details?: string
   }
   supported_currencies: string[]
   supported_countries: string[]
@@ -57,6 +64,13 @@ export default function SuperAdminPaymentGatewaysPage() {
   const [loading, setLoading] = useState(true)
   const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({})
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([])
+  const [manualSettings, setManualSettings] = useState({
+    require_payer_name: true,
+    require_payer_phone: false,
+    require_account_details: false,
+    require_payment_evidence: true,
+    account_details: '',
+  })
 
   useEffect(() => {
     loadGateways()
@@ -67,6 +81,21 @@ export default function SuperAdminPaymentGatewaysPage() {
       setLoading(true)
       const response = await apiFetch<PaymentGatewaysResponse>("/super-admin/payment-gateways")
       setGateways(response.gateways || [])
+      
+      // Load bank accounts and settings from manual gateway
+      const manualGateway = response.gateways?.find((g) => g.name?.toLowerCase() === "manual")
+      if (manualGateway?.settings?.bank_accounts) {
+        setBankAccounts(manualGateway.settings.bank_accounts)
+      }
+      if (manualGateway?.settings) {
+        setManualSettings({
+          require_payer_name: manualGateway.settings.require_payer_name ?? true,
+          require_payer_phone: manualGateway.settings.require_payer_phone ?? false,
+          require_account_details: manualGateway.settings.require_account_details ?? false,
+          require_payment_evidence: manualGateway.settings.require_payment_evidence ?? true,
+          account_details: manualGateway.settings.account_details || '',
+        })
+      }
     } catch (error) {
       console.error("Error loading gateways:", error)
       toast({
@@ -84,7 +113,21 @@ export default function SuperAdminPaymentGatewaysPage() {
       const gateway = gateways.find(g => g.name?.toLowerCase() === gatewayName.toLowerCase())
       if (!gateway) return
 
-      const updatedSettings = { ...gateway.settings, ...updates }
+      // For manual gateway, always preserve manualSettings when updating
+      let updatedSettings = { ...gateway.settings, ...updates }
+      
+      if (gatewayName.toLowerCase() === 'manual') {
+        // Preserve manual settings when updating manual gateway
+        updatedSettings = {
+          ...updatedSettings,
+          require_payer_name: manualSettings.require_payer_name,
+          require_payer_phone: manualSettings.require_payer_phone,
+          require_account_details: manualSettings.require_account_details,
+          require_payment_evidence: manualSettings.require_payment_evidence,
+          account_details: manualSettings.account_details,
+          bank_accounts: bankAccounts.length > 0 ? bankAccounts : (gateway.settings?.bank_accounts || []),
+        }
+      }
       
       await apiFetch(`/super-admin/payment-gateways/${gateway.id}`, {
         method: "PUT",
@@ -136,6 +179,107 @@ export default function SuperAdminPaymentGatewaysPage() {
     setBankAccounts(prev => prev.map((account, i) => 
       i === index ? { ...account, [field]: value } : account
     ))
+  }
+
+  const saveManualPaymentSettings = async () => {
+    try {
+      const gateway = gateways.find(g => g.name?.toLowerCase() === "manual")
+      if (!gateway) {
+        toast({
+          title: "Error",
+          description: "Manual payment gateway not found",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Validate bank accounts
+      const validAccounts = bankAccounts.filter(
+        account => account.bank_name && account.account_number && account.account_name
+      )
+
+      if (validAccounts.length === 0 && bankAccounts.length > 0) {
+        toast({
+          title: "Error",
+          description: "Please fill in all required fields for bank accounts",
+          variant: "destructive",
+        })
+        return
+      }
+
+      await apiFetch(`/super-admin/payment-gateways/${gateway.id}`, {
+        method: "PUT",
+        body: {
+          is_active: gateway.is_active,
+          settings: {
+            ...gateway.settings,
+            bank_accounts: validAccounts,
+            require_payer_name: manualSettings.require_payer_name,
+            require_payer_phone: manualSettings.require_payer_phone,
+            require_account_details: manualSettings.require_account_details,
+            require_payment_evidence: manualSettings.require_payment_evidence,
+            account_details: manualSettings.account_details,
+          },
+        },
+      })
+
+      // Update local state
+      setGateways(prev => prev.map(g => 
+        g.id === gateway.id 
+          ? { 
+              ...g, 
+              settings: {
+                ...g.settings,
+                bank_accounts: validAccounts,
+                require_payer_name: manualSettings.require_payer_name,
+                require_payer_phone: manualSettings.require_payer_phone,
+                require_account_details: manualSettings.require_account_details,
+                require_payment_evidence: manualSettings.require_payment_evidence,
+                account_details: manualSettings.account_details,
+              }
+            }
+          : g
+      ))
+
+      toast({
+        title: "Success",
+        description: "Manual payment settings saved successfully",
+      })
+    } catch (error) {
+      console.error("Error saving manual payment settings:", error)
+      toast({
+        title: "Error",
+        description: "Failed to save manual payment settings",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const saveGatewaySettings = async (gatewayName: string) => {
+    try {
+      const gateway = gateways.find(g => g.name?.toLowerCase() === gatewayName.toLowerCase())
+      if (!gateway) return
+
+      await apiFetch(`/super-admin/payment-gateways/${gateway.id}`, {
+        method: "PUT",
+        body: {
+          is_active: gateway.is_active,
+          settings: gateway.settings,
+        },
+      })
+
+      toast({
+        title: "Success",
+        description: `${gateway.display_name} settings saved successfully`,
+      })
+    } catch (error) {
+      console.error(`Error saving ${gatewayName} settings:`, error)
+      toast({
+        title: "Error",
+        description: `Failed to save ${gatewayName} settings`,
+        variant: "destructive",
+      })
+    }
   }
 
   if (loading) {
@@ -273,7 +417,10 @@ export default function SuperAdminPaymentGatewaysPage() {
         </div>
       </div>
 
-                <Button className="w-full">
+                <Button 
+                  className="w-full"
+                  onClick={() => saveGatewaySettings("paystack")}
+                >
                   <Save className="h-4 w-4 mr-2" />
                   Save Paystack Settings
                 </Button>
@@ -373,7 +520,10 @@ export default function SuperAdminPaymentGatewaysPage() {
               </div>
             </div>
 
-                <Button className="w-full">
+                <Button 
+                  className="w-full"
+                  onClick={() => saveGatewaySettings("remita")}
+                >
                   <Save className="h-4 w-4 mr-2" />
                   Save Remita Settings
                 </Button>
@@ -463,7 +613,10 @@ export default function SuperAdminPaymentGatewaysPage() {
                 </div>
                 </div>
 
-                <Button className="w-full">
+                <Button 
+                  className="w-full"
+                  onClick={() => saveGatewaySettings("stripe")}
+                >
                   <Save className="h-4 w-4 mr-2" />
                   Save Stripe Settings
                 </Button>
@@ -500,6 +653,76 @@ export default function SuperAdminPaymentGatewaysPage() {
                     checked={manualGateway.is_active}
                     onCheckedChange={(checked) => updateGateway("manual", { is_active: checked })}
                   />
+                </div>
+
+                <Separator />
+
+                {/* Payment Form Settings */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Payment Form Settings</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Configure which fields are required when users make manual payments
+                  </p>
+                  
+                  <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label>Require Payer Name</Label>
+                        <p className="text-sm text-muted-foreground">Users must provide their name when making manual payments</p>
+                      </div>
+                      <Switch
+                        checked={manualSettings.require_payer_name}
+                        onCheckedChange={(checked) => setManualSettings(prev => ({ ...prev, require_payer_name: checked }))}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label>Require Payer Phone</Label>
+                        <p className="text-sm text-muted-foreground">Users must provide their phone number when making manual payments</p>
+                      </div>
+                      <Switch
+                        checked={manualSettings.require_payer_phone}
+                        onCheckedChange={(checked) => setManualSettings(prev => ({ ...prev, require_payer_phone: checked }))}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label>Require Account Details</Label>
+                        <p className="text-sm text-muted-foreground">Users must provide their account details when making manual payments</p>
+                      </div>
+                      <Switch
+                        checked={manualSettings.require_account_details}
+                        onCheckedChange={(checked) => setManualSettings(prev => ({ ...prev, require_account_details: checked }))}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5">
+                        <Label>Require Payment Evidence</Label>
+                        <p className="text-sm text-muted-foreground">Users must upload proof of payment (receipt, screenshot, etc.)</p>
+                      </div>
+                      <Switch
+                        checked={manualSettings.require_payment_evidence}
+                        onCheckedChange={(checked) => setManualSettings(prev => ({ ...prev, require_payment_evidence: checked }))}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Payment Instructions</Label>
+                      <Textarea
+                        placeholder="Enter additional payment instructions for users (optional)"
+                        value={manualSettings.account_details}
+                        onChange={(e) => setManualSettings(prev => ({ ...prev, account_details: e.target.value }))}
+                        rows={4}
+                        className="resize-none"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        These instructions will be displayed to users when they select manual payment
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 <Separator />
@@ -577,7 +800,10 @@ export default function SuperAdminPaymentGatewaysPage() {
             )}
                 </div>
 
-                <Button className="w-full">
+                <Button 
+                  className="w-full"
+                  onClick={saveManualPaymentSettings}
+                >
                   <Save className="h-4 w-4 mr-2" />
                   Save Manual Payment Settings
                 </Button>

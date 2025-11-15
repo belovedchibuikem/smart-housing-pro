@@ -9,22 +9,14 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { useRouter } from "next/navigation"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { ChevronLeft, ChevronRight } from "lucide-react"
-import { registerRequest, verifyOtpRequest, resendOtpRequest, setAuthToken } from "@/lib/api/client"
+import { registerRequest, setAuthToken } from "@/lib/api/client"
+import { OtpVerificationDialog } from "@/components/auth/otp-verification-dialog"
 
 export function RegisterForm() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [showOtpDialog, setShowOtpDialog] = useState(false)
-  const [otp, setOtp] = useState("")
   const [currentStep, setCurrentStep] = useState(1)
   const totalSteps = 4
 
@@ -158,8 +150,8 @@ export function RegisterForm() {
 
     setIsLoading(true)
     try {
-      // Minimal payload for registration; backend can accept richer shape later
-      await registerRequest({
+      // Send all form fields to API
+      const payload: Record<string, unknown> = {
         first_name: formData.firstName,
         last_name: formData.lastName,
         email: formData.email,
@@ -167,11 +159,39 @@ export function RegisterForm() {
         password: formData.password,
         password_confirmation: formData.confirmPassword,
         membership_type: formData.membershipType,
-        staff_number: formData.staffNumber || undefined,
-        ippis_number: formData.ippisNumber || undefined,
-      })
+      }
 
-      setShowOtpDialog(true)
+      // Add ID information for non-members
+      if (formData.membershipType === 'non-member') {
+        if (formData.idType) payload.id_type = formData.idType
+        if (formData.idNumber) payload.id_number = formData.idNumber
+      }
+
+      // Add employment details for members
+      if (formData.membershipType === 'member') {
+        if (formData.staffNumber) payload.staff_number = formData.staffNumber
+        if (formData.ippisNumber) payload.ippis_number = formData.ippisNumber
+        if (formData.dateOfFirstEmployment) payload.date_of_first_employment = formData.dateOfFirstEmployment
+        if (formData.yearsOfService) payload.years_of_service = parseInt(formData.yearsOfService)
+        if (formData.commandDepartment) payload.command_department = formData.commandDepartment
+        if (formData.unit) payload.unit = formData.unit
+        if (formData.rank) payload.rank = formData.rank
+      }
+
+      // Add next of kin information
+      if (formData.nokName) payload.nok_name = formData.nokName
+      if (formData.nokRelationship) payload.nok_relationship = formData.nokRelationship
+      if (formData.nokPhone) payload.nok_phone = formData.nokPhone
+      if (formData.nokEmail) payload.nok_email = formData.nokEmail
+      if (formData.nokAddress) payload.nok_address = formData.nokAddress
+
+      const response = await registerRequest(payload)
+      
+      if (response.success || response.requires_otp_verification) {
+        setShowOtpDialog(true)
+      } else {
+        throw new Error(response.message || "Registration failed")
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Registration failed"
       alert(message)
@@ -180,25 +200,16 @@ export function RegisterForm() {
     }
   }
 
-  const handleOtpVerification = async () => {
-    if (otp.length !== 6) {
-      alert("Please enter a valid 6-digit OTP")
-      return
-    }
-
-    setIsLoading(true)
-    try {
-      const res = await verifyOtpRequest({ email: formData.email, otp })
-      if (res.token) {
-        setAuthToken(res.token)
+  const handleOtpSuccess = (token?: string, user?: unknown) => {
+    if (token) {
+      setAuthToken(token)
+      // Store user data
+      if (user) {
+        localStorage.setItem('user_data', JSON.stringify(user))
       }
       setShowOtpDialog(false)
-      router.push("/subscription")
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "OTP verification failed"
-      alert(message)
-    } finally {
-      setIsLoading(false)
+      // Redirect to dashboard
+      router.push("/dashboard")
     }
   }
 
@@ -663,46 +674,15 @@ export function RegisterForm() {
         </div>
       </form>
 
-      <Dialog open={showOtpDialog} onOpenChange={setShowOtpDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Verify Your Account</DialogTitle>
-            <DialogDescription>
-              We've sent a 6-digit verification code to {formData.email} and {formData.phone}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="otp">Enter OTP</Label>
-              <Input
-                id="otp"
-                type="text"
-                maxLength={6}
-                placeholder="000000"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                className="text-center text-2xl tracking-widest"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground text-center">
-              Didn't receive the code?{" "}
-              <button type="button" className="text-primary hover:underline">
-                Resend OTP
-              </button>
-            </p>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowOtpDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleOtpVerification} disabled={isLoading || otp.length !== 6}>
-              {isLoading ? "Verifying..." : "Verify & Continue"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <OtpVerificationDialog
+        open={showOtpDialog}
+        onOpenChange={setShowOtpDialog}
+        email={formData.email}
+        phone={formData.phone}
+        type="registration"
+        onSuccess={handleOtpSuccess}
+        onError={(msg) => alert(msg)}
+      />
     </>
   )
 }

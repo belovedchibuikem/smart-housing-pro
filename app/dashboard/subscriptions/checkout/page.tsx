@@ -25,12 +25,15 @@ function formatCurrency(amount: number): string {
   }).format(amount)
 }
 
+type Stage = "details" | "review" | "confirm"
+
 export default function SubscriptionCheckoutPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const packageId = searchParams.get('package')
   const { isLoading, loadData } = usePageLoading()
   
+  const [stage, setStage] = useState<Stage>("details")
   const [selectedPackage, setSelectedPackage] = useState<any>(null)
   const [paymentMethods, setPaymentMethods] = useState<Array<{
     id: string
@@ -77,11 +80,12 @@ export default function SubscriptionCheckoutPage() {
         }
 
         setSelectedPackage(pkg)
-        setPaymentMethods(paymentMethodsRes.payment_methods.filter((m: any) => m.is_enabled))
+        // Filter out wallet payment method for subscriptions
+        setPaymentMethods(paymentMethodsRes.payment_methods.filter((m: any) => m.is_enabled && m.id !== 'wallet'))
         
         // Auto-select first payment method
         if (paymentMethodsRes.payment_methods.length > 0) {
-          const firstEnabled = paymentMethodsRes.payment_methods.find((m: any) => m.is_enabled)
+          const firstEnabled = paymentMethodsRes.payment_methods.find((m: any) => m.is_enabled && m.id !== 'wallet')
           if (firstEnabled) {
             setSelectedPaymentMethod(firstEnabled.id)
           }
@@ -131,7 +135,7 @@ export default function SubscriptionCheckoutPage() {
     setEvidenceUrls(prev => prev.filter((_, i) => i !== index))
   }
 
-  const handleSubscribe = async () => {
+  const handleReview = () => {
     if (!selectedPackage || !selectedPaymentMethod) {
       setError("Please select a payment method")
       return
@@ -157,6 +161,11 @@ export default function SubscriptionCheckoutPage() {
       }
     }
 
+    setError(null)
+    setStage("review")
+  }
+
+  const handleConfirm = async () => {
     setIsProcessing(true)
     setError(null)
 
@@ -177,8 +186,9 @@ export default function SubscriptionCheckoutPage() {
       const response = await initializeMemberSubscription(requestData)
 
       if (response.success) {
-        // For wallet payments or manual payments, redirect to success page
-        if (selectedPaymentMethod === 'wallet' || selectedPaymentMethod === 'manual' || response.requires_approval) {
+        setStage("confirm")
+        // For manual payments, redirect to success page
+        if (selectedPaymentMethod === 'manual' || response.requires_approval) {
           const params = new URLSearchParams()
           params.set("reference", (response.reference || "manual") as string)
           params.set("provider", selectedPaymentMethod)
@@ -188,19 +198,25 @@ export default function SubscriptionCheckoutPage() {
           if (selectedPackage?.price) {
             params.set("amount", String(selectedPackage.price))
           }
-          router.push(`/dashboard/subscriptions/success?${params.toString()}`)
+          setTimeout(() => {
+            router.push(`/dashboard/subscriptions/success?${params.toString()}`)
+          }, 2000)
         } else if (response.paymentUrl) {
           // Redirect to payment gateway
-          window.location.href = response.paymentUrl
+          setTimeout(() => {
+            window.location.href = response.paymentUrl
+          }, 2000)
         } else {
           setError("Payment initialization failed. Please try again.")
         }
       } else {
         setError(response.message || "Failed to initialize payment")
+        setStage("review")
       }
     } catch (err: any) {
       console.error("Error initializing subscription:", err)
       setError(err.message || "Failed to process subscription")
+      setStage("review")
     } finally {
       setIsProcessing(false)
     }
@@ -237,6 +253,140 @@ export default function SubscriptionCheckoutPage() {
     )
   }
 
+  // Review stage
+  if (stage === "review") {
+    return (
+      <div className="space-y-6 max-w-4xl mx-auto">
+        <div>
+          <Button variant="ghost" className="mb-4" onClick={() => setStage("details")}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back
+          </Button>
+          <h1 className="text-3xl font-bold">Review Subscription</h1>
+          <p className="text-muted-foreground">Confirm the details before you proceed to payment</p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Subscription Details</CardTitle>
+            <CardDescription>Please review your subscription information</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-muted-foreground">Package</Label>
+              <p className="text-lg font-semibold">{selectedPackage?.name}</p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-muted-foreground">Amount</Label>
+              <p className="text-lg font-semibold">{formatCurrency(selectedPackage?.price || 0)}</p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-muted-foreground">Duration</Label>
+              <p className="text-lg font-semibold">{selectedPackage?.duration_days} days</p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-muted-foreground">Payment Method</Label>
+              <p className="text-lg font-semibold">{selectedMethodConfig?.name}</p>
+            </div>
+            {isManualPayment && payerName && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-muted-foreground">Payer Name</Label>
+                <p className="text-lg">{payerName}</p>
+              </div>
+            )}
+            {isManualPayment && payerPhone && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-muted-foreground">Payer Phone</Label>
+                <p className="text-lg">{payerPhone}</p>
+              </div>
+            )}
+            
+            {/* Bank Account Information in Review */}
+            {isManualPayment && manualConfig?.bank_accounts && manualConfig.bank_accounts.length > 0 && (
+              <div className="mt-4 pt-4 border-t">
+                <Label className="text-sm font-semibold block mb-3">Transfer To Bank Account</Label>
+                {manualConfig.bank_accounts.map((account: any, index: number) => (
+                  <div key={account.id || index} className="p-3 bg-muted/50 rounded border space-y-2 mb-2">
+                    {manualConfig.bank_accounts.length > 1 && (
+                      <div className="text-xs font-medium text-muted-foreground mb-1">
+                        Account {index + 1}
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Bank:</span>
+                        <p className="font-medium">{account.bank_name || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Account Number:</span>
+                        <p className="font-medium font-mono">{account.account_number || 'N/A'}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-muted-foreground">Account Name:</span>
+                        <p className="font-medium">{account.account_name || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <div className="flex justify-end gap-4">
+          <Button variant="outline" onClick={() => setStage("details")}>
+            Back
+          </Button>
+          <Button onClick={handleConfirm} disabled={isProcessing}>
+            {isProcessing ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              "Confirm Payment"
+            )}
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Confirm stage (success)
+  if (stage === "confirm") {
+    return (
+      <div className="space-y-6 max-w-4xl mx-auto">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Check className="h-5 w-5 text-green-500" />
+              Payment Initiated Successfully
+            </CardTitle>
+            <CardDescription>Your subscription payment has been processed</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                {selectedPaymentMethod === 'manual'
+                  ? "Your payment request has been submitted and is awaiting admin approval."
+                  : "Redirecting to payment gateway..."}
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Details stage (default)
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div>
@@ -349,6 +499,45 @@ export default function SubscriptionCheckoutPage() {
                   <Receipt className="h-5 w-5 text-primary" />
                   <h3 className="font-semibold">Manual Payment Details</h3>
                 </div>
+
+                {/* Bank Account Information */}
+                {manualConfig?.bank_accounts && manualConfig.bank_accounts.length > 0 && (
+                  <div className="p-4 bg-white rounded-lg border space-y-3">
+                    <Label className="text-sm font-semibold block">Transfer To Bank Account</Label>
+                    {manualConfig.bank_accounts.map((account: any, index: number) => (
+                      <div key={account.id || index} className="p-3 bg-muted/50 rounded border space-y-2">
+                        {manualConfig.bank_accounts.length > 1 && (
+                          <div className="text-xs font-medium text-muted-foreground mb-2">
+                            Account {index + 1}
+                          </div>
+                        )}
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Bank Name:</span>
+                            <p className="font-medium">{account.bank_name || 'N/A'}</p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Account Number:</span>
+                            <p className="font-medium font-mono">{account.account_number || 'N/A'}</p>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-muted-foreground">Account Name:</span>
+                            <p className="font-medium">{account.account_name || 'N/A'}</p>
+                          </div>
+                          {account.account_type && (
+                            <div>
+                              <span className="text-muted-foreground">Account Type:</span>
+                              <p className="font-medium capitalize">{account.account_type}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Please transfer the exact amount to any of the accounts above and upload proof of payment.
+                    </p>
+                  </div>
+                )}
 
                 {manualConfig?.account_details && (
                   <div className="p-3 bg-white rounded border">
@@ -474,23 +663,10 @@ export default function SubscriptionCheckoutPage() {
 
             <Button
               className="w-full mt-6"
-              onClick={handleSubscribe}
+              onClick={handleReview}
               disabled={!selectedPaymentMethod || isProcessing || !selectedPackage || uploadingEvidence}
             >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  {selectedPaymentMethod === 'wallet' 
-                    ? 'Pay from Wallet' 
-                    : selectedPaymentMethod === 'manual'
-                    ? 'Submit Payment Request'
-                    : 'Continue to Payment'}
-                </>
-              )}
+              Review & Confirm
             </Button>
           </CardContent>
         </Card>

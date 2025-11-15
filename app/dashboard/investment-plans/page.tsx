@@ -1,272 +1,215 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import Link from "next/link"
-import { Clock, ArrowRight, MapPin, Home, DollarSign, ImageIcon, FileText } from "lucide-react"
+import { Clock, ArrowRight, MapPin, Home, DollarSign, ImageIcon, FileText, Loader2, TrendingUp } from "lucide-react"
+import { getUserInvestmentPlans } from "@/lib/api/client"
+import { usePageLoading } from "@/hooks/use-loading"
+import { useToast } from "@/hooks/use-toast"
+import { Skeleton } from "@/components/ui/skeleton"
+
+const currencyFormatter = new Intl.NumberFormat("en-NG", {
+	style: "currency",
+	currency: "NGN",
+	minimumFractionDigits: 0,
+})
 
 export default function InvestmentPlansPage() {
-  const cashInvestments = [
-    {
-      id: "1",
-      type: "money",
-      name: "Housing Development Project Phase 3",
-      description: "Invest in our latest housing development project with attractive returns",
-      targetAmount: 50000000,
-      currentAmount: 32500000,
-      roi: 15,
-      roiPaymentMode: "Quarterly",
-      closingDate: "2024-12-31",
-      moratoriumMonths: 6,
-      minInvestment: 100000,
-      status: "open",
-    },
-    {
-      id: "2",
-      type: "money",
-      name: "Commercial Property Investment",
-      description: "High-yield commercial property investment opportunity",
-      targetAmount: 75000000,
-      currentAmount: 45000000,
-      roi: 18,
-      roiPaymentMode: "Bi-annually",
-      closingDate: "2024-11-30",
-      moratoriumMonths: 3,
-      minInvestment: 250000,
-      status: "open",
-    },
-  ]
+	const { isLoading, loadData } = usePageLoading()
+	const { toast } = useToast()
+	const [plans, setPlans] = useState<Array<{
+		id: string
+		name: string
+		description: string | null
+		min_amount: number
+		max_amount: number
+		expected_return_rate: number
+		min_duration_months: number
+		max_duration_months: number
+		return_type: string
+		risk_level: string
+		risk_color: string
+		features: any[]
+		terms_and_conditions: any[]
+		is_active: boolean
+		created_at: string
+		updated_at: string
+	}>>([])
 
-  const propertyInvestments = [
-    {
-      id: "3",
-      type: "land",
-      name: "Prime Land - Abuja Gwarinpa",
-      description: "600sqm plots in a developing estate with C of O",
-      location: "Abuja, Gwarinpa Estate",
-      totalPlots: 50,
-      soldPlots: 32,
-      pricePerPlot: 2000000,
-      closingDate: "2024-12-31",
-      status: "open",
-      images: ["/modern-apartment-exterior.png", "/modern-living-room.png"],
-      hasDocuments: true,
-    },
-    {
-      id: "4",
-      type: "house",
-      name: "Luxury Duplex Investment - Lekki",
-      description: "4-bedroom detached duplex in prime Lekki location",
-      location: "Lagos, Lekki Phase 1",
-      houseType: "Duplex",
-      totalUnits: 20,
-      soldUnits: 8,
-      pricePerUnit: 35000000,
-      closingDate: "2024-11-30",
-      status: "open",
-      images: ["/modern-apartment-exterior.png", "/modern-kitchen.png", "/modern-living-room.png"],
-      hasDocuments: true,
-    },
-  ]
+	useEffect(() => {
+		let active = true
+		;(async () => {
+			try {
+				const response = await loadData(() => getUserInvestmentPlans())
+				if (!active) return
+				if (response.plans) {
+					setPlans(response.plans)
+				}
+			} catch (error: any) {
+				if (!active) return
+				toast({
+					title: "Failed to load investment plans",
+					description: error?.message || "Please try again later.",
+					variant: "destructive",
+				})
+			}
+		})()
 
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Investment Plans</h1>
-        <p className="text-muted-foreground mt-1">Browse and subscribe to available investment opportunities</p>
-      </div>
+		return () => {
+			active = false
+		}
+	}, [loadData, toast])
 
-      <Tabs defaultValue="all" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="all">All Investments</TabsTrigger>
-          <TabsTrigger value="cash">Cash Investments</TabsTrigger>
-          <TabsTrigger value="property">Property Investments</TabsTrigger>
-        </TabsList>
+	const getRiskBadgeVariant = (riskLevel: string) => {
+		switch (riskLevel?.toLowerCase()) {
+			case "low":
+				return "default"
+			case "medium":
+				return "secondary"
+			case "high":
+				return "destructive"
+			default:
+				return "outline"
+		}
+	}
 
-        <TabsContent value="all" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {[...cashInvestments, ...propertyInvestments].map((plan) => (
-              <InvestmentCard key={plan.id} plan={plan} />
-            ))}
-          </div>
-        </TabsContent>
+	if (isLoading) {
+		return (
+			<div className="space-y-6">
+				<div>
+					<h1 className="text-3xl font-bold">Investment Plans</h1>
+					<p className="text-muted-foreground mt-1">Browse and subscribe to available investment opportunities</p>
+				</div>
+				<div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+					{[1, 2, 3].map((i) => (
+						<Card key={i} className="p-6">
+							<Skeleton className="h-6 w-3/4 mb-2" />
+							<Skeleton className="h-4 w-full mb-4" />
+							<Skeleton className="h-32 w-full" />
+						</Card>
+					))}
+				</div>
+			</div>
+		)
+	}
 
-        <TabsContent value="cash" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {cashInvestments.map((plan) => (
-              <InvestmentCard key={plan.id} plan={plan} />
-            ))}
-          </div>
-        </TabsContent>
+	return (
+		<div className="space-y-6">
+			<div>
+				<h1 className="text-3xl font-bold">Investment Plans</h1>
+				<p className="text-muted-foreground mt-1">Browse and subscribe to available investment opportunities</p>
+			</div>
 
-        <TabsContent value="property" className="space-y-6">
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {propertyInvestments.map((plan) => (
-              <InvestmentCard key={plan.id} plan={plan} />
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
-    </div>
-  )
+			{plans.length === 0 ? (
+				<Card className="p-12 text-center">
+					<TrendingUp className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+					<h3 className="text-lg font-semibold mb-2">No Investment Plans Available</h3>
+					<p className="text-muted-foreground">There are currently no active investment plans. Please check back later.</p>
+				</Card>
+			) : (
+				<div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+					{plans.map((plan) => (
+						<InvestmentPlanCard key={plan.id} plan={plan} getRiskBadgeVariant={getRiskBadgeVariant} />
+					))}
+				</div>
+			)}
+		</div>
+	)
 }
 
-function InvestmentCard({ plan }: { plan: any }) {
-  if (plan.type === "money") {
-    const progress = (plan.currentAmount / plan.targetAmount) * 100
-    const daysLeft = Math.ceil((new Date(plan.closingDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+function InvestmentPlanCard({
+	plan,
+	getRiskBadgeVariant,
+}: {
+	plan: {
+		id: string
+		name: string
+		description: string | null
+		min_amount: number
+		max_amount: number
+		expected_return_rate: number
+		min_duration_months: number
+		max_duration_months: number
+		return_type: string
+		risk_level: string
+		risk_color: string
+		features: any[]
+		terms_and_conditions: any[]
+		is_active: boolean
+		created_at: string
+		updated_at: string
+	}
+	getRiskBadgeVariant: (riskLevel: string) => "default" | "secondary" | "destructive" | "outline"
+}) {
+	return (
+		<Card className="overflow-hidden hover:shadow-lg transition-shadow">
+			<div className="p-6 space-y-4">
+				<div className="space-y-2">
+					<div className="flex items-start justify-between">
+						<div className="flex-1">
+							<div className="flex items-center gap-2 mb-2">
+								<DollarSign className="h-4 w-4 text-primary" />
+								<Badge variant={getRiskBadgeVariant(plan.risk_level)}>{plan.risk_level} Risk</Badge>
+							</div>
+							<h3 className="font-semibold text-lg leading-tight">{plan.name}</h3>
+							{plan.description && <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{plan.description}</p>}
+						</div>
+					</div>
+				</div>
 
-    return (
-      <Card className="overflow-hidden">
-        <div className="p-6 space-y-4">
-          <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2 mb-1">
-                <DollarSign className="h-4 w-4 text-primary" />
-                <Badge variant="default">Cash Investment</Badge>
-              </div>
-              <h3 className="font-semibold text-lg leading-tight">{plan.name}</h3>
-              <p className="text-sm text-muted-foreground line-clamp-2">{plan.description}</p>
-            </div>
-          </div>
+				<div className="grid grid-cols-2 gap-4 pt-2">
+					<div>
+						<p className="text-xs text-muted-foreground">Expected ROI</p>
+						<p className="font-semibold text-green-600">{plan.expected_return_rate}% p.a.</p>
+					</div>
+					<div>
+						<p className="text-xs text-muted-foreground">Return Type</p>
+						<p className="font-semibold text-sm">{plan.return_type || "N/A"}</p>
+					</div>
+					<div>
+						<p className="text-xs text-muted-foreground">Min. Investment</p>
+						<p className="font-semibold text-sm">{currencyFormatter.format(plan.min_amount)}</p>
+					</div>
+					<div>
+						<p className="text-xs text-muted-foreground">Max. Investment</p>
+						<p className="font-semibold text-sm">{currencyFormatter.format(plan.max_amount)}</p>
+					</div>
+				</div>
 
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Progress</span>
-              <span className="font-medium">{progress.toFixed(1)}%</span>
-            </div>
-            <Progress value={progress} />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>₦{(plan.currentAmount / 1000000).toFixed(1)}M raised</span>
-              <span>₦{(plan.targetAmount / 1000000).toFixed(1)}M target</span>
-            </div>
-          </div>
+				<div className="flex items-center gap-2 pt-2">
+					<Clock className="h-4 w-4 text-muted-foreground" />
+					<span className="text-xs text-muted-foreground">
+						Duration: {plan.min_duration_months}-{plan.max_duration_months} months
+					</span>
+				</div>
 
-          <div className="grid grid-cols-2 gap-4 pt-2">
-            <div>
-              <p className="text-xs text-muted-foreground">ROI</p>
-              <p className="font-semibold text-green-600">{plan.roi}% p.a.</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Payment</p>
-              <p className="font-semibold text-sm">{plan.roiPaymentMode}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Min. Investment</p>
-              <p className="font-semibold text-sm">₦{(plan.minInvestment / 1000).toFixed(0)}K</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Closes in</p>
-              <p className="font-semibold text-sm">{daysLeft} days</p>
-            </div>
-          </div>
+				{plan.features && plan.features.length > 0 && (
+					<div className="pt-2">
+						<p className="text-xs font-medium mb-1">Features:</p>
+						<ul className="text-xs text-muted-foreground space-y-1">
+							{plan.features.slice(0, 3).map((feature: string, idx: number) => (
+								<li key={idx} className="flex items-start gap-1">
+									<span>•</span>
+									<span>{feature}</span>
+								</li>
+							))}
+							{plan.features.length > 3 && <li className="text-xs text-muted-foreground">+{plan.features.length - 3} more</li>}
+						</ul>
+					</div>
+				)}
 
-          <div className="flex items-center gap-2 pt-2">
-            <Clock className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground">{plan.moratoriumMonths} months moratorium period</span>
-          </div>
-
-          <Link href={`/dashboard/investment-plans/${plan.id}`} className="block">
-            <Button className="w-full">
-              View Details & Invest
-              <ArrowRight className="h-4 w-4 ml-2" />
-            </Button>
-          </Link>
-        </div>
-      </Card>
-    )
-  }
-
-  // Property investment card (land or house)
-  const progress =
-    plan.type === "land" ? (plan.soldPlots / plan.totalPlots) * 100 : (plan.soldUnits / plan.totalUnits) * 100
-  const daysLeft = Math.ceil((new Date(plan.closingDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
-  const estimatedROI = plan.type === "land" ? 15 : 12
-
-  return (
-    <Card className="overflow-hidden">
-      {plan.images && plan.images.length > 0 && (
-        <div className="relative h-48 bg-muted">
-          <img src={plan.images[0] || "/placeholder.svg"} alt={plan.name} className="w-full h-full object-cover" />
-          {plan.images.length > 1 && (
-            <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs flex items-center gap-1">
-              <ImageIcon className="h-3 w-3" />
-              {plan.images.length} photos
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="p-6 space-y-4">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            {plan.type === "land" ? (
-              <>
-                <MapPin className="h-4 w-4 text-primary" />
-                <Badge variant="secondary">Land Investment</Badge>
-              </>
-            ) : (
-              <>
-                <Home className="h-4 w-4 text-primary" />
-                <Badge variant="outline">House Investment</Badge>
-              </>
-            )}
-          </div>
-          <h3 className="font-semibold text-lg leading-tight">{plan.name}</h3>
-          <p className="text-sm text-muted-foreground line-clamp-2">{plan.description}</p>
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            <MapPin className="h-3 w-3" />
-            {plan.location}
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">{plan.type === "land" ? "Plots Sold" : "Units Sold"}</span>
-            <span className="font-medium">{progress.toFixed(0)}%</span>
-          </div>
-          <Progress value={progress} />
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>{plan.type === "land" ? `${plan.soldPlots} plots sold` : `${plan.soldUnits} units sold`}</span>
-            <span>{plan.type === "land" ? `${plan.totalPlots} total` : `${plan.totalUnits} total`}</span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4 pt-2">
-          <div>
-            <p className="text-xs text-muted-foreground">Expected ROI</p>
-            <p className="font-semibold text-green-600">{estimatedROI}% p.a.</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">
-              {plan.type === "land" ? "Price per Plot" : "Price per Unit"}
-            </p>
-            <p className="font-semibold">
-              ₦{((plan.type === "land" ? plan.pricePerPlot : plan.pricePerUnit) / 1000000).toFixed(1)}M
-            </p>
-          </div>
-        </div>
-
-        <div className="pt-2">
-          <p className="text-xs text-muted-foreground">Closes in</p>
-          <p className="font-semibold text-sm">{daysLeft} days</p>
-        </div>
-
-        {plan.hasDocuments && (
-          <div className="flex items-center gap-2 pt-2 text-sm text-muted-foreground">
-            <FileText className="h-4 w-4" />
-            <span>Documents available</span>
-          </div>
-        )}
-
-        <Link href={`/dashboard/investment-plans/${plan.id}`} className="block">
-          <Button className="w-full">
-            View Details & Invest
-            <ArrowRight className="h-4 w-4 ml-2" />
-          </Button>
-        </Link>
-      </div>
-    </Card>
-  )
+				<Link href={`/dashboard/investment-plans/${plan.id}`} className="block">
+					<Button className="w-full">
+						View Details & Invest
+						<ArrowRight className="h-4 w-4 ml-2" />
+					</Button>
+				</Link>
+			</div>
+		</Card>
+	)
 }

@@ -1,36 +1,81 @@
 import { type NextRequest, NextResponse } from "next/server"
 
-export async function GET() {
-  try {
-    // TODO: Fetch subscriptions from database
-    const subscriptions = []
+const LARAVEL_API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.LARAVEL_API_URL || "http://127.0.0.1:8000/api"
 
-    return NextResponse.json({ success: true, data: subscriptions })
+export async function GET(request: NextRequest) {
+  try {
+    const searchParams = request.nextUrl.searchParams
+    const queryString = searchParams.toString()
+    const url = `${LARAVEL_API_URL}/super-admin/subscriptions${queryString ? `?${queryString}` : ''}`
+    
+    const authHeader = request.headers.get("authorization")
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    }
+    
+    if (authHeader) {
+      headers["Authorization"] = authHeader
+    }
+
+    // Forward tenant headers
+    const tenantSlug = request.headers.get("x-tenant-slug")
+    if (tenantSlug) {
+      headers["X-Tenant-Slug"] = tenantSlug
+    }
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers,
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: "Failed to fetch subscriptions" }))
+      return NextResponse.json(errorData, { status: response.status })
+    }
+
+    const data = await response.json()
+    return NextResponse.json(data)
   } catch (error) {
     console.error("Error fetching subscriptions:", error)
-    return NextResponse.json({ error: "Failed to fetch subscriptions" }, { status: 500 })
+    return NextResponse.json({ success: false, error: "Failed to fetch subscriptions" }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { business_id, package_id, billing_cycle } = body
-
-    // TODO: Create subscription in database
-    const subscription = {
-      id: Date.now().toString(),
-      business_id,
-      package_id,
-      billing_cycle,
-      status: "active",
-      current_period_start: new Date().toISOString(),
-      current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    const url = `${LARAVEL_API_URL}/super-admin/subscriptions`
+    
+    const authHeader = request.headers.get("authorization")
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    }
+    
+    if (authHeader) {
+      headers["Authorization"] = authHeader
     }
 
-    return NextResponse.json({ success: true, data: subscription })
+    // Forward tenant headers
+    const tenantSlug = request.headers.get("x-tenant-slug")
+    if (tenantSlug) {
+      headers["X-Tenant-Slug"] = tenantSlug
+    }
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(body),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: "Failed to create subscription" }))
+      return NextResponse.json(errorData, { status: response.status })
+    }
+
+    const data = await response.json()
+    return NextResponse.json(data)
   } catch (error) {
     console.error("Error creating subscription:", error)
-    return NextResponse.json({ error: "Failed to create subscription" }, { status: 500 })
+    return NextResponse.json({ success: false, error: "Failed to create subscription" }, { status: 500 })
   }
 }

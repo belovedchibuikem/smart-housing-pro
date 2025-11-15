@@ -41,6 +41,7 @@ import {
   UserPlus,
   Plus,
   Calculator,
+  Bell,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState } from "react"
@@ -121,6 +122,7 @@ const navItems: NavItem[] = [
     label: "Refund",
     icon: Receipt,
     subItems: [
+      { href: "/admin/refunds", label: "Refund Requests", icon: FileText },
       { href: "/admin/wallets/pending", label: "Pending Refund", icon: FileText },
       { href: "/admin/refund-member", label: "Refund Member", icon: DollarSign },
       { href: "/admin/bulk-upload/refund", label: "Bulk Refund", icon: Upload },
@@ -149,7 +151,15 @@ const navItems: NavItem[] = [
       { href: "/admin/bulk-upload/properties", label: "Bulk Upload", icon: Upload },
     ],
   },
-  { href: "/admin/investment-plans", label: "Investment Plans", icon: TrendingUp },
+  {
+    label: "Investments",
+    icon: TrendingUp,
+    subItems: [
+      { href: "/admin/investment-plans", label: "Investment Plans", icon: Package },
+      { href: "/admin/investments", label: "All Investments", icon: TrendingUp },
+      { href: "/admin/investment-withdrawal-requests", label: "Withdrawal Requests", icon: DollarSign },
+    ],
+  },
   {
     label: "Statutory Charges",
     icon: Receipt,
@@ -207,6 +217,7 @@ const navItems: NavItem[] = [
     ],
   },
   { href: "/admin/activity-logs", label: "Activity Logs", icon: ScrollText },
+  { href: "/admin/notifications", label: "Notifications", icon: Bell },
   { href: "/admin/documents", label: "Documents", icon: FileText },
   {
     label: "Landing Page",

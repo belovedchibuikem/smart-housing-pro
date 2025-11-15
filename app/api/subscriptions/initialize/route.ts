@@ -3,60 +3,61 @@ import { type NextRequest, NextResponse } from "next/server"
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { userId, packageId, paymentMethod } = body
+    const auth = request.headers.get("authorization") || ""
+    const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || ""
+    const tenantSlug = request.headers.get("x-tenant-slug") || ""
 
-    // TODO: Fetch user and package details from database
-    const user = {
-      id: userId,
-      email: "user@example.com",
-      name: "John Doe",
+    const laravelApiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+
+    console.log('Subscription Initialize API Route - Forwarding to Laravel:', {
+      laravelApiUrl: `${laravelApiUrl}/api/subscriptions/initialize`,
+      hasAuth: !!auth,
+      host,
+      tenantSlug,
+      bodyKeys: Object.keys(body),
+    })
+
+    const res = await fetch(`${laravelApiUrl}/api/subscriptions/initialize`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Authorization": auth,
+        "X-Forwarded-Host": host,
+        "X-Tenant-Slug": tenantSlug,
+      },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    })
+
+    console.log('Subscription Initialize API Route - Response:', {
+      status: res.status,
+      statusText: res.statusText,
+      ok: res.ok,
+    })
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({
+        message: "Failed to initialize subscription",
+      }))
+      console.error('Subscription Initialize API Route - Error response:', errorData)
+      return NextResponse.json(errorData, { status: res.status })
     }
 
-    const packages: Record<string, any> = {
-      "1": { name: "Weekly Basic", price: 500, duration: 7 },
-      "2": { name: "Monthly Standard", price: 1500, duration: 30 },
-      "3": { name: "Quarterly Premium", price: 4000, duration: 90 },
-      "4": { name: "Yearly Elite", price: 15000, duration: 365 },
-    }
-
-    const selectedPackage = packages[packageId]
-
-    if (!selectedPackage) {
-      return NextResponse.json({ error: "Invalid package" }, { status: 400 })
-    }
-
-    // Initialize payment based on method
-    if (paymentMethod === "paystack") {
-      // Initialize Paystack payment
-      const reference = `SUB_${Date.now()}_${userId}`
-
-      // TODO: Call Paystack API to initialize transaction
-      return NextResponse.json({
-        success: true,
-        paymentUrl: `https://checkout.paystack.com/...`,
-        reference,
-      })
-    } else if (paymentMethod === "remita") {
-      // Initialize Remita payment
-      const rrr = `REM_${Date.now()}_${userId}`
-
-      // TODO: Call Remita API to generate RRR
-      return NextResponse.json({
-        success: true,
-        rrr,
-        paymentUrl: `https://remita.net/...`,
-      })
-    } else if (paymentMethod === "wallet") {
-      // TODO: Check wallet balance and deduct
-      return NextResponse.json({
-        success: true,
-        message: "Payment successful from wallet",
-      })
-    }
-
-    return NextResponse.json({ error: "Invalid payment method" }, { status: 400 })
+    const data = await res.json()
+    console.log('Subscription Initialize API Route - Success:', {
+      success: data.success,
+      hasReference: !!data.reference,
+    })
+    return NextResponse.json(data, { status: res.status })
   } catch (error) {
-    console.error("Subscription initialization error:", error)
-    return NextResponse.json({ error: "Failed to initialize subscription" }, { status: 500 })
+    console.error("Subscription Initialize API Route - Exception:", error)
+    return NextResponse.json(
+      {
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to initialize subscription",
+      },
+      { status: 500 }
+    )
   }
 }

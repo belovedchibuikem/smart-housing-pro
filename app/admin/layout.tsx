@@ -8,6 +8,8 @@ import { AdminLoadingProvider } from "@/components/admin/admin-loading-context"
 import { AuthGuard } from "@/lib/tenant/auth-guard"
 import type { UserRole } from "@/lib/roles"
 import { getUserData } from "@/lib/auth/auth-utils"
+import { useSubscriptionGuard } from "@/lib/hooks/use-subscription"
+import { Loader2 } from "lucide-react"
 
 export default function AdminLayout({
   children,
@@ -17,6 +19,9 @@ export default function AdminLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [userRole, setUserRole] = useState<UserRole>("admin")
 
+  // Check tenant subscription status and handle redirects
+  const { isLoading } = useSubscriptionGuard(true)
+
   useEffect(() => {
     // Get user role from localStorage
     const userData = getUserData()
@@ -25,6 +30,18 @@ export default function AdminLayout({
       setUserRole(role as UserRole)
     }
   }, [])
+
+  // Show loading while checking subscription
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground">Checking subscription status...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <AuthGuard requiredRole={["admin", "super-admin", "super_admin"]}>

@@ -232,21 +232,21 @@ export async function logoutRequest() {
 }
 
 export async function registerRequest(payload: Record<string, unknown>) {
-	return apiFetch<{ message: string; user?: unknown }>("/auth/register", {
+	return apiFetch<{ success?: boolean; message: string; user?: unknown; requires_otp_verification?: boolean }>("/auth/register", {
 		method: "POST",
 		body: payload,
 	})
 }
 
 export async function verifyOtpRequest(payload: { email: string; otp: string }) {
-	return apiFetch<{ message: string; token?: string; user?: unknown }>("/auth/verify-otp", {
+	return apiFetch<{ success: boolean; message: string; token?: string; user?: unknown; email_verified?: boolean }>("/auth/verify-otp", {
 		method: "POST",
 		body: payload,
 	})
 }
 
-export async function resendOtpRequest(payload: { email: string }) {
-	return apiFetch<{ message: string }>("/auth/resend-otp", {
+export async function resendOtpRequest(payload: { email: string; type?: string; phone?: string }) {
+	return apiFetch<{ success: boolean; message: string; expires_at?: string }>("/auth/resend-otp", {
 		method: "POST",
 		body: payload,
 	})
@@ -1033,7 +1033,366 @@ export async function createAdminRefund(payload: CreateRefundPayload) {
 	})
 }
 
-// Investment Plans API
+// User Investment Plans API (for members)
+export async function getUserInvestmentPlans() {
+	return apiFetch<{ plans: Array<{
+		id: string
+		name: string
+		description: string | null
+		min_amount: number
+		max_amount: number
+		expected_return_rate: number
+		min_duration_months: number
+		max_duration_months: number
+		return_type: string
+		risk_level: string
+		risk_color: string
+		features: any[]
+		terms_and_conditions: any[]
+		is_active: boolean
+		created_at: string
+		updated_at: string
+	}> }>("/investments/plans", { method: "GET" })
+}
+
+export async function getUserInvestmentPlan(id: string) {
+	return apiFetch<{ plan: {
+		id: string
+		name: string
+		description: string | null
+		min_amount: number
+		max_amount: number
+		expected_return_rate: number
+		min_duration_months: number
+		max_duration_months: number
+		return_type: string
+		risk_level: string
+		risk_color: string
+		features: any[]
+		terms_and_conditions: any[]
+		is_active: boolean
+		created_at: string
+		updated_at: string
+	} }>(`/investments/plans/${id}`, { method: "GET" })
+}
+
+// User Investments API (for members)
+export interface UserInvestment {
+	id: string
+	member_id: string
+	amount: number
+	type: string
+	duration_months: number
+	expected_return_rate: number
+	status: string
+	investment_date: string
+	approved_at: string | null
+	approved_by: string | null
+	rejection_reason: string | null
+	rejected_at: string | null
+	rejected_by: string | null
+	member?: {
+		id: string
+		user?: {
+			id: string
+			first_name: string
+			last_name: string
+			email: string
+		}
+	}
+	returns?: Array<{
+		id: string
+		investment_id: string
+		amount: number
+		return_date: string
+		status: string
+		type: string
+	}>
+}
+
+export async function getUserInvestments(params?: { status?: string; type?: string; page?: number; per_page?: number }) {
+	const query = new URLSearchParams()
+	if (params?.status) query.set("status", params.status)
+	if (params?.type) query.set("type", params.type)
+	if (params?.page) query.set("page", String(params.page))
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+	return apiFetch<{
+		investments: UserInvestment[]
+		pagination: {
+			current_page: number
+			last_page: number
+			per_page: number
+			total: number
+		}
+	}>(`/investments?${query.toString()}`, { method: "GET" })
+}
+
+export async function getUserInvestment(id: string) {
+	return apiFetch<{ investment: UserInvestment }>(`/investments/${id}`, { method: "GET" })
+}
+
+export async function createInvestment(data: {
+	amount: number
+	type: string
+	duration_months: number
+	expected_return_rate: number
+}) {
+	return apiFetch<{ success: boolean; message: string; investment: UserInvestment }>("/investments", {
+		method: "POST",
+		body: data,
+	})
+}
+
+export async function getInvestmentPaymentMethods() {
+	return apiFetch<{
+		payment_methods: Array<{
+			id: string
+			name: string
+			description: string
+			icon?: string
+			is_enabled: boolean
+			configuration?: Record<string, unknown>
+		}>
+	}>("/investments/payment-methods", { method: "GET" })
+}
+
+export async function initializeInvestmentPayment(
+	data:
+		| FormData
+		| {
+			amount: number
+			payment_method: string
+			investment_plan_id: string
+			type: string
+			duration_months: number
+			expected_return_rate: number
+			notes?: string
+			payer_name?: string
+			payer_phone?: string
+			transaction_reference?: string
+			bank_account_id?: string
+			payment_evidence?: string[]
+		},
+) {
+	return apiFetch<{
+		success: boolean
+		message?: string
+		reference?: string
+		payment_id?: string
+		payment_method?: string
+		payment_url?: string | null
+		requires_approval?: boolean
+		manual_instructions?: {
+			account?: Record<string, unknown>
+			requires_payment_evidence?: boolean
+			message?: string
+		}
+		investment?: {
+			id: string
+			status: string
+			amount: number
+		}
+	}>("/investments/pay", {
+		method: "POST",
+		body: data,
+	})
+}
+
+// Investment Withdrawal API
+export interface InvestmentWithdrawalOptions {
+	investment: {
+		id: string
+		amount: number
+		status: string
+		maturity_date: string | null
+	}
+	withdrawal_options: {
+		is_matured: boolean
+		maturity_date: string | null
+		total_invested: number
+		total_returns: number
+		available_for_withdrawal: number
+		withdrawal_types: {
+			full: {
+				available: boolean
+				amount: number
+				description: string
+			}
+			partial: {
+				available: boolean
+				min_amount: number
+				max_amount: number
+				description: string
+			}
+		}
+	}
+}
+
+export async function getInvestmentWithdrawalOptions(investmentId: string) {
+	return apiFetch<InvestmentWithdrawalOptions>(`/investments/${investmentId}/withdrawal-options`, { method: "GET" })
+}
+
+export async function getInvestmentWithdrawalHistory(investmentId: string, params?: { page?: number; per_page?: number }) {
+	const query = new URLSearchParams()
+	if (params?.page) query.set("page", String(params.page))
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+	return apiFetch<{
+		withdrawals: Array<{
+			id: string
+			investment_id: string
+			amount: number
+			return_date: string
+			status: string
+			type: string
+		}>
+		pagination: {
+			current_page: number
+			last_page: number
+			per_page: number
+			total: number
+		}
+	}>(`/investments/${investmentId}/withdrawal-history?${query.toString()}`, { method: "GET" })
+}
+
+export async function requestInvestmentWithdrawal(investmentId: string, data: {
+	withdrawal_type: "full" | "partial"
+	amount?: number
+	reason?: string
+}) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		withdrawal_request?: {
+			id: string
+			investment_id: string
+			amount: number
+			type: string
+			status: string
+		}
+	}>(`/investments/${investmentId}/withdraw`, {
+		method: "POST",
+		body: data,
+	})
+}
+
+// Admin Investment Withdrawal Request API
+export interface AdminInvestmentWithdrawalRequest {
+	id: string
+	investment_id: string
+	member_id: string
+	withdrawal_type: string
+	amount: number
+	status: string
+	reason: string | null
+	admin_response: string | null
+	rejection_reason: string | null
+	requested_by: string | null
+	approved_by: string | null
+	rejected_by: string | null
+	processed_by: string | null
+	requested_at: string | null
+	approved_at: string | null
+	rejected_at: string | null
+	processed_at: string | null
+	completed_at: string | null
+	investment?: UserInvestment
+	member?: {
+		id: string
+		user?: {
+			id: string
+			first_name: string
+			last_name: string
+			email: string
+		}
+	}
+}
+
+export async function getAdminInvestmentWithdrawalRequests(params?: {
+	status?: string
+	investment_id?: string
+	member_id?: string
+	search?: string
+	page?: number
+	per_page?: number
+}) {
+	const query = new URLSearchParams()
+	if (params?.status) query.set("status", params.status)
+	if (params?.investment_id) query.set("investment_id", params.investment_id)
+	if (params?.member_id) query.set("member_id", params.member_id)
+	if (params?.search) query.set("search", params.search)
+	if (params?.page) query.set("page", String(params.page))
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+	return apiFetch<{
+		success: boolean
+		withdrawals: AdminInvestmentWithdrawalRequest[]
+		pagination: {
+			current_page: number
+			last_page: number
+			per_page: number
+			total: number
+		}
+	}>(`/admin/investment-withdrawal-requests?${query.toString()}`, { method: "GET" })
+}
+
+export async function getAdminInvestmentWithdrawalStats() {
+	return apiFetch<{
+		success: boolean
+		stats: {
+			total_requests: number
+			pending: number
+			approved: number
+			rejected: number
+			processing: number
+			completed: number
+			total_amount_pending: number
+			total_amount_completed: number
+		}
+	}>("/admin/investment-withdrawal-requests/stats", { method: "GET" })
+}
+
+export async function getAdminInvestmentWithdrawalRequest(id: string) {
+	return apiFetch<{
+		success: boolean
+		withdrawal: AdminInvestmentWithdrawalRequest
+	}>(`/admin/investment-withdrawal-requests/${id}`, { method: "GET" })
+}
+
+export async function approveInvestmentWithdrawalRequest(id: string, data?: {
+	admin_response?: string
+	process_immediately?: boolean
+}) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		withdrawal: AdminInvestmentWithdrawalRequest
+	}>(`/admin/investment-withdrawal-requests/${id}/approve`, {
+		method: "POST",
+		body: data || {},
+	})
+}
+
+export async function rejectInvestmentWithdrawalRequest(id: string, rejection_reason: string) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		withdrawal: AdminInvestmentWithdrawalRequest
+	}>(`/admin/investment-withdrawal-requests/${id}/reject`, {
+		method: "POST",
+		body: { rejection_reason },
+	})
+}
+
+export async function processInvestmentWithdrawalRequest(id: string) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		withdrawal: AdminInvestmentWithdrawalRequest
+	}>(`/admin/investment-withdrawal-requests/${id}/process`, {
+		method: "POST",
+	})
+}
+
+// Investment Plans API (Admin)
 export async function getInvestmentPlans(params?: { search?: string; is_active?: string; risk_level?: string; return_type?: string; page?: number; per_page?: number }) {
 	const query = new URLSearchParams()
 	if (params?.search) query.set("search", params.search)
@@ -1405,7 +1764,7 @@ export async function getBlockchainProperties(params?: { search?: string; status
 	return apiFetch<{ success: boolean; data: any[]; pagination: any }>(`/admin/blockchain?${query.toString()}`, { method: "GET" })
 }
 
-export async function getBlockchainStats() {
+export async function getAdminBlockchainStats() {
 	return apiFetch<{ success: boolean; data: any }>("/admin/blockchain/stats", { method: "GET" })
 }
 
@@ -1421,7 +1780,7 @@ export async function updateBlockchainProperty(id: string, data: { status?: stri
 	return apiFetch<{ success: boolean; message: string; data: any }>(`/admin/blockchain/${id}`, { method: "PUT", body: data })
 }
 
-export async function verifyBlockchainTransaction(id: string) {
+export async function verifyAdminBlockchainTransaction(id: string) {
 	return apiFetch<{ success: boolean; message: string; data: any }>(`/admin/blockchain/${id}/verify`, { method: "POST" })
 }
 
@@ -2177,6 +2536,7 @@ export async function getSubscriptionPackages() {
 
 export async function getCurrentSubscription() {
 	return apiFetch<{
+		success?: boolean
 		subscription: {
 			id: string
 			package_id: string
@@ -2223,6 +2583,11 @@ export async function getSubscriptionPaymentMethods() {
 export async function initializeSubscription(data: {
 	package_id: string
 	payment_method: string
+	notes?: string
+	payer_name?: string
+	payer_phone?: string
+	account_details?: string
+	payment_evidence?: string[]
 }) {
 	return apiFetch<{
 		success: boolean
@@ -2230,6 +2595,7 @@ export async function initializeSubscription(data: {
 		reference?: string
 		rrr?: string
 		message?: string
+		requires_approval?: boolean
 	}>("/subscriptions/initialize", {
 		method: "POST",
 		body: data,
@@ -2270,6 +2636,7 @@ export async function getMemberSubscriptionPackages() {
 
 export async function getMemberCurrentSubscription() {
 	return apiFetch<{
+		success?: boolean
 		subscription: {
 			id: string
 			package_id: string
@@ -2639,8 +3006,26 @@ export async function uploadPaymentEvidence(file: File): Promise<string> {
 	formData.append('file', file)
 	formData.append('type', 'payment_evidence')
 	
+	// Check if user is admin to use the correct endpoint
+	let isAdmin = false
+	try {
+		const userData = localStorage.getItem('user_data')
+		if (userData) {
+			const parsed = JSON.parse(userData)
+			const role = parsed.role || (parsed.roles && parsed.roles[0])
+			isAdmin = role === 'admin' || role === 'super_admin' || role === 'super-admin'
+		}
+	} catch {
+		// If we can't parse user data, default to user endpoint
+		isAdmin = false
+	}
+	
+	const endpoint = isAdmin 
+		? '/api/admin/payment-evidence/upload'
+		: '/api/user/profile/upload-payment-evidence'
+	
 	const token = localStorage.getItem('auth_token')
-	const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/user/profile/upload-payment-evidence`, {
+	const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}${endpoint}`, {
 		method: "POST",
 		body: formData,
 		headers: {
@@ -3136,4 +3521,688 @@ export async function getAvailableRecipients(search?: string) {
 		`/communication/mail/recipients?${query.toString()}`,
 		{ method: "GET" }
 	)
+}
+
+// Member Reports API
+export interface ContributionReport {
+	success: boolean
+	stats: {
+		total_contributions: number
+		this_month: number
+		average_monthly: number
+		total_payments: number
+		monthly_change: number
+	}
+	contributions: Array<{
+		id: string
+		date: string
+		amount: number
+		type: string
+		status: string
+		reference: string
+		plan: string | null
+	}>
+}
+
+export interface EquityContributionReport {
+	success: boolean
+	stats: {
+		total_contributions: number
+		this_month: number
+		total_payments: number
+	}
+	equity_contributions: Array<{
+		id: string
+		date: string
+		amount: number
+		status: string
+		reference: string
+		plan: string | null
+	}>
+}
+
+export interface InvestmentReport {
+	success: boolean
+	stats: {
+		total_invested: number
+		current_value: number
+		total_roi: number
+		roi_percentage: number
+		active_investments: number
+	}
+	investments: Array<{
+		id: string
+		name: string
+		type: string
+		amount: number
+		current_value: number
+		roi: number
+		status: string
+		date: string
+	}>
+}
+
+export interface LoanReport {
+	success: boolean
+	stats: {
+		total_borrowed: number
+		total_repaid: number
+		outstanding_balance: number
+		interest_paid: number
+	}
+	loans: Array<{
+		id: string
+		reference: string
+		type: string
+		amount: number
+		repaid: number
+		balance: number
+		interest_rate: number
+		status: string
+		due_date: string | null
+		progress: number
+	}>
+}
+
+export interface PropertyReport {
+	success: boolean
+	stats: {
+		total_properties: number
+		completed_properties: number
+		ongoing_properties: number
+		total_invested: number
+		total_value: number
+		payment_progress: number
+	}
+	properties: Array<{
+		id: string
+		name: string
+		type: string
+		location: string
+		size: string
+		total_cost: number
+		amount_paid: number
+		payment_status: string
+		subscription_date: string
+		last_payment: string | null
+		payment_method: string
+	}>
+}
+
+export interface FinancialSummaryReport {
+	success: boolean
+	financial_data: {
+		total_contributions: number
+		total_investments: number
+		total_loans: number
+		total_properties: number
+		wallet_balance: number
+		loan_balance: number
+		investment_returns: number
+		property_equity: number
+	}
+	net_worth: number
+	total_assets: number
+	total_liabilities: number
+	monthly_data: Array<{
+		month: string
+		income: number
+		expenses: number
+	}>
+}
+
+export interface MortgageReport {
+	success: boolean
+	stats: {
+		total_mortgages: number
+		total_mortgage_amount: number
+		total_repaid: number
+		outstanding_balance: number
+		interest_paid: number
+	}
+	mortgages: Array<{
+		id: string
+		type: "mortgage" | "internal"
+		reference: string
+		provider: string
+		amount: number
+		repaid: number
+		balance: number
+		interest_rate: number
+		monthly_payment: number
+		status: string
+		progress: number
+		created_at: string
+	}>
+}
+
+export async function getContributionReport(params?: {
+	date_from?: string
+	date_to?: string
+	status?: string
+	period?: string
+}) {
+	const query = new URLSearchParams()
+	if (params?.date_from) query.set("date_from", params.date_from)
+	if (params?.date_to) query.set("date_to", params.date_to)
+	if (params?.status) query.set("status", params.status)
+	if (params?.period) query.set("period", params.period)
+	return apiFetch<ContributionReport>(`/user/reports/contributions?${query.toString()}`, { method: "GET" })
+}
+
+export async function getEquityContributionReport(params?: {
+	date_from?: string
+	date_to?: string
+	status?: string
+}) {
+	const query = new URLSearchParams()
+	if (params?.date_from) query.set("date_from", params.date_from)
+	if (params?.date_to) query.set("date_to", params.date_to)
+	if (params?.status) query.set("status", params.status)
+	return apiFetch<EquityContributionReport>(`/user/reports/equity-contributions?${query.toString()}`, { method: "GET" })
+}
+
+export async function getInvestmentReport(params?: {
+	date_from?: string
+	date_to?: string
+	type?: string
+	status?: string
+}) {
+	const query = new URLSearchParams()
+	if (params?.date_from) query.set("date_from", params.date_from)
+	if (params?.date_to) query.set("date_to", params.date_to)
+	if (params?.type) query.set("type", params.type)
+	if (params?.status) query.set("status", params.status)
+	return apiFetch<InvestmentReport>(`/user/reports/investments?${query.toString()}`, { method: "GET" })
+}
+
+export async function getLoanReport(params?: {
+	date_from?: string
+	date_to?: string
+	status?: string
+	loan_type?: string
+}) {
+	const query = new URLSearchParams()
+	if (params?.date_from) query.set("date_from", params.date_from)
+	if (params?.date_to) query.set("date_to", params.date_to)
+	if (params?.status) query.set("status", params.status)
+	if (params?.loan_type) query.set("loan_type", params.loan_type)
+	return apiFetch<LoanReport>(`/user/reports/loans?${query.toString()}`, { method: "GET" })
+}
+
+export async function getPropertyReport(params?: {
+	property_type?: string
+	payment_status?: string
+	date_from?: string
+	date_to?: string
+}) {
+	const query = new URLSearchParams()
+	if (params?.property_type) query.set("property_type", params.property_type)
+	if (params?.payment_status) query.set("payment_status", params.payment_status)
+	if (params?.date_from) query.set("date_from", params.date_from)
+	if (params?.date_to) query.set("date_to", params.date_to)
+	return apiFetch<PropertyReport>(`/user/reports/properties?${query.toString()}`, { method: "GET" })
+}
+
+export async function getFinancialSummaryReport(params?: {
+	date_from?: string
+	date_to?: string
+}) {
+	const query = new URLSearchParams()
+	if (params?.date_from) query.set("date_from", params.date_from)
+	if (params?.date_to) query.set("date_to", params.date_to)
+	return apiFetch<FinancialSummaryReport>(`/user/reports/financial-summary?${query.toString()}`, { method: "GET" })
+}
+
+export async function getMortgageReport(params?: {
+	date_from?: string
+	date_to?: string
+	mortgage_type?: string
+}) {
+	const query = new URLSearchParams()
+	if (params?.date_from) query.set("date_from", params.date_from)
+	if (params?.date_to) query.set("date_to", params.date_to)
+	if (params?.mortgage_type) query.set("mortgage_type", params.mortgage_type)
+	return apiFetch<MortgageReport>(`/user/reports/mortgages?${query.toString()}`, { method: "GET" })
+}
+
+export interface AIRecommendation {
+	type: "property" | "investment_plan"
+	id: string
+	title: string
+	location?: string
+	price?: number
+	type_label?: string
+	description?: string
+	min_amount?: number
+	max_amount?: number
+	expected_return_rate?: number
+	reasoning: string
+	risk_level: "low" | "medium" | "high"
+	projected_roi: string
+	confidence: number
+	min_investment: string
+	time_horizon: string
+	image_url?: string | null
+}
+
+export interface AIRecommendationsResponse {
+	success: boolean
+	investment_profile: {
+		risk_tolerance: "conservative" | "moderate" | "aggressive"
+		risk_score: number
+		investment_capacity: number
+		recommended_allocation: number
+	}
+	recommendations: AIRecommendation[]
+	financial_summary: {
+		total_assets: number
+		available_capital: number
+		current_investments: number
+		property_equity: number
+	}
+	note?: string
+}
+
+export async function getAIRecommendations() {
+	return apiFetch<AIRecommendationsResponse>("/ai/recommendations", { method: "GET" })
+}
+
+export interface BlockchainTransaction {
+	id: string
+	hash: string
+	reference: string | null
+	type: "contribution" | "loan" | "investment" | "payment" | "transfer"
+	amount: number
+	currency: string
+	status: "pending" | "confirmed" | "failed"
+	metadata: Record<string, any> | null
+	confirmed_at: string | null
+	failed_at: string | null
+	failure_reason: string | null
+	created_at: string
+	updated_at: string
+	user?: {
+		id: string
+		name: string
+		email: string
+	}
+}
+
+export interface BlockchainStats {
+	total_transactions: number
+	pending_transactions: number
+	confirmed_transactions: number
+	failed_transactions: number
+	total_volume: number
+	network_info?: {
+		network: string
+		network_type: string
+		last_sync: string
+	}
+}
+
+export interface BlockchainTransactionsResponse {
+	transactions: BlockchainTransaction[]
+	pagination: {
+		current_page: number
+		last_page: number
+		per_page: number
+		total: number
+	}
+}
+
+export interface PropertyOwnershipRecord {
+	property_id: string
+	property_title: string
+	property_type: string
+	property_location: string
+	property_price: number
+	ownership_percentage: number
+	amount_paid: number
+	blockchain_hash: string | null
+	certificate_date: string
+	is_verified: boolean
+	transactions: Array<{
+		hash: string
+		amount: number
+		status: string
+		date: string
+		confirmed_at: string | null
+	}>
+}
+
+export interface PropertyOwnershipResponse {
+	success: boolean
+	ownership_records: PropertyOwnershipRecord[]
+}
+
+export async function getBlockchainTransactions(params?: {
+	type?: string
+	status?: string
+	search?: string
+	page?: number
+	per_page?: number
+}) {
+	const query = new URLSearchParams()
+	if (params?.type) query.set("type", params.type)
+	if (params?.status) query.set("status", params.status)
+	if (params?.search) query.set("search", params.search)
+	if (params?.page) query.set("page", String(params.page))
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+	return apiFetch<BlockchainTransactionsResponse>(`/blockchain/transactions?${query.toString()}`, { method: "GET" })
+}
+
+export async function getBlockchainStats() {
+	return apiFetch<{ stats: BlockchainStats }>("/blockchain/stats", { method: "GET" })
+}
+
+export async function getPropertyOwnership() {
+	return apiFetch<PropertyOwnershipResponse>("/blockchain/property-ownership", { method: "GET" })
+}
+
+export async function verifyBlockchainTransaction(hash: string) {
+	return apiFetch<{ valid: boolean; transaction: BlockchainTransaction }>(`/blockchain/verify/${hash}`, {
+		method: "POST",
+	})
+}
+
+export interface UserSettings {
+	id: string
+	user_id: string
+	email_notifications: boolean
+	sms_notifications: boolean
+	payment_reminders: boolean
+	loan_updates: boolean
+	investment_updates: boolean
+	property_updates: boolean
+	contribution_updates: boolean
+	language: string
+	timezone: string
+	two_factor_enabled: boolean
+	two_factor_secret: string | null
+	two_factor_recovery_codes: string[] | null
+	profile_visible: boolean
+	show_email: boolean
+	show_phone: boolean
+	preferences: Record<string, any> | null
+	created_at: string
+	updated_at: string
+}
+
+export interface UserSettingsResponse {
+	success: boolean
+	settings: UserSettings
+	message?: string
+}
+
+export interface UserProfile {
+	id: string
+	first_name: string
+	last_name: string
+	email: string
+	phone: string | null
+	avatar_url: string | null
+	role: string
+	roles: string[]
+	status: string
+	email_verified_at: string | null
+	last_login: string | null
+	created_at: string
+	updated_at: string
+	member?: any
+}
+
+export interface UserProfileResponse {
+	user: UserProfile
+}
+
+export async function getUserProfile() {
+	return apiFetch<UserProfileResponse>("/user/profile", { method: "GET" })
+}
+
+export async function updateUserProfile(data: {
+	first_name?: string
+	last_name?: string
+	phone?: string
+	date_of_birth?: string
+	gender?: string
+	marital_status?: string
+	nationality?: string
+	state_of_origin?: string
+	lga?: string
+	residential_address?: string
+	city?: string
+	state?: string
+	staff_id?: string
+	ippis_number?: string
+	rank?: string
+	department?: string
+	command_state?: string
+	employment_date?: string
+	next_of_kin_name?: string
+	next_of_kin_relationship?: string
+	next_of_kin_phone?: string
+	next_of_kin_email?: string
+	next_of_kin_address?: string
+}) {
+	return apiFetch<{ success: boolean; message: string; user: UserProfile }>("/user/profile", {
+		method: "PUT",
+		body: data,
+	})
+}
+
+export async function getUserSettings() {
+	return apiFetch<UserSettingsResponse>("/user/settings", { method: "GET" })
+}
+
+export async function updateUserSettings(data: {
+	email_notifications?: boolean
+	sms_notifications?: boolean
+	payment_reminders?: boolean
+	loan_updates?: boolean
+	investment_updates?: boolean
+	property_updates?: boolean
+	contribution_updates?: boolean
+	language?: string
+	timezone?: string
+	profile_visible?: boolean
+	show_email?: boolean
+	show_phone?: boolean
+}) {
+	return apiFetch<UserSettingsResponse>("/user/settings", {
+		method: "PUT",
+		body: data,
+	})
+}
+
+export async function changePassword(data: { current_password: string; new_password: string; new_password_confirmation: string }) {
+	return apiFetch<{ success: boolean; message: string }>("/user/settings/change-password", {
+		method: "POST",
+		body: data,
+	})
+}
+
+export async function toggleTwoFactor(enabled: boolean) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		two_factor_enabled: boolean
+		two_factor_secret: string | null
+		recovery_codes: string[] | null
+	}>("/user/settings/two-factor", {
+		method: "POST",
+		body: { enabled },
+	})
+}
+
+// ==================== Refund Requests (Ticket-based) ====================
+
+export interface RefundRequest {
+	id: string
+	member_id: string
+	request_type: "refund" | "stoppage_of_deduction" | "building_plan" | "tdp" | "change_of_ownership" | "other"
+	status: "pending" | "approved" | "rejected" | "processing" | "completed"
+	source?: "wallet" | "contribution" | "investment_return" | "equity_wallet"
+	amount: number
+	reason: string
+	message?: string
+	admin_response?: string
+	rejection_reason?: string
+	ticket_number: string
+	reference?: string
+	requested_by?: string
+	approved_by?: string
+	rejected_by?: string
+	processed_by?: string
+	requested_at?: string
+	approved_at?: string
+	rejected_at?: string
+	processed_at?: string
+	completed_at?: string
+	created_at: string
+	updated_at: string
+	member?: {
+		id: string
+		user?: {
+			id: string
+			first_name: string
+			last_name: string
+			email: string
+		}
+	}
+	requestedBy?: {
+		id: string
+		first_name: string
+		last_name: string
+	}
+	approvedBy?: {
+		id: string
+		first_name: string
+		last_name: string
+	}
+	rejectedBy?: {
+		id: string
+		first_name: string
+		last_name: string
+	}
+}
+
+export interface RefundRequestsResponse {
+	success: boolean
+	refunds: RefundRequest[]
+	pagination: {
+		current_page: number
+		last_page: number
+		per_page: number
+		total: number
+	}
+}
+
+export interface RefundStats {
+	total_requests: number
+	pending: number
+	approved: number
+	rejected: number
+	processing: number
+	completed: number
+	total_refunded: number
+	by_type?: {
+		refund: number
+		stoppage_of_deduction: number
+		building_plan: number
+		tdp: number
+		change_of_ownership: number
+		other: number
+	}
+}
+
+export interface RefundStatsResponse {
+	success: boolean
+	stats: RefundStats
+}
+
+export interface CreateRefundRequestPayload {
+	request_type: "refund" | "stoppage_of_deduction" | "building_plan" | "tdp" | "change_of_ownership" | "other"
+	source?: "wallet" | "contribution" | "investment_return" | "equity_wallet"
+	amount?: number
+	reason: string
+	message: string
+}
+
+export interface RefundRequestResponse {
+	success: boolean
+	message: string
+	refund: RefundRequest
+}
+
+// User/Member Refund Request Functions
+export async function getUserRefundRequests(params?: {
+	status?: string
+	request_type?: string
+	page?: number
+	per_page?: number
+}) {
+	const queryParams = new URLSearchParams()
+	if (params?.status) queryParams.set("status", params.status)
+	if (params?.request_type) queryParams.set("request_type", params.request_type)
+	if (params?.page) queryParams.set("page", String(params.page))
+	if (params?.per_page) queryParams.set("per_page", String(params.per_page))
+
+	return apiFetch<RefundRequestsResponse>(`/refunds?${queryParams.toString()}`, { method: "GET" })
+}
+
+export async function getUserRefundStats() {
+	return apiFetch<RefundStatsResponse>("/refunds/stats", { method: "GET" })
+}
+
+export async function createRefundRequest(payload: CreateRefundRequestPayload) {
+	return apiFetch<RefundRequestResponse>("/refunds", {
+		method: "POST",
+		body: payload,
+	})
+}
+
+export async function getUserRefundRequest(id: string) {
+	return apiFetch<{ success: boolean; refund: RefundRequest }>(`/refunds/${id}`, { method: "GET" })
+}
+
+// Admin Refund Request Functions
+export async function getAdminRefundRequests(params?: {
+	status?: string
+	request_type?: string
+	search?: string
+	page?: number
+	per_page?: number
+}) {
+	const queryParams = new URLSearchParams()
+	if (params?.status) queryParams.set("status", params.status)
+	if (params?.request_type) queryParams.set("request_type", params.request_type)
+	if (params?.search) queryParams.set("search", params.search)
+	if (params?.page) queryParams.set("page", String(params.page))
+	if (params?.per_page) queryParams.set("per_page", String(params.per_page))
+
+	return apiFetch<RefundRequestsResponse>(`/admin/refunds?${queryParams.toString()}`, { method: "GET" })
+}
+
+export async function getAdminRefundStats() {
+	return apiFetch<RefundStatsResponse>("/admin/refunds/stats", { method: "GET" })
+}
+
+export async function getAdminRefundRequest(id: string) {
+	return apiFetch<{ success: boolean; refund: RefundRequest }>(`/admin/refunds/${id}`, { method: "GET" })
+}
+
+export async function approveRefundRequest(id: string, data?: { admin_response?: string; process_immediately?: boolean }) {
+	return apiFetch<RefundRequestResponse>(`/admin/refunds/${id}/approve`, {
+		method: "POST",
+		body: data || {},
+	})
+}
+
+export async function rejectRefundRequest(id: string, rejection_reason: string) {
+	return apiFetch<RefundRequestResponse>(`/admin/refunds/${id}/reject`, {
+		method: "POST",
+		body: { rejection_reason },
+	})
 }

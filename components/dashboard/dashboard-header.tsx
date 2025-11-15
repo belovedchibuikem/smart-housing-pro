@@ -1,6 +1,6 @@
 "use client"
 
-import { Bell, User, Menu } from "lucide-react"
+import { User, Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -10,10 +10,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { handleLogout } from "@/lib/auth/auth-utils"
 import { useWhiteLabelSettings } from "@/lib/hooks/use-white-label"
+import { UserNotificationBell } from "./user-notification-bell"
+import { SubscriptionAlertBanner } from "./subscription-alert-banner"
 
 interface DashboardHeaderProps {
   mobileMenuOpen: boolean
@@ -29,6 +30,7 @@ export function DashboardHeader({ mobileMenuOpen, setMobileMenuOpen }: Dashboard
 
   return (
     <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+      <SubscriptionAlertBanner />
       <div className="flex items-center justify-between px-4 lg:px-6 py-4">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
@@ -51,34 +53,7 @@ export function DashboardHeader({ mobileMenuOpen, setMobileMenuOpen }: Dashboard
 
         <div className="flex items-center gap-2">
           {/* Notifications */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="relative">
-                <Bell className="h-5 w-5" />
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs">
-                  3
-                </Badge>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
-              <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="flex flex-col items-start p-3">
-                <div className="font-medium">Contribution Due</div>
-                <div className="text-sm text-muted-foreground">
-                  Your monthly contribution of ₦50,000 is due in 3 days
-                </div>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-col items-start p-3">
-                <div className="font-medium">Loan Approved</div>
-                <div className="text-sm text-muted-foreground">Your loan application has been approved</div>
-              </DropdownMenuItem>
-              <DropdownMenuItem className="flex flex-col items-start p-3">
-                <div className="font-medium">New Property Listed</div>
-                <div className="text-sm text-muted-foreground">3 new properties available in Lagos</div>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <UserNotificationBell />
 
           {/* User Menu */}
           <DropdownMenu>

@@ -18,6 +18,7 @@ interface BusinessSubscription {
   current_period_start: string
   current_period_end: string
   amount: number
+  payment_method?: string
   next_billing_date?: string
   created_at: string
   updated_at: string
@@ -199,7 +200,7 @@ export default function SubscriptionsPage() {
                     <h3 className="text-lg font-semibold">{subscription.business_name}</h3>
                     {getStatusBadge(subscription.status)}
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                     <div>
                       <p className="text-muted-foreground">Package</p>
                       <p className="font-medium">{subscription.package}</p>
@@ -207,8 +208,12 @@ export default function SubscriptionsPage() {
                     <div>
                       <p className="text-muted-foreground">Amount</p>
                       <p className="font-medium flex items-center gap-1">
-                        <CreditCard className="h-3 w-3" />₦{(subscription.amount || 0).toFixed(2)}/mo
+                        <CreditCard className="h-3 w-3" />₦{Number(subscription.amount || 0).toFixed(2)}/mo
                       </p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Payment Method</p>
+                      <p className="font-medium capitalize">{subscription.payment_method || 'N/A'}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Current Period</p>

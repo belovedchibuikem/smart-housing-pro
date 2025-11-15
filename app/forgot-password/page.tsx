@@ -4,9 +4,17 @@ import { useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { OtpVerificationDialog } from "@/components/auth/otp-verification-dialog"
+import { apiFetch } from "@/lib/api/client"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { Mail, ArrowLeft } from "lucide-react"
 
 export default function ForgotPasswordPage() {
+	const router = useRouter()
 	const [email, setEmail] = useState("")
+	const [showOtpDialog, setShowOtpDialog] = useState(false)
 	const [message, setMessage] = useState<string | null>(null)
 	const [loading, setLoading] = useState(false)
 
@@ -15,33 +23,92 @@ export default function ForgotPasswordPage() {
 		setLoading(true)
 		setMessage(null)
 		try {
-			const base = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/$/, "") || ""
-			const res = await fetch(`${base}/auth/forgot-password`, {
+			const res = await apiFetch<{ success: boolean; message: string; expires_at?: string }>("/auth/forgot-password", {
 				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ email }),
+				body: { email },
 			})
-			const data = await res.json()
-			if (!res.ok) throw new Error(data?.message || "Failed to send reset link")
-			setMessage("Reset link sent. Check your email.")
+			
+			if (res.success) {
+				setMessage("OTP sent successfully. Please check your email.")
+				setShowOtpDialog(true)
+			} else {
+				throw new Error(res.message || "Failed to send OTP")
+			}
 		} catch (e) {
-			setMessage(e instanceof Error ? e.message : "Failed to send reset link")
+			setMessage(e instanceof Error ? e.message : "Failed to send OTP")
 		} finally {
 			setLoading(false)
 		}
 	}
 
+	const handleOtpSuccess = () => {
+		// Redirect to reset password page with email
+		router.push(`/reset-password?email=${encodeURIComponent(email)}`)
+	}
+
 	return (
-		<div className="max-w-md mx-auto p-6">
-			<h1 className="text-2xl font-semibold mb-4">Forgot Password</h1>
-			<form onSubmit={submit} className="space-y-4">
-				<div className="space-y-2">
-					<Label htmlFor="email">Email</Label>
-					<Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-				</div>
-				<Button type="submit" disabled={loading}>{loading ? "Sending..." : "Send Reset Link"}</Button>
-				{message && <p className="text-sm text-muted-foreground">{message}</p>}
-			</form>
+		<div className="min-h-screen flex items-center justify-center p-4 bg-muted/50">
+			<Card className="w-full max-w-md">
+				<CardHeader>
+					<div className="flex items-center gap-2 mb-2">
+						<Link href="/login" className="text-muted-foreground hover:text-foreground">
+							<ArrowLeft className="h-5 w-5" />
+						</Link>
+						<CardTitle className="text-2xl">Forgot Password</CardTitle>
+					</div>
+					<CardDescription>
+						Enter your email address and we'll send you a verification code to reset your password.
+					</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<form onSubmit={submit} className="space-y-4">
+						<div className="space-y-2">
+							<Label htmlFor="email">Email Address</Label>
+							<div className="relative">
+								<Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+								<Input
+									id="email"
+									type="email"
+									placeholder="you@example.com"
+									value={email}
+									onChange={(e) => setEmail(e.target.value)}
+									className="pl-10"
+									required
+								/>
+							</div>
+						</div>
+						
+						{message && (
+							<div className={`p-3 rounded-md text-sm ${
+								message.includes("successfully") 
+									? "bg-green-50 text-green-800 border border-green-200" 
+									: "bg-destructive/10 text-destructive border border-destructive/20"
+							}`}>
+								{message}
+							</div>
+						)}
+
+						<Button type="submit" className="w-full" disabled={loading}>
+							{loading ? "Sending..." : "Send Verification Code"}
+						</Button>
+
+						<div className="text-center text-sm">
+							<Link href="/login" className="text-primary hover:underline">
+								Back to Login
+							</Link>
+						</div>
+					</form>
+				</CardContent>
+			</Card>
+
+			<OtpVerificationDialog
+				open={showOtpDialog}
+				onOpenChange={setShowOtpDialog}
+				email={email}
+				type="password_reset"
+				onSuccess={handleOtpSuccess}
+				onError={(msg) => setMessage(msg)}
+			/>
 		</div>
 	)
 }

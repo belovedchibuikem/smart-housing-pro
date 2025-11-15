@@ -1,13 +1,13 @@
 "use client"
 
 import type React from "react"
-import { useEffect, useState } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useState } from "react"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar"
 import { MemberLoadingProvider } from "@/components/dashboard/member-loading-context"
 import { AuthGuard } from "@/lib/tenant/auth-guard"
-import { getUserData } from "@/lib/auth/auth-utils"
+import { useSubscriptionGuard } from "@/lib/hooks/use-subscription"
+import { Loader2 } from "lucide-react"
 
 export default function DashboardLayout({
   children,
@@ -15,21 +15,21 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const router = useRouter()
-  const pathname = usePathname()
+  
+  // Check member subscription status and handle redirects
+  const { isLoading } = useSubscriptionGuard(false)
 
-  useEffect(() => {
-    // Mock subscription check - replace with actual API call
-    const hasActiveSubscription = true // This should come from your auth/subscription service
-
-    // Allow access to subscription pages without active subscription
-    const isSubscriptionPage = pathname.startsWith("/dashboard/subscriptions")
-
-    if (!hasActiveSubscription && !isSubscriptionPage) {
-      console.log("[v0] No active subscription, redirecting to subscription page")
-      router.push("/subscription")
-    }
-  }, [pathname, router])
+  // Show loading while checking subscription
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mx-auto mb-4" />
+          <p className="text-muted-foreground">Checking subscription status...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <AuthGuard requiredRole={["member", "user"]} redirectTo="/login">

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { usePathname } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Check, Loader2 } from "lucide-react"
@@ -9,8 +10,9 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
-import { getMemberSubscriptionPackages } from "@/lib/api/client"
+import { getMemberSubscriptionPackages, getSubscriptionPackages } from "@/lib/api/client"
 import { usePageLoading } from "@/hooks/use-loading"
+import { getUserData } from "@/lib/auth/auth-utils"
 
 function formatDuration(days: number): string {
   if (days === 7) return "7 days"
@@ -37,18 +39,32 @@ export default function SubscriptionPage() {
     is_active: boolean
   }>>([])
   const [error, setError] = useState<string | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+  
+  // Check if user is an admin (tenant subscription) or member
+  useEffect(() => {
+    const userData = getUserData()
+    if (userData) {
+      const role = userData.role || (userData.roles && userData.roles[0]) || ""
+      // Check if user has admin role (tenant admin, not super admin)
+      setIsAdmin(role === "admin" || role === "super-admin" || role === "super_admin")
+    }
+  }, [])
 
   useEffect(() => {
     loadData(async () => {
       try {
-        const response = await getMemberSubscriptionPackages()
+        // Use tenant subscription APIs for admin, member subscription APIs for members
+        const response = isAdmin 
+          ? await getSubscriptionPackages() 
+          : await getMemberSubscriptionPackages()
         setPackages(response.packages || [])
       } catch (err: any) {
         console.error("Error loading packages:", err)
         setError(err.message || "Failed to load subscription packages")
       }
     })
-  }, [loadData])
+  }, [loadData, isAdmin])
 
   if (error && packages.length === 0) {
     return (
@@ -142,7 +158,9 @@ export default function SubscriptionPage() {
                   )}
               </CardContent>
               <CardFooter>
-                  <Link href={`/dashboard/subscriptions/checkout?package=${pkg.id}`} className="w-full">
+                  <Link href={isAdmin 
+                    ? `/subscription/checkout?package=${pkg.id}` 
+                    : `/dashboard/subscriptions/checkout?package=${pkg.id}`} className="w-full">
                     <Button className="w-full" variant={pkg.is_popular ? "default" : "outline"}>
                     Subscribe Now
                   </Button>

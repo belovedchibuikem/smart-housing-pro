@@ -16,6 +16,7 @@ import { useWhiteLabelSettings } from "@/lib/hooks/use-white-label"
 import { useTenantSettings } from "@/lib/context/tenant-settings-context"
 import { AdminNotificationBell } from "./admin-notification-bell"
 import { handleLogout } from "@/lib/auth/auth-utils"
+import { AdminSubscriptionAlertBanner } from "./subscription-alert-banner"
 
 interface AdminHeaderProps {
   mobileMenuOpen: boolean
@@ -32,6 +33,7 @@ export function AdminHeader({ mobileMenuOpen, setMobileMenuOpen }: AdminHeaderPr
 
   return (
     <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+      <AdminSubscriptionAlertBanner />
       <div className="flex items-center justify-between px-4 lg:px-6 py-4">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>

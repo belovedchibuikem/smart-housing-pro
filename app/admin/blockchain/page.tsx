@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
-import { getBlockchainProperties, getBlockchainStats, deleteBlockchainProperty, verifyBlockchainTransaction } from "@/lib/api/client"
+import { getBlockchainProperties, getAdminBlockchainStats, deleteBlockchainProperty, verifyAdminBlockchainTransaction } from "@/lib/api/client"
 import { apiFetch } from "@/lib/api/client"
 
 interface BlockchainProperty {
@@ -68,7 +68,7 @@ export default function AdminBlockchainPage() {
 
   const fetchStats = async () => {
     try {
-      const response = await getBlockchainStats()
+      const response = await getAdminBlockchainStats()
       if (response.success) {
         setStats(response.data)
       }
@@ -106,7 +106,7 @@ export default function AdminBlockchainPage() {
 
   const handleVerify = async (id: string) => {
     try {
-      const response = await verifyBlockchainTransaction(id)
+      const response = await verifyAdminBlockchainTransaction(id)
       if (response.success) {
         toast({
           title: "Success",
