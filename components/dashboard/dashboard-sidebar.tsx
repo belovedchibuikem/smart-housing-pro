@@ -43,7 +43,8 @@ import {
   FileText,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { getMemberCurrentSubscription } from "@/lib/api/client"
 
 interface NavItem {
   href?: string
@@ -189,12 +190,44 @@ interface DashboardSidebarProps {
 export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: DashboardSidebarProps) {
   const pathname = usePathname()
   const [openMenus, setOpenMenus] = useState<string[]>([])
+  const [hasActiveSubscription, setHasActiveSubscription] = useState<boolean | null>(null)
+
+  // Check subscription status on mount
+  useEffect(() => {
+    const checkSubscription = async () => {
+      try {
+        const response = await getMemberCurrentSubscription()
+        const isActive = response.subscription?.is_active === true && response.subscription?.status === "active"
+        setHasActiveSubscription(isActive)
+      } catch (error) {
+        console.error("Failed to check subscription status:", error)
+        // Default to false if check fails
+        setHasActiveSubscription(false)
+      }
+    }
+    checkSubscription()
+  }, [])
 
   const toggleMenu = (label: string) => {
     setOpenMenus((prev) => (prev.includes(label) ? prev.filter((item) => item !== label) : [...prev, label]))
   }
 
   const isMenuOpen = (label: string) => openMenus.includes(label)
+
+  // Filter nav items based on subscription status
+  // Always show subscription menu, hide others if no active subscription
+  const filteredNavItems = navItems.filter((item) => {
+    // Always show subscription menu
+    if (item.label === "Subscription" || item.href === "/dashboard/subscriptions") {
+      return true
+    }
+    // Show all other menus only if subscription is active
+    // If subscription status is still loading (null), show all menus
+    if (hasActiveSubscription === null) {
+      return true // Show all while loading
+    }
+    return hasActiveSubscription
+  })
 
   const renderNavItem = (item: NavItem, level = 0) => {
     const Icon = item.icon
@@ -287,7 +320,7 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
           </Button>
         </div>
 
-        <nav className="p-4 space-y-2">{navItems.map((item) => renderNavItem(item))}</nav>
+        <nav className="p-4 space-y-2">{filteredNavItems.map((item) => renderNavItem(item))}</nav>
       </aside>
     </>
   )

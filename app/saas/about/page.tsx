@@ -1,54 +1,68 @@
+"use client"
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { SaaSHeader } from "@/components/saas/saas-header"
 import { Target, Users, Award, ArrowLeft, CheckCircle2 } from "lucide-react"
+import { useEffect, useState } from "react"
+import { apiFetch } from "@/lib/api/client"
+
+interface Value {
+  id: string
+  title: string
+  description: string
+  icon: string | null
+}
+
+interface Milestone {
+  id: string
+  year: string
+  event: string
+  icon: string | null
+}
+
+interface TeamMember {
+  id: string
+  name: string
+  role: string
+  bio: string | null
+  avatar_url: string | null
+}
 
 export default function AboutPage() {
-  const values = [
-    {
-      icon: Target,
-      title: "Mission-Driven",
-      description: "Empowering housing cooperatives with technology to serve their members better.",
-    },
-    {
-      icon: Users,
-      title: "Member-Focused",
-      description: "Every feature we build is designed with cooperative members and administrators in mind.",
-    },
-    {
-      icon: Award,
-      title: "Excellence",
-      description: "We maintain the highest standards in security, reliability, and customer support.",
-    },
-  ]
+  const [values, setValues] = useState<Value[]>([])
+  const [milestones, setMilestones] = useState<Milestone[]>([])
+  const [team, setTeam] = useState<TeamMember[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  const milestones = [
-    { year: "2020", event: "CoopHub founded with a vision to digitize housing cooperatives" },
-    { year: "2021", event: "Launched our first platform serving 5 cooperatives" },
-    { year: "2022", event: "Reached 20 cooperatives and 5,000 members" },
-    { year: "2023", event: "Expanded to 45+ cooperatives managing ₦2.5B in funds" },
-    { year: "2024", event: "Introduced AI-powered analytics and white-label solutions" },
-    { year: "2025", event: "Serving 12,000+ members across Nigeria" },
-  ]
-
-  const team = [
-    {
-      name: "Dr. Oluwaseun Adeyemi",
-      role: "Founder & CEO",
-      bio: "Former cooperative administrator with 15 years of experience in housing management.",
-    },
-    {
-      name: "Chioma Okafor",
-      role: "Chief Technology Officer",
-      bio: "Software architect specializing in fintech and multi-tenant SaaS platforms.",
-    },
-    {
-      name: "Ibrahim Musa",
-      role: "Head of Customer Success",
-      bio: "Dedicated to ensuring every cooperative achieves their goals with CoopHub.",
-    },
-  ]
+  useEffect(() => {
+    Promise.all([
+      apiFetch<{ success: boolean; values: Value[] }>("/public/saas/values").catch(() => ({
+        success: false,
+        values: [],
+      })),
+      apiFetch<{ success: boolean; milestones: Milestone[] }>("/public/saas/milestones").catch(() => ({
+        success: false,
+        milestones: [],
+      })),
+      apiFetch<{ success: boolean; team_members: TeamMember[] }>("/public/saas/team").catch(() => ({
+        success: false,
+        team_members: [],
+      })),
+    ]).then(([valuesRes, milestonesRes, teamRes]) => {
+      if (valuesRes.success) {
+        setValues(valuesRes.values)
+      }
+      if (milestonesRes.success) {
+        setMilestones(milestonesRes.milestones)
+      }
+      if (teamRes.success) {
+        setTeam(teamRes.team_members)
+      }
+      setIsLoading(false)
+    })
+  }, [])
 
   return (
     <div className="min-h-screen bg-background">
@@ -106,68 +120,89 @@ export default function AboutPage() {
             <p className="text-muted-foreground text-lg">The principles that guide everything we do.</p>
           </div>
           <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {values.map((value) => {
-              const Icon = value.icon
-              return (
-                <Card key={value.title} className="p-6 text-center">
-                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                    <Icon className="h-6 w-6 text-primary" />
-                  </div>
+            {values.length === 0 ? (
+              <div className="col-span-full text-center text-muted-foreground py-8">
+                No values available
+              </div>
+            ) : (
+              values.map((value) => (
+                <Card key={value.id} className="p-6 text-center">
+                  {value.icon && (
+                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-4 text-2xl">
+                      {value.icon}
+                    </div>
+                  )}
                   <h3 className="text-xl font-semibold mb-2">{value.title}</h3>
                   <p className="text-muted-foreground">{value.description}</p>
                 </Card>
-              )
-            })}
+              ))
+            )}
           </div>
         </div>
       </section>
 
       {/* Milestones Section */}
-      <section className="container mx-auto px-4 py-20">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-3xl font-bold mb-12 text-center">Our Journey</h2>
-          <div className="space-y-8">
-            {milestones.map((milestone, idx) => (
-              <div key={idx} className="flex gap-4">
-                <div className="flex flex-col items-center">
-                  <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold flex-shrink-0">
-                    <CheckCircle2 className="h-5 w-5" />
+      {milestones.length > 0 && (
+        <section className="container mx-auto px-4 py-20">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-3xl font-bold mb-12 text-center">Our Journey</h2>
+            <div className="space-y-8">
+              {milestones.map((milestone, idx) => (
+                <div key={milestone.id} className="flex gap-4">
+                  <div className="flex flex-col items-center">
+                    <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold flex-shrink-0">
+                      {milestone.icon ? (
+                        <span className="text-lg">{milestone.icon}</span>
+                      ) : (
+                        <CheckCircle2 className="h-5 w-5" />
+                      )}
+                    </div>
+                    {idx < milestones.length - 1 && <div className="w-0.5 h-full bg-border mt-2" />}
                   </div>
-                  {idx < milestones.length - 1 && <div className="w-0.5 h-full bg-border mt-2" />}
+                  <div className="pb-8">
+                    <div className="text-2xl font-bold text-primary mb-1">{milestone.year}</div>
+                    <p className="text-muted-foreground">{milestone.event}</p>
+                  </div>
                 </div>
-                <div className="pb-8">
-                  <div className="text-2xl font-bold text-primary mb-1">{milestone.year}</div>
-                  <p className="text-muted-foreground">{milestone.event}</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Team Section */}
-      <section className="bg-muted/30 py-20">
-        <div className="container mx-auto px-4">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Meet Our Team</h2>
-            <p className="text-muted-foreground text-lg">
-              Passionate professionals dedicated to your cooperative's success.
-            </p>
+      {team.length > 0 && (
+        <section className="bg-muted/30 py-20">
+          <div className="container mx-auto px-4">
+            <div className="text-center max-w-2xl mx-auto mb-16">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4">Meet Our Team</h2>
+              <p className="text-muted-foreground text-lg">
+                Passionate professionals dedicated to your cooperative's success.
+              </p>
+            </div>
+            <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+              {team.map((member) => (
+                <Card key={member.id} className="p-6 text-center">
+                  {member.avatar_url ? (
+                    <img
+                      src={member.avatar_url}
+                      alt={member.name}
+                      className="h-24 w-24 rounded-full mx-auto mb-4 object-cover"
+                    />
+                  ) : (
+                    <div className="h-24 w-24 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                      <span className="text-3xl font-bold text-primary">{member.name.charAt(0)}</span>
+                    </div>
+                  )}
+                  <h3 className="text-xl font-semibold mb-1">{member.name}</h3>
+                  <p className="text-sm text-primary mb-3">{member.role}</p>
+                  {member.bio && <p className="text-sm text-muted-foreground">{member.bio}</p>}
+                </Card>
+              ))}
+            </div>
           </div>
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {team.map((member) => (
-              <Card key={member.name} className="p-6 text-center">
-                <div className="h-24 w-24 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-3xl font-bold text-primary">{member.name.charAt(0)}</span>
-                </div>
-                <h3 className="text-xl font-semibold mb-1">{member.name}</h3>
-                <p className="text-sm text-primary mb-3">{member.role}</p>
-                <p className="text-sm text-muted-foreground">{member.bio}</p>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* CTA Section */}
       <section className="bg-primary text-primary-foreground py-20">

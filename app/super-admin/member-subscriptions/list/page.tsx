@@ -16,6 +16,7 @@ interface MemberSubscription {
   business_id: string
   member_id: string
   member_name?: string
+  member_number?: string
   member_email?: string
   package_name: string
   package_id: string
@@ -195,9 +196,14 @@ export default function MemberSubscriptionsListPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-lg font-semibold">
-                        {subscription.member_name || subscription.member_email || 'Unknown Member'}
-                      </h3>
+                      <div>
+                        <h3 className="text-lg font-semibold">
+                          {subscription.member_name || subscription.member_email || 'Unknown Member'}
+                        </h3>
+                        {subscription.member_number && (
+                          <p className="text-sm text-muted-foreground">Member #: {subscription.member_number}</p>
+                        )}
+                      </div>
                       <Badge variant={getStatusBadge(subscription.status)}>{subscription.status}</Badge>
                       <Badge variant={getPaymentStatusBadge(subscription.payment_status)}>
                         {subscription.payment_status}

@@ -22,6 +22,12 @@ import {
   Globe,
   Palette,
   CheckCircle,
+  FileEdit,
+  MessageSquare,
+  Star,
+  UserCircle,
+  Calendar,
+  Heart,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState, useEffect } from "react"
@@ -68,6 +74,18 @@ const navItems: NavItem[] = [
     subItems: [
       { href: "/super-admin/roles", label: "Roles", icon: Shield },
       { href: "/super-admin/permissions", label: "Permissions", icon: Shield },
+    ]
+  },
+  { 
+    label: "SaaS Landing Pages", 
+    icon: FileEdit,
+    subItems: [
+      { href: "/super-admin/saas-pages", label: "Page Sections", icon: FileEdit },
+      { href: "/super-admin/saas-pages/community", label: "Community", icon: MessageSquare },
+      { href: "/super-admin/saas-pages/testimonials", label: "Testimonials", icon: Star },
+      { href: "/super-admin/saas-pages/team", label: "Team", icon: UserCircle },
+      { href: "/super-admin/saas-pages/milestones", label: "Milestones", icon: Calendar },
+      { href: "/super-admin/saas-pages/values", label: "Values", icon: Heart },
     ]
   },
   { href: "/super-admin/settings", label: "Platform Settings", icon: Settings },

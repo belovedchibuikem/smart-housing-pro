@@ -356,22 +356,63 @@ export async function fetchLoanPaymentMethods(): Promise<LoanPaymentMethod[]> {
 }
 
 export async function fetchLoanRepaymentSchedule(loanId: string): Promise<LoanRepaymentScheduleResponse> {
-	const response = await apiFetch<LoanRepaymentScheduleResponse>(`/loans/${loanId}/repayment-schedule`, {
+	const response = await apiFetch<{
+		success: boolean
+		data: {
+			loan_id: string
+			loan_amount: number
+			interest_rate: number
+			duration_months: number
+			monthly_payment: number
+			total_principal_repaid: number
+			total_interest_paid: number
+			remaining_principal: number
+			is_fully_repaid: boolean
+			schedule: Array<{
+				installment: number
+				due_date: string
+				principal: number
+				interest: number
+				total: number
+				remaining_balance: number
+				status: string
+				paid_date?: string | null
+				repayment_id?: string | null
+			}>
+		}
+	}>(`/loans/${loanId}/repayment-schedule`, {
 		method: "GET",
 	})
 
-	response.loan.total_amount = toNumber(response.loan.total_amount)
-	response.loan.monthly_payment = toNumber(response.loan.monthly_payment)
+	if (!response.success || !response.data) {
+		throw new Error("Failed to fetch repayment schedule")
+	}
 
-	response.repayment_summary.total_repaid = toNumber(response.repayment_summary.total_repaid)
-	response.repayment_summary.remaining_amount = toNumber(response.repayment_summary.remaining_amount)
+	const data = response.data
 
-	response.schedule = response.schedule.map((entry) => ({
-		...entry,
-		amount: toNumber(entry.amount),
-	}))
+	// Map the backend response to the frontend expected format
+	const mappedResponse: LoanRepaymentScheduleResponse = {
+		loan: {
+			id: data.loan_id,
+			total_amount: toNumber(data.loan_amount),
+			monthly_payment: toNumber(data.monthly_payment),
+			duration_months: data.duration_months,
+			interest_rate: toNumber(data.interest_rate),
+		},
+		repayment_summary: {
+			total_repaid: toNumber(data.total_principal_repaid + data.total_interest_paid),
+			remaining_amount: toNumber(data.remaining_principal),
+			remaining_installments: data.schedule.filter((e) => e.status !== "paid" && e.status !== "completed").length,
+		},
+		schedule: data.schedule.map((entry) => ({
+			installment: entry.installment,
+			due_date: entry.due_date,
+			amount: toNumber(entry.total),
+			status: entry.status,
+		})),
+	}
 
-	return response
+	return mappedResponse
 }
 
 export async function fetchLoanRepaymentHistory(loanId: string, params?: {
