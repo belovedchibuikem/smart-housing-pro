@@ -193,3 +193,19 @@ function ResetPasswordForm() {
 		</div>
 	)
 }
+
+export default function ResetPasswordPage() {
+	return (
+		<Suspense fallback={
+			<div className="min-h-screen flex items-center justify-center p-4 bg-muted/50">
+				<Card className="w-full max-w-md">
+					<CardContent className="flex items-center justify-center py-12">
+						<div className="text-muted-foreground">Loading...</div>
+					</CardContent>
+				</Card>
+			</div>
+		}>
+			<ResetPasswordForm />
+		</Suspense>
+	)
+}

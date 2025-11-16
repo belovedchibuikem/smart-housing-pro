@@ -10,14 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { 
   Bell, 
-  Mail, 
   Shield, 
   Users, 
   Building2, 
   CreditCard, 
   AlertCircle, 
-  CheckCircle, 
-  Clock,
   Settings,
   Trash2,
   CheckCircle2
