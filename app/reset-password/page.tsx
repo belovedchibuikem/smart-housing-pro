@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -10,7 +10,7 @@ import { apiFetch } from "@/lib/api/client"
 import Link from "next/link"
 import { Lock, ArrowLeft, Eye, EyeOff } from "lucide-react"
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
 	const router = useRouter()
 	const searchParams = useSearchParams()
 	const email = searchParams.get("email") || ""
@@ -47,8 +47,7 @@ export default function ResetPasswordPage() {
 		}
 
 		if (!otp || otp.length !== 6) {
-			setError("Please verify OTP first")
-			setShowOtpDialog(true)
+			setError("Please enter the 6-digit OTP code")
 			return
 		}
 

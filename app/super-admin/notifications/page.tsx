@@ -20,7 +20,7 @@ import {
   Clock,
   Settings,
   Trash2,
-  MarkAsRead
+  CheckCircle2
 } from "lucide-react"
 import { apiFetch } from "@/lib/api/client"
 import { toast } from "sonner"
@@ -268,7 +268,7 @@ export default function SuperAdminNotificationsPage() {
             </Badge>
           )}
           <Button onClick={markAllAsRead} variant="outline" size="sm">
-            <MarkAsRead className="h-4 w-4 mr-2" />
+            <CheckCircle2 className="h-4 w-4 mr-2" />
             Mark All Read
           </Button>
         </div>
