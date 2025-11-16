@@ -24,24 +24,3 @@ export async function POST(request: NextRequest) {
 	}
 }
 
-// POST - Publish/Unpublish landing page
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
-    const { is_published } = body
-
-    // TODO: Get tenant_id from session/auth
-    const tenantId = "sample-tenant-id"
-
-    // TODO: Update database
-    console.log("[v0] Updating publish status:", is_published)
-
-    return NextResponse.json({
-      success: true,
-      message: is_published ? "Landing page published" : "Landing page unpublished",
-    })
-  } catch (error) {
-    console.error("[v0] Error updating publish status:", error)
-    return NextResponse.json({ error: "Failed to update publish status" }, { status: 500 })
-  }
-}
