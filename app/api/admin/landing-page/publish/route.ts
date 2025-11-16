@@ -1,5 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
-const apiBase = ("http://127.0.0.1:8000/api").replace(/\/$/, "")
+import { getApiBaseUrl } from "@/lib/api/config"
+
+const apiBase = getApiBaseUrl()
 
 export async function POST(request: NextRequest) {
 	try {

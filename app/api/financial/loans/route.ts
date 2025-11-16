@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
+import { getApiBaseUrl } from "@/lib/api/config"
 
-const API_BASE_URL = "http://127.0.0.1:8000/api"
+const API_BASE_URL = getApiBaseUrl()
 
 export async function GET(request: NextRequest) {
   try {
@@ -44,6 +45,7 @@ export async function GET(request: NextRequest) {
     )
   }
 }
+
 
 
 

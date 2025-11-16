@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getApiBaseUrl } from "@/lib/api/config"
 
 export async function GET(request: NextRequest) {
   try {
     // Call Laravel API directly for template
-    const laravelApiUrl = "http://127.0.0.1:8000/api"
+    const laravelApiUrl = getApiBaseUrl()
     
     const res = await fetch(`${laravelApiUrl}/bulk/members/template`, {
       method: 'GET',

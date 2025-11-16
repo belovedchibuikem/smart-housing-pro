@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getApiUrl } from "@/lib/api/config"
 
 export async function POST(request: NextRequest) {
   try {
@@ -7,7 +8,7 @@ export async function POST(request: NextRequest) {
     const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || ""
     const tenantSlug = request.headers.get("x-tenant-slug") || ""
 
-    const laravelApiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+    const laravelApiUrl = getApiUrl()
 
     console.log('Subscription Initialize API Route - Forwarding to Laravel:', {
       laravelApiUrl: `${laravelApiUrl}/api/subscriptions/initialize`,

@@ -43,7 +43,7 @@ export async function middleware(request: NextRequest) {
   // Validate tenant if we have a slug or custom domain (skip in development)
   if ((tenantSlug || isCustomDomainRequest) && !isDevelopment) {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api"
+      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api"
       const validateUrl = `${apiUrl}/tenant/validate?host=${encodeURIComponent(hostname)}${tenantSlug ? `&slug=${tenantSlug}` : ""}`
       
       const validationResponse = await fetch(validateUrl, {

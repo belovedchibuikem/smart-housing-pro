@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getApiBaseUrl } from "@/lib/api/config"
 
+const API_BASE_URL = getApiBaseUrl()
 export async function POST(request: NextRequest) {
   try {
     // Get the form data from the request
     const formData = await request.formData()
     
     // Call Laravel API directly for bulk upload
-    const laravelApiUrl = "http://127.0.0.1:8000/api"
-    
-    const res = await fetch(`${laravelApiUrl}/bulk/members/upload`, {
+    const res = await fetch(`${API_BASE_URL}/bulk/members/upload`, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',

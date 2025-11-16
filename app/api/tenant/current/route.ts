@@ -1,9 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getApiBaseUrl } from "@/lib/api/config"
 
 export async function GET(request: NextRequest) {
 	try {
 		// Call Laravel API directly for tenant info
-		const laravelApiUrl = "http://127.0.0.1:8000/api"
+		const laravelApiUrl = getApiBaseUrl()
 		const auth = request.headers.get("authorization") || ""
 		const host = request.headers.get("host") || ""
 

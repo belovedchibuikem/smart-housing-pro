@@ -37,7 +37,8 @@ export function SubscriptionPaymentModal({ subscriptions, onPaymentInitiated }: 
     setLoading(true)
 
     try {
-      const response = await fetch("http://localhost:8000/api/super-admin/payment-gateways/subscription-payment", {
+      const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "/api"
+      const response = await fetch(`${apiBase}/super-admin/payment-gateways/subscription-payment`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

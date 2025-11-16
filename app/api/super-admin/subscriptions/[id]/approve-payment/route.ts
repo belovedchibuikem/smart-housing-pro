@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getApiBaseUrl } from "@/lib/api/config"
 
-const LARAVEL_API_URL = process.env.NEXT_PUBLIC_API_URL || process.env.LARAVEL_API_URL || "http://127.0.0.1:8000/api"
+const LARAVEL_API_URL = getApiBaseUrl()
 
 export async function POST(
   request: NextRequest,

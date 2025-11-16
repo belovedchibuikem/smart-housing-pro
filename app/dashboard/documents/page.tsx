@@ -53,7 +53,8 @@ const DOCUMENT_LABELS: Record<
 
 const STORAGE_BASE_URL =
 	process.env.NEXT_PUBLIC_STORAGE_URL ||
-	(process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/storage` : "http://127.0.0.1:8000/storage")
+	(process.env.NEXT_PUBLIC_API_BASE_URL ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/api$/, "")}/storage` : 
+	 process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/storage` : "http://127.0.0.1:8000/storage")
 
 export default function DocumentsPage() {
 	const { toast } = useToast()

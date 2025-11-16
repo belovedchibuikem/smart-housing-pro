@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000/api'
+import { getApiBaseUrl } from "@/lib/api/config"
+
+const API_BASE_URL = getApiBaseUrl()
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
   const url = `${API_BASE_URL.replace(/\/$/, '')}/admin/users/${params.id}`

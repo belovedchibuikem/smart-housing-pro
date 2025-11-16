@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
+import { getApiBaseUrl } from "@/lib/api/config"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000/api"
+const API_BASE_URL = getApiBaseUrl()
 
 export async function POST(
   request: NextRequest,
@@ -41,6 +42,7 @@ export async function POST(
     )
   }
 }
+
 
 
 
