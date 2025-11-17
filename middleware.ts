@@ -46,47 +46,57 @@ export async function middleware(request: NextRequest) {
       const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api"
       const validateUrl = `${apiUrl}/tenant/validate?host=${encodeURIComponent(hostname)}${tenantSlug ? `&slug=${tenantSlug}` : ""}`
       
-      const validationResponse = await fetch(validateUrl, {
-        method: "GET",
-        headers: {
-          "Accept": "application/json",
-        },
-        cache: "no-store",
-      })
+      // Add timeout to prevent hanging requests that can cause SSL handshake failures
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+      
+      let validationResponse: Response
+      try {
+        validationResponse = await fetch(validateUrl, {
+          method: "GET",
+          headers: {
+            "Accept": "application/json",
+          },
+          cache: "no-store",
+          signal: controller.signal,
+        })
+      } finally {
+        clearTimeout(timeoutId)
+      }
 
       if (!validationResponse.ok) {
         console.log("[Middleware] Tenant validation failed:", validationResponse.status)
-        // Redirect to SaaS page if tenant not found (on main domain)
-        const url = new URL(request.url)
-        if (!isCustomDomainRequest && (pathname === "/" || !pathname.startsWith("/saas"))) {
-          // Redirect to main platform domain SaaS page
+        // Don't redirect on subdomain - let the page handle it to avoid SSL issues
+        // Just continue and let the page component handle invalid tenants
+        if (!isCustomDomainRequest && pathname === "/" && validationResponse.status === 404) {
+          // Only redirect if explicitly a 404 and on root path
           const platformDomain = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || "frschousing.com"
-          const redirectUrl = new URL(`/saas?error=tenant_not_found`, `${url.protocol}//${platformDomain}`)
+          const redirectUrl = new URL(`/saas?error=tenant_not_found`, `https://${platformDomain}`)
           return NextResponse.redirect(redirectUrl)
         }
-        return NextResponse.next()
-      }
-
-      const validationData = await validationResponse.json()
-      if (validationData.valid && validationData.tenant) {
-        console.log("[Middleware] Tenant validated:", validationData.tenant.slug)
-        // Store validated tenant info in headers for use in components
-        request.headers.set("x-tenant-id", validationData.tenant.id)
-        request.headers.set("x-tenant-name", validationData.tenant.name)
-        // Continue to set headers below - don't return early so route checks still run
+        // Continue - don't block the request
       } else {
-        // Invalid tenant response
-        console.log("[Middleware] Tenant validation returned invalid response")
-        const url = new URL(request.url)
-        if (!isCustomDomainRequest && (pathname === "/" || !pathname.startsWith("/saas"))) {
-          const platformDomain = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || "frschousing.com"
-          const redirectUrl = new URL(`/saas?error=tenant_not_found`, `${url.protocol}//${platformDomain}`)
-          return NextResponse.redirect(redirectUrl)
+        const validationData = await validationResponse.json()
+        if (validationData.valid && validationData.tenant) {
+          console.log("[Middleware] Tenant validated:", validationData.tenant.slug)
+          // Store validated tenant info in headers for use in components
+          request.headers.set("x-tenant-id", validationData.tenant.id)
+          request.headers.set("x-tenant-name", validationData.tenant.name)
+          // Continue to set headers below - don't return early so route checks still run
+        } else {
+          // Invalid tenant response - continue without blocking
+          console.log("[Middleware] Tenant validation returned invalid response")
         }
       }
     } catch (error) {
-      console.error("[Middleware] Error validating tenant:", error)
-      // Continue anyway - don't block the request in case of network errors
+      // Handle abort errors and network errors gracefully
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.warn("[Middleware] Tenant validation timeout - continuing without validation")
+      } else {
+        console.error("[Middleware] Error validating tenant:", error)
+      }
+      // Always continue - never block the request due to validation errors
+      // This prevents SSL handshake failures from breaking the connection
     }
   }
 
@@ -120,7 +130,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Handle main platform domain (no subdomain) - redirect to SaaS
+  // Handle main platform domain (no subdomain or www subdomain) - redirect to SaaS
+  // This handles both smarthousing.com.ng and www.smarthousing.com.ng
   if (!tenantSlug && !isCustomDomainRequest && pathname === "/") {
     console.log("[v0] Middleware - Redirecting main domain root to /saas")
     return NextResponse.redirect(new URL("/saas", request.url))

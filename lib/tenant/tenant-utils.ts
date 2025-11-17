@@ -35,6 +35,11 @@ export function getTenantSlugFromHost(hostname: string): string | null {
     // Extract the subdomain (tenant slug)
     const subdomain = hostname.replace(`.${platformDomain}`, "")
 
+    // Exclude "www" subdomain - it should be treated as main platform domain
+    if (subdomain === "www") {
+      return null
+    }
+
     // If the subdomain contains dots, it's not a valid tenant slug
     if (subdomain.includes(".")) {
       return null
