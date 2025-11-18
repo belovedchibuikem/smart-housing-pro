@@ -22,6 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner"
 import { MemberService, Member, Document, MemberStats } from "@/lib/api/member-service"
 import { Skeleton } from "@/components/ui/skeleton"
+import { getStorageUrl } from "@/lib/api/config"
 
 const currencyFormatter = new Intl.NumberFormat("en-NG", {
   style: "currency",
@@ -114,10 +115,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
     }
   }
 
-  const storageBaseUrl =
-    process.env.NEXT_PUBLIC_STORAGE_URL ||
-    (process.env.NEXT_PUBLIC_API_BASE_URL ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/api$/, "")}/storage` : 
-     process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/storage` : "http://127.0.0.1:8000/storage")
+  const storageBaseUrl = getStorageUrl()
 
   const buildStorageUrl = (path?: string | null) => {
     if (!path) return null

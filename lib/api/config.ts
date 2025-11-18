@@ -28,8 +28,15 @@ export function getApiUrl(): string {
 
 /**
  * Get storage URL (for file access)
+ * Supports NEXT_PUBLIC_STORAGE_URL environment variable for explicit storage URL
+ * Falls back to API URL + /storage if not set
  */
 export function getStorageUrl(): string {
+	// Check for explicit storage URL first
+	if (process.env.NEXT_PUBLIC_STORAGE_URL) {
+		return process.env.NEXT_PUBLIC_STORAGE_URL.replace(/\/$/, "")
+	}
+	// Fallback to API URL + /storage
 	return `${getApiUrl()}/storage`
 }
 

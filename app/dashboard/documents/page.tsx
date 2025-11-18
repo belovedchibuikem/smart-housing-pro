@@ -21,6 +21,7 @@ import { useMemberKyc } from "@/lib/hooks/use-member-kyc"
 import { useMemberDocuments } from "@/lib/hooks/use-member-documents"
 import { useToast } from "@/hooks/use-toast"
 import { downloadDocument } from "@/lib/api/documents"
+import { getStorageUrl } from "@/lib/api/config"
 
 const DOCUMENT_LABELS: Record<
 	string,
@@ -51,10 +52,7 @@ const DOCUMENT_LABELS: Record<
 	},
 }
 
-const STORAGE_BASE_URL =
-	process.env.NEXT_PUBLIC_STORAGE_URL ||
-	(process.env.NEXT_PUBLIC_API_BASE_URL ? `${process.env.NEXT_PUBLIC_API_BASE_URL.replace(/\/api$/, "")}/storage` : 
-	 process.env.NEXT_PUBLIC_API_URL ? `${process.env.NEXT_PUBLIC_API_URL}/storage` : "http://127.0.0.1:8000/storage")
+const STORAGE_BASE_URL = getStorageUrl()
 
 export default function DocumentsPage() {
 	const { toast } = useToast()
