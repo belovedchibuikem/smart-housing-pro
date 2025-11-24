@@ -151,7 +151,7 @@ export default function RefundMemberPage() {
       {
         value: "equity_wallet",
         label: SOURCE_LABELS.equity_wallet,
-        available: summary?.equity_wallet.balance ?? 0,
+        available: summary?.equity_wallet.available ?? summary?.equity_wallet.balance ?? 0,
       },
     ]
   }, [summary])
@@ -238,7 +238,7 @@ export default function RefundMemberPage() {
       case "investment_return":
         return summary.investment_returns.available || 0
       case "equity_wallet":
-        return summary.equity_wallet.balance || 0
+        return (summary.equity_wallet.available ?? summary.equity_wallet.balance) ?? 0
       default:
         return 0
     }
@@ -379,7 +379,10 @@ export default function RefundMemberPage() {
                           <PiggyBank className="h-4 w-4" />
                           <span className="text-xs uppercase font-semibold">Equity Wallet</span>
                         </div>
-                        <p className="text-lg font-bold text-amber-900">{formatCurrency(summary.equity_wallet.balance)}</p>
+                        <p className="text-lg font-bold text-amber-900">{formatCurrency(summary.equity_wallet.available ?? summary.equity_wallet.balance)}</p>
+                        <p className="text-xs text-amber-700">
+                          Total: {formatCurrency(summary.equity_wallet.total)} • Refunded: {formatCurrency(summary.equity_wallet.refunded)}
+                        </p>
                       </CardContent>
                     </Card>
                   </div>

@@ -139,6 +139,7 @@ const navItems: NavItem[] = [
       { href: "/admin/mortgages/new", label: "Create Mortgage", icon: Plus },
       { href: "/admin/bulk-upload/mortgages", label: "Bulk Upload", icon: Upload },
       { href: "/admin/internal-mortgages", label: "Internal Mortgage Plans", icon: Wrench },
+      { href: "/admin/bulk-upload/internal-mortgages", label: "Bulk Internal Mortgage", icon: Upload },
       { href: "/admin/tools/mortgage-calculators", label: "Mortgage Calculators", icon: Calculator },
     ],
   },

@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
+import { parseFile } from "@/lib/utils/file-parser"
 
 export default function BulkUploadLoansPage() {
   const [file, setFile] = useState<File | null>(null)
@@ -17,49 +18,51 @@ export default function BulkUploadLoansPage() {
   const [uploadComplete, setUploadComplete] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
   const [uploadResult, setUploadResult] = useState<any>(null)
+  const [parsing, setParsing] = useState(false)
   const { toast } = useToast()
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
     if (selectedFile) {
       setFile(selectedFile)
-      parseCSV(selectedFile)
-    }
-  }
-
-  const parseCSV = (file: File) => {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const text = e.target?.result as string
-      const lines = text.split("\n")
-      const headers = lines[0].split(",").map((h) => h.trim())
-
-      const data: any[] = []
-      const parseErrors: string[] = []
-
-      for (let i = 1; i < lines.length; i++) {
-        if (lines[i].trim()) {
-          const values = lines[i].split(",").map((v) => v.trim())
-          if (values.length === headers.length) {
-            data.push({
-              memberId: values[0],
-              loanAmount: values[1],
-              interestRate: values[2],
-              duration: values[3],
-              type: values[4],
-              purpose: values[5],
-              applicationDate: values[6],
-            })
-          } else {
-            parseErrors.push(`Line ${i + 1}: Invalid number of columns`)
-          }
-        }
+      setParsing(true)
+      setErrors([])
+      setPreviewData([])
+      
+      try {
+        const result = await parseFile(selectedFile)
+        
+        // Map parsed data to loan format
+        const mappedData = result.data.map((row: any) => ({
+          memberId: row['Member ID'] || row['memberId'] || row['member_id'] || '',
+          loanAmount: row['Loan Amount'] || row['loanAmount'] || row['loan_amount'] || '',
+          interestRate: row['Interest Rate'] || row['interestRate'] || row['interest_rate'] || '',
+          duration: row['Duration'] || row['duration'] || '',
+          type: row['Type'] || row['type'] || '',
+          purpose: row['Purpose'] || row['purpose'] || '',
+          applicationDate: row['Application Date'] || row['applicationDate'] || row['application_date'] || '',
+        }))
+        
+        // Validate required fields
+        const validationErrors: string[] = []
+        mappedData.forEach((loan, index) => {
+          if (!loan.memberId) validationErrors.push(`Row ${index + 2}: Member ID is required`)
+          if (!loan.loanAmount) validationErrors.push(`Row ${index + 2}: Loan Amount is required`)
+          if (isNaN(parseFloat(loan.loanAmount))) validationErrors.push(`Row ${index + 2}: Loan Amount must be a valid number`)
+          if (!loan.interestRate) validationErrors.push(`Row ${index + 2}: Interest Rate is required`)
+          if (isNaN(parseFloat(loan.interestRate))) validationErrors.push(`Row ${index + 2}: Interest Rate must be a valid number`)
+          if (!loan.duration) validationErrors.push(`Row ${index + 2}: Duration is required`)
+          if (!loan.type) validationErrors.push(`Row ${index + 2}: Type is required`)
+        })
+        
+        setPreviewData(mappedData)
+        setErrors([...result.errors, ...validationErrors])
+      } catch (error) {
+        setErrors([`Error parsing file: ${error instanceof Error ? error.message : 'Unknown error'}`])
+      } finally {
+        setParsing(false)
       }
-
-      setPreviewData(data)
-      setErrors(parseErrors)
     }
-    reader.readAsText(file)
   }
 
   const downloadTemplate = async () => {
@@ -104,18 +107,27 @@ export default function BulkUploadLoansPage() {
       const formData = new FormData()
       formData.append('file', file)
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL || '/api'}/admin/bulk/loans/upload`, {
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
+      const tenantSlug = localStorage.getItem('tenant_slug')
+      
+      const response = await fetch('/api/admin/bulk/loans/upload', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
+          'Authorization': `Bearer ${token}`,
+          ...(tenantSlug && { 'X-Tenant-Slug': tenantSlug }),
         },
         body: formData,
       })
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Upload failed' }))
+        throw new Error(errorData.message || errorData.error || 'Upload failed')
+      }
+
       const result = await response.json()
 
-      if (!response.ok) {
-        throw new Error(result.message || 'Upload failed')
+      if (!result.success) {
+        throw new Error(result.message || result.error || 'Upload failed')
       }
 
       setUploadResult(result.data)
@@ -123,9 +135,10 @@ export default function BulkUploadLoansPage() {
       
       toast({
         title: "Upload Successful",
-        description: `Successfully processed ${result.data.successful} loans. ${result.data.failed} failed.`,
+        description: `Successfully processed ${result.data?.successful || 0} loans. ${result.data?.failed || 0} failed.`,
       })
     } catch (error) {
+      console.error('Upload error:', error)
       toast({
         title: "Upload Failed",
         description: error instanceof Error ? error.message : "Failed to upload loans",
@@ -167,22 +180,31 @@ export default function BulkUploadLoansPage() {
           <div className="space-y-2">
             <h3 className="font-medium">Step 3: Upload File</h3>
             <div className="border-2 border-dashed rounded-lg p-8 text-center">
-              <input type="file" accept=".csv,.xlsx,.xls" onChange={handleFileChange} className="hidden" id="file-upload" />
-              <label htmlFor="file-upload" className="cursor-pointer">
+              <input type="file" accept=".csv,.xlsx,.xls" onChange={handleFileChange} className="hidden" id="file-upload" disabled={parsing} />
+              <label htmlFor="file-upload" className={`cursor-pointer ${parsing ? 'opacity-50 cursor-not-allowed' : ''}`}>
                 <FileSpreadsheet className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-sm font-medium mb-2">{file ? file.name : "Click to upload CSV or Excel file"}</p>
-                <p className="text-xs text-muted-foreground">CSV, XLSX, or XLS files only, max 5MB</p>
+                <p className="text-sm font-medium mb-2">
+                  {parsing ? 'Parsing file...' : file ? file.name : "Click to upload CSV or Excel file"}
+                </p>
+                <p className="text-xs text-muted-foreground">CSV, XLSX, or XLS files only, max 10MB</p>
               </label>
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {parsing && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Parsing file, please wait...</AlertDescription>
+        </Alert>
+      )}
+
       {errors.length > 0 && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            <p className="font-medium mb-2">Errors found in CSV:</p>
+            <p className="font-medium mb-2">Errors found in file:</p>
             <ul className="list-disc list-inside space-y-1">
               {errors.map((error, index) => (
                 <li key={index} className="text-sm">{error}</li>
@@ -229,7 +251,7 @@ export default function BulkUploadLoansPage() {
               <Button variant="outline" onClick={() => { setFile(null); setPreviewData([]); setErrors([]) }}>
                 Cancel
               </Button>
-              <Button onClick={handleUpload} disabled={uploading || errors.length > 0}>
+              <Button onClick={handleUpload} disabled={uploading || errors.length > 0 || parsing}>
                 <Upload className="h-4 w-4 mr-2" />
                 {uploading ? "Uploading..." : `Upload ${previewData.length} Loans`}
               </Button>

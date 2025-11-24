@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast as sonnerToast } from "sonner"
 import { apiFetch } from "@/lib/api/client"
+import { parseFile } from "@/lib/utils/file-parser"
 
 export default function BulkUploadEquityContributionsPage() {
   const [file, setFile] = useState<File | null>(null)
@@ -17,47 +18,54 @@ export default function BulkUploadEquityContributionsPage() {
   const [uploadComplete, setUploadComplete] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
   const [uploadResult, setUploadResult] = useState<any>(null)
+  const [parsing, setParsing] = useState(false)
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
     if (selectedFile) {
       setFile(selectedFile)
-      parseCSV(selectedFile)
-    }
-  }
-
-  const parseCSV = (file: File) => {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const text = e.target?.result as string
-      const lines = text.split("\n")
-      const headers = lines[0].split(",").map((h) => h.trim())
-
-      const data: any[] = []
-      const parseErrors: string[] = []
-
-      for (let i = 1; i < lines.length; i++) {
-        if (lines[i].trim()) {
-          const values = lines[i].split(",").map((v) => v.trim())
-          if (values.length === headers.length) {
-            data.push({
-              memberNumber: values[0],
-              amount: values[1],
-              planId: values[2] || '',
-              paymentMethod: values[3] || 'manual',
-              paymentReference: values[4] || '',
-              notes: values[5] || '',
-            })
-          } else {
-            parseErrors.push(`Line ${i + 1}: Invalid number of columns`)
-          }
-        }
+      setParsing(true)
+      setErrors([])
+      setPreviewData([])
+      
+      try {
+        const result = await parseFile(selectedFile)
+        
+        // Map parsed data to equity contribution format - check for template headers first
+        const mappedData = result.data.map((row: any) => ({
+          memberNumber: row['Member ID (UUID or Staff ID)'] 
+            || row['member_id_uuid_or_staff_id']
+            || row['Member Number'] 
+            || row['memberNumber'] 
+            || row['member_number']
+            || row['Member ID']
+            || row['member_id']
+            || row['Staff ID']
+            || row['staff_id']
+            || '',
+          amount: row['Amount'] || row['amount'] || '',
+          planId: row['Plan ID'] || row['planId'] || row['plan_id'] || '',
+          paymentMethod: row['Payment Method'] || row['paymentMethod'] || row['payment_method'] || 'manual',
+          paymentReference: row['Payment Reference'] || row['paymentReference'] || row['payment_reference'] || '',
+          notes: row['Notes'] || row['notes'] || '',
+        }))
+        
+        // Validate required fields
+        const validationErrors: string[] = []
+        mappedData.forEach((contribution, index) => {
+          if (!contribution.memberNumber) validationErrors.push(`Row ${index + 2}: Member Number is required`)
+          if (!contribution.amount) validationErrors.push(`Row ${index + 2}: Amount is required`)
+          if (isNaN(parseFloat(contribution.amount))) validationErrors.push(`Row ${index + 2}: Amount must be a valid number`)
+        })
+        
+        setPreviewData(mappedData)
+        setErrors([...result.errors, ...validationErrors])
+      } catch (error) {
+        setErrors([`Error parsing file: ${error instanceof Error ? error.message : 'Unknown error'}`])
+      } finally {
+        setParsing(false)
       }
-
-      setPreviewData(data)
-      setErrors(parseErrors)
     }
-    reader.readAsText(file)
   }
 
   const downloadTemplate = async () => {
@@ -100,23 +108,38 @@ export default function BulkUploadEquityContributionsPage() {
       const formData = new FormData()
       formData.append('file', file)
 
-      const result = await apiFetch<{ success: boolean; message?: string; data?: any }>(
-        '/admin/bulk/equity-contributions/upload',
-        {
-          method: 'POST',
-          body: formData,
-        }
-      )
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
+      const tenantSlug = localStorage.getItem('tenant_slug')
+      
+      const response = await fetch('/api/admin/bulk/equity-contributions/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          ...(tenantSlug && { 'X-Tenant-Slug': tenantSlug }),
+        },
+        body: formData,
+      })
 
-      if (result.success && result.data) {
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Upload failed' }))
+        throw new Error(errorData.message || errorData.error || 'Upload failed')
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.message || result.error || 'Upload failed')
+      }
+
+      if (result.data) {
         setUploadResult(result.data)
         setUploadComplete(true)
         
         sonnerToast.success("Upload Successful", {
-          description: `Successfully processed ${result.data.success_count} contributions. ${result.data.error_count} failed.`,
+          description: `Successfully processed ${result.data.success_count || 0} contributions. ${result.data.error_count || 0} failed.`,
         })
       } else {
-        throw new Error(result.message || 'Upload failed')
+        throw new Error('No data returned from server')
       }
     } catch (error: any) {
       console.error('Error uploading equity contributions:', error)
@@ -159,22 +182,31 @@ export default function BulkUploadEquityContributionsPage() {
           <div className="space-y-2">
             <h3 className="font-medium">Step 3: Upload File</h3>
             <div className="border-2 border-dashed rounded-lg p-8 text-center">
-              <input type="file" accept=".csv,.txt" onChange={handleFileChange} className="hidden" id="file-upload" />
-              <label htmlFor="file-upload" className="cursor-pointer">
+              <input type="file" accept=".csv,.xlsx,.xls" onChange={handleFileChange} className="hidden" id="file-upload" disabled={parsing} />
+              <label htmlFor="file-upload" className={`cursor-pointer ${parsing ? 'opacity-50 cursor-not-allowed' : ''}`}>
                 <FileSpreadsheet className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-sm font-medium mb-2">{file ? file.name : "Click to upload CSV file"}</p>
-                <p className="text-xs text-muted-foreground">CSV files only, max 10MB</p>
+                <p className="text-sm font-medium mb-2">
+                  {parsing ? 'Parsing file...' : file ? file.name : "Click to upload CSV or Excel file"}
+                </p>
+                <p className="text-xs text-muted-foreground">CSV, XLSX, or XLS files only, max 10MB</p>
               </label>
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {parsing && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Parsing file, please wait...</AlertDescription>
+        </Alert>
+      )}
+
       {errors.length > 0 && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            <p className="font-medium mb-2">Errors found in CSV:</p>
+            <p className="font-medium mb-2">Errors found in file:</p>
             <ul className="list-disc list-inside space-y-1">
               {errors.map((error, index) => (
                 <li key={index} className="text-sm">{error}</li>
@@ -219,7 +251,7 @@ export default function BulkUploadEquityContributionsPage() {
               <Button variant="outline" onClick={() => { setFile(null); setPreviewData([]); setErrors([]) }}>
                 Cancel
               </Button>
-              <Button onClick={handleUpload} disabled={uploading || errors.length > 0}>
+              <Button onClick={handleUpload} disabled={uploading || errors.length > 0 || parsing}>
                 <Upload className="h-4 w-4 mr-2" />
                 {uploading ? "Uploading..." : `Upload ${previewData.length} Equity Contributions`}
               </Button>

@@ -852,6 +852,145 @@ export async function updatePropertyPaymentPlan(
 	})
 }
 
+export async function getPropertySubscriptions(params?: {
+	status?: string
+	property_id?: string
+	member_id?: string
+	search?: string
+	page?: number
+	per_page?: number
+}) {
+	const queryParams = new URLSearchParams()
+	if (params?.status) queryParams.append("status", params.status)
+	if (params?.property_id) queryParams.append("property_id", params.property_id)
+	if (params?.member_id) queryParams.append("member_id", params.member_id)
+	if (params?.search) queryParams.append("search", params.search)
+	if (params?.page) queryParams.append("page", params.page.toString())
+	if (params?.per_page) queryParams.append("per_page", params.per_page.toString())
+
+	return apiFetch<{
+		success: boolean
+		data: Array<{
+			id: string
+			allocation_id: string
+			property_id: string
+			member_id: string
+			member_name: string
+			member_number: string
+			property_title: string
+			property_address: string
+			property_price: number
+			total_price: number
+			amount_paid: number
+			balance: number
+			payment_method: string
+			status: string
+			allocation_status: string
+			allocation_date: string | null
+			has_certificate: boolean
+		}>
+		pagination?: {
+			current_page: number
+			last_page: number
+			per_page: number
+			total: number
+		}
+	}>(`/admin/property-subscriptions?${queryParams.toString()}`)
+}
+
+export async function getPropertySubscription(allocationId: string) {
+	return apiFetch<{
+		success: boolean
+		data: {
+			allocation: {
+				id: string
+				property_id: string
+				member_id: string
+				status: string
+				allocation_date: string | null
+				notes: string | null
+				created_at: string
+			}
+			property: {
+				id: string
+				title: string
+				address: string
+				city: string | null
+				state: string | null
+				price: number
+				size: number | null
+				bedrooms: number | null
+				bathrooms: number | null
+				features: string[] | null
+				images: Array<{ id: string; url: string; is_primary: boolean }>
+			}
+			member: {
+				id: string
+				member_id: string | null
+				staff_id: string | null
+				first_name: string
+				last_name: string
+				email: string | null
+				phone: string | null
+			}
+			payment_summary: {
+				total_price: number
+				amount_paid: number
+				balance: number
+				completion_percentage: number
+			}
+			payment_plan: {
+				id: string
+				status: string
+				total_amount: number
+				initial_balance: number
+				remaining_balance: number
+				funding_option: string
+				selected_methods: string[]
+				starts_on: string | null
+				ends_on: string | null
+				schedule: any[]
+			} | null
+			payment_history: Array<{
+				id: string
+				amount: number
+				source: string
+				status: string
+				reference: string
+				paid_at: string | null
+				payment_reference: string | null
+			}>
+		}
+	}>(`/admin/property-subscriptions/${allocationId}`)
+}
+
+export async function generatePropertySubscriptionCertificate(allocationId: string) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		certificate: {
+			certificate_number: string
+			issue_date: string
+			property: {
+				title: string
+				address: string
+				city: string | null
+				state: string | null
+				price: number
+			}
+			member: {
+				name: string
+				member_id: string
+				email: string | null
+			}
+			allocation_date: string | null
+			completion_date: string
+		}
+	}>(`/admin/property-subscriptions/${allocationId}/certificate`, {
+		method: "POST",
+	})
+}
+
 export async function getPropertyPaymentPlan(planId: string) {
 	return apiFetch<{ success: boolean; data: PropertyPaymentPlan }>(`/admin/property-payment-plans/${planId}`, { method: "GET" })
 }
@@ -980,6 +1119,9 @@ export interface AdminRefundMemberSummary {
 		}
 		equity_wallet: {
 			balance: number
+			total: number
+			refunded: number
+			available: number
 		}
 		loans: {
 			count: number

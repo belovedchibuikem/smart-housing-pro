@@ -5,18 +5,23 @@ export async function GET(request: NextRequest) {
   try {
     // Call Laravel API directly for template
     const laravelApiUrl = getApiBaseUrl()
+    const authHeader = request.headers.get('Authorization') || ''
+    const host = request.headers.get('host') || ''
+    const tenantSlug = request.headers.get('X-Tenant-Slug') || ''
     
-    const res = await fetch(`${laravelApiUrl}/bulk/members/template`, {
+    const res = await fetch(`${laravelApiUrl}/admin/bulk/members/template`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'Authorization': request.headers.get('Authorization') || '',
+        'Authorization': authHeader,
+        'X-Forwarded-Host': host,
+        ...(tenantSlug && { 'X-Tenant-Slug': tenantSlug }),
       },
     })
 
     if (!res.ok) {
-      const errorData = await res.json()
+      const errorData = await res.json().catch(() => ({ message: 'Failed to fetch template' }))
       return NextResponse.json(
         { error: 'Failed to fetch template', details: errorData },
         { status: res.status }

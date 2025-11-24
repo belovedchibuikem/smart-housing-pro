@@ -9,7 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast as sonnerToast } from "sonner"
-import { downloadInternalMortgageRepaymentTemplate, uploadBulkInternalMortgageRepayments } from "@/lib/api/client"
+import { downloadInternalMortgageRepaymentTemplate } from "@/lib/api/client"
+import { parseFile } from "@/lib/utils/file-parser"
 
 interface RepaymentData {
 	planId: string
@@ -27,65 +28,62 @@ export default function BulkUploadInternalMortgageRepaymentsPage() {
 	const [uploading, setUploading] = useState(false)
 	const [uploadComplete, setUploadComplete] = useState(false)
 	const [errors, setErrors] = useState<string[]>([])
+	const [parsing, setParsing] = useState(false)
 
-	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+	const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const selectedFile = e.target.files?.[0]
 		if (selectedFile) {
 			setFile(selectedFile)
-			parseCSV(selectedFile)
-		}
-	}
-
-	const parseCSV = (file: File) => {
-		const reader = new FileReader()
-		reader.onload = (e) => {
-			const text = e.target?.result as string
-			const lines = text.split("\n")
-			const headers = lines[0].split(",").map((h) => h.trim().toLowerCase())
-
-			const data: RepaymentData[] = []
-			const parseErrors: string[] = []
-
-			for (let i = 1; i < lines.length; i++) {
-				if (lines[i].trim()) {
-					const values = lines[i].split(",").map((v) => v.trim())
-					if (values.length >= headers.length - 1) {
-						const amount = Number.parseFloat(values[1] || "0")
-						const principalPaid = Number.parseFloat(values[2] || "0")
-						const interestPaid = Number.parseFloat(values[3] || "0")
-
-						if (isNaN(amount) || amount <= 0) {
-							parseErrors.push(`Line ${i + 1}: Invalid amount`)
-						}
-						if (isNaN(principalPaid) || principalPaid < 0) {
-							parseErrors.push(`Line ${i + 1}: Invalid principal paid`)
-						}
-						if (isNaN(interestPaid) || interestPaid < 0) {
-							parseErrors.push(`Line ${i + 1}: Invalid interest paid`)
-						}
-						if (Math.abs(principalPaid + interestPaid - amount) > 0.01) {
-							parseErrors.push(`Line ${i + 1}: Principal + Interest must equal total amount`)
-						}
-
-						data.push({
-							planId: values[0] || "",
-							amount: values[1] || "0",
-							principalPaid: values[2] || "0",
-							interestPaid: values[3] || "0",
-							dueDate: values[4] || "",
-							paymentMethod: values[5] || "monthly",
-							notes: values[6] || "",
-						})
-					} else {
-						parseErrors.push(`Line ${i + 1}: Invalid number of columns`)
+			setParsing(true)
+			setErrors([])
+			setPreviewData([])
+			
+			try {
+				const result = await parseFile(selectedFile)
+				
+				// Map parsed data to repayment format
+				const mappedData = result.data.map((row: any) => ({
+					planId: row['Plan ID'] || row['planId'] || row['plan_id'] || '',
+					amount: row['Amount'] || row['amount'] || '',
+					principalPaid: row['Principal Paid'] || row['principalPaid'] || row['principal_paid'] || '',
+					interestPaid: row['Interest Paid'] || row['interestPaid'] || row['interest_paid'] || '',
+					dueDate: row['Due Date'] || row['dueDate'] || row['due_date'] || '',
+					paymentMethod: row['Payment Method'] || row['paymentMethod'] || row['payment_method'] || 'monthly',
+					notes: row['Notes'] || row['notes'] || '',
+				}))
+				
+				// Validate required fields
+				const validationErrors: string[] = []
+				mappedData.forEach((repayment, index) => {
+					if (!repayment.planId) validationErrors.push(`Row ${index + 2}: Plan ID is required`)
+					if (!repayment.amount) validationErrors.push(`Row ${index + 2}: Amount is required`)
+					const amount = parseFloat(repayment.amount)
+					const principalPaid = parseFloat(repayment.principalPaid || '0')
+					const interestPaid = parseFloat(repayment.interestPaid || '0')
+					
+					if (isNaN(amount) || amount <= 0) {
+						validationErrors.push(`Row ${index + 2}: Amount must be a valid positive number`)
 					}
-				}
+					if (isNaN(principalPaid) || principalPaid < 0) {
+						validationErrors.push(`Row ${index + 2}: Principal Paid must be a valid non-negative number`)
+					}
+					if (isNaN(interestPaid) || interestPaid < 0) {
+						validationErrors.push(`Row ${index + 2}: Interest Paid must be a valid non-negative number`)
+					}
+					if (Math.abs(principalPaid + interestPaid - amount) > 0.01) {
+						validationErrors.push(`Row ${index + 2}: Principal + Interest must equal total amount`)
+					}
+					if (!repayment.dueDate) validationErrors.push(`Row ${index + 2}: Due Date is required`)
+				})
+				
+				setPreviewData(mappedData)
+				setErrors([...result.errors, ...validationErrors])
+			} catch (error) {
+				setErrors([`Error parsing file: ${error instanceof Error ? error.message : 'Unknown error'}`])
+			} finally {
+				setParsing(false)
 			}
-
-			setPreviewData(data)
-			setErrors(parseErrors)
 		}
-		reader.readAsText(file)
 	}
 
 	const handleDownloadTemplate = async () => {
@@ -108,18 +106,38 @@ export default function BulkUploadInternalMortgageRepaymentsPage() {
 		setUploadComplete(false)
 
 		try {
-			const result = await uploadBulkInternalMortgageRepayments(file)
+			const formData = new FormData()
+			formData.append('file', file)
 
-			if (result.success) {
-				setUploadComplete(true)
-				const successful = result.data?.successful ?? previewData.length
-				const failed = result.data?.failed ?? 0
-				sonnerToast.success("Upload Completed", {
-					description: `Successfully processed ${successful} repayments. ${failed > 0 ? `${failed} failed.` : ""}`,
-				})
-			} else {
-				throw new Error(result.message || "Upload failed")
+			const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
+			const tenantSlug = localStorage.getItem('tenant_slug')
+			
+			const response = await fetch('/api/admin/bulk/internal-mortgage-repayments/upload', {
+				method: 'POST',
+				headers: {
+					'Authorization': `Bearer ${token}`,
+					...(tenantSlug && { 'X-Tenant-Slug': tenantSlug }),
+				},
+				body: formData,
+			})
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({ message: 'Upload failed' }))
+				throw new Error(errorData.message || errorData.error || 'Upload failed')
 			}
+
+			const result = await response.json()
+
+			if (!result.success) {
+				throw new Error(result.message || result.error || 'Upload failed')
+			}
+
+			setUploadComplete(true)
+			const successful = result.data?.successful ?? previewData.length
+			const failed = result.data?.failed ?? 0
+			sonnerToast.success("Upload Completed", {
+				description: `Successfully processed ${successful} repayments. ${failed > 0 ? `${failed} failed.` : ""}`,
+			})
 		} catch (error: any) {
 			console.error("Error uploading repayments:", error)
 			sonnerToast.error("Upload Failed", {
@@ -169,24 +187,33 @@ export default function BulkUploadInternalMortgageRepaymentsPage() {
 					</div>
 
 					<div className="space-y-2">
-						<h3 className="font-medium">Step 3: Upload CSV File</h3>
+						<h3 className="font-medium">Step 3: Upload File</h3>
 						<div className="border-2 border-dashed rounded-lg p-8 text-center">
-							<input type="file" accept=".csv" onChange={handleFileChange} className="hidden" id="csv-upload" />
-							<label htmlFor="csv-upload" className="cursor-pointer">
+							<input type="file" accept=".csv,.xlsx,.xls" onChange={handleFileChange} className="hidden" id="csv-upload" disabled={parsing} />
+							<label htmlFor="csv-upload" className={`cursor-pointer ${parsing ? 'opacity-50 cursor-not-allowed' : ''}`}>
 								<FileSpreadsheet className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-								<p className="text-sm font-medium mb-2">{file ? file.name : "Click to upload CSV file"}</p>
-								<p className="text-xs text-muted-foreground">CSV files only, max 5MB</p>
+								<p className="text-sm font-medium mb-2">
+									{parsing ? 'Parsing file...' : file ? file.name : "Click to upload CSV or Excel file"}
+								</p>
+								<p className="text-xs text-muted-foreground">CSV, XLSX, or XLS files only, max 10MB</p>
 							</label>
 						</div>
 					</div>
 				</CardContent>
 			</Card>
 
+			{parsing && (
+				<Alert>
+					<AlertCircle className="h-4 w-4" />
+					<AlertDescription>Parsing file, please wait...</AlertDescription>
+				</Alert>
+			)}
+
 			{errors.length > 0 && (
 				<Alert variant="destructive">
 					<AlertCircle className="h-4 w-4" />
 					<AlertDescription>
-						<p className="font-medium mb-2">Errors found in CSV:</p>
+						<p className="font-medium mb-2">Errors found in file:</p>
 						<ul className="list-disc list-inside space-y-1">
 							{errors.map((error, index) => (
 								<li key={index} className="text-sm">
@@ -250,7 +277,7 @@ export default function BulkUploadInternalMortgageRepaymentsPage() {
 							>
 								Cancel
 							</Button>
-							<Button onClick={handleUpload} disabled={uploading || errors.length > 0}>
+							<Button onClick={handleUpload} disabled={uploading || errors.length > 0 || parsing}>
 								{uploading ? (
 									<>
 										<Loader2 className="h-4 w-4 mr-2 animate-spin" />

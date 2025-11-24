@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
+import { parseFile } from "@/lib/utils/file-parser"
 
 interface MemberData {
   firstName: string
@@ -41,76 +42,83 @@ export default function BulkUploadMembersPage() {
   const [uploadComplete, setUploadComplete] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
   const [uploadResult, setUploadResult] = useState<any>(null)
+  const [parsing, setParsing] = useState(false)
   const { toast } = useToast()
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
     if (selectedFile) {
       setFile(selectedFile)
-      parseCSV(selectedFile)
-    }
-  }
-
-  const parseCSV = (file: File) => {
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const text = e.target?.result as string
-      const lines = text.split("\n")
-      const headers = lines[0].split(",").map((h) => h.trim())
-
-      const data: MemberData[] = []
-      const parseErrors: string[] = []
-
-      for (let i = 1; i < lines.length; i++) {
-        if (lines[i].trim()) {
-          const values = lines[i].split(",").map((v) => v.trim())
-          if (values.length === headers.length) {
-            data.push({
-              firstName: values[0],
-              lastName: values[1],
-              email: values[2],
-              phone: values[3],
-              staffId: values[4],
-              ippisNumber: values[5],
-              dateOfBirth: values[6],
-              gender: values[7],
-              maritalStatus: values[8],
-              nationality: values[9],
-              stateOfOrigin: values[10],
-              lga: values[11],
-              residentialAddress: values[12],
-              city: values[13],
-              state: values[14],
-              rank: values[15],
-              department: values[16],
-              commandState: values[17],
-              employmentDate: values[18],
-              yearsOfService: values[19],
-              membershipType: values[20],
-            })
-          } else {
-            parseErrors.push(`Line ${i + 1}: Invalid number of columns`)
-          }
-        }
+      setParsing(true)
+      setErrors([])
+      setPreviewData([])
+      
+      try {
+        const result = await parseFile(selectedFile)
+        
+        // Map parsed data to MemberData format
+        const mappedData: MemberData[] = result.data.map((row: any) => ({
+          firstName: row['First Name'] || row['firstName'] || row['first_name'] || '',
+          lastName: row['Last Name'] || row['lastName'] || row['last_name'] || '',
+          email: row['Email'] || row['email'] || '',
+          phone: row['Phone'] || row['phone'] || '',
+          staffId: row['Staff ID'] || row['staffId'] || row['staff_id'] || '',
+          ippisNumber: row['IPPS Number'] || row['ippisNumber'] || row['ippis_number'] || '',
+          dateOfBirth: row['Date of Birth'] || row['dateOfBirth'] || row['date_of_birth'] || '',
+          gender: row['Gender'] || row['gender'] || '',
+          maritalStatus: row['Marital Status'] || row['maritalStatus'] || row['marital_status'] || '',
+          nationality: row['Nationality'] || row['nationality'] || '',
+          stateOfOrigin: row['State of Origin'] || row['stateOfOrigin'] || row['state_of_origin'] || '',
+          lga: row['LGA'] || row['lga'] || '',
+          residentialAddress: row['Residential Address'] || row['residentialAddress'] || row['residential_address'] || '',
+          city: row['City'] || row['city'] || '',
+          state: row['State'] || row['state'] || '',
+          rank: row['Rank'] || row['rank'] || '',
+          department: row['Department'] || row['department'] || '',
+          commandState: row['Command State'] || row['commandState'] || row['command_state'] || '',
+          employmentDate: row['Employment Date'] || row['employmentDate'] || row['employment_date'] || '',
+          yearsOfService: row['Years of Service'] || row['yearsOfService'] || row['years_of_service'] || '',
+          membershipType: row['Membership Type'] || row['membershipType'] || row['membership_type'] || '',
+        }))
+        
+        // Validate required fields
+        const validationErrors: string[] = []
+        mappedData.forEach((member, index) => {
+          if (!member.firstName) validationErrors.push(`Row ${index + 2}: First Name is required`)
+          if (!member.lastName) validationErrors.push(`Row ${index + 2}: Last Name is required`)
+          if (!member.email) validationErrors.push(`Row ${index + 2}: Email is required`)
+          if (!member.phone) validationErrors.push(`Row ${index + 2}: Phone is required`)
+          if (!member.staffId) validationErrors.push(`Row ${index + 2}: Staff ID is required`)
+          if (!member.rank) validationErrors.push(`Row ${index + 2}: Rank is required`)
+          if (!member.department) validationErrors.push(`Row ${index + 2}: Department is required`)
+        })
+        
+        setPreviewData(mappedData)
+        setErrors([...result.errors, ...validationErrors])
+      } catch (error) {
+        setErrors([`Error parsing file: ${error instanceof Error ? error.message : 'Unknown error'}`])
+      } finally {
+        setParsing(false)
       }
-
-      setPreviewData(data)
-      setErrors(parseErrors)
     }
-    reader.readAsText(file)
   }
 
   const downloadTemplate = async () => {
     try {
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
+      const tenantSlug = localStorage.getItem('tenant_slug')
+      
       const response = await fetch('/api/bulk/members/template', {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
+          ...(tenantSlug && { 'X-Tenant-Slug': tenantSlug }),
         },
       })
 
       if (!response.ok) {
-        throw new Error('Failed to download template')
+        const errorData = await response.json().catch(() => ({ message: 'Failed to download template' }))
+        throw new Error(errorData.message || errorData.error || 'Failed to download template')
       }
 
       const blob = await response.blob()
@@ -118,7 +126,9 @@ export default function BulkUploadMembersPage() {
       const a = document.createElement("a")
       a.href = url
       a.download = "members_upload_template.csv"
+      document.body.appendChild(a)
       a.click()
+      document.body.removeChild(a)
       window.URL.revokeObjectURL(url)
       
       toast({
@@ -126,9 +136,10 @@ export default function BulkUploadMembersPage() {
         description: "CSV template has been downloaded successfully.",
       })
     } catch (error) {
+      console.error('Template download error:', error)
       toast({
         title: "Download Failed",
-        description: "Failed to download template. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to download template. Please try again.",
         variant: "destructive",
       })
     }
@@ -136,10 +147,11 @@ export default function BulkUploadMembersPage() {
 
   const downloadExcelTemplate = async () => {
     try {
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
       const response = await fetch('/api/bulk/members/excel-template', {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
         },
       })
 
@@ -179,17 +191,24 @@ export default function BulkUploadMembersPage() {
       const formData = new FormData()
       formData.append('file', file)
 
+      const token = localStorage.getItem('auth_token') || localStorage.getItem('token')
+      
       const response = await fetch('/api/bulk/members/upload', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Authorization': `Bearer ${token}`,
         },
         body: formData,
       })
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: 'Upload failed' }))
+        throw new Error(errorData.message || errorData.error || 'Upload failed')
+      }
+
       const result = await response.json()
 
-      if (!response.ok) {
+      if (!result.success) {
         throw new Error(result.message || 'Upload failed')
       }
 
@@ -198,9 +217,10 @@ export default function BulkUploadMembersPage() {
       
       toast({
         title: "Upload Successful",
-        description: `Successfully processed ${result.data.successful} members. ${result.data.failed} failed.`,
+        description: `Successfully processed ${result.data?.successful || 0} members. ${result.data?.failed || 0} failed.`,
       })
     } catch (error) {
+      console.error('Upload error:', error)
       toast({
         title: "Upload Failed",
         description: error instanceof Error ? error.message : "Failed to upload members",
@@ -260,11 +280,13 @@ export default function BulkUploadMembersPage() {
           <div className="space-y-2">
             <h3 className="font-medium">Step 3: Upload File</h3>
             <div className="border-2 border-dashed rounded-lg p-8 text-center">
-              <input type="file" accept=".csv,.xlsx,.xls" onChange={handleFileChange} className="hidden" id="file-upload" />
-              <label htmlFor="file-upload" className="cursor-pointer">
+              <input type="file" accept=".csv,.xlsx,.xls" onChange={handleFileChange} className="hidden" id="file-upload" disabled={parsing} />
+              <label htmlFor="file-upload" className={`cursor-pointer ${parsing ? 'opacity-50 cursor-not-allowed' : ''}`}>
                 <FileSpreadsheet className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-sm font-medium mb-2">{file ? file.name : "Click to upload CSV or Excel file"}</p>
-                <p className="text-xs text-muted-foreground">CSV, XLSX, or XLS files only, max 5MB</p>
+                <p className="text-sm font-medium mb-2">
+                  {parsing ? 'Parsing file...' : file ? file.name : "Click to upload CSV or Excel file"}
+                </p>
+                <p className="text-xs text-muted-foreground">CSV, XLSX, or XLS files only, max 10MB</p>
               </label>
             </div>
           </div>
@@ -284,6 +306,13 @@ export default function BulkUploadMembersPage() {
               ))}
             </ul>
           </AlertDescription>
+        </Alert>
+      )}
+
+      {parsing && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>Parsing file, please wait...</AlertDescription>
         </Alert>
       )}
 
@@ -336,7 +365,7 @@ export default function BulkUploadMembersPage() {
               >
                 Cancel
               </Button>
-              <Button onClick={handleUpload} disabled={uploading || errors.length > 0}>
+              <Button onClick={handleUpload} disabled={uploading || errors.length > 0 || parsing}>
                 <Upload className="h-4 w-4 mr-2" />
                 {uploading ? "Uploading..." : `Upload ${previewData.length} Members`}
               </Button>

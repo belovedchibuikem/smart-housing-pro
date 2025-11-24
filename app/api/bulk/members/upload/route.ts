@@ -7,20 +7,27 @@ export async function POST(request: NextRequest) {
     // Get the form data from the request
     const formData = await request.formData()
     
+    // Get headers from request
+    const authHeader = request.headers.get('Authorization') || ''
+    const host = request.headers.get('host') || ''
+    const tenantSlug = request.headers.get('X-Tenant-Slug') || ''
+    
     // Call Laravel API directly for bulk upload
-    const res = await fetch(`${API_BASE_URL}/bulk/members/upload`, {
+    const res = await fetch(`${API_BASE_URL}/admin/bulk/members/upload`, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
-        'Authorization': request.headers.get('Authorization') || '',
+        'Authorization': authHeader,
+        'X-Forwarded-Host': host,
+        ...(tenantSlug && { 'X-Tenant-Slug': tenantSlug }),
       },
       body: formData,
     })
 
     if (!res.ok) {
-      const errorData = await res.json()
+      const errorData = await res.json().catch(() => ({ message: 'Upload failed' }))
       return NextResponse.json(
-        { error: 'Failed to upload members', details: errorData },
+        { success: false, error: 'Failed to upload members', details: errorData },
         { status: res.status }
       )
     }
@@ -30,7 +37,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Bulk upload error:', error)
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { success: false, error: 'Internal server error', message: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     )
   }

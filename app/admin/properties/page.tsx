@@ -12,7 +12,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { apiFetch } from "@/lib/api/client"
+import { apiFetch, getPropertySubscriptions, generatePropertySubscriptionCertificate } from "@/lib/api/client"
 
 interface Property {
   id: string
@@ -102,31 +102,37 @@ export default function AdminPropertiesPage() {
 
   const fetchSubscriptions = async () => {
     try {
-      // Fetch property allocations as subscriptions
-      const response = await apiFetch<{ success: boolean; data: any[] }>("/admin/properties?per_page=100")
-      const props = (response.success ? response.data : []) || []
-      const subs: any[] = []
-      props.forEach(prop => {
-        if (prop.allocations) {
-          prop.allocations.forEach((alloc: any) => {
-            subs.push({
-              id: alloc.id,
-              memberName: `${alloc.member?.user?.first_name || ''} ${alloc.member?.user?.last_name || ''}`.trim(),
-              memberNo: alloc.member?.member_id || alloc.member?.staff_id || '—',
-              property: prop.title || prop.address || '—',
-              totalPrice: prop.price || 0,
-              amountPaid: (alloc as any).amount_paid || 0,
-              balance: (prop.price || 0) - ((alloc as any).amount_paid || 0),
-              paymentMethod: 'Mixed',
-              status: alloc.status === 'completed' ? 'Completed' : 'In Progress',
-              allocation: alloc,
-            })
-          })
-        }
-      })
-      setSubscriptions(subs)
+      // Fetch subscriptions from dedicated endpoint
+      const response = await getPropertySubscriptions({ per_page: 100 })
+      if (response.success && response.data) {
+        const subs = response.data.map((sub) => ({
+          id: sub.id,
+          property_id: sub.property_id,
+          member_id: sub.member_id,
+          memberName: sub.member_name || '—',
+          memberNo: sub.member_number || '—',
+          property: sub.property_title || sub.property_address || '—',
+          totalPrice: sub.total_price || sub.property_price || 0,
+          amountPaid: sub.amount_paid || 0,
+          balance: sub.balance || 0,
+          paymentMethod: sub.payment_method || 'Not specified',
+          status: sub.status || 'In Progress',
+          allocation: { 
+            id: sub.allocation_id,
+            property_id: sub.property_id, 
+            member_id: sub.member_id 
+          },
+          hasCertificate: sub.has_certificate || false,
+        }))
+        setSubscriptions(subs)
+      }
     } catch (error) {
       console.error('Failed to fetch subscriptions:', error)
+      toast({
+        title: "Error",
+        description: "Failed to fetch subscriptions",
+        variant: "destructive",
+      })
     }
   }
 
@@ -182,7 +188,18 @@ export default function AdminPropertiesPage() {
   }
 
   const handleViewSubscriptionDetails = (subscription: any) => {
-    router.push(`/admin/properties/${subscription.allocation?.property_id || ''}/allocations/${subscription.id}`)
+    // Use the allocation_id from the subscription data
+    const propertyId = subscription.property_id || subscription.allocation?.property_id
+    const allocationId = subscription.allocation?.id || subscription.id
+    if (propertyId && allocationId) {
+      router.push(`/admin/properties/${propertyId}/subscriptions/${allocationId}`)
+    } else {
+      toast({
+        title: "Error",
+        description: "Unable to navigate to subscription details",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleViewSubscriptionPayments = (subscription: any) => {
@@ -190,10 +207,25 @@ export default function AdminPropertiesPage() {
   }
 
   const handleIssueCertificate = async (subscription: any) => {
-    toast({
-      title: "Certificate",
-      description: "Certificate issuance functionality will be implemented",
-    })
+    try {
+      const response = await generatePropertySubscriptionCertificate(subscription.id)
+      
+      if (response.success && response.certificate) {
+        toast({
+          title: "Certificate Generated",
+          description: `Certificate ${response.certificate.certificate_number} has been generated successfully.`,
+        })
+        // Optionally download or show certificate
+      } else {
+        throw new Error(response.message || 'Failed to generate certificate')
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate certificate",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleVerifyPayment = async (payment: any, action: "approve" | "reject") => {
@@ -220,7 +252,10 @@ export default function AdminPropertiesPage() {
   const stats = {
     totalProperties: properties.length,
     activeSubscriptions: subscriptions.filter(s => s.status === 'In Progress').length,
-    totalValue: properties.reduce((sum, p) => sum + (p.price || 0), 0),
+    totalValue: properties.reduce((sum, p) => {
+      const price = typeof p.price === 'number' ? p.price : parseFloat(String(p.price || 0))
+      return sum + (isNaN(price) ? 0 : price)
+    }, 0),
     completed: subscriptions.filter(s => s.status === 'Completed').length,
   }
 
@@ -269,7 +304,12 @@ export default function AdminPropertiesPage() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-sm text-muted-foreground">Total Value</div>
-                <div className="text-2xl font-bold">₦{(stats.totalValue / 1000000).toFixed(0)}M</div>
+                <div className="text-2xl font-bold">
+                  {stats.totalValue > 0 
+                    ? `₦${(stats.totalValue / 1000000).toFixed(0)}M`
+                    : '₦0'
+                  }
+                </div>
               </div>
               <DollarSign className="h-8 w-8 text-muted-foreground" />
             </div>
