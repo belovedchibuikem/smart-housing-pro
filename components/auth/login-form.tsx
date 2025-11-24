@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation"
 import { Eye, EyeOff } from "lucide-react"
 import { loginRequest, setAuthToken } from "@/lib/api/client"
 import { getDashboardRoute } from "@/lib/auth/redirect-utils"
+import { Recaptcha, RecaptchaRef } from "@/components/auth/recaptcha"
 
 interface LoginFormProps {
   allowRegistration?: boolean
@@ -21,6 +22,8 @@ export function LoginForm({ allowRegistration = true }: LoginFormProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null)
+  const recaptchaRef = useRef<RecaptchaRef>(null)
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -29,11 +32,23 @@ export function LoginForm({ allowRegistration = true }: LoginFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
     setIsLoading(true)
     try {
+      // Execute reCAPTCHA v3 before submitting
+      let token: string
+      if (recaptchaRef.current) {
+        token = await recaptchaRef.current.execute()
+      } else {
+        alert("reCAPTCHA not ready. Please try again.")
+        setIsLoading(false)
+        return
+      }
+
       const result = await loginRequest({
         email: formData.email,
         password: formData.password,
+        recaptcha_token: token,
       })
 
       // store token
@@ -59,9 +74,27 @@ export function LoginForm({ allowRegistration = true }: LoginFormProps) {
       // basic error feedback
       const message = err instanceof Error ? err.message : "Login failed"
       alert(message)
+      // Reset reCAPTCHA token on error
+      setRecaptchaToken(null)
+      // Re-execute reCAPTCHA on next attempt
+      if (recaptchaRef.current) {
+        try {
+          await recaptchaRef.current.execute()
+        } catch {
+          // Ignore reCAPTCHA errors during retry
+        }
+      }
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleRecaptchaVerify = (token: string) => {
+    setRecaptchaToken(token)
+  }
+
+  const handleRecaptchaError = () => {
+    setRecaptchaToken(null)
   }
 
   return (
@@ -118,6 +151,13 @@ export function LoginForm({ allowRegistration = true }: LoginFormProps) {
           Remember me
         </label>
       </div>
+
+      <Recaptcha
+        ref={recaptchaRef}
+        onVerify={handleRecaptchaVerify}
+        onError={handleRecaptchaError}
+        action="login"
+      />
 
       <Button type="submit" className="w-full" disabled={isLoading}>
         {isLoading ? "Signing in..." : "Sign In"}

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -10,6 +10,7 @@ import { apiFetch } from "@/lib/api/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Mail, ArrowLeft } from "lucide-react"
+import { Recaptcha, RecaptchaRef } from "@/components/auth/recaptcha"
 
 export default function ForgotPasswordPage() {
 	const router = useRouter()
@@ -17,15 +18,28 @@ export default function ForgotPasswordPage() {
 	const [showOtpDialog, setShowOtpDialog] = useState(false)
 	const [message, setMessage] = useState<string | null>(null)
 	const [loading, setLoading] = useState(false)
+	const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null)
+	const recaptchaRef = useRef<RecaptchaRef>(null)
 
 	const submit = async (e: React.FormEvent) => {
 		e.preventDefault()
+
 		setLoading(true)
 		setMessage(null)
 		try {
+			// Execute reCAPTCHA v3 before submitting
+			let token: string
+			if (recaptchaRef.current) {
+				token = await recaptchaRef.current.execute()
+			} else {
+				setMessage("reCAPTCHA not ready. Please try again.")
+				setLoading(false)
+				return
+			}
+
 			const res = await apiFetch<{ success: boolean; message: string; expires_at?: string }>("/auth/forgot-password", {
 				method: "POST",
-				body: { email },
+				body: { email, recaptcha_token: token },
 			})
 			
 			if (res.success) {
@@ -36,9 +50,27 @@ export default function ForgotPasswordPage() {
 			}
 		} catch (e) {
 			setMessage(e instanceof Error ? e.message : "Failed to send OTP")
+			// Reset reCAPTCHA token on error
+			setRecaptchaToken(null)
+			// Re-execute reCAPTCHA on next attempt
+			if (recaptchaRef.current) {
+				try {
+					await recaptchaRef.current.execute()
+				} catch {
+					// Ignore reCAPTCHA errors during retry
+				}
+			}
 		} finally {
 			setLoading(false)
 		}
+	}
+
+	const handleRecaptchaVerify = (token: string) => {
+		setRecaptchaToken(token)
+	}
+
+	const handleRecaptchaError = () => {
+		setRecaptchaToken(null)
 	}
 
 	const handleOtpSuccess = () => {
@@ -87,6 +119,13 @@ export default function ForgotPasswordPage() {
 								{message}
 							</div>
 						)}
+
+						<Recaptcha
+							ref={recaptchaRef}
+							onVerify={handleRecaptchaVerify}
+							onError={handleRecaptchaError}
+							action="forgot_password"
+						/>
 
 						<Button type="submit" className="w-full" disabled={loading}>
 							{loading ? "Sending..." : "Send Verification Code"}

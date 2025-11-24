@@ -216,7 +216,7 @@ export async function apiFetch<T = unknown>(
 		}
 }
 
-export async function loginRequest(payload: { email: string; password: string }) {
+export async function loginRequest(payload: { email: string; password: string; recaptcha_token?: string }) {
 	return apiFetch<{ message: string; user: unknown; token: string }>("/auth/login", {
 		method: "POST",
 		body: payload,

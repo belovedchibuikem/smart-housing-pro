@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ChevronLeft, ChevronRight, Eye, EyeOff } from "lucide-react"
 import { registerRequest, setAuthToken } from "@/lib/api/client"
 import { OtpVerificationDialog } from "@/components/auth/otp-verification-dialog"
+import { Recaptcha, RecaptchaRef } from "@/components/auth/recaptcha"
 
 export function RegisterForm() {
   const router = useRouter()
@@ -20,6 +21,8 @@ export function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [currentStep, setCurrentStep] = useState(1)
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null)
+  const recaptchaRef = useRef<RecaptchaRef>(null)
   const totalSteps = 4
 
   const [formData, setFormData] = useState({
@@ -152,8 +155,19 @@ export function RegisterForm() {
 
     setIsLoading(true)
     try {
+      // Execute reCAPTCHA v3 before submitting
+      let token: string
+      if (recaptchaRef.current) {
+        token = await recaptchaRef.current.execute()
+      } else {
+        alert("reCAPTCHA not ready. Please try again.")
+        setIsLoading(false)
+        return
+      }
+
       // Send all form fields to API
       const payload: Record<string, unknown> = {
+        recaptcha_token: token,
         first_name: formData.firstName,
         last_name: formData.lastName,
         email: formData.email,
@@ -197,9 +211,27 @@ export function RegisterForm() {
     } catch (err) {
       const message = err instanceof Error ? err.message : "Registration failed"
       alert(message)
+      // Reset reCAPTCHA token on error
+      setRecaptchaToken(null)
+      // Re-execute reCAPTCHA on next attempt
+      if (recaptchaRef.current) {
+        try {
+          await recaptchaRef.current.execute()
+        } catch {
+          // Ignore reCAPTCHA errors during retry
+        }
+      }
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleRecaptchaVerify = (token: string) => {
+    setRecaptchaToken(token)
+  }
+
+  const handleRecaptchaError = () => {
+    setRecaptchaToken(null)
   }
 
   const handleOtpSuccess = (token?: string, user?: unknown) => {
@@ -673,6 +705,13 @@ export function RegisterForm() {
                 </a>
               </label>
             </div>
+
+            <Recaptcha
+              ref={recaptchaRef}
+              onVerify={handleRecaptchaVerify}
+              onError={handleRecaptchaError}
+              action="register"
+            />
           </div>
         )}
 
