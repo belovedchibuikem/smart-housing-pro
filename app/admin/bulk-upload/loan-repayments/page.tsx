@@ -33,14 +33,6 @@ export default function BulkUploadLoanRepaymentsPage() {
   const [uploadResult, setUploadResult] = useState<any>(null)
   const [parsing, setParsing] = useState(false)
 
-  const handleUpload = async () => {
-    if (!file) return
-
-    setUploading(true)
-    setUploadComplete(false)
-    setUploadResult(null)
-    setErrors([])
-
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0]
     if (selectedFile) {
@@ -142,6 +134,7 @@ export default function BulkUploadLoanRepaymentsPage() {
     setUploading(true)
     setUploadComplete(false)
     setUploadResult(null)
+    setErrors([])
 
     try {
       const formData = new FormData()
