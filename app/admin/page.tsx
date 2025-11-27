@@ -104,7 +104,7 @@ export default function AdminDashboardPage() {
     },
     {
       title: "Active Loans",
-      value: formatNumber(data.stats.total_loans / 1000000),
+      value: formatNumber(data.stats.total_loans),
       change: "+5%",
       icon: TrendingUp,
       color: "text-orange-600",
