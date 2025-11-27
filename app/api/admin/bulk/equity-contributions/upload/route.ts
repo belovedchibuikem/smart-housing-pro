@@ -23,9 +23,24 @@ export async function POST(request: NextRequest) {
     })
 
     if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ message: 'Upload failed' }))
+      const errorData = await res.json().catch(() => ({ 
+        success: false,
+        message: 'Upload failed',
+        errors: ['Unable to process the upload request. Please try again.'],
+        error_type: 'server_error'
+      }))
+      
+      // Forward the error details from Laravel API
       return NextResponse.json(
-        { success: false, error: 'Failed to upload equity contributions', details: errorData },
+        {
+          success: false,
+          message: errorData.message || 'Failed to upload equity contributions',
+          errors: errorData.errors || [errorData.message || 'Upload failed'],
+          error_type: errorData.error_type || 'unknown_error',
+          ...(errorData.total_rows && { total_rows: errorData.total_rows }),
+          ...(errorData.error_count && { error_count: errorData.error_count }),
+          ...(errorData.data && { data: errorData.data })
+        },
         { status: res.status }
       )
     }

@@ -186,6 +186,7 @@ export default function BulkUploadMembersPage() {
     setUploading(true)
     setUploadComplete(false)
     setUploadResult(null)
+    setErrors([])
 
     try {
       const formData = new FormData()
@@ -201,29 +202,112 @@ export default function BulkUploadMembersPage() {
         body: formData,
       })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Upload failed' }))
-        throw new Error(errorData.message || errorData.error || 'Upload failed')
-      }
-
       const result = await response.json()
 
-      if (!result.success) {
-        throw new Error(result.message || 'Upload failed')
+      if (!response.ok) {
+        // Handle different error types
+        const errorMessages = result.errors || []
+        const errorType = result.error_type || 'unknown_error'
+        
+        let errorTitle = 'Upload Failed'
+        let errorDescription = result.message || 'Failed to upload members'
+        
+        // Set specific error messages based on error type
+        if (errorType === 'file_validation') {
+          errorTitle = 'File Validation Failed'
+          errorDescription = 'The uploaded file does not meet the requirements. Please check the file format and size.'
+        } else if (errorType === 'parsing_error') {
+          errorTitle = 'File Parsing Failed'
+          errorDescription = 'Unable to read the file. Please ensure it is a valid CSV or Excel file.'
+        } else if (errorType === 'data_validation') {
+          errorTitle = 'Data Validation Errors'
+          errorDescription = `Found ${result.error_count || errorMessages.length} validation error(s) in the file. Please fix the errors and try again.`
+        } else if (errorType === 'processing_error') {
+          errorTitle = 'Processing Failed'
+          errorDescription = 'All member records failed to process. Please check the error details below.'
+        } else if (errorType === 'empty_data') {
+          errorTitle = 'Empty File'
+          errorDescription = 'The file contains no valid member data.'
+        }
+
+        // Set errors for display
+        if (errorMessages.length > 0) {
+          setErrors(errorMessages)
+        } else if (result.message) {
+          setErrors([result.message])
+        } else {
+          setErrors([errorDescription])
+        }
+
+        toast({
+          title: errorTitle,
+          description: errorDescription,
+          variant: "destructive",
+        })
+
+        // If there's data with errors, still show it
+        if (result.data) {
+          setUploadResult(result.data)
+          setUploadComplete(true)
+        }
+
+        return
       }
 
+      // Success response
+      if (!result.success) {
+        // Handle partial success or other non-success responses
+        const errorMessages = result.errors || []
+        if (errorMessages.length > 0) {
+          setErrors(errorMessages)
+        }
+
+        if (result.data) {
+          setUploadResult(result.data)
+          setUploadComplete(true)
+        }
+
+        toast({
+          title: result.has_errors ? "Upload Completed with Errors" : "Upload Failed",
+          description: result.message || 'Upload completed with some issues',
+          variant: result.has_errors ? "default" : "destructive",
+        })
+        return
+      }
+
+      // Full success
       setUploadResult(result.data)
       setUploadComplete(true)
       
-      toast({
-        title: "Upload Successful",
-        description: `Successfully processed ${result.data?.successful || 0} members. ${result.data?.failed || 0} failed.`,
-      })
+      const successCount = result.data?.successful || 0
+      const failedCount = result.data?.failed || 0
+      
+      if (failedCount > 0) {
+        // Partial success - show errors
+        const errorMessages = result.data?.errors || []
+        if (errorMessages.length > 0) {
+          setErrors(errorMessages)
+        }
+        
+        toast({
+          title: "Upload Completed with Errors",
+          description: `Successfully processed ${successCount} members. ${failedCount} failed.`,
+          variant: "default",
+        })
+      } else {
+        toast({
+          title: "Upload Successful",
+          description: `Successfully processed ${successCount} member(s).`,
+        })
+      }
     } catch (error) {
       console.error('Upload error:', error)
+      const errorMessage = error instanceof Error ? error.message : "Failed to upload members. Please try again."
+      setErrors([errorMessage])
+      
       toast({
         title: "Upload Failed",
-        description: error instanceof Error ? error.message : "Failed to upload members",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
@@ -270,7 +354,7 @@ export default function BulkUploadMembersPage() {
               <li>First Name, Last Name, Email, Phone, Staff ID, Department, Rank are required</li>
               <li>Staff ID must be unique</li>
               <li>Email must be unique and valid format</li>
-              <li>Date format should be YYYY-MM-DD</li>
+              <li>Date format: YYYY-MM-DD, DD-MM-YYYY, or DD/MM/YYYY (e.g., 2024-01-15, 15-01-2024, or 15/01/2024)</li>
               <li>Gender must be Male or Female</li>
               <li>Marital Status: Single, Married, Divorced, or Widowed</li>
               <li>Membership Type: Regular or Associate</li>
@@ -297,14 +381,23 @@ export default function BulkUploadMembersPage() {
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            <p className="font-medium mb-2">Errors found in CSV:</p>
-            <ul className="list-disc list-inside space-y-1">
-              {errors.map((error, index) => (
-                <li key={index} className="text-sm">
-                  {error}
-                </li>
-              ))}
-            </ul>
+            <p className="font-medium mb-2">
+              {uploadComplete ? 'Errors during processing:' : 'Errors found:'}
+            </p>
+            <div className="max-h-64 overflow-y-auto">
+              <ul className="list-disc list-inside space-y-1">
+                {errors.map((error, index) => (
+                  <li key={index} className="text-sm">
+                    {error}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            {errors.length > 10 && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Showing first {Math.min(errors.length, 50)} errors. Total: {errors.length}
+              </p>
+            )}
           </AlertDescription>
         </Alert>
       )}
@@ -399,14 +492,23 @@ export default function BulkUploadMembersPage() {
             </div>
             
             {uploadResult.errors && uploadResult.errors.length > 0 && (
-              <div>
-                <h4 className="font-medium text-red-600 mb-2">Errors:</h4>
-                <div className="max-h-32 overflow-y-auto">
-                  {uploadResult.errors.map((error: string, index: number) => (
-                    <div key={index} className="text-sm text-red-600 py-1">
-                      {error}
-                    </div>
-                  ))}
+              <div className="border-t pt-4">
+                <h4 className="font-medium text-red-600 mb-2">
+                  Processing Errors ({uploadResult.errors.length}):
+                </h4>
+                <div className="max-h-64 overflow-y-auto bg-red-50 p-3 rounded-lg">
+                  <ul className="list-disc list-inside space-y-1">
+                    {uploadResult.errors.slice(0, 50).map((error: string, index: number) => (
+                      <li key={index} className="text-sm text-red-700">
+                        {error}
+                      </li>
+                    ))}
+                  </ul>
+                  {uploadResult.errors.length > 50 && (
+                    <p className="text-xs text-red-600 mt-2">
+                      Showing first 50 errors. Total: {uploadResult.errors.length}
+                    </p>
+                  )}
                 </div>
               </div>
             )}

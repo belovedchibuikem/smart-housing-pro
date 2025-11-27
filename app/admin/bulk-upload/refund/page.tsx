@@ -111,6 +111,7 @@ export default function BulkUploadRefundPage() {
     setUploading(true)
     setUploadComplete(false)
     setUploadResult(null)
+    setErrors([])
 
     try {
       const formData = new FormData()
@@ -128,29 +129,103 @@ export default function BulkUploadRefundPage() {
         body: formData,
       })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Upload failed' }))
-        throw new Error(errorData.message || errorData.error || 'Upload failed')
-      }
-
       const result = await response.json()
 
+      if (!response.ok) {
+        const errorMessages = result.errors || []
+        const errorType = result.error_type || 'unknown_error'
+        
+        let errorTitle = 'Upload Failed'
+        let errorDescription = result.message || 'Failed to upload refunds'
+        
+        if (errorType === 'file_validation') {
+          errorTitle = 'File Validation Failed'
+          errorDescription = 'The uploaded file does not meet the requirements. Please check the file format and size.'
+        } else if (errorType === 'parsing_error') {
+          errorTitle = 'File Parsing Failed'
+          errorDescription = 'Unable to read the file. Please ensure it is a valid CSV or Excel file.'
+        } else if (errorType === 'data_validation') {
+          errorTitle = 'Data Validation Errors'
+          errorDescription = `Found ${result.error_count || errorMessages.length} validation error(s) in the file. Please fix the errors and try again.`
+        } else if (errorType === 'processing_error') {
+          errorTitle = 'Processing Failed'
+          errorDescription = 'All refund records failed to process. Please check the error details below.'
+        } else if (errorType === 'empty_data') {
+          errorTitle = 'Empty File'
+          errorDescription = 'The file contains no valid refund data.'
+        }
+
+        if (errorMessages.length > 0) {
+          setErrors(errorMessages)
+        } else if (result.message) {
+          setErrors([result.message])
+        } else {
+          setErrors([errorDescription])
+        }
+
+        toast({
+          title: errorTitle,
+          description: errorDescription,
+          variant: "destructive",
+        })
+
+        if (result.data) {
+          setUploadResult(result.data)
+          setUploadComplete(true)
+        }
+
+        return
+      }
+
       if (!result.success) {
-        throw new Error(result.message || result.error || 'Upload failed')
+        const errorMessages = result.errors || []
+        if (errorMessages.length > 0) {
+          setErrors(errorMessages)
+        }
+
+        if (result.data) {
+          setUploadResult(result.data)
+          setUploadComplete(true)
+        }
+
+        toast({
+          title: result.has_errors ? "Upload Completed with Errors" : "Upload Failed",
+          description: result.message || 'Upload completed with some issues',
+          variant: result.has_errors ? "default" : "destructive",
+        })
+        return
       }
 
       setUploadResult(result.data)
       setUploadComplete(true)
       
-      toast({
-        title: "Upload Successful",
-        description: `Successfully processed ${result.data?.successful || 0} refunds. ${result.data?.failed || 0} failed.`,
-      })
+      const successCount = result.data?.successful || 0
+      const failedCount = result.data?.failed || 0
+      
+      if (failedCount > 0) {
+        const errorMessages = result.data?.errors || []
+        if (errorMessages.length > 0) {
+          setErrors(errorMessages)
+        }
+        
+        toast({
+          title: "Upload Completed with Errors",
+          description: `Successfully processed ${successCount} refunds. ${failedCount} failed.`,
+        })
+      } else {
+        toast({
+          title: "Upload Successful",
+          description: `Successfully processed ${successCount} refund(s).`,
+        })
+      }
     } catch (error) {
       console.error('Upload error:', error)
+      const errorMessage = error instanceof Error ? error.message : "Failed to upload refunds. Please try again."
+      setErrors([errorMessage])
+      
       toast({
         title: "Upload Failed",
-        description: error instanceof Error ? error.message : "Failed to upload refunds",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {

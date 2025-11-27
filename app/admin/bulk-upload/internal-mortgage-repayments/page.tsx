@@ -28,6 +28,7 @@ export default function BulkUploadInternalMortgageRepaymentsPage() {
 	const [uploading, setUploading] = useState(false)
 	const [uploadComplete, setUploadComplete] = useState(false)
 	const [errors, setErrors] = useState<string[]>([])
+	const [uploadResult, setUploadResult] = useState<any>(null)
 	const [parsing, setParsing] = useState(false)
 
 	const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -104,6 +105,7 @@ export default function BulkUploadInternalMortgageRepaymentsPage() {
 
 		setUploading(true)
 		setUploadComplete(false)
+		setErrors([])
 
 		try {
 			const formData = new FormData()
@@ -121,27 +123,94 @@ export default function BulkUploadInternalMortgageRepaymentsPage() {
 				body: formData,
 			})
 
-			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({ message: 'Upload failed' }))
-				throw new Error(errorData.message || errorData.error || 'Upload failed')
-			}
-
 			const result = await response.json()
 
+			if (!response.ok) {
+				const errorMessages = result.errors || []
+				const errorType = result.error_type || 'unknown_error'
+				
+				let errorTitle = 'Upload Failed'
+				let errorDescription = result.message || 'Failed to upload internal mortgage repayments'
+				
+				if (errorType === 'file_validation') {
+					errorTitle = 'File Validation Failed'
+					errorDescription = 'The uploaded file does not meet the requirements. Please check the file format and size.'
+				} else if (errorType === 'parsing_error') {
+					errorTitle = 'File Parsing Failed'
+					errorDescription = 'Unable to read the file. Please ensure it is a valid CSV or Excel file.'
+				} else if (errorType === 'data_validation') {
+					errorTitle = 'Data Validation Errors'
+					errorDescription = `Found ${result.error_count || errorMessages.length} validation error(s) in the file. Please fix the errors and try again.`
+				} else if (errorType === 'processing_error') {
+					errorTitle = 'Processing Failed'
+					errorDescription = 'All internal mortgage repayment records failed to process. Please check the error details below.'
+				} else if (errorType === 'empty_data') {
+					errorTitle = 'Empty File'
+					errorDescription = 'The file contains no valid internal mortgage repayment data.'
+				}
+
+				if (errorMessages.length > 0) {
+					setErrors(errorMessages)
+				} else if (result.message) {
+					setErrors([result.message])
+				} else {
+					setErrors([errorDescription])
+				}
+
+				sonnerToast.error(errorTitle, {
+					description: errorDescription,
+				})
+
+				if (result.data) {
+					setUploadResult(result.data)
+					setUploadComplete(true)
+				}
+
+				return
+			}
+
 			if (!result.success) {
-				throw new Error(result.message || result.error || 'Upload failed')
+				const errorMessages = result.errors || []
+				if (errorMessages.length > 0) {
+					setErrors(errorMessages)
+				}
+
+				if (result.data) {
+					setUploadResult(result.data)
+					setUploadComplete(true)
+				}
+
+				sonnerToast.warning(result.has_errors ? "Upload Completed with Errors" : "Upload Failed", {
+					description: result.message || 'Upload completed with some issues',
+				})
+				return
 			}
 
 			setUploadComplete(true)
 			const successful = result.data?.successful ?? previewData.length
 			const failed = result.data?.failed ?? 0
-			sonnerToast.success("Upload Completed", {
-				description: `Successfully processed ${successful} repayments. ${failed > 0 ? `${failed} failed.` : ""}`,
-			})
+			
+			if (failed > 0) {
+				const errorMessages = result.data?.errors || []
+				if (errorMessages.length > 0) {
+					setErrors(errorMessages)
+				}
+				
+				sonnerToast.warning("Upload Completed with Errors", {
+					description: `Successfully processed ${successful} repayments. ${failed} failed.`,
+				})
+			} else {
+				sonnerToast.success("Upload Completed", {
+					description: `Successfully processed ${successful} repayment(s).`,
+				})
+			}
 		} catch (error: any) {
 			console.error("Error uploading repayments:", error)
+			const errorMessage = error.message || "Failed to upload internal mortgage repayments. Please try again."
+			setErrors([errorMessage])
+			
 			sonnerToast.error("Upload Failed", {
-				description: error.message || "Failed to upload internal mortgage repayments. Please check the file format and try again.",
+				description: errorMessage,
 			})
 		} finally {
 			setUploading(false)

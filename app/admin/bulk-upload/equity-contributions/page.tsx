@@ -103,6 +103,7 @@ export default function BulkUploadEquityContributionsPage() {
     setUploading(true)
     setUploadComplete(false)
     setUploadResult(null)
+    setErrors([])
 
     try {
       const formData = new FormData()
@@ -120,31 +121,108 @@ export default function BulkUploadEquityContributionsPage() {
         body: formData,
       })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: 'Upload failed' }))
-        throw new Error(errorData.message || errorData.error || 'Upload failed')
-      }
-
       const result = await response.json()
 
-      if (!result.success) {
-        throw new Error(result.message || result.error || 'Upload failed')
+      if (!response.ok) {
+        // Handle different error types
+        const errorMessages = result.errors || []
+        const errorType = result.error_type || 'unknown_error'
+        
+        let errorTitle = 'Upload Failed'
+        let errorDescription = result.message || 'Failed to upload equity contributions'
+        
+        // Set specific error messages based on error type
+        if (errorType === 'file_validation') {
+          errorTitle = 'File Validation Failed'
+          errorDescription = 'The uploaded file does not meet the requirements. Please check the file format and size.'
+        } else if (errorType === 'parsing_error') {
+          errorTitle = 'File Parsing Failed'
+          errorDescription = 'Unable to read the file. Please ensure it is a valid CSV or Excel file.'
+        } else if (errorType === 'data_validation') {
+          errorTitle = 'Data Validation Errors'
+          errorDescription = `Found ${result.error_count || errorMessages.length} validation error(s) in the file. Please fix the errors and try again.`
+        } else if (errorType === 'processing_error') {
+          errorTitle = 'Processing Failed'
+          errorDescription = 'All contribution records failed to process. Please check the error details below.'
+        } else if (errorType === 'empty_data') {
+          errorTitle = 'Empty File'
+          errorDescription = 'The file contains no valid contribution data.'
+        }
+
+        // Set errors for display
+        if (errorMessages.length > 0) {
+          setErrors(errorMessages)
+        } else if (result.message) {
+          setErrors([result.message])
+        } else {
+          setErrors([errorDescription])
+        }
+
+        sonnerToast.error(errorTitle, {
+          description: errorDescription,
+        })
+
+        // If there's data with errors, still show it
+        if (result.data) {
+          setUploadResult(result.data)
+          setUploadComplete(true)
+        }
+
+        return
       }
 
+      // Success response
+      if (!result.success) {
+        // Handle partial success or other non-success responses
+        const errorMessages = result.errors || []
+        if (errorMessages.length > 0) {
+          setErrors(errorMessages)
+        }
+
+        if (result.data) {
+          setUploadResult(result.data)
+          setUploadComplete(true)
+        }
+
+        sonnerToast.warning(result.has_errors ? "Upload Completed with Errors" : "Upload Failed", {
+          description: result.message || 'Upload completed with some issues',
+        })
+        return
+      }
+
+      // Full success
       if (result.data) {
         setUploadResult(result.data)
         setUploadComplete(true)
         
-        sonnerToast.success("Upload Successful", {
-          description: `Successfully processed ${result.data.success_count || 0} contributions. ${result.data.error_count || 0} failed.`,
-        })
+        const successCount = result.data.successful || result.data.success_count || 0
+        const failedCount = result.data.failed || result.data.error_count || 0
+        
+        if (failedCount > 0) {
+          // Partial success - show errors
+          const errorMessages = result.data.errors || []
+          if (errorMessages.length > 0) {
+            setErrors(errorMessages)
+          }
+          
+          sonnerToast.warning("Upload Completed with Errors", {
+            description: `Successfully processed ${successCount} contributions. ${failedCount} failed.`,
+          })
+        } else {
+          sonnerToast.success("Upload Successful", {
+            description: `Successfully processed ${successCount} contribution(s).`,
+          })
+        }
       } else {
         throw new Error('No data returned from server')
       }
     } catch (error: any) {
       console.error('Error uploading equity contributions:', error)
+      const errorMessage = error.message || "Failed to upload equity contributions. Please try again."
+      setErrors([errorMessage])
+      
       sonnerToast.error("Upload Failed", {
-        description: error.message || "Failed to upload equity contributions",
+        description: errorMessage,
       })
     } finally {
       setUploading(false)
