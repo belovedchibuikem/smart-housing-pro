@@ -33,11 +33,16 @@ export default function BulkUploadContributionsPage() {
         
         // Map parsed data to contribution format - check for template headers first
         const mappedData = result.data.map((row: any) => ({
-          memberId: row['Member ID (UUID or Staff ID)'] 
+          memberId: row['Member ID (UUID, Staff ID, or IPPIS)']
+            || row['Member ID (UUID or Staff ID)'] 
             || row['Member ID'] 
             || row['memberId'] 
             || row['member_id'] 
+            || row['member_id_uuid_staff_id_or_ippis']
             || row['member_id_uuid_or_staff_id']
+            || row['IPPIS Number']
+            || row['ippis_number']
+            || row['IPPIS']
             || '',
           amount: row['Amount'] || row['amount'] || '',
           type: row['Contribution Type'] 

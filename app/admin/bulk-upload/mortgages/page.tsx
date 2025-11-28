@@ -34,7 +34,9 @@ export default function BulkUploadMortgagesPage() {
         
         // Map parsed data to mortgage format - check for template headers first
         const mappedData = result.data.map((row: any) => ({
-          memberId: row['Member ID (UUID or Staff ID)'] 
+          memberId: row['Member ID (UUID, Staff ID, or IPPIS)']
+            || row['Member ID (UUID or Staff ID)'] 
+            || row['member_id_uuid_staff_id_or_ippis']
             || row['member_id_uuid_or_staff_id']
             || row['Member ID'] 
             || row['memberId'] 
@@ -43,6 +45,9 @@ export default function BulkUploadMortgagesPage() {
             || row['member_number']
             || row['Staff ID']
             || row['staff_id']
+            || row['IPPIS Number']
+            || row['ippis_number']
+            || row['IPPIS']
             || '',
           providerName: row['Mortgage Provider Name'] 
             || row['mortgage_provider_name']

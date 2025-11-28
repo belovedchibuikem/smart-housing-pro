@@ -34,7 +34,21 @@ export default function BulkUploadLoansPage() {
         
         // Map parsed data to loan format
         const mappedData = result.data.map((row: any) => ({
-          memberId: row['Member ID'] || row['memberId'] || row['member_id'] || '',
+          memberId: row['Member ID (UUID, Staff ID, or IPPIS)']
+            || row['Member ID (UUID or Staff ID)'] 
+            || row['member_id_uuid_staff_id_or_ippis']
+            || row['member_id_uuid_or_staff_id']
+            || row['Member ID'] 
+            || row['memberId'] 
+            || row['member_id'] 
+            || row['Member Number']
+            || row['member_number']
+            || row['Staff ID']
+            || row['staff_id']
+            || row['IPPIS Number']
+            || row['ippis_number']
+            || row['IPPIS']
+            || '',
           loanAmount: row['Loan Amount'] || row['loanAmount'] || row['loan_amount'] || '',
           interestRate: row['Interest Rate'] || row['interestRate'] || row['interest_rate'] || '',
           duration: row['Duration'] || row['duration'] || '',

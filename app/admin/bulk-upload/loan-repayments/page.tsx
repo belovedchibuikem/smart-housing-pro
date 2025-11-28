@@ -47,7 +47,9 @@ export default function BulkUploadLoanRepaymentsPage() {
         // Map parsed data to repayment format - check for template headers first
         const mappedData = result.data.map((row: any) => ({
           loanId: row['Loan ID'] || row['loanId'] || row['loan_id'] || '',
-          memberId: row['Member ID (UUID or Staff ID)'] 
+          memberId: row['Member ID (UUID, Staff ID, or IPPIS)']
+            || row['Member ID (UUID or Staff ID)'] 
+            || row['member_id_uuid_staff_id_or_ippis']
             || row['member_id_uuid_or_staff_id']
             || row['Member ID'] 
             || row['memberId'] 
@@ -56,6 +58,9 @@ export default function BulkUploadLoanRepaymentsPage() {
             || row['member_number']
             || row['Staff ID']
             || row['staff_id']
+            || row['IPPIS Number']
+            || row['ippis_number']
+            || row['IPPIS']
             || '',
           memberName: row['Member Name'] || row['memberName'] || row['member_name'] || '',
           amount: row['Amount'] || row['amount'] || '',

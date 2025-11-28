@@ -33,7 +33,9 @@ export default function BulkUploadEquityContributionsPage() {
         
         // Map parsed data to equity contribution format - check for template headers first
         const mappedData = result.data.map((row: any) => ({
-          memberNumber: row['Member ID (UUID or Staff ID)'] 
+          memberNumber: row['Member ID (UUID, Staff ID, or IPPIS)']
+            || row['Member ID (UUID or Staff ID)'] 
+            || row['member_id_uuid_staff_id_or_ippis']
             || row['member_id_uuid_or_staff_id']
             || row['Member Number'] 
             || row['memberNumber'] 
@@ -42,6 +44,9 @@ export default function BulkUploadEquityContributionsPage() {
             || row['member_id']
             || row['Staff ID']
             || row['staff_id']
+            || row['IPPIS Number']
+            || row['ippis_number']
+            || row['IPPIS']
             || '',
           amount: row['Amount'] || row['amount'] || '',
           planId: row['Plan ID'] || row['planId'] || row['plan_id'] || '',

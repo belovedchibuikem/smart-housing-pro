@@ -33,7 +33,9 @@ export default function BulkUploadInternalMortgagesPage() {
         
         // Map parsed data to internal mortgage plan format - check for template headers first
         const mappedData = result.data.map((row: any) => ({
-          memberId: row['Member ID (UUID or Staff ID)'] 
+          memberId: row['Member ID (UUID, Staff ID, or IPPIS)']
+            || row['Member ID (UUID or Staff ID)'] 
+            || row['member_id_uuid_staff_id_or_ippis']
             || row['member_id_uuid_or_staff_id']
             || row['Member ID'] 
             || row['memberId'] 
@@ -42,6 +44,9 @@ export default function BulkUploadInternalMortgagesPage() {
             || row['member_number']
             || row['Staff ID']
             || row['staff_id']
+            || row['IPPIS Number']
+            || row['ippis_number']
+            || row['IPPIS']
             || '',
           propertyId: row['Property ID (UUID)'] 
             || row['property_id_uuid']
