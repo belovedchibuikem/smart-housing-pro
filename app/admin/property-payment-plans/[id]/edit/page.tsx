@@ -80,7 +80,7 @@ export default function EditPropertyPaymentPlanPage() {
 			const percentage = parseFloat(rawValue)
 			const safePercentage = Number.isFinite(percentage) ? percentage : 0
 			const amount = Number.isFinite(safePercentage)
-				? Number((((safePercentage / 100) * Number(totalAmount || (plan?.total_amount ?? 0))) || 0).toFixed(2))
+				? Number((((safePercentage / 100) * (Number(totalAmount) || plan?.total_amount ?? 0)) || 0).toFixed(2))
 				: 0
 
 			return {
@@ -532,7 +532,7 @@ export default function EditPropertyPaymentPlanPage() {
 									<div>
 										<h4 className="text-sm font-semibold text-primary">Allocate Percentages</h4>
 										<p className="text-xs text-muted-foreground">
-											Distribute {formatCurrency(Number(totalAmount || plan?.total_amount ?? 0))} across the selected payment
+											Distribute {formatCurrency(Number(totalAmount) || plan?.total_amount ?? 0)} across the selected payment
 											methods.
 										</p>
 									</div>
@@ -580,7 +580,7 @@ export default function EditPropertyPaymentPlanPage() {
 													<div className="text-xs text-muted-foreground">
 														{item.percentageInput
 															? `${item.percentage.toFixed(2)}% of ${formatCurrency(
-																	Number(totalAmount || plan?.total_amount ?? 0),
+																	Number(totalAmount) || plan?.total_amount ?? 0,
 															  )}`
 															: "Enter a percentage"}
 													</div>
