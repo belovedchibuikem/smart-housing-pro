@@ -732,6 +732,7 @@ export default function AdminMortgageDetailsPage() {
                                 </Badge>
                               )}
                             </div>
+                            <div className="text-xs text-muted-foreground">{repayment?.notes || "—"}</div>
                           </div>
                         ))}
                       </div>
