@@ -705,36 +705,37 @@ export default function AdminMortgageDetailsPage() {
                             r.paid_at && formatDate(r.paid_at) === formatDate(entry.due_date)
                           )
                           return (
-                          <div
-                            key={idx}
-                            className={`grid grid-cols-7 gap-2 px-4 py-3 text-sm ${
-                              entry.status === "paid" ? "bg-green-50" : entry.status === "overdue" ? "bg-red-50" : ""
-                            }`}
-                          >
-                            <div>{entry.installment ?? entry.month ?? entry.period ?? idx + 1}</div>
-                            <div>{formatDate(entry.due_date)}</div>
-                            <div>{formatCurrency(entry.principal)}</div>
-                            <div>{formatCurrency(entry.interest)}</div>
-                            <div className="font-semibold">{formatCurrency(entry.total)}</div>
-                            <div>
-                              {entry.status === "paid" ? (
-                                <Badge variant="default" className="text-xs">
-                                  <CheckCircle2 className="mr-1 h-3 w-3" />
-                                  Paid
-                                </Badge>
-                              ) : entry.status === "overdue" ? (
-                                <Badge variant="destructive" className="text-xs">
-                                  Overdue
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-xs">
-                                  Pending
-                                </Badge>
-                              )}
+                            <div
+                              key={idx}
+                              className={`grid grid-cols-7 gap-2 px-4 py-3 text-sm ${
+                                entry.status === "paid" ? "bg-green-50" : entry.status === "overdue" ? "bg-red-50" : ""
+                              }`}
+                            >
+                              <div>{entry.installment ?? entry.month ?? entry.period ?? idx + 1}</div>
+                              <div>{formatDate(entry.due_date)}</div>
+                              <div>{formatCurrency(entry.principal)}</div>
+                              <div>{formatCurrency(entry.interest)}</div>
+                              <div className="font-semibold">{formatCurrency(entry.total)}</div>
+                              <div>
+                                {entry.status === "paid" ? (
+                                  <Badge variant="default" className="text-xs">
+                                    <CheckCircle2 className="mr-1 h-3 w-3" />
+                                    Paid
+                                  </Badge>
+                                ) : entry.status === "overdue" ? (
+                                  <Badge variant="destructive" className="text-xs">
+                                    Overdue
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-xs">
+                                    Pending
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="text-xs text-muted-foreground">{repayment?.notes || "—"}</div>
                             </div>
-                            <div className="text-xs text-muted-foreground">{repayment?.notes || "—"}</div>
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     )}
                   </>
