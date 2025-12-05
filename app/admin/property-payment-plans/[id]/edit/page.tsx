@@ -398,15 +398,15 @@ export default function EditPropertyPaymentPlanPage() {
 						)}
 					</CardTitle>
 					<CardDescription className="flex flex-wrap items-center gap-3 text-sm">
-						{plan.property?.price !== undefined && (
+						{plan?.property?.price !== undefined && (
 							<span>
 								Total Price:{" "}
-								{formatCurrency(Number(plan.property.price ?? plan.total_amount ?? 0))}
+								{formatCurrency(Number(plan.property.price ?? plan?.total_amount ?? 0))}
 							</span>
 						)}
-						{plan.total_amount !== null && (
+						{plan?.total_amount !== null && (
 							<span>
-								Plan Total: {formatCurrency(Number(plan.total_amount ?? 0))}
+								Plan Total: {formatCurrency(Number(plan?.total_amount ?? 0))}
 							</span>
 						)}
 						{plan.remaining_balance !== null && (
@@ -425,7 +425,7 @@ export default function EditPropertyPaymentPlanPage() {
 							min="0"
 							value={totalAmount}
 							onChange={(event) => setTotalAmount(event.target.value)}
-							placeholder={plan.total_amount ? String(plan.total_amount) : "Enter total plan amount"}
+							placeholder={plan?.total_amount ? String(plan?.total_amount) : "Enter total plan amount"}
 						/>
 					</div>
 					<div className="space-y-2">
@@ -532,7 +532,7 @@ export default function EditPropertyPaymentPlanPage() {
 									<div>
 										<h4 className="text-sm font-semibold text-primary">Allocate Percentages</h4>
 										<p className="text-xs text-muted-foreground">
-											Distribute {formatCurrency(Number(totalAmount || plan.total_amount ?? 0))} across the selected payment
+											Distribute {formatCurrency(Number(totalAmount || plan?.total_amount ?? 0))} across the selected payment
 											methods.
 										</p>
 									</div>
@@ -580,7 +580,7 @@ export default function EditPropertyPaymentPlanPage() {
 													<div className="text-xs text-muted-foreground">
 														{item.percentageInput
 															? `${item.percentage.toFixed(2)}% of ${formatCurrency(
-																	Number(totalAmount || plan.total_amount ?? 0),
+																	Number(totalAmount || plan?.total_amount ?? 0),
 															  )}`
 															: "Enter a percentage"}
 													</div>
