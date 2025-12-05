@@ -28,6 +28,9 @@ interface Contribution {
   status: string
   contribution_date: string
   payment_method?: string
+  payments?: Array<{
+    payment_method?: string
+  }>
   created_at: string
 }
 
@@ -349,7 +352,7 @@ export default function AdminContributionsPage() {
                     </TableCell>
                           <TableCell>{contribution.type || contribution.frequency || '-'}</TableCell>
                           <TableCell className="text-right font-semibold">{formatCurrency(contribution.amount)}</TableCell>
-                          <TableCell>{contribution.payment_method || '-'}</TableCell>
+                          <TableCell>{contribution.payment_method || contribution.payments?.[0]?.payment_method || '-'}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {formatDate(contribution.contribution_date || contribution.created_at)}
                           </TableCell>

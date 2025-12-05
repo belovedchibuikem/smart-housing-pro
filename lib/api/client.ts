@@ -4191,6 +4191,11 @@ export interface RefundRequest {
 	message?: string
 	admin_response?: string
 	rejection_reason?: string
+	notes?: string
+	metadata?: {
+		notes?: string
+		[key: string]: any
+	}
 	ticket_number: string
 	reference?: string
 	requested_by?: string

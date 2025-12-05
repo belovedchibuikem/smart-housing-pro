@@ -46,6 +46,9 @@ interface Loan {
     amount: number
     payment_date: string
     status: string
+    notes?: string
+    reference?: string
+    payment_method?: string
   }>
   created_at: string
 }
@@ -453,10 +456,16 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
                     <TableHead>Due Date</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Description</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {generateRepaymentSchedule().slice(0, 12).map((payment) => (
+                  {generateRepaymentSchedule().slice(0, 12).map((payment) => {
+                    // Find matching repayment from loan.repayments if available
+                    const repayment = loan.repayments?.find((r: any) => 
+                      r.payment_date && formatDate(r.payment_date) === payment.dueDate
+                    )
+                    return (
                     <TableRow key={payment.month}>
                       <TableCell>Month {payment.month}</TableCell>
                       <TableCell>{payment.dueDate}</TableCell>
@@ -466,8 +475,11 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
                           {payment.status}
                         </Badge>
                       </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {repayment?.notes || '—'}
+                      </TableCell>
                     </TableRow>
-                  ))}
+                  )})}
                 </TableBody>
               </Table>
             </CardContent>

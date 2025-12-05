@@ -269,6 +269,12 @@ export default function EquityContributionDetailPage() {
                 </div>
               </div>
             )}
+            {contribution.notes && (
+              <div>
+                <Label className="text-muted-foreground">Description</Label>
+                <div className="mt-1 font-medium">{contribution.notes}</div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

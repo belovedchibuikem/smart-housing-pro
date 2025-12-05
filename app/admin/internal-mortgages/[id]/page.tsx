@@ -328,14 +328,14 @@ export default function InternalMortgagePlanDetailPage() {
 						</div>
 					</div>
 
-					{plan.description && (
+					{(plan.description || plan.metadata?.notes) && (
 						<div className="space-y-2">
 							<h4 className="text-sm font-semibold uppercase text-muted-foreground">Description</h4>
-							<p className="text-sm text-muted-foreground">{plan.description}</p>
+							<p className="text-sm text-muted-foreground">{plan.metadata?.notes || plan.description}</p>
 						</div>
 					)}
 
-					{plan.metadata && (
+					{plan.metadata && !plan.metadata.notes && (
 						<div className="space-y-2">
 							<h4 className="text-sm font-semibold uppercase text-muted-foreground">Metadata</h4>
 							<pre className="overflow-auto rounded-md bg-muted p-3 text-xs">{JSON.stringify(plan.metadata, null, 2)}</pre>
@@ -503,18 +503,24 @@ export default function InternalMortgagePlanDetailPage() {
 										</div>
 										{repaymentSchedule.schedule && repaymentSchedule.schedule.length > 0 && (
 											<div className="max-h-96 overflow-y-auto rounded-md border">
-												<div className="sticky top-0 grid grid-cols-6 gap-2 border-b bg-gray-50 px-4 py-3 text-xs font-semibold">
+												<div className="sticky top-0 grid grid-cols-7 gap-2 border-b bg-gray-50 px-4 py-3 text-xs font-semibold">
 													<div>Period</div>
 													<div>Due Date</div>
 													<div>Principal</div>
 													<div>Interest</div>
 													<div>Total</div>
 													<div>Status</div>
+													<div>Description</div>
 												</div>
-												{repaymentSchedule.schedule.map((entry, idx) => (
+												{repaymentSchedule.schedule.map((entry, idx) => {
+													// Find matching repayment from plan.repayments if available
+													const repayment = plan?.repayments?.find((r: any) => 
+														r.paid_at && new Date(r.paid_at).toLocaleDateString() === new Date(entry.due_date).toLocaleDateString()
+													)
+													return (
 													<div
 														key={idx}
-														className={`grid grid-cols-6 gap-2 px-4 py-3 text-sm ${
+														className={`grid grid-cols-7 gap-2 px-4 py-3 text-sm ${
 															entry.status === "paid" ? "bg-green-50" : entry.status === "overdue" ? "bg-red-50" : ""
 														}`}
 													>
@@ -539,8 +545,11 @@ export default function InternalMortgagePlanDetailPage() {
 																</Badge>
 															)}
 														</div>
+														<div className="text-xs text-muted-foreground">
+															{repayment?.notes || entry.notes || (entry as any).description || plan?.metadata?.notes || '—'}
+														</div>
 													</div>
-												))}
+												)})}
 											</div>
 										)}
 									</>

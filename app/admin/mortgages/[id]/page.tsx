@@ -67,6 +67,18 @@ interface MortgageDetail {
   approved_at?: string | null
   rejected_at?: string | null
   notes?: string | null
+  repayments?: Array<{
+    id: string
+    amount: number
+    principal_paid: number
+    interest_paid: number
+    due_date: string
+    paid_at?: string
+    status: string
+    payment_method?: string
+    reference?: string
+    notes?: string
+  }>
 }
 
 const STATUS_VARIANTS: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
@@ -515,6 +527,12 @@ export default function AdminMortgageDetailsPage() {
                   <p className="font-semibold mt-1">{formatDate(mortgage.rejected_at)}</p>
                 </div>
               </div>
+              {mortgage.notes && (
+                <div className="mt-4 pt-4 border-t">
+                  <p className="text-muted-foreground text-sm">Description</p>
+                  <p className="font-medium mt-1">{mortgage.notes}</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -672,18 +690,24 @@ export default function AdminMortgageDetailsPage() {
                     </div>
                     {repaymentSchedule.schedule && repaymentSchedule.schedule.length > 0 && (
                       <div className="max-h-96 overflow-y-auto rounded-md border">
-                        <div className="sticky top-0 grid grid-cols-6 gap-2 border-b bg-gray-50 px-4 py-3 text-xs font-semibold">
+                        <div className="sticky top-0 grid grid-cols-7 gap-2 border-b bg-gray-50 px-4 py-3 text-xs font-semibold">
                           <div>Period</div>
                           <div>Due Date</div>
                           <div>Principal</div>
                           <div>Interest</div>
                           <div>Total</div>
                           <div>Status</div>
+                          <div>Description</div>
                         </div>
-                        {repaymentSchedule.schedule.map((entry, idx) => (
+                        {repaymentSchedule.schedule.map((entry, idx) => {
+                          // Find matching repayment from mortgage.repayments if available
+                          const repayment = mortgage?.repayments?.find((r: any) => 
+                            r.paid_at && formatDate(r.paid_at) === formatDate(entry.due_date)
+                          )
+                          return (
                           <div
                             key={idx}
-                            className={`grid grid-cols-6 gap-2 px-4 py-3 text-sm ${
+                            className={`grid grid-cols-7 gap-2 px-4 py-3 text-sm ${
                               entry.status === "paid" ? "bg-green-50" : entry.status === "overdue" ? "bg-red-50" : ""
                             }`}
                           >

@@ -18,6 +18,18 @@ import { Textarea } from "@/components/ui/textarea"
 import { toast as sonnerToast } from "sonner"
 import { apiFetch } from "@/lib/api/client"
 
+interface Payment {
+  id: string
+  amount: number
+  payment_date: string
+  payment_method?: string
+  status: string
+  reference?: string
+  metadata?: {
+    notes?: string
+  }
+}
+
 interface Contribution {
   id: string
   member?: {
@@ -35,6 +47,7 @@ interface Contribution {
   status: string
   contribution_date: string
   payment_method?: string
+  payments?: Payment[]
   rejection_reason?: string
   approved_at?: string
   rejected_at?: string
@@ -251,7 +264,7 @@ export default function ContributionDetailPage({ params }: { params: Promise<{ i
                   <label className="text-sm text-muted-foreground">Payment Method</label>
                   <p className="font-medium flex items-center gap-2">
                     <CreditCard className="h-4 w-4" />
-                    {contribution.payment_method || '-'}
+                    {contribution.payment_method || contribution.payments?.[0]?.payment_method || '-'}
                   </p>
                 </div>
               </div>
@@ -263,6 +276,12 @@ export default function ContributionDetailPage({ params }: { params: Promise<{ i
                     {formatDate(contribution.contribution_date || contribution.created_at)}
                   </p>
                 </div>
+                {(contribution.payments && contribution.payments.length > 0 && contribution.payments[0]?.metadata?.notes) && (
+                  <div>
+                    <label className="text-sm text-muted-foreground">Description</label>
+                    <p className="font-medium">{contribution.payments[0].metadata.notes}</p>
+                  </div>
+                )}
                 {contribution.approved_at && (
                 <div>
                     <label className="text-sm text-muted-foreground">Approved Date</label>

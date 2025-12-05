@@ -299,6 +299,7 @@ export default function AdminRefundsPage() {
                       <TableHead>Request Type</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Description</TableHead>
                       <TableHead>Requested</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
@@ -320,6 +321,9 @@ export default function AdminRefundsPage() {
                         </TableCell>
                         <TableCell>
                           <Badge className={statusColors[refund.status] || ""}>{refund.status}</Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground max-w-xs truncate">
+                          {refund.notes || refund.metadata?.notes || (refund.member?.user?.wallet?.transactions?.[0]?.metadata?.notes) || '—'}
                         </TableCell>
                         <TableCell>{formatDate(refund.requested_at || refund.created_at)}</TableCell>
                         <TableCell>
@@ -409,6 +413,14 @@ export default function AdminRefundsPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {selectedRefund?.notes && (
+              <div>
+                <Label>Description</Label>
+                <div className="mt-1 p-3 bg-muted rounded-lg text-sm">
+                  {selectedRefund.notes}
+                </div>
+              </div>
+            )}
             <div>
               <Label>Admin Response (Optional)</Label>
               <Textarea
@@ -451,6 +463,14 @@ export default function AdminRefundsPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {selectedRefund?.notes && (
+              <div>
+                <Label>Description</Label>
+                <div className="mt-1 p-3 bg-muted rounded-lg text-sm">
+                  {selectedRefund.notes}
+                </div>
+              </div>
+            )}
             <div>
               <Label>Rejection Reason *</Label>
               <Textarea
