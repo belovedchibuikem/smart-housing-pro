@@ -1082,6 +1082,19 @@ export async function getInternalMortgagePlan(planId: string) {
 	})
 }
 
+export async function updateInternalMortgagePlan(
+	planId: string,
+	body: { title?: string; description?: string | null },
+) {
+	return apiFetch<{ success: boolean; message: string; data: InternalMortgagePlan }>(
+		`/admin/internal-mortgages/${planId}`,
+		{
+			method: "PUT",
+			body,
+		},
+	)
+}
+
 export async function rejectEoiForm(id: string, reason: string) {
 	return apiFetch<{ success: boolean; message: string; data: any }>(`/admin/eoi-forms/${id}/reject`, {
 		method: "POST",

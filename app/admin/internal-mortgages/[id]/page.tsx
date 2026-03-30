@@ -574,8 +574,8 @@ export default function InternalMortgagePlanDetailPage() {
 						<Button variant="outline" onClick={() => router.back()}>
 							Back
 						</Button>
-						<Button variant="secondary" disabled>
-							Edit Plan (coming soon)
+						<Button variant="secondary" asChild>
+							<Link href={`/admin/internal-mortgages/${plan.id}/edit`}>Edit Plan</Link>
 						</Button>
 					</div>
 				</CardContent>

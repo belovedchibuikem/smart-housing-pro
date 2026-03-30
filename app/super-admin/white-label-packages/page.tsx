@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Edit, Trash2, Package } from "lucide-react"
+import Link from "next/link"
 import { apiFetch } from "@/lib/api/client"
 import { usePageLoading } from "@/hooks/use-loading"
 
@@ -285,8 +286,10 @@ export default function WhiteLabelPackagesPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <Button variant="ghost" size="sm">
-                        <Edit className="h-4 w-4" />
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link href={`/super-admin/white-label-packages/${pkg.id}/edit`} aria-label="Edit package">
+                          <Edit className="h-4 w-4" />
+                        </Link>
                       </Button>
                       <Button 
                         variant="ghost" 

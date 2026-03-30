@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, Mail, Phone, MapPin, Calendar, CheckCircle, XCircle, AlertCircle, Upload, Download, Eye, Trash2, RefreshCw, User, Building, FileText, DollarSign } from "lucide-react"
+import { ArrowLeft, Mail, Phone, MapPin, Calendar, CheckCircle, XCircle, AlertCircle, Upload, Download, Eye, Trash2, RefreshCw, User, Building, FileText, DollarSign, Pencil } from "lucide-react"
 import Link from "next/link"
 import {
   Dialog,
@@ -280,6 +280,12 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
           <Button variant="outline" size="sm" onClick={loadMemberData}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
+          </Button>
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/admin/members/${member.id}/edit`}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit
+            </Link>
           </Button>
         </div>
       </div>
