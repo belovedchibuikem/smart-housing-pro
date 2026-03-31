@@ -6,136 +6,174 @@ import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Loader2, Building2, Globe } from "lucide-react"
+import { ArrowLeft, Loader2 } from "lucide-react"
 import { apiFetch } from "@/lib/api/client"
-import { toast } from "sonner"
+import { toast as sonnerToast } from "sonner"
 
 interface DomainRequestDetail {
-  id: string
-  tenant_id: string
-  business_name: string
-  business_email: string
-  business_address: string
-  full_domain: string
-  status: string
-  verification_token?: string
-  requested_at: string
-  admin_notes?: string | null
+	id: string
+	tenant_id: string
+	business_name: string
+	business_email?: string
+	business_address?: string
+	full_domain: string
+	status: string
+	verification_token?: string
+	dns_records: Array<{ type: string; name: string; value: string }>
+	requested_at: string
+	admin_notes?: string
+	verified_at?: string
+	activated_at?: string
 }
 
 export default function DomainRequestDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params)
-  const router = useRouter()
-  const [req, setReq] = useState<DomainRequestDetail | null>(null)
-  const [loading, setLoading] = useState(true)
+	const { id } = use(params)
+	const router = useRouter()
+	const [loading, setLoading] = useState(true)
+	const [req, setReq] = useState<DomainRequestDetail | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        setLoading(true)
-        const res = await apiFetch<{ request: DomainRequestDetail }>(`/super-admin/domain-requests/${id}`)
-        if (!cancelled && res.request) setReq(res.request)
-      } catch (e: any) {
-        toast.error(e?.message || "Failed to load request")
-        router.push("/super-admin/domain-requests")
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [id, router])
+	useEffect(() => {
+		let c = false
+		;(async () => {
+			try {
+				setLoading(true)
+				const res = await apiFetch<{ request: DomainRequestDetail }>(`/super-admin/domain-requests/${id}`)
+				if (!c && res.request) setReq(res.request)
+			} catch (e: unknown) {
+				const msg = e instanceof Error ? e.message : "Error"
+				if (!c) {
+					sonnerToast.error("Failed to load request", { description: msg })
+					router.push("/super-admin/domain-requests")
+				}
+			} finally {
+				if (!c) setLoading(false)
+			}
+		})()
+		return () => {
+			c = true
+		}
+	}, [id, router])
 
-  if (loading) {
-    return (
-      <div className="flex justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    )
-  }
+	if (loading) {
+		return (
+			<div className="max-w-3xl mx-auto flex justify-center py-20">
+				<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+			</div>
+		)
+	}
 
-  if (!req) {
-    return (
-      <Card>
-        <CardContent className="py-12 text-center text-muted-foreground">Request not found.</CardContent>
-      </Card>
-    )
-  }
+	if (!req) {
+		return (
+			<div className="max-w-3xl mx-auto">
+				<p className="text-muted-foreground">Request not found.</p>
+				<Button variant="link" asChild>
+					<Link href="/super-admin/domain-requests">Back</Link>
+				</Button>
+			</div>
+		)
+	}
 
-  return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center gap-4 flex-wrap">
-        <Button variant="ghost" size="sm" asChild>
-          <Link href="/super-admin/domain-requests">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            All requests
-          </Link>
-        </Button>
-        <Badge variant="outline" className="capitalize">
-          {req.status}
-        </Badge>
-      </div>
+	return (
+		<div className="max-w-3xl mx-auto space-y-6">
+			<Button variant="ghost" size="sm" asChild>
+				<Link href="/super-admin/domain-requests">
+					<ArrowLeft className="h-4 w-4 mr-2" />
+					All requests
+				</Link>
+			</Button>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Globe className="h-5 w-5" />
-            {req.full_domain}
-          </CardTitle>
-          <CardDescription>Custom domain request details</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6 text-sm">
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <p className="text-muted-foreground">Business</p>
-              <p className="font-medium">{req.business_name}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Tenant ID</p>
-              <p className="font-mono text-xs">{req.tenant_id}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Contact email</p>
-              <p>{req.business_email || "—"}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Requested</p>
-              <p>{new Date(req.requested_at).toLocaleString()}</p>
-            </div>
-          </div>
-          {req.business_address ? (
-            <div>
-              <p className="text-muted-foreground">Address</p>
-              <p>{req.business_address}</p>
-            </div>
-          ) : null}
-          {req.admin_notes ? (
-            <div>
-              <p className="text-muted-foreground">Admin notes</p>
-              <p className="whitespace-pre-wrap">{req.admin_notes}</p>
-            </div>
-          ) : null}
-          {req.verification_token ? (
-            <div>
-              <p className="text-muted-foreground">Verification token</p>
-              <p className="font-mono text-xs break-all">{req.verification_token}</p>
-            </div>
-          ) : null}
-          <div className="flex flex-wrap gap-2 pt-4">
-            <Button variant="outline" asChild>
-              <Link href={`/super-admin/businesses/${req.tenant_id}`}>
-                <Building2 className="h-4 w-4 mr-2" />
-                View business
-              </Link>
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Use the domain requests list to approve or reject pending requests.
-          </p>
-        </CardContent>
-      </Card>
-    </div>
-  )
+			<div>
+				<h1 className="text-3xl font-bold">{req.full_domain}</h1>
+				<p className="text-muted-foreground mt-1">{req.business_name}</p>
+				<Badge className="mt-2" variant="outline">
+					{req.status}
+				</Badge>
+			</div>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>Business</CardTitle>
+					<CardDescription>Cooperative contact details</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-2 text-sm">
+					{req.business_email ? (
+						<p>
+							<span className="text-muted-foreground">Email: </span>
+							{req.business_email}
+						</p>
+					) : null}
+					{req.business_address ? (
+						<p>
+							<span className="text-muted-foreground">Address: </span>
+							{req.business_address}
+						</p>
+					) : null}
+					<p>
+						<span className="text-muted-foreground">Cooperative ID: </span>
+						<span className="font-mono">{req.tenant_id}</span>
+					</p>
+					<p>
+						<span className="text-muted-foreground">Requested: </span>
+						{new Date(req.requested_at).toLocaleString()}
+					</p>
+					{req.verified_at && (
+						<p>
+							<span className="text-muted-foreground">Verified: </span>
+							{new Date(req.verified_at).toLocaleString()}
+						</p>
+					)}
+					{req.activated_at && (
+						<p>
+							<span className="text-muted-foreground">Activated: </span>
+							{new Date(req.activated_at).toLocaleString()}
+						</p>
+					)}
+				</CardContent>
+			</Card>
+
+			{req.verification_token ? (
+				<Card>
+					<CardHeader>
+						<CardTitle>Verification token</CardTitle>
+						<CardDescription>For DNS configuration</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<code className="text-xs break-all block p-3 bg-muted rounded-md">{req.verification_token}</code>
+					</CardContent>
+				</Card>
+			) : null}
+
+			{req.dns_records?.length ? (
+				<Card>
+					<CardHeader>
+						<CardTitle>DNS records</CardTitle>
+					</CardHeader>
+					<CardContent className="space-y-3">
+						{req.dns_records.map((r, i) => (
+							<div key={i} className="text-sm border rounded-md p-3 space-y-1">
+								<p>
+									<span className="text-muted-foreground">Type:</span> {r.type}
+								</p>
+								<p>
+									<span className="text-muted-foreground">Name:</span> {r.name}
+								</p>
+								<p className="break-all">
+									<span className="text-muted-foreground">Value:</span> {r.value}
+								</p>
+							</div>
+						))}
+					</CardContent>
+				</Card>
+			) : null}
+
+			{req.admin_notes ? (
+				<Card>
+					<CardHeader>
+						<CardTitle>Admin notes</CardTitle>
+					</CardHeader>
+					<CardContent className="text-sm whitespace-pre-wrap">{req.admin_notes}</CardContent>
+				</Card>
+			) : null}
+		</div>
+	)
 }

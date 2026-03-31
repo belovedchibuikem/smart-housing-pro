@@ -49,7 +49,7 @@ export function TenantSettingsProvider({ children }: { children: ReactNode }) {
         setSettings(defaultSettings)
       }
     } catch (error) {
-      console.error("Error fetching tenant settings:", error)
+      console.error("Error fetching cooperative settings:", error)
       setSettings(defaultSettings)
     } finally {
       setLoading(false)

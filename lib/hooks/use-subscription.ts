@@ -196,7 +196,7 @@ export function useSubscriptionGuard(isAdmin: boolean = false) {
       pathname.startsWith("/auth")
 
     if (!subscription.hasActiveSubscription && !isSubscriptionPage && !isAuthPage) {
-      console.log(`[Subscription Guard] No active ${isAdmin ? 'tenant' : 'member'} subscription, redirecting to ${subscriptionPath}`)
+      console.log(`[Subscription Guard] No active ${isAdmin ? 'cooperative' : 'member'} subscription, redirecting to ${subscriptionPath}`)
       router.push(subscriptionPath)
     }
   }, [subscription.hasActiveSubscription, subscription.isLoading, pathname, router, subscriptionPath, isAdmin])

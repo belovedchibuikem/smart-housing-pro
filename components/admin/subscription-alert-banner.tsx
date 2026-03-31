@@ -21,9 +21,9 @@ export function AdminSubscriptionAlertBanner() {
       <AlertCircle className="h-4 w-4" />
       <div className="flex items-center justify-between flex-1">
         <div className="flex-1">
-          <AlertTitle>No Active Tenant Subscription</AlertTitle>
+          <AlertTitle>No Active Cooperative Subscription</AlertTitle>
           <AlertDescription>
-            Your tenant subscription has expired or is inactive. Please subscribe to continue using all features.
+            Your cooperative subscription has expired or is inactive. Please subscribe to continue using all features.
           </AlertDescription>
         </div>
         <div className="flex items-center gap-2 ml-4">

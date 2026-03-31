@@ -34,7 +34,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       const response = await fetch("/api/tenant/current")
 
       if (!response.ok) {
-        throw new Error("Failed to fetch tenant")
+        throw new Error("Failed to fetch cooperative")
       }
 
       const data = await response.json()
@@ -44,7 +44,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error")
-      console.error("[v0] Error fetching tenant:", err)
+      console.error("[v0] Error fetching cooperative:", err)
       setTenantSlug(null)
     } finally {
       setIsLoading(false)

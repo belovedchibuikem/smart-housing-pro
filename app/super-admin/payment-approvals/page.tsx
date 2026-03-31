@@ -398,7 +398,7 @@ export default function PaymentApprovalsPage() {
                                   </p>
                                 </div>
                                 <div>
-                                  <Label>Tenant</Label>
+                                  <Label>Cooperative</Label>
                                   <p className="text-sm">{selectedTransaction.tenant.name}</p>
                                 </div>
                                 <div>

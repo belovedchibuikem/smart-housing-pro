@@ -673,7 +673,7 @@ useEffect(() => {
 								<img src={getLogo() ?? ""} alt="Institution Logo" className="h-20 w-20 object-contain" />
 							) : (
 								<div className="flex h-20 w-20 items-center justify-center text-xs text-muted-foreground">
-									Tenant Logo
+									Cooperative Logo
 								</div>
 							)}
             </div>
@@ -993,7 +993,7 @@ useEffect(() => {
           <div className="space-y-4">
 								<div className="rounded-lg border border-dashed p-4">
 									<p className="text-sm text-muted-foreground">
-										Choose up to three payment options to combine. Your selections will guide the tenant admin in setting up
+										Choose up to three payment options to combine. Your selections will guide the cooperative admin in setting up
 										the actual payment plan once your expression of interest is approved.
 									</p>
 									<div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -1044,7 +1044,7 @@ useEffect(() => {
 
 								{mixFundingMethods.includes("cooperative") && (
 									<div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-										Cooperative Deduction: the tenant admin will configure the internal deduction schedule for this property
+										Cooperative Deduction: the cooperative admin will configure the internal deduction schedule for this property
 										after your interest is approved.
 									</div>
 								)}

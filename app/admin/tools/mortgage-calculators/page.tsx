@@ -59,7 +59,7 @@ export default function MortgageCalculatorsPage() {
 			<div>
 				<h1 className="text-3xl font-bold">Mortgage & Amortization Calculators</h1>
 				<p className="text-muted-foreground">
-					Fast tools for tenant loan officers and admins to model repayment schedules across different funding options.
+					Fast tools for cooperative loan officers and admins to model repayment schedules across different funding options.
 				</p>
 			</div>
 

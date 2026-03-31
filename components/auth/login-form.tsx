@@ -57,7 +57,7 @@ export function LoginForm({ allowRegistration = true }: LoginFormProps) {
       // Use user data from login response (no need to call /api/auth/me)
       const user = result.user
 
-      // Store user data in localStorage for ALL users (super-admin and tenants)
+      // Store user data in localStorage for ALL users (super-admin and cooperative orgs)
       // This allows AuthGuard to validate without calling /auth/me
       localStorage.setItem('user_data', JSON.stringify(user))
 

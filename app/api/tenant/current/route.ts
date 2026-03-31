@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 			const errorData = await res.json().catch(() => ({}))
 			console.error('Tenant API Route - Error response:', errorData)
 			return NextResponse.json(
-				{ message: errorData.message || "Failed to fetch tenant" },
+				{ message: errorData.message || "Failed to fetch cooperative" },
 				{ status: res.status }
 			)
 		}
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
 	} catch (err) {
 		console.error("Tenant API Route - Exception:", err)
 		return NextResponse.json(
-			{ message: err instanceof Error ? err.message : "Failed to load tenant" },
+			{ message: err instanceof Error ? err.message : "Failed to load cooperative" },
 			{ status: 500 }
 		)
 	}

@@ -62,7 +62,7 @@ export default function AdminSubscriptionSuccessPage() {
     <div className="space-y-6 max-w-2xl mx-auto">
       <Card>
         <CardHeader>
-          <CardTitle>Tenant Subscription Payment</CardTitle>
+          <CardTitle>Cooperative Subscription Payment</CardTitle>
           <CardDescription>Processing your subscription payment</CardDescription>
         </CardHeader>
         <CardContent>
@@ -76,7 +76,7 @@ export default function AdminSubscriptionSuccessPage() {
               <CheckCircle className="h-16 w-16 text-green-600 mb-4" />
               <h2 className="text-2xl font-bold mb-2">Payment Successful!</h2>
               <p className="text-muted-foreground text-center mb-6">
-                Your tenant subscription has been activated successfully. You now have access to all features.
+                Your cooperative subscription has been activated successfully. You now have access to all features.
               </p>
               <div className="w-full mb-6">
                 <ReceiptDownloadButton
@@ -84,7 +84,7 @@ export default function AdminSubscriptionSuccessPage() {
                   className="w-full justify-center"
                   disabled={!reference}
                   data={{
-                    title: "Tenant Subscription Payment Receipt",
+                    title: "Cooperative Subscription Payment Receipt",
                     subtitle: plan,
                     amount,
                     currency: "NGN",

@@ -158,6 +158,16 @@ export class MemberService {
     return apiFetch<{ member: Member }>(`/admin/members/${id}`)
   }
 
+  static async updateMember(
+    id: string,
+    body: Record<string, string | number | null | undefined>
+  ): Promise<{ success: boolean; message: string; member: Member }> {
+    return apiFetch<{ success: boolean; message: string; member: Member }>(`/admin/members/${id}`, {
+      method: "PUT",
+      body,
+    })
+  }
+
   // Get member documents
   static async getMemberDocuments(memberId: string, params?: {
     type?: string

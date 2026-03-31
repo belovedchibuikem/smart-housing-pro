@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ChevronLeft, ChevronRight, Eye, EyeOff } from "lucide-react"
-import { registerRequest, setAuthToken } from "@/lib/api/client"
+import { meRequest, registerRequest, setAuthToken } from "@/lib/api/client"
 import { OtpVerificationDialog } from "@/components/auth/otp-verification-dialog"
 import { Recaptcha, RecaptchaRef } from "@/components/auth/recaptcha"
 

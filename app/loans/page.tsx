@@ -118,7 +118,7 @@ export default function LoansPage() {
 
 				{error ? (
 					<Card className="border-red-200 bg-red-50 p-6 text-sm text-red-600">
-						Unable to load loan products. Please log in to view tenant-specific products.
+						Unable to load loan products. Please log in to view cooperative-specific products.
 					</Card>
 				) : null}
 

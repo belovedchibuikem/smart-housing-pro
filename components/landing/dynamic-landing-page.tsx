@@ -309,10 +309,10 @@ export function DynamicLandingPage({ isTenantPage = true }: DynamicLandingPagePr
 
   return (
     <div className="min-h-screen bg-background relative">
-      {/* Tenant Page Indicator Badge */}
+      {/* Cooperative portal indicator */}
       {isTenantPage && (
         <div className="absolute top-4 right-4 z-50 bg-primary/90 text-primary-foreground px-3 py-1 rounded-full text-xs font-medium shadow-lg backdrop-blur-sm">
-          Tenant Portal
+          Cooperative Portal
         </div>
       )}
       <LandingHeader isTenantPage={isTenantPage} />
@@ -1086,7 +1086,7 @@ function Footer({ isTenantPage = true }: { isTenantPage?: boolean }) {
               <Building2 className="h-6 w-6 text-primary" />
               <span className="font-bold">{settings?.company_name || "FRSC HMS"}</span>
               {isTenantPage && (
-                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">Tenant</span>
+                <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">Cooperative</span>
               )}
             </div>
             <p className="text-sm text-muted-foreground">
@@ -1165,9 +1165,9 @@ function Footer({ isTenantPage = true }: { isTenantPage?: boolean }) {
 function DefaultLandingPage() {
   return (
     <div className="min-h-screen bg-background relative">
-      {/* Tenant Page Indicator Badge */}
+      {/* Cooperative portal indicator */}
       <div className="absolute top-4 right-4 z-50 bg-primary/90 text-primary-foreground px-3 py-1 rounded-full text-xs font-medium shadow-lg backdrop-blur-sm">
-        Tenant Portal
+        Cooperative Portal
       </div>
       <LandingHeader isTenantPage={true} />
       <HeroSection

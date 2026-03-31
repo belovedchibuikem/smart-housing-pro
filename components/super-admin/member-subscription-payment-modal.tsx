@@ -107,7 +107,7 @@ export function MemberSubscriptionPaymentModal({ memberSubscriptions, onPaymentI
           {selectedMemberSubscription && (
             <Card className="p-4">
               <div className="space-y-2">
-                <p><span className="font-medium">Tenant:</span> {selectedMemberSubscription.tenant_name}</p>
+                <p><span className="font-medium">Cooperative:</span> {selectedMemberSubscription.tenant_name}</p>
                 <p><span className="font-medium">Member:</span> {selectedMemberSubscription.member_name}</p>
                 <p><span className="font-medium">Package:</span> {selectedMemberSubscription.package_name}</p>
                 <p><span className="font-medium">Amount:</span> ₦{selectedMemberSubscription.amount.toLocaleString()}</p>

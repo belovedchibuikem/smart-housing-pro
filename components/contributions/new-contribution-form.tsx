@@ -500,7 +500,7 @@ export function NewContributionForm() {
       <Alert variant="warning">
         <AlertTitle>No payment methods configured</AlertTitle>
         <AlertDescription>
-          Payment methods have not been configured for your tenant. Please contact your administrator.
+          Payment methods have not been configured for your cooperative. Please contact your administrator.
         </AlertDescription>
       </Alert>
     )

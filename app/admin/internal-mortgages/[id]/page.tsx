@@ -24,7 +24,7 @@ import {
 	type RepayInternalMortgagePayload,
 	type NextPaymentDetails,
 } from "@/lib/api/client"
-import { ArrowLeft, MapPin, Calendar, User, TrendingUp, Info, DollarSign, Loader2, CheckCircle2, AlertTriangle } from "lucide-react"
+import { ArrowLeft, MapPin, Calendar, User, TrendingUp, Info, DollarSign, Loader2, CheckCircle2, AlertTriangle, Pencil } from "lucide-react"
 
 const formatCurrency = (amount?: number | null) => {
 	const value = Number.isFinite(amount) ? Number(amount) : 0
@@ -575,7 +575,10 @@ export default function InternalMortgagePlanDetailPage() {
 							Back
 						</Button>
 						<Button variant="secondary" asChild>
-							<Link href={`/admin/internal-mortgages/${plan.id}/edit`}>Edit Plan</Link>
+							<Link href={`/admin/internal-mortgages/${params?.id}/edit`}>
+								<Pencil className="h-4 w-4 mr-2" />
+								Edit Plan
+							</Link>
 						</Button>
 					</div>
 				</CardContent>

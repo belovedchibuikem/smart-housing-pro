@@ -266,6 +266,12 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
           <p className="text-muted-foreground">{member.member_number}</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" asChild>
+            <Link href={`/admin/members/${id}/edit`}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit
+            </Link>
+          </Button>
           <Badge
             variant={
               member.kyc_status === "verified" ? "default" : 
@@ -280,12 +286,6 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
           <Button variant="outline" size="sm" onClick={loadMemberData}>
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
-          </Button>
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/admin/members/${member.id}/edit`}>
-              <Pencil className="h-4 w-4 mr-2" />
-              Edit
-            </Link>
           </Button>
         </div>
       </div>

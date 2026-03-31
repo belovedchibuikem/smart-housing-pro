@@ -238,7 +238,7 @@ export default function OnboardingPage() {
         } else {
           // Manual payment - show success message with instructions
           alert(
-            `Tenant created successfully!\n\n` +
+            `Cooperative created successfully!\n\n` +
             `Payment Reference: ${response.payment_reference}\n` +
             `Amount: ₦${response.amount?.toLocaleString()}\n\n` +
             `Please complete payment and wait for admin approval.`
@@ -247,10 +247,10 @@ export default function OnboardingPage() {
           window.location.href = "/saas?onboarding=success"
         }
       } else {
-        throw new Error(response.message || "Failed to create tenant")
+        throw new Error(response.message || "Failed to create cooperative")
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to create tenant. Please try again."
+      const message = err instanceof Error ? err.message : "Failed to create cooperative. Please try again."
       setError(message)
       console.error("Onboarding error:", err)
     } finally {

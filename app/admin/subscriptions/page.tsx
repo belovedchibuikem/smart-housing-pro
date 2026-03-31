@@ -90,8 +90,8 @@ export default function AdminSubscriptionsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Tenant Subscription</h1>
-          <p className="text-muted-foreground">Manage your tenant subscription and view history</p>
+          <h1 className="text-3xl font-bold">Cooperative Subscription</h1>
+          <p className="text-muted-foreground">Manage your cooperative subscription and view history</p>
         </div>
         <Link href="/admin/subscription">
           <Button>

@@ -114,7 +114,7 @@ export default function AdminMembersPage() {
 			<div className="flex items-center justify-between">
 				<div>
 					<h1 className="text-3xl font-bold text-foreground">Members</h1>
-					<p className="text-muted-foreground mt-1">Manage tenant members and their information</p>
+					<p className="text-muted-foreground mt-1">Manage cooperative members and their information</p>
 				</div>
 				<div className="flex gap-2">
 					<Button variant="outline" onClick={() => window.location.href = '/admin/bulk-upload/members'}>

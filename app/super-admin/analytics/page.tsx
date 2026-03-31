@@ -60,9 +60,9 @@ export default function SuperAdminAnalyticsPage() {
       icon: DollarSign,
     },
     {
-      title: "Active Businesses",
+      title: "Active Cooperatives",
       value: (stats?.active_tenants || 0).toString(),
-      change: `${stats?.new_tenants_this_month || 0} new this month`,
+      change: `${stats?.new_tenants_this_month || 0} new cooperatives this month`,
       trend: "up",
       icon: Building2,
     },
