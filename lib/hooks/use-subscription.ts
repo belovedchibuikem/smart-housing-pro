@@ -29,10 +29,14 @@ export function useTenantSubscription() {
       
       if (response.subscription) {
         const subscription = response.subscription
-        // Check if subscription is active based on status and end date
-        const isActive = subscription.is_active !== false && 
-          subscription.status === "active" && 
-          new Date(subscription.ends_at) > new Date()
+        const isLifetime =
+          subscription.is_lifetime === true ||
+          subscription.billing_cycle === "lifetime" ||
+          subscription.billing_cycle === "forever" ||
+          !subscription.ends_at
+        const endsOk = isLifetime || (subscription.ends_at && new Date(subscription.ends_at) > new Date())
+        const isActive =
+          subscription.is_active !== false && subscription.status === "active" && endsOk
         
         setStatus({
           hasActiveSubscription: isActive,

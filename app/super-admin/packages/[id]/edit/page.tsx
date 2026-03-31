@@ -69,7 +69,11 @@ export default function EditPackagePage({ params }: { params: Promise<{ id: stri
 				slug: pkg.slug,
 				description: pkg.description ?? "",
 				price: String(pkg.price),
-				billing_cycle: pkg.billing_cycle === "yearly" ? "yearly" : pkg.billing_cycle,
+				billing_cycle: ["weekly", "monthly", "quarterly", "yearly", "lifetime", "forever"].includes(
+					pkg.billing_cycle,
+				)
+					? pkg.billing_cycle
+					: "monthly",
 				trial_days: String(pkg.trial_days),
 				is_active: !!pkg.is_active,
 				is_featured: !!pkg.is_featured,
@@ -219,9 +223,12 @@ export default function EditPackagePage({ params }: { params: Promise<{ id: stri
 										value={formData.billing_cycle}
 										onChange={(e) => setFormData({ ...formData, billing_cycle: e.target.value })}
 									>
+										<option value="weekly">Weekly</option>
 										<option value="monthly">Monthly</option>
 										<option value="quarterly">Quarterly</option>
 										<option value="yearly">Yearly</option>
+										<option value="lifetime">Lifetime</option>
+										<option value="forever">Forever</option>
 									</select>
 								</div>
 								<div className="space-y-2">
@@ -292,7 +299,8 @@ export default function EditPackagePage({ params }: { params: Promise<{ id: stri
 										...prev,
 										limits: { ...prev.limits, has_role_management: checked },
 									}))
-								}
+								}
+
 							/>
 						</div>
 					</Card>

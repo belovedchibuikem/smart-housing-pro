@@ -159,8 +159,12 @@ export default function NewPackagePage() {
                     value={formData.billing_cycle}
                     onChange={(e) => setFormData({ ...formData, billing_cycle: e.target.value })}
                   >
+                    <option value="weekly">Weekly</option>
                     <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly</option>
                     <option value="yearly">Yearly</option>
+                    <option value="lifetime">Lifetime</option>
+                    <option value="forever">Forever</option>
                   </select>
                 </div>
                 <div className="space-y-2">
