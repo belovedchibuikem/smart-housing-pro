@@ -60,6 +60,75 @@ export function setTenantSlug(slug: string | null) {
 	}
 }
 
+/** Remove URLs and internal path fragments — never show these in toasts/UI. */
+function sanitizeUserFacingMessage(raw: string): string {
+	if (!raw || typeof raw !== "string") return ""
+	let m = raw.trim()
+	m = m.replace(/https?:\/\/[^\s"'<>]+/gi, "")
+	m = m.replace(/\b\/\/[^\s"'<>]+/g, "")
+	m = m.replace(/\b\/api\/[^\s)>'"]+/gi, "")
+	m = m.replace(/\s{2,}/g, " ").replace(/^[,:\s\-]+|[,:\s\-]+$/g, "").trim()
+	return m
+}
+
+function looksLikeTechnicalServerMessage(msg: string): boolean {
+	return /SQLSTATE|PDO|stack trace|vendor\\|Illuminate\\|Connection refused|syntax error|errno/i.test(msg)
+}
+
+function defaultMessageForStatus(status: number): string {
+	if (status === 401) return "Please sign in again to continue."
+	if (status === 403) return "You don’t have permission to perform this action."
+	if (status === 404) return "The requested resource was not found."
+	if (status === 422) return "Please check your input and try again."
+	if (status === 429) return "Too many requests. Please wait a moment and try again."
+	if (status >= 500) return "Something went wrong on our end. Please try again later."
+	return "Something went wrong. Please try again."
+}
+
+function extractUserFacingApiError(data: unknown, status: number): string {
+	if (data && typeof data === "object") {
+		const d = data as Record<string, unknown>
+		if (typeof d.message === "string" && d.message.trim()) {
+			const cleaned = sanitizeUserFacingMessage(d.message)
+			if (cleaned && !looksLikeTechnicalServerMessage(cleaned)) return cleaned
+		}
+		if (d.errors && typeof d.errors === "object" && !Array.isArray(d.errors)) {
+			const errs = d.errors as Record<string, unknown>
+			for (const key of Object.keys(errs)) {
+				const v = errs[key]
+				const first = Array.isArray(v) ? v[0] : v
+				if (typeof first === "string" && first.trim()) {
+					const cleaned = sanitizeUserFacingMessage(first)
+					if (cleaned) return cleaned
+				}
+			}
+		}
+		if (typeof d.error === "string" && d.error.trim()) {
+			const cleaned = sanitizeUserFacingMessage(d.error)
+			if (cleaned && !looksLikeTechnicalServerMessage(cleaned)) return cleaned
+		}
+	}
+	return defaultMessageForStatus(status)
+}
+
+function friendlyNetworkFailureMessage(original: string): string {
+	const m = (original || "").toLowerCase()
+	if (m.includes("failed to fetch") || m.includes("networkerror") || m.includes("load failed")) {
+		return "Unable to reach the server. Check your connection and try again."
+	}
+	if (m.includes("aborted")) return "The request was cancelled."
+	return "Unable to connect. Please try again."
+}
+
+/** Final pass before showing in UI: never leak URLs. */
+function finalizeUserErrorMessage(message: string, statusFallback: number): string {
+	let m = sanitizeUserFacingMessage(message)
+	if (!m) return defaultMessageForStatus(statusFallback)
+	if (/https?:\/\//i.test(m) || /\b\/api\b/i.test(m)) return defaultMessageForStatus(statusFallback >= 400 ? statusFallback : 503)
+	if (looksLikeTechnicalServerMessage(m)) return defaultMessageForStatus(statusFallback >= 500 ? statusFallback : 500)
+	return m
+}
+
 export async function apiFetch<T = unknown>(
 	path: string,
 	options: {
@@ -117,15 +186,12 @@ export async function apiFetch<T = unknown>(
 						? (isFormData ? (options.body as BodyInit) : (JSON.stringify(options.body) as BodyInit))
 						: undefined,
 			}).catch((fetchError) => {
-				// Handle network errors specifically
-				console.error('Fetch Network Error:', {
+				console.error("Fetch Network Error:", {
 					url,
-					errorName: fetchError?.name,
-					errorMessage: fetchError?.message,
-					errorType: typeof fetchError,
-					errorConstructor: fetchError?.constructor?.name,
+					errorName: (fetchError as Error)?.name,
+					errorMessage: (fetchError as Error)?.message,
 				})
-				throw new Error(`Network error: ${fetchError?.message || 'Failed to connect to server'}`)
+				throw new Error(friendlyNetworkFailureMessage((fetchError as Error)?.message || ""))
 			})
 
 			console.log('API Fetch Response:', {
@@ -153,66 +219,28 @@ export async function apiFetch<T = unknown>(
 			}
 
 			if (!response.ok) {
-				const message = (data as any)?.message || (data as any)?.error || `Request failed with ${response.status}`
-				
-				// Log detailed error for debugging
-				console.error('API Fetch HTTP Error:', {
+				console.error("API Fetch HTTP Error:", {
 					url,
 					method: options.method || "GET",
 					status: response.status,
-					statusText: response.statusText,
-					contentType: response.headers.get("content-type"),
 					data: data || "No response data",
-					timestamp: new Date().toISOString()
 				})
-				
-				throw new Error(message)
+
+				throw new Error(extractUserFacingApiError(data, response.status))
 			}
 
 			return (data || {}) as T
-		} catch (error: any) {
-			// Enhanced error logging for debugging
-			const errorDetails: any = {
+		} catch (error: unknown) {
+			console.error("API Fetch Error (details in console only):", {
 				url,
 				method: options.method || "GET",
-				timestamp: new Date().toISOString(),
-			}
+				error: error instanceof Error ? error.message : String(error),
+			})
 
-			// Safely extract error information
-			if (error) {
-				if (error instanceof Error) {
-					errorDetails.errorType = 'Error'
-					errorDetails.errorName = error.name || 'Unknown'
-					errorDetails.errorMessage = error.message || 'No message'
-					if (error.stack) {
-						errorDetails.errorStack = error.stack.split('\n').slice(0, 5).join('\n') // Limit stack trace
-					}
-				} else if (typeof error === 'object') {
-					errorDetails.errorType = 'Object'
-					try {
-						errorDetails.errorKeys = Object.keys(error)
-						errorDetails.errorString = String(error)
-						// Try to get common error properties
-						if ('message' in error) errorDetails.errorMessage = String(error.message)
-						if ('name' in error) errorDetails.errorName = String(error.name)
-					} catch (e) {
-						errorDetails.errorExtractionFailed = true
-					}
-				} else {
-					errorDetails.errorType = typeof error
-					errorDetails.errorValue = String(error)
-				}
-			} else {
-				errorDetails.errorIsNull = true
-			}
-
-			console.error('API Fetch Error Details:', errorDetails)
-			
-			// Re-throw the error with more context
 			if (error instanceof Error) {
-				throw new Error(`Failed to fetch ${url}: ${error.message}`)
+				throw new Error(finalizeUserErrorMessage(error.message, 503))
 			}
-			throw new Error(`Failed to fetch ${url}: Network error - ${String(error)}`)
+			throw new Error(defaultMessageForStatus(500))
 		}
 }
 
