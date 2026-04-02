@@ -364,12 +364,12 @@ export default function BulkUploadMembersPage() {
 						<h3 className="font-medium">1. Mandatory file (new members)</h3>
 						<p className="text-sm text-muted-foreground">
 							Columns only: <strong>First Name</strong>, <strong>Last Name</strong>, <strong>Email</strong>
-							, <strong>Phone</strong>. Cooperative <strong>Member ID</strong> (e.g. FSH0001) is assigned
-							automatically using your{" "}
+							, <strong>Phone</strong>. Cooperative <strong>Member ID</strong> (e.g. ABC0001 from your business
+							name initials) is assigned automatically, or uses the optional{" "}
 							<a className="underline" href="/admin/settings">
 								Member ID prefix
 							</a>{" "}
-							in settings (default FSH).
+							in settings if you set one.
 						</p>
 						<div className="flex flex-wrap gap-2">
 							<Button type="button" variant="outline" onClick={() => downloadTemplate("mandatory")}>

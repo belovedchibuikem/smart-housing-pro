@@ -22,7 +22,7 @@ interface Settings {
   default_currency?: string
   timezone?: string
   maintenance_mode?: boolean
-  /** Prefix for new cooperative member IDs (e.g. FSH → FSH0001) */
+  /** Optional override; when empty, prefix is derived from cooperative business name initials */
   member_id_prefix?: string
   
   // Email
@@ -255,16 +255,16 @@ export default function AdminSettingsPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="member_id_prefix">Member ID prefix</Label>
+                <Label htmlFor="member_id_prefix">Member ID prefix (optional)</Label>
                 <Input
                   id="member_id_prefix"
                   value={settings.member_id_prefix || ""}
                   onChange={(e) => updateSetting("member_id_prefix", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
-                  placeholder="FSH"
+                  placeholder="Auto from business name"
                   maxLength={12}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Letters and numbers only. New members receive IDs like FSH0001. Default is FSH if left empty when first generated on the server.
+                  Letters and numbers only. Leave empty to use initials from your cooperative business name (e.g. “Federal Smart Housing” → FSH0001). Set a value here only if you want a fixed prefix instead.
                 </p>
               </div>
 
