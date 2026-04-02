@@ -8,8 +8,9 @@ export async function GET(request: NextRequest) {
     const authHeader = request.headers.get('Authorization') || ''
     const host = request.headers.get('host') || ''
     const tenantSlug = request.headers.get('X-Tenant-Slug') || ''
-    
-    const res = await fetch(`${laravelApiUrl}/admin/bulk/members/template`, {
+    const type = request.nextUrl.searchParams.get('type') === 'optional_details' ? 'optional_details' : 'mandatory'
+
+    const res = await fetch(`${laravelApiUrl}/admin/bulk/members/template?type=${encodeURIComponent(type)}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',

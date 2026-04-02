@@ -22,6 +22,7 @@ function emptyForm() {
 		phone: "",
 		staff_id: "",
 		ippis_number: "",
+		frsc_pin: "",
 		date_of_birth: "",
 		gender: "",
 		marital_status: "",
@@ -49,6 +50,7 @@ function memberToForm(m: Member) {
 		phone: m.phone ?? u?.phone ?? "",
 		staff_id: m.staff_id ?? "",
 		ippis_number: m.ippis_number ?? "",
+		frsc_pin: m.frsc_pin ?? "",
 		date_of_birth: m.date_of_birth ? String(m.date_of_birth).slice(0, 10) : "",
 		gender: m.gender ?? "",
 		marital_status: m.marital_status ?? "",
@@ -73,6 +75,7 @@ export default function EditMemberPage({ params }: { params: Promise<{ id: strin
 	const [loading, setLoading] = useState(true)
 	const [saving, setSaving] = useState(false)
 	const [form, setForm] = useState(emptyForm)
+	const [memberNumber, setMemberNumber] = useState("")
 
 	useEffect(() => {
 		let cancelled = false
@@ -80,7 +83,10 @@ export default function EditMemberPage({ params }: { params: Promise<{ id: strin
 			try {
 				setLoading(true)
 				const { member } = await MemberService.getMember(id)
-				if (!cancelled && member) setForm(memberToForm(member))
+				if (!cancelled && member) {
+					setForm(memberToForm(member))
+					setMemberNumber(member.member_number ?? "")
+				}
 			} catch (e: unknown) {
 				const msg = e instanceof Error ? e.message : "Error"
 				if (!cancelled) {
@@ -107,6 +113,7 @@ export default function EditMemberPage({ params }: { params: Promise<{ id: strin
 				phone: form.phone || null,
 				staff_id: form.staff_id || null,
 				ippis_number: form.ippis_number || null,
+				frsc_pin: form.frsc_pin || null,
 				date_of_birth: form.date_of_birth || null,
 				gender: form.gender || null,
 				marital_status: form.marital_status || null,
@@ -173,6 +180,18 @@ export default function EditMemberPage({ params }: { params: Promise<{ id: strin
 			<form onSubmit={handleSubmit} className="space-y-6">
 				<Card>
 					<CardHeader>
+						<CardTitle>Member ID</CardTitle>
+						<CardDescription>Cooperative housing member identifier (assigned by the system)</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<div className="space-y-2">
+							<Label>Member ID</Label>
+							<Input value={memberNumber} readOnly className="font-mono bg-muted/50" />
+						</div>
+					</CardContent>
+				</Card>
+				<Card>
+					<CardHeader>
 						<CardTitle>Contact</CardTitle>
 						<CardDescription>User profile fields</CardDescription>
 					</CardHeader>
@@ -188,8 +207,27 @@ export default function EditMemberPage({ params }: { params: Promise<{ id: strin
 						<CardTitle>Employment</CardTitle>
 					</CardHeader>
 					<CardContent className="grid sm:grid-cols-2 gap-4">
-						{field("staff_id", "Staff ID")}
-						{field("ippis_number", "IPPIS number")}
+						<div className="space-y-2 sm:col-span-2">
+							<Label htmlFor="ippis_number">IPPIS number</Label>
+							<Input
+								id="ippis_number"
+								value={form.ippis_number}
+								onChange={(e) => setForm((f) => ({ ...f, ippis_number: e.target.value }))}
+								placeholder="Civil servants (federal/state)"
+							/>
+							<p className="text-xs text-muted-foreground">For all civil servants using IPPIS.</p>
+						</div>
+						<div className="space-y-2 sm:col-span-2">
+							<Label htmlFor="frsc_pin">FRSC PIN</Label>
+							<Input
+								id="frsc_pin"
+								value={form.frsc_pin}
+								onChange={(e) => setForm((f) => ({ ...f, frsc_pin: e.target.value }))}
+								placeholder="FRSC staff only"
+							/>
+							<p className="text-xs text-muted-foreground">Strictly for FRSC personnel.</p>
+						</div>
+						{field("staff_id", "Legacy reference ID (optional)")}
 						<div className="space-y-2">
 							<Label>Gender</Label>
 							<Select

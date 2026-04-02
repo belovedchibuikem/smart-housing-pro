@@ -341,7 +341,7 @@ useEffect(() => {
 				...prev,
 				applicantName: name,
 				rank: member?.rank ?? "",
-				pin: member?.member_number ?? member?.staff_id ?? "",
+				pin: member?.frsc_pin ?? member?.member_number ?? "",
 				ippis: member?.ippis_number ?? "",
 				command: member?.command_state ?? member?.department ?? "",
 				phone: user.phone ?? "",

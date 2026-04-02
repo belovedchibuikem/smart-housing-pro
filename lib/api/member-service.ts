@@ -7,6 +7,7 @@ export interface Member {
   member_number: string
   staff_id?: string
   ippis_number?: string
+  frsc_pin?: string
   date_of_birth?: string
   gender?: string
   marital_status?: string

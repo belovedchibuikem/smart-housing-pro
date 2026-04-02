@@ -22,6 +22,8 @@ interface Settings {
   default_currency?: string
   timezone?: string
   maintenance_mode?: boolean
+  /** Prefix for new cooperative member IDs (e.g. FSH → FSH0001) */
+  member_id_prefix?: string
   
   // Email
   smtp_host?: string
@@ -250,6 +252,20 @@ export default function AdminSettingsPage() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="member_id_prefix">Member ID prefix</Label>
+                <Input
+                  id="member_id_prefix"
+                  value={settings.member_id_prefix || ""}
+                  onChange={(e) => updateSetting("member_id_prefix", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                  placeholder="FSH"
+                  maxLength={12}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Letters and numbers only. New members receive IDs like FSH0001. Default is FSH if left empty when first generated on the server.
+                </p>
               </div>
 
               <div className="flex items-center justify-between">

@@ -429,16 +429,22 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
             </CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-6">
               <div>
-                <label className="text-sm text-muted-foreground">Member Number</label>
+                <label className="text-sm text-muted-foreground">Member ID (cooperative)</label>
                 <p className="font-medium font-mono">{member.member_number}</p>
               </div>
               <div>
-                <label className="text-sm text-muted-foreground">Staff ID</label>
-                <p className="font-medium">{member.staff_id || 'Not provided'}</p>
+                <label className="text-sm text-muted-foreground">IPPIS number</label>
+                <p className="font-medium">{member.ippis_number || 'Not provided'}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Civil servants (IPPIS)</p>
               </div>
               <div>
-                <label className="text-sm text-muted-foreground">IPPIS Number</label>
-                <p className="font-medium">{member.ippis_number || 'Not provided'}</p>
+                <label className="text-sm text-muted-foreground">FRSC PIN</label>
+                <p className="font-medium">{member.frsc_pin || 'Not provided'}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">FRSC staff only</p>
+              </div>
+              <div>
+                <label className="text-sm text-muted-foreground">Legacy reference ID</label>
+                <p className="font-medium">{member.staff_id || 'Not provided'}</p>
               </div>
               <div>
                 <label className="text-sm text-muted-foreground">Rank</label>
