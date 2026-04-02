@@ -20,6 +20,13 @@ interface FieldConfig {
 	additional_details_headers: string[]
 }
 
+interface BulkErrorRow {
+	line: number | null
+	name?: string
+	message: string
+	code?: string
+}
+
 function normHeaderKey(k: string): string {
 	return k
 		.toLowerCase()
@@ -354,7 +361,7 @@ export default function BulkUploadMembersPage() {
 
 				if (errorType === "file_validation") {
 					errorTitle = "File validation failed"
-					errorDescription = "Check file format and size (max 5MB on server)."
+					errorDescription = "Check file format and size (max 10MB on server)."
 				} else if (errorType === "parsing_error") {
 					errorTitle = "Could not read file"
 				} else if (errorType === "data_validation") {
@@ -370,9 +377,29 @@ export default function BulkUploadMembersPage() {
 						"Columns must match the downloaded templates for your cooperative (see Bulk member fields in settings)."
 				}
 
-				if (errorMessages.length > 0) setErrors(errorMessages)
-				else if (result.message) setErrors([result.message])
-				else setErrors([errorDescription])
+				const dataObj =
+					result.data && typeof result.data === "object"
+						? (result.data as Record<string, unknown>)
+						: null
+				const rawErrorRows: BulkErrorRow[] = [
+					...(Array.isArray(result.error_rows) ? (result.error_rows as BulkErrorRow[]) : []),
+					...(Array.isArray(dataObj?.error_rows) ? (dataObj.error_rows as BulkErrorRow[]) : []),
+				]
+				const structured = rawErrorRows
+					.filter((r) => r.line != null && r.message)
+					.map(
+						(r) =>
+							`Line ${r.line}${r.name ? ` (${r.name})` : ""}: ${r.message}${r.code ? ` [${r.code}]` : ""}`,
+					)
+				const merged =
+					errorMessages.length > 0
+						? errorMessages
+						: structured.length > 0
+							? structured
+							: result.message
+								? [String(result.message)]
+								: [errorDescription]
+				setErrors(merged)
 
 				toast({
 					title: errorTitle,
@@ -636,10 +663,10 @@ export default function BulkUploadMembersPage() {
 								<h4 className="font-medium text-red-600 mb-2">
 									Errors ({uploadResult.errors.length})
 								</h4>
-								<div className="max-h-64 overflow-y-auto bg-red-50 p-3 rounded-lg">
+								<div className="max-h-72 overflow-y-auto bg-red-50 p-3 rounded-lg">
 									<ul className="list-disc list-inside space-y-1">
-										{(uploadResult.errors as string[]).slice(0, 50).map((err, index) => (
-											<li key={index} className="text-sm text-red-700">
+										{(uploadResult.errors as string[]).map((err, index) => (
+											<li key={index} className="text-sm text-red-700 break-words">
 												{err}
 											</li>
 										))}
@@ -647,6 +674,43 @@ export default function BulkUploadMembersPage() {
 								</div>
 							</div>
 						)}
+
+						{Array.isArray(uploadResult.error_rows) &&
+							(uploadResult.error_rows as BulkErrorRow[]).length > 0 && (
+								<div className="border-t pt-4">
+									<h4 className="font-medium text-red-600 mb-2">Error detail by row</h4>
+									<div className="max-h-80 overflow-auto border rounded-md">
+										<Table>
+											<TableHeader>
+												<TableRow>
+													<TableHead className="w-20">Line</TableHead>
+													<TableHead>Name</TableHead>
+													<TableHead>Issue</TableHead>
+													<TableHead className="w-36">Type</TableHead>
+												</TableRow>
+											</TableHeader>
+											<TableBody>
+												{(uploadResult.error_rows as BulkErrorRow[]).map((r, index) => (
+													<TableRow key={index}>
+														<TableCell className="font-mono">
+															{r.line != null ? r.line : "—"}
+														</TableCell>
+														<TableCell className="max-w-[140px] truncate" title={r.name}>
+															{r.name || "—"}
+														</TableCell>
+														<TableCell className="text-sm text-red-800 max-w-md break-words">
+															{r.message}
+														</TableCell>
+														<TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+															{r.code || "—"}
+														</TableCell>
+													</TableRow>
+												))}
+											</TableBody>
+										</Table>
+									</div>
+								</div>
+							)}
 
 						<div className="flex justify-end">
 							<Button
