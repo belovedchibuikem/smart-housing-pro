@@ -35,7 +35,14 @@ function sampleRow(headers: string[]): Record<string, string> {
 	return row
 }
 
-const FALLBACK_MANDATORY = ["First Name", "Last Name", "Email", "Phone"]
+const FALLBACK_MANDATORY = [
+	"First Name",
+	"Last Name",
+	"Email",
+	"Phone",
+	"IPPIS Number",
+	"FRSC PIN",
+]
 const FALLBACK_OPTIONAL = [
 	"Email",
 	"Phone",

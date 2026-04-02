@@ -72,6 +72,8 @@ function detectKind(
 		"Last Name",
 		"Email",
 		"Phone",
+		"IPPIS Number",
+		"FRSC PIN",
 	])
 	if (sortedCanonicalFromHeaders(fileHeaderKeys) === fallbackMandatoryExpected) {
 		return "mandatory"
