@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,25 +13,12 @@ import { parseFile } from "@/lib/utils/file-parser"
 
 type PreviewKind = "mandatory" | "optional_details"
 
-interface MandatoryPreviewRow {
-	kind: "mandatory"
-	firstName: string
-	lastName: string
-	email: string
-	phone: string
+interface FieldConfig {
+	success?: boolean
+	mandatory_file_headers: string[]
+	required_new_member_file_headers: string[]
+	additional_details_headers: string[]
 }
-
-interface OptionalPreviewRow {
-	kind: "optional_details"
-	email: string
-	ippis: string
-	pin: string
-	phone: string
-	rank: string
-	department: string
-}
-
-type PreviewRow = MandatoryPreviewRow | OptionalPreviewRow
 
 function normHeaderKey(k: string): string {
 	return k
@@ -40,23 +27,67 @@ function normHeaderKey(k: string): string {
 		.replace(/_/g, " ")
 }
 
-function rowKeysNormalized(row: Record<string, unknown>): Set<string> {
-	return new Set(Object.keys(row).map(normHeaderKey))
+function sortedCanonicalFromHeaders(headers: string[]): string {
+	return [...new Set(headers.map(normHeaderKey).filter(Boolean))].sort().join("|")
 }
 
-function cell(row: Record<string, unknown>, ...keys: string[]): string {
-	for (const k of keys) {
-		if (k in row && row[k] != null && String(row[k]).trim() !== "") {
-			return String(row[k]).trim()
+function getCellByHeader(row: Record<string, unknown>, header: string): string {
+	const target = normHeaderKey(header)
+	for (const k of Object.keys(row)) {
+		if (normHeaderKey(k) === target) {
+			const v = row[k]
+			if (v != null && String(v).trim() !== "") return String(v).trim()
 		}
 	}
 	return ""
 }
 
+function detectKind(
+	fileHeaderKeys: string[],
+	config: FieldConfig | null,
+): PreviewKind | null {
+	const keysNorm = new Set(fileHeaderKeys.map(normHeaderKey).filter(Boolean))
+
+	if (config?.mandatory_file_headers?.length && config?.additional_details_headers?.length) {
+		const expM = sortedCanonicalFromHeaders(config.mandatory_file_headers)
+		const got = sortedCanonicalFromHeaders(fileHeaderKeys)
+		if (expM === got) {
+			return "mandatory"
+		}
+		if (!keysNorm.has(normHeaderKey("Email")) || keysNorm.has(normHeaderKey("First Name"))) {
+			return null
+		}
+		const allowed = new Set(config.additional_details_headers.map(normHeaderKey))
+		for (const k of keysNorm) {
+			if (!allowed.has(k)) {
+				return null
+			}
+		}
+		return "optional_details"
+	}
+
+	// Fallback (before config loads): match default new-members template (no extra mandatory profile columns)
+	const fallbackMandatoryExpected = sortedCanonicalFromHeaders([
+		"First Name",
+		"Last Name",
+		"Email",
+		"Phone",
+	])
+	if (sortedCanonicalFromHeaders(fileHeaderKeys) === fallbackMandatoryExpected) {
+		return "mandatory"
+	}
+	if (keysNorm.has("email") && !keysNorm.has("first name")) {
+		return "optional_details"
+	}
+	return null
+}
+
 export default function BulkUploadMembersPage() {
 	const [file, setFile] = useState<File | null>(null)
+	const [fieldConfig, setFieldConfig] = useState<FieldConfig | null>(null)
 	const [previewKind, setPreviewKind] = useState<PreviewKind | null>(null)
-	const [previewData, setPreviewData] = useState<PreviewRow[]>([])
+	const [previewColumns, setPreviewColumns] = useState<string[]>([])
+	const [previewRows, setPreviewRows] = useState<Record<string, string>[]>([])
 	const [uploading, setUploading] = useState(false)
 	const [uploadComplete, setUploadComplete] = useState(false)
 	const [errors, setErrors] = useState<string[]>([])
@@ -64,16 +95,75 @@ export default function BulkUploadMembersPage() {
 	const [parsing, setParsing] = useState(false)
 	const { toast } = useToast()
 
+	useEffect(() => {
+		let cancelled = false
+		;(async () => {
+			try {
+				const token = localStorage.getItem("auth_token") || localStorage.getItem("token")
+				const tenantSlug = localStorage.getItem("tenant_slug")
+				const res = await fetch("/api/bulk/members/field-config", {
+					headers: {
+						Authorization: `Bearer ${token}`,
+						...(tenantSlug && { "X-Tenant-Slug": tenantSlug }),
+					},
+				})
+				const data = await res.json()
+				if (!cancelled && data?.success && data.mandatory_file_headers && data.additional_details_headers) {
+					setFieldConfig({
+						mandatory_file_headers: data.mandatory_file_headers,
+						required_new_member_file_headers: Array.isArray(data.required_new_member_file_headers)
+							? data.required_new_member_file_headers
+							: ["First Name", "Last Name"],
+						additional_details_headers: data.additional_details_headers,
+					})
+				}
+			} catch {
+				// templates still work with API defaults on download
+			}
+		})()
+		return () => {
+			cancelled = true
+		}
+	}, [])
+
 	const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const selectedFile = e.target.files?.[0]
 		if (!selectedFile) return
 		setFile(selectedFile)
 		setParsing(true)
 		setErrors([])
-		setPreviewData([])
+		setPreviewRows([])
+		setPreviewColumns([])
 		setPreviewKind(null)
 
 		try {
+			let cfg = fieldConfig
+			if (!cfg?.mandatory_file_headers?.length) {
+				try {
+					const token = localStorage.getItem("auth_token") || localStorage.getItem("token")
+					const tenantSlug = localStorage.getItem("tenant_slug")
+					const res = await fetch("/api/bulk/members/field-config", {
+						headers: {
+							Authorization: `Bearer ${token}`,
+							...(tenantSlug && { "X-Tenant-Slug": tenantSlug }),
+						},
+					})
+					const data = await res.json()
+					if (data?.success && data.mandatory_file_headers && data.additional_details_headers) {
+						cfg = {
+							mandatory_file_headers: data.mandatory_file_headers,
+							required_new_member_file_headers: Array.isArray(data.required_new_member_file_headers)
+								? data.required_new_member_file_headers
+								: ["First Name", "Last Name"],
+							additional_details_headers: data.additional_details_headers,
+						}
+						setFieldConfig(cfg)
+					}
+				} catch {
+					// detectKind fallback
+				}
+			}
+
 			const result = await parseFile(selectedFile)
 			const rows = result.data as Record<string, unknown>[]
 			if (!rows.length) {
@@ -81,54 +171,52 @@ export default function BulkUploadMembersPage() {
 				return
 			}
 
-			const keys = rowKeysNormalized(rows[0])
-			const isMandatory =
-				keys.has("first name") &&
-				keys.has("last name") &&
-				keys.has("email") &&
-				keys.has("phone") &&
-				keys.size === 4
-			const isOptional = keys.has("email") && !keys.has("first name")
-
+			const fileKeys = Object.keys(rows[0] || {})
+			const kind = detectKind(fileKeys, cfg)
 			const validationErrors: string[] = [...result.errors]
 
-			if (isMandatory) {
-				const mapped: MandatoryPreviewRow[] = rows.map((row) => ({
-					kind: "mandatory",
-					firstName: cell(row, "First Name", "first_name", "first name"),
-					lastName: cell(row, "Last Name", "last_name", "last name"),
-					email: cell(row, "Email", "email"),
-					phone: cell(row, "Phone", "phone"),
-				}))
-				mapped.forEach((m, i) => {
-					if (!m.firstName) validationErrors.push(`Row ${i + 2}: First Name is required`)
-					if (!m.lastName) validationErrors.push(`Row ${i + 2}: Last Name is required`)
-					if (!m.email) validationErrors.push(`Row ${i + 2}: Email is required`)
-					if (!m.phone) validationErrors.push(`Row ${i + 2}: Phone is required`)
+			if (kind === "mandatory") {
+				const requiredHeaders =
+					cfg?.required_new_member_file_headers?.length &&
+					Array.isArray(cfg.required_new_member_file_headers)
+						? cfg.required_new_member_file_headers
+						: ["First Name", "Last Name"]
+				rows.forEach((row, i) => {
+					const line = i + 2
+					for (const h of requiredHeaders) {
+						if (!getCellByHeader(row, h)) {
+							validationErrors.push(`Row ${line}: ${h} is required`)
+						}
+					}
+					const em = getCellByHeader(row, "Email")
+					if (em && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) {
+						validationErrors.push(`Row ${line}: Invalid email`)
+					}
 				})
-				setPreviewKind("mandatory")
-				setPreviewData(mapped)
-			} else if (isOptional) {
-				const mapped: OptionalPreviewRow[] = rows.map((row) => ({
-					kind: "optional_details",
-					email: cell(row, "Email", "email"),
-					ippis: cell(row, "IPPIS Number", "ippis_number"),
-					pin: cell(row, "FRSC PIN", "frsc_pin", "PIN"),
-					phone: cell(row, "Phone", "phone"),
-					rank: cell(row, "Rank", "rank"),
-					department: cell(row, "Department", "department"),
-				}))
-				mapped.forEach((m, i) => {
-					if (!m.email) validationErrors.push(`Row ${i + 2}: Email is required`)
+			} else if (kind === "optional_details") {
+				rows.forEach((row, i) => {
+					if (!getCellByHeader(row, "Email")) {
+						validationErrors.push(`Row ${i + 2}: Email is required`)
+					}
 				})
-				setPreviewKind("optional_details")
-				setPreviewData(mapped)
 			} else {
 				validationErrors.push(
-					"This file does not match either template. New members: exactly 4 columns (First Name, Last Name, Email, Phone). Additional details: use the details template starting with Email and no First Name column.",
+					"This file does not match your cooperative’s bulk templates. Download the CSV/Excel templates again after checking Bulk member fields in System Settings.",
 				)
 			}
 
+			const displayRows: Record<string, string>[] = rows.map((row) => {
+				const r: Record<string, string> = {}
+				for (const k of fileKeys) {
+					const v = row[k]
+					r[k] = v != null ? String(v).trim() : ""
+				}
+				return r
+			})
+
+			setPreviewColumns(fileKeys)
+			setPreviewRows(displayRows)
+			setPreviewKind(kind)
 			setErrors(validationErrors)
 		} catch (error) {
 			setErrors([`Error parsing file: ${error instanceof Error ? error.message : "Unknown error"}`])
@@ -223,7 +311,8 @@ export default function BulkUploadMembersPage() {
 
 	const resetPreview = () => {
 		setFile(null)
-		setPreviewData([])
+		setPreviewRows([])
+		setPreviewColumns([])
 		setPreviewKind(null)
 		setErrors([])
 	}
@@ -276,7 +365,7 @@ export default function BulkUploadMembersPage() {
 				} else if (errorType === "template_mismatch") {
 					errorTitle = "Wrong template"
 					errorDescription =
-						"Use the mandatory 4-column file for new members, or the additional-details file (Email column, no First Name) for existing members."
+						"Columns must match the downloaded templates for your cooperative (see Bulk member fields in settings)."
 				}
 
 				if (errorMessages.length > 0) setErrors(errorMessages)
@@ -349,36 +438,36 @@ export default function BulkUploadMembersPage() {
 			<div>
 				<h1 className="text-3xl font-bold">Bulk upload members</h1>
 				<p className="text-muted-foreground">
-					Create members with a short mandatory file, then optionally add IPPIS, FRSC PIN, and employment
-					fields in a second file matched by email.
+					Two files: create new members (columns depend on your{" "}
+					<a className="underline" href="/admin/settings">
+						Bulk member field rules
+					</a>
+					), then add remaining profile data by email. Cooperative Member IDs are assigned automatically.
 				</p>
 			</div>
 
 			<Card>
 				<CardHeader>
 					<CardTitle>How it works</CardTitle>
-					<CardDescription>Two steps — new members first, then optional details</CardDescription>
+					<CardDescription>New members first, then additional details — same flow as before</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-6">
 					<div className="space-y-2">
 						<h3 className="font-medium">1. Mandatory file (new members)</h3>
 						<p className="text-sm text-muted-foreground">
-							Columns only: <strong>First Name</strong>, <strong>Last Name</strong>, <strong>Email</strong>
-							, <strong>Phone</strong>. Cooperative <strong>Member ID</strong> (e.g. ABC0001 from your business
-							name initials) is assigned automatically, or uses the optional{" "}
-							<a className="underline" href="/admin/settings">
-								Member ID prefix
-							</a>{" "}
-							in settings if you set one.
+							Always includes <strong>First Name</strong> and <strong>Last Name</strong> (required),{" "}
+							<strong>Email</strong> and <strong>Phone</strong> (optional—leave blank if unknown), plus any fields
+							your admin marked <em>Mandatory</em> for bulk upload in
+							settings. All of those columns are required in each row.
 						</p>
 						<div className="flex flex-wrap gap-2">
 							<Button type="button" variant="outline" onClick={() => downloadTemplate("mandatory")}>
 								<Download className="h-4 w-4 mr-2" />
-								CSV (mandatory)
+								CSV (new members)
 							</Button>
 							<Button type="button" variant="outline" onClick={() => downloadExcelTemplate("mandatory")}>
 								<Download className="h-4 w-4 mr-2" />
-								Excel (mandatory)
+								Excel (new members)
 							</Button>
 						</div>
 					</div>
@@ -386,10 +475,8 @@ export default function BulkUploadMembersPage() {
 					<div className="space-y-2">
 						<h3 className="font-medium">2. Additional details (existing members, by email)</h3>
 						<p className="text-sm text-muted-foreground">
-							Start with <strong>Email</strong> (must match an existing user). Include any fields you need:{" "}
-							<strong>IPPIS number</strong> (civil servants), <strong>FRSC PIN</strong> (FRSC staff), phone,
-							dates, rank, department, address, etc. No First Name column — use this file after members
-							exist.
+							<strong>Email</strong> plus <strong>Phone</strong> (optional corrections) and every field marked{" "}
+							<em>Optional</em> in settings. No <strong>First Name</strong> column. Use after members exist.
 						</p>
 						<div className="flex flex-wrap gap-2">
 							<Button type="button" variant="outline" onClick={() => downloadTemplate("optional_details")}>
@@ -458,16 +545,16 @@ export default function BulkUploadMembersPage() {
 				</Alert>
 			)}
 
-			{previewData.length > 0 && previewKind && (
+			{previewRows.length > 0 && previewKind && (
 				<Card>
 					<CardHeader>
 						<CardTitle>
-							Preview ({previewData.length}{" "}
+							Preview ({previewRows.length}{" "}
 							{previewKind === "mandatory" ? "new members" : "detail rows"})
 						</CardTitle>
 						<CardDescription>
 							{previewKind === "mandatory"
-								? "Creates accounts with auto Member ID"
+								? "Creates accounts; required columns match your mandatory file template"
 								: "Updates existing profiles matched by email"}
 						</CardDescription>
 					</CardHeader>
@@ -476,45 +563,23 @@ export default function BulkUploadMembersPage() {
 							<Table>
 								<TableHeader>
 									<TableRow>
-										{previewKind === "mandatory" ? (
-											<>
-												<TableHead>Name</TableHead>
-												<TableHead>Email</TableHead>
-												<TableHead>Phone</TableHead>
-											</>
-										) : (
-											<>
-												<TableHead>Email</TableHead>
-												<TableHead>IPPIS</TableHead>
-												<TableHead>FRSC PIN</TableHead>
-												<TableHead>Phone</TableHead>
-												<TableHead>Department</TableHead>
-												<TableHead>Rank</TableHead>
-											</>
-										)}
+										{previewColumns.map((col) => (
+											<TableHead key={col} className="whitespace-nowrap">
+												{col}
+											</TableHead>
+										))}
 									</TableRow>
 								</TableHeader>
 								<TableBody>
-									{previewKind === "mandatory"
-										? (previewData as MandatoryPreviewRow[]).map((member, index) => (
-												<TableRow key={index}>
-													<TableCell>
-														{member.firstName} {member.lastName}
-													</TableCell>
-													<TableCell>{member.email}</TableCell>
-													<TableCell>{member.phone}</TableCell>
-												</TableRow>
-											))
-										: (previewData as OptionalPreviewRow[]).map((row, index) => (
-												<TableRow key={index}>
-													<TableCell>{row.email}</TableCell>
-													<TableCell>{row.ippis || "—"}</TableCell>
-													<TableCell>{row.pin || "—"}</TableCell>
-													<TableCell>{row.phone || "—"}</TableCell>
-													<TableCell>{row.department || "—"}</TableCell>
-													<TableCell>{row.rank || "—"}</TableCell>
-												</TableRow>
+									{previewRows.map((row, index) => (
+										<TableRow key={index}>
+											{previewColumns.map((col) => (
+												<TableCell key={col} className="max-w-[200px] truncate">
+													{row[col] || "—"}
+												</TableCell>
 											))}
+										</TableRow>
+									))}
 								</TableBody>
 							</Table>
 						</div>
@@ -532,8 +597,8 @@ export default function BulkUploadMembersPage() {
 								{uploading
 									? "Uploading…"
 									: previewKind === "mandatory"
-										? `Create ${previewData.length} member(s)`
-										: `Update ${previewData.length} row(s)`}
+										? `Create ${previewRows.length} member(s)`
+										: `Update ${previewRows.length} row(s)`}
 							</Button>
 						</div>
 					</CardContent>

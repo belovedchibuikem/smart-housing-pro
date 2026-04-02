@@ -14,6 +14,28 @@ import { Save, Mail, TestTube, AlertCircle, CheckCircle, Loader2 } from "lucide-
 import { toast as sonnerToast } from "sonner"
 import { apiFetch } from "@/lib/api/client"
 
+/** Keys must match api/app/Services/Tenant/BulkMemberFieldRulesService::fieldCatalog */
+const BULK_MEMBER_FIELD_OPTIONS: { key: string; label: string }[] = [
+  { key: "ippis_number", label: "IPPIS number" },
+  { key: "frsc_pin", label: "FRSC PIN" },
+  { key: "date_of_birth", label: "Date of birth" },
+  { key: "gender", label: "Gender" },
+  { key: "marital_status", label: "Marital status" },
+  { key: "nationality", label: "Nationality" },
+  { key: "state_of_origin", label: "State of origin" },
+  { key: "lga", label: "LGA" },
+  { key: "residential_address", label: "Residential address" },
+  { key: "city", label: "City" },
+  { key: "state", label: "State" },
+  { key: "rank", label: "Rank" },
+  { key: "department", label: "Department" },
+  { key: "command_state", label: "Command state" },
+  { key: "employment_date", label: "Employment date" },
+  { key: "years_of_service", label: "Years of service" },
+  { key: "membership_type", label: "Membership type" },
+  { key: "staff_id", label: "Legacy reference ID (Staff ID)" },
+]
+
 interface Settings {
   // General
   site_name?: string
@@ -24,6 +46,8 @@ interface Settings {
   maintenance_mode?: boolean
   /** Optional override; when empty, prefix is derived from cooperative business name initials */
   member_id_prefix?: string
+  /** Per-field: required on new-members bulk file vs details-only bulk file */
+  bulk_member_field_requirements?: Record<string, "mandatory" | "optional">
   
   // Email
   smtp_host?: string
@@ -141,6 +165,16 @@ export default function AdminSettingsPage() {
 
   const updateSetting = (key: keyof Settings, value: any) => {
     setSettings(prev => ({ ...prev, [key]: value }))
+  }
+
+  const updateBulkMemberFieldRule = (fieldKey: string, requirement: "mandatory" | "optional") => {
+    setSettings((prev) => ({
+      ...prev,
+      bulk_member_field_requirements: {
+        ...(prev.bulk_member_field_requirements || {}),
+        [fieldKey]: requirement,
+      },
+    }))
   }
 
   if (loading) {
@@ -266,6 +300,40 @@ export default function AdminSettingsPage() {
                 <p className="text-xs text-muted-foreground">
                   Letters and numbers only. Leave empty to use initials from your cooperative business name (e.g. “Federal Smart Housing” → FSH0001). Set a value here only if you want a fixed prefix instead.
                 </p>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-base font-semibold">Bulk member upload fields</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    <strong>Mandatory</strong> columns appear on the <em>new members</em> CSV/Excel (with First/Last/Email/Phone) and every row must fill them.{" "}
+                    <strong className="font-normal">Optional</strong> columns appear only on the <em>additional details</em> file (keyed by Email, no First Name).
+                  </p>
+                </div>
+                <div className="rounded-lg border divide-y max-h-[420px] overflow-y-auto">
+                  {BULK_MEMBER_FIELD_OPTIONS.map(({ key, label }) => (
+                    <div
+                      key={key}
+                      className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between p-3 sm:gap-4"
+                    >
+                      <Label className="text-sm font-normal sm:max-w-[55%]">{label}</Label>
+                      <Select
+                        value={settings.bulk_member_field_requirements?.[key] ?? "optional"}
+                        onValueChange={(v) => updateBulkMemberFieldRule(key, v as "mandatory" | "optional")}
+                      >
+                        <SelectTrigger className="w-full sm:w-[280px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="mandatory">Mandatory (new members file)</SelectItem>
+                          <SelectItem value="optional">Optional (details file)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               <div className="flex items-center justify-between">
