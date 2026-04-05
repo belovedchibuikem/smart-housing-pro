@@ -573,7 +573,6 @@ export interface PropertyPaymentPlan {
 	property_id: string
 	member_id: string
 	interest_id?: string | null
-	configured_by: string
 	status: "draft" | "active" | "completed" | "cancelled"
 	funding_option?: PropertyFundingOption | null
 	selected_methods?: PropertyFundingOption[] | null
@@ -602,11 +601,15 @@ export interface PropertyPaymentPlan {
 		status: string
 		funding_option?: PropertyFundingOption | null
 	} | null
-	configured_by?: {
-		id: string
-		first_name?: string | null
-		last_name?: string | null
-	} | null
+	/** User id when not expanded, or nested user when relationship is loaded */
+	configured_by?:
+		| string
+		| {
+				id: string
+				first_name?: string | null
+				last_name?: string | null
+		  }
+		| null
 }
 
 export interface PendingPlanInterest {
@@ -1307,11 +1310,11 @@ export async function getUserInvestments(params?: { status?: string; type?: stri
 			per_page: number
 			total: number
 		}
-	}>(`/investments?${query.toString()}`, { method: "GET" })
+	}>(`/financial/investments?${query.toString()}`, { method: "GET" })
 }
 
 export async function getUserInvestment(id: string) {
-	return apiFetch<{ investment: UserInvestment }>(`/investments/${id}`, { method: "GET" })
+	return apiFetch<{ investment: UserInvestment }>(`/financial/investments/${id}`, { method: "GET" })
 }
 
 export async function createInvestment(data: {
@@ -1320,10 +1323,90 @@ export async function createInvestment(data: {
 	duration_months: number
 	expected_return_rate: number
 }) {
-	return apiFetch<{ success: boolean; message: string; investment: UserInvestment }>("/investments", {
+	return apiFetch<{ success: boolean; message: string; investment: UserInvestment }>("/financial/investments", {
 		method: "POST",
 		body: data,
 	})
+}
+
+/** Admin / staff: tenant investment records (Financial\InvestmentController) */
+export interface FinancialInvestment {
+	id: string
+	member_id: string
+	amount: number | string
+	type: string
+	duration_months: number
+	expected_return_rate: number | string
+	status: string
+	investment_date: string
+	approved_at?: string | null
+	approved_by?: string | null
+	rejection_reason?: string | null
+	rejected_at?: string | null
+	rejected_by?: string | null
+	expected_return?: number | string
+	total_return?: number | string
+	member?: {
+		id: string
+		member_number?: string | null
+		full_name?: string
+		user?: {
+			id: string
+			email?: string | null
+			phone?: string | null
+		}
+	}
+	returns?: Array<{
+		id: string
+		amount: number | string
+		return_date: string
+		type: string
+	}>
+	created_at: string
+	updated_at: string
+}
+
+export async function getFinancialInvestments(params?: {
+	status?: string
+	type?: string
+	search?: string
+	page?: number
+	per_page?: number
+}) {
+	const query = new URLSearchParams()
+	if (params?.status) query.set("status", params.status)
+	if (params?.type) query.set("type", params.type)
+	if (params?.search) query.set("search", params.search)
+	if (params?.page) query.set("page", String(params.page))
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+	return apiFetch<{
+		investments: FinancialInvestment[]
+		pagination: {
+			current_page: number
+			last_page: number
+			per_page: number
+			total: number
+		}
+	}>(`/financial/investments?${query.toString()}`, { method: "GET" })
+}
+
+export async function getFinancialInvestment(id: string) {
+	return apiFetch<{ investment: FinancialInvestment }>(`/financial/investments/${id}`, { method: "GET" })
+}
+
+export async function approveFinancialInvestment(id: string) {
+	return apiFetch<{ success: boolean; message?: string }>(`/financial/investments/${id}/approve`, { method: "POST" })
+}
+
+export async function rejectFinancialInvestment(id: string, reason: string) {
+	return apiFetch<{ success: boolean; message?: string }>(`/financial/investments/${id}/reject`, {
+		method: "POST",
+		body: { reason },
+	})
+}
+
+export async function deleteFinancialInvestment(id: string) {
+	return apiFetch<{ success: boolean; message?: string }>(`/financial/investments/${id}`, { method: "DELETE" })
 }
 
 export async function getInvestmentPaymentMethods() {

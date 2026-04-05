@@ -44,6 +44,7 @@ export const rolePermissions: Record<UserRole, RolePermissions> = {
       "/admin",
       "/admin/contributions",
       "/admin/bulk-upload/contributions",
+      "/admin/investments",
       "/admin/wallets",
       "/admin/wallets/transactions",
       "/admin/wallets/pending",
@@ -90,7 +91,13 @@ export const rolePermissions: Record<UserRole, RolePermissions> = {
     role: "investment_manager",
     label: "Investment Manager",
     description: "Manage investment plans and portfolios",
-    allowedRoutes: ["/admin", "/admin/investment-plans", "/admin/reports/investments"],
+    allowedRoutes: [
+      "/admin",
+      "/admin/investments",
+      "/admin/investment-plans",
+      "/admin/investment-withdrawal-requests",
+      "/admin/reports/investments",
+    ],
   },
   member_manager: {
     role: "member_manager",
