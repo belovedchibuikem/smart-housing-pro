@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { usePageLoading } from "@/hooks/use-loading"
+import { useMemberStats } from "@/lib/hooks/use-members"
 import { apiFetch } from "@/lib/api/client"
 import { Search, UserPlus, Upload, Eye, Edit, MoreHorizontal, Users, Phone, Mail, Calendar, Shield } from "lucide-react"
 import {
@@ -57,7 +58,8 @@ export default function AdminMembersPage() {
 	const [total, setTotal] = useState(0)
 	const [perPage] = useState(15)
 	const [lastPage, setLastPage] = useState(1)
-	
+	const { stats } = useMemberStats()
+
 	console.log('Component state:', { members: members.length, total, isLoading, error })
 
 	useEffect(() => {
@@ -135,7 +137,7 @@ export default function AdminMembersPage() {
 						<div className="flex items-center justify-between">
 							<div>
 								<p className="text-sm text-muted-foreground">Total Members</p>
-								<p className="text-2xl font-bold">{total}</p>
+								<p className="text-2xl font-bold">{stats?.total_members ?? total}</p>
 							</div>
 							<Users className="h-8 w-8 text-blue-500" />
 						</div>
@@ -147,7 +149,7 @@ export default function AdminMembersPage() {
 							<div>
 								<p className="text-sm text-muted-foreground">Active Members</p>
 								<p className="text-2xl font-bold text-green-600">
-									{members.filter(m => m.status === 'active').length}
+									{stats?.active_members ?? 0}
 								</p>
 							</div>
 							<Shield className="h-8 w-8 text-green-500" />
@@ -160,7 +162,7 @@ export default function AdminMembersPage() {
 							<div>
 								<p className="text-sm text-muted-foreground">KYC Verified</p>
 								<p className="text-2xl font-bold text-blue-600">
-									{members.filter(m => m.kyc_status === 'verified').length}
+									{stats?.kyc_verified ?? 0}
 								</p>
 							</div>
 							<Shield className="h-8 w-8 text-blue-500" />
@@ -173,7 +175,7 @@ export default function AdminMembersPage() {
 							<div>
 								<p className="text-sm text-muted-foreground">Pending KYC</p>
 								<p className="text-2xl font-bold text-yellow-600">
-									{members.filter(m => m.kyc_status === 'pending').length}
+									{stats?.kyc_pending ?? 0}
 								</p>
 							</div>
 							<Calendar className="h-8 w-8 text-yellow-500" />

@@ -35,7 +35,25 @@ function normHeaderKey(k: string): string {
 }
 
 function sortedCanonicalFromHeaders(headers: string[]): string {
-	return [...new Set(headers.map(normHeaderKey).filter(Boolean))].sort().join("|")
+	return normalizedHeaderSignature(headers)
+}
+
+/** Match backend BulkMemberFieldRulesService::normalizedCanonicalListForMatch (BOM + junk columns). */
+function normalizedHeaderSignature(headers: string[]): string {
+	const tokens = [
+		...new Set(
+			headers
+				.map((k) => {
+					let t = k.trim()
+					if (t.startsWith("\uFEFF")) {
+						t = t.slice(1).trim()
+					}
+					return normHeaderKey(t)
+				})
+				.filter((t) => t.length > 0 && !/^\d+$/.test(t)),
+		),
+	].sort()
+	return tokens.join("|")
 }
 
 function getCellByHeader(row: Record<string, unknown>, header: string): string {
@@ -53,7 +71,15 @@ function detectKind(
 	fileHeaderKeys: string[],
 	config: FieldConfig | null,
 ): PreviewKind | null {
-	const keysNorm = new Set(fileHeaderKeys.map(normHeaderKey).filter(Boolean))
+	const keysNorm = new Set(
+		fileHeaderKeys
+			.map((k) => {
+				let t = k.trim()
+				if (t.startsWith("\uFEFF")) t = t.slice(1).trim()
+				return normHeaderKey(t)
+			})
+			.filter((t) => t.length > 0 && !/^\d+$/.test(t)),
+	)
 
 	if (config?.mandatory_file_headers?.length && config?.additional_details_headers?.length) {
 		const expM = sortedCanonicalFromHeaders(config.mandatory_file_headers)

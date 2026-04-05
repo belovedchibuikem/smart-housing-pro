@@ -37,20 +37,51 @@ export default function EditRolePage() {
   const [loadingRole, setLoadingRole] = useState(true)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  const extractPermissionNames = (role: Record<string, unknown>, permissionNamesFromResponse?: string[]): string[] => {
+    const fromTop = permissionNamesFromResponse
+    if (Array.isArray(fromTop) && fromTop.length > 0) {
+      return fromTop.map((n) => String(n).trim()).filter(Boolean)
+    }
+    const raw = role.permissions
+    if (Array.isArray(raw)) {
+      return raw
+        .map((p: unknown) =>
+          typeof p === 'string' ? p : (p as { name?: string })?.name
+        )
+        .filter((n): n is string => typeof n === 'string' && n.length > 0)
+    }
+    return []
+  }
+
   useEffect(() => {
     const fetchRole = async () => {
       try {
         setLoadingRole(true)
-        const response = await apiFetch(`/admin/roles/${roleId}`)
+        const response = await apiFetch<{
+          success?: boolean
+          role: Record<string, unknown>
+          permission_names?: string[]
+        }>(`/admin/roles/${roleId}`)
         if (response.success) {
           const role = response.role
+          let names = extractPermissionNames(role, response.permission_names)
+          if (names.length === 0 && Number(role.permissions_count ?? 0) > 0) {
+            try {
+              const pr = await apiFetch<{ permissions?: Array<{ name: string }> }>(
+                `/admin/roles/${roleId}/permissions`
+              )
+              names = (pr.permissions ?? []).map((p) => p.name).filter(Boolean)
+            } catch {
+              /* keep empty */
+            }
+          }
           setFormData({
-            name: role.name,
-            description: role.description || '',
-            color: role.color || 'bg-blue-500',
-            is_active: role.is_active,
-            sort_order: role.sort_order || 0,
-            permissions: role.permissions?.map((p: any) => p.name) || []
+            name: String(role.name ?? ''),
+            description: String(role.description ?? ''),
+            color: String(role.color ?? 'bg-blue-500'),
+            is_active: Boolean(role.is_active),
+            sort_order: Number(role.sort_order ?? 0),
+            permissions: names,
           })
         }
       } catch (error: any) {
