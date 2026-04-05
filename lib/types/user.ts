@@ -61,12 +61,26 @@ export interface Member {
 }
 
 export interface UserStats {
-  total_users: number
-  active_users: number
-  inactive_users: number
-  suspended_users: number
-  admin_users: number
-  member_users: number
+  /** All user rows (member logins + staff logins) */
+  total_user_accounts?: number
+  /** Rows shown on Admin Users table */
+  staff_users?: number
+  active_staff_users?: number
+  inactive_staff_users?: number
+  suspended_staff_users?: number
+  /** Rows in `members` table (cooperative members) */
+  member_users?: number
+  /** Users with at least one Spatie role other than `member` */
+  admin_users?: number
+  /** True when staff + members equals total logins */
+  accounts_tally?: boolean
+
+  /** @deprecated use total_user_accounts */
+  total_users?: number
+  /** @deprecated use active_staff_users — active rows in staff scope, not all accounts */
+  active_users?: number
+  inactive_users?: number
+  suspended_users?: number
 }
 
 export interface UsersResponse {

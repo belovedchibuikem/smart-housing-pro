@@ -38,6 +38,61 @@ interface DashboardData {
   }>
 }
 
+function emptyDashboardPayload(): DashboardData {
+  return {
+    stats: {
+      total_members: 0,
+      total_contributions: 0,
+      total_loans: 0,
+      total_investments: 0,
+      total_properties: 0,
+      active_properties: 0,
+      monthly_revenue: 0,
+      revenue_growth: 0,
+      member_growth: 0,
+    },
+    pending_approvals: { kyc: 0, loans: 0, withdrawals: 0 },
+    recent_activities: [],
+  }
+}
+
+/** Accepts flat JSON or `{ data: { ... } }` from proxies/older API wrappers */
+function normalizeAdminDashboardPayload(raw: unknown): DashboardData {
+  if (!raw || typeof raw !== "object") return emptyDashboardPayload()
+  const r = raw as Record<string, unknown>
+  const inner = (r.data && typeof r.data === "object" ? r.data : r) as Record<string, unknown>
+  const base = emptyDashboardPayload()
+  const stats = inner.stats as Record<string, unknown> | undefined
+  if (stats && typeof stats === "object") {
+    base.stats = {
+      total_members: Number(stats.total_members) || 0,
+      total_contributions: Number(stats.total_contributions) || 0,
+      total_loans: Number(stats.total_loans) || 0,
+      total_investments: Number(stats.total_investments) || 0,
+      total_properties: Number(stats.total_properties) || 0,
+      active_properties: Number(stats.active_properties) || 0,
+      monthly_revenue: Number(stats.monthly_revenue) || 0,
+      revenue_growth: Number(stats.revenue_growth) || 0,
+      member_growth: Number(stats.member_growth) || 0,
+    }
+  }
+  const pending = inner.pending_approvals as Record<string, unknown> | undefined
+  if (pending && typeof pending === "object") {
+    base.pending_approvals = {
+      kyc: Number(pending.kyc) || 0,
+      loans: Number(pending.loans) || 0,
+      withdrawals: Number(pending.withdrawals) || 0,
+    }
+  }
+  if (Array.isArray(inner.recent_activities)) {
+    base.recent_activities = inner.recent_activities as DashboardData["recent_activities"]
+  }
+  if (inner.tenant && typeof inner.tenant === "object") {
+    base.tenant = inner.tenant as DashboardData["tenant"]
+  }
+  return base
+}
+
 export default function AdminDashboardPage() {
   const { isLoading, loadData } = usePageLoading()
   const [data, setData] = useState<DashboardData | null>(null)
@@ -45,31 +100,12 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     loadData(async () => {
       try {
-        const response = await apiFetch<DashboardData>("/admin/dashboard/admin-stats")
+        const response = await apiFetch<unknown>("/admin/dashboard/admin-stats")
         console.log("Dashboard data loaded:", response)
-        return response
+        return normalizeAdminDashboardPayload(response)
       } catch (error) {
         console.error("Failed to load dashboard data:", error)
-        // Return empty data structure on error
-        return {
-          stats: {
-            total_members: 0,
-            total_contributions: 0,
-            total_loans: 0,
-            total_investments: 0,
-            total_properties: 0,
-            active_properties: 0,
-            monthly_revenue: 0,
-            revenue_growth: 0,
-            member_growth: 0,
-          },
-          pending_approvals: {
-            kyc: 0,
-            loans: 0,
-            withdrawals: 0,
-          },
-          recent_activities: [],
-        }
+        return emptyDashboardPayload()
       }
     }).then(setData)
   }, [loadData])
@@ -90,38 +126,38 @@ export default function AdminDashboardPage() {
   const stats = data ? [
     {
       title: "Total Members",
-      value: formatNumber(data.stats.total_members),
-      change: `${data.stats.member_growth >= 0 ? '+' : ''}${data.stats.member_growth.toFixed(1)}%`,
+      value: formatNumber(data.stats?.total_members ?? 0),
+      change: `${(data.stats?.member_growth ?? 0) >= 0 ? '+' : ''}${(data.stats?.member_growth ?? 0).toFixed(1)}%`,
       icon: Users,
       color: "text-blue-600",
     },
     {
       title: "Total Contributions",
-      value: formatCurrency(data.stats.total_contributions),
-      change: `${data.stats.revenue_growth >= 0 ? '+' : ''}${data.stats.revenue_growth.toFixed(1)}%`,
+      value: formatCurrency(data.stats?.total_contributions ?? 0),
+      change: `${(data.stats?.revenue_growth ?? 0) >= 0 ? '+' : ''}${(data.stats?.revenue_growth ?? 0).toFixed(1)}%`,
       icon: Wallet,
       color: "text-green-600",
     },
     {
       title: "Active Loans",
-      value: formatNumber(data.stats.total_loans),
+      value: formatNumber(data.stats?.total_loans ?? 0),
       change: "+5%",
       icon: TrendingUp,
       color: "text-orange-600",
     },
     {
       title: "Properties",
-      value: formatNumber(data.stats.total_properties),
-      change: `${data.stats.active_properties} active`,
+      value: formatNumber(data.stats?.total_properties ?? 0),
+      change: `${data.stats?.active_properties ?? 0} active`,
       icon: Home,
       color: "text-purple-600",
     },
   ] : []
 
   const pendingApprovals = data ? [
-    { type: "KYC", count: data.pending_approvals.kyc, icon: Users, color: "bg-blue-100 text-blue-700" },
-    { type: "Loans", count: data.pending_approvals.loans, icon: TrendingUp, color: "bg-orange-100 text-orange-700" },
-    { type: "Withdrawals", count: data.pending_approvals.withdrawals, icon: DollarSign, color: "bg-green-100 text-green-700" },
+    { type: "KYC", count: data.pending_approvals?.kyc ?? 0, icon: Users, color: "bg-blue-100 text-blue-700" },
+    { type: "Loans", count: data.pending_approvals?.loans ?? 0, icon: TrendingUp, color: "bg-orange-100 text-orange-700" },
+    { type: "Withdrawals", count: data.pending_approvals?.withdrawals ?? 0, icon: DollarSign, color: "bg-green-100 text-green-700" },
   ] : []
 
   const recentActivities = data?.recent_activities || []

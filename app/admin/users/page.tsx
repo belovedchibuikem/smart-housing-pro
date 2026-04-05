@@ -46,7 +46,7 @@ export default function UsersPage() {
     status: statusFilter,
   })
 
-  const { stats, loading: statsLoading } = useUserStats()
+  const { stats, refetch: refetchUserStats } = useUserStats()
   const { deleteUser, loading: deleteLoading } = useDeleteUser()
   const { toggleStatus, loading: toggleLoading } = useToggleUserStatus()
 
@@ -55,6 +55,7 @@ export default function UsersPage() {
       await deleteUser(userId)
       toast.success("User deleted successfully!")
       refetch()
+      refetchUserStats()
     } catch (error: any) {
       toast.error(error.message || "Failed to delete user")
     }
@@ -65,6 +66,7 @@ export default function UsersPage() {
       await toggleStatus(userId)
       toast.success("User status updated successfully!")
       refetch()
+      refetchUserStats()
     } catch (error: any) {
       toast.error(error.message || "Failed to update user status")
     }
@@ -138,8 +140,17 @@ export default function UsersPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Users</p>
-                  <p className="text-2xl font-bold">{stats.total_users}</p>
+                  <p className="text-sm text-muted-foreground">Total user logins</p>
+                  <p className="text-2xl font-bold">
+                    {stats.total_user_accounts ?? stats.total_users}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {stats.accounts_tally === false
+                      ? "Members + staff ≠ total — orphan user rows?"
+                      : stats.staff_users != null
+                        ? `${stats.member_users ?? 0} members + ${stats.staff_users} staff`
+                        : "All login accounts"}
+                  </p>
                 </div>
                 <User className="h-8 w-8 text-blue-500" />
               </div>
@@ -149,10 +160,11 @@ export default function UsersPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Active Users</p>
-                  <p className="text-2xl font-bold text-green-600">{stats.active_users}</p>
+                  <p className="text-sm text-muted-foreground">Cooperative members</p>
+                  <p className="text-2xl font-bold text-slate-700">{stats.member_users ?? 0}</p>
+                  <p className="text-xs text-muted-foreground mt-1">From members table</p>
                 </div>
-                <Shield className="h-8 w-8 text-green-500" />
+                <User className="h-8 w-8 text-slate-500" />
               </div>
             </CardContent>
           </Card>
@@ -160,8 +172,11 @@ export default function UsersPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Admin Users</p>
-                  <p className="text-2xl font-bold text-blue-600">{stats.admin_users}</p>
+                  <p className="text-sm text-muted-foreground">Staff (this page)</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {stats.staff_users ?? pagination.total}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">Same scope as table below</p>
                 </div>
                 <Shield className="h-8 w-8 text-blue-500" />
               </div>
@@ -171,10 +186,15 @@ export default function UsersPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Member Users</p>
-                  <p className="text-2xl font-bold text-gray-600">{stats.member_users}</p>
+                  <p className="text-sm text-muted-foreground">Active staff</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {stats.active_staff_users ?? stats.active_users}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    With roles: {stats.admin_users ?? 0}
+                  </p>
                 </div>
-                <User className="h-8 w-8 text-gray-500" />
+                <Shield className="h-8 w-8 text-green-500" />
               </div>
             </CardContent>
           </Card>
@@ -378,6 +398,7 @@ export default function UsersPage() {
         onOpenChange={setShowAddModal}
         onSuccess={() => {
           refetch()
+          refetchUserStats()
           setShowAddModal(false)
         }}
       />
@@ -389,6 +410,7 @@ export default function UsersPage() {
         user={selectedUser}
         onSuccess={() => {
           refetch()
+          refetchUserStats()
           setShowEditModal(false)
           setSelectedUser(null)
         }}

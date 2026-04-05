@@ -86,7 +86,7 @@ export function useUserStats() {
     stats,
     loading,
     error,
-    refetch: fetchStats
+    refetch: fetchStats,
   }
 }
 
