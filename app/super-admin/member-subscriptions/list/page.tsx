@@ -12,9 +12,12 @@ import {
   User,
   Loader2,
   Layers,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react"
 import Link from "next/link"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useLayoutEffect, useCallback } from "react"
+import { cn } from "@/lib/utils"
 import {
   apiFetch,
   approveMemberSubscription,
@@ -121,94 +124,63 @@ export default function MemberSubscriptionsListPage() {
   const [confirmBulkApproveOpen, setConfirmBulkApproveOpen] = useState(false)
   const [confirmBulkRejectOpen, setConfirmBulkRejectOpen] = useState(false)
   const [bulkRejectReason, setBulkRejectReason] = useState("")
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
+  const [page, setPage] = useState(1)
+  const [perPage, setPerPage] = useState(20)
   const { isLoading, data, error, loadData } = usePageLoading<MemberSubscriptionsResponse>()
 
-  const listQueryParams = useCallback(() => {
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearchQuery(searchQuery), 300)
+    return () => clearTimeout(t)
+  }, [searchQuery])
+
+  useLayoutEffect(() => {
+    setPage(1)
+  }, [debouncedSearchQuery, statusFilter, paymentStatusFilter, bulkBatchIdFilter, perPage])
+
+  const loadSubscriptions = useCallback(async () => {
     const params = new URLSearchParams()
-    params.append("type", "list")
-    if (searchQuery) params.append("search", searchQuery)
-    if (statusFilter !== "all") params.append("status", statusFilter)
-    if (paymentStatusFilter !== "all") params.append("payment_status", paymentStatusFilter)
-    if (bulkBatchIdFilter.trim()) params.append("bulk_batch_id", bulkBatchIdFilter.trim())
-    return params
-  }, [searchQuery, statusFilter, paymentStatusFilter, bulkBatchIdFilter])
+    params.set("type", "list")
+    params.set("page", String(page))
+    params.set("per_page", String(perPage))
+    if (debouncedSearchQuery.trim()) params.set("search", debouncedSearchQuery.trim())
+    if (statusFilter !== "all") params.set("status", statusFilter)
+    if (paymentStatusFilter !== "all") params.set("payment_status", paymentStatusFilter)
+    if (bulkBatchIdFilter.trim()) params.set("bulk_batch_id", bulkBatchIdFilter.trim())
+    return apiFetch<MemberSubscriptionsResponse>(`/super-admin/member-subscriptions?${params.toString()}`)
+  }, [page, perPage, debouncedSearchQuery, statusFilter, paymentStatusFilter, bulkBatchIdFilter])
+
+  useEffect(() => {
+    loadData(loadSubscriptions)
+  }, [loadData, loadSubscriptions])
 
   const buildBulkFilters = useCallback(() => {
     const filters: { search?: string; status?: string; bulk_batch_id?: string } = {}
-    if (searchQuery.trim()) filters.search = searchQuery.trim()
+    if (debouncedSearchQuery.trim()) filters.search = debouncedSearchQuery.trim()
     if (statusFilter !== "all") filters.status = statusFilter
     if (bulkBatchIdFilter.trim()) filters.bulk_batch_id = bulkBatchIdFilter.trim()
     return Object.keys(filters).length ? filters : undefined
-  }, [searchQuery, statusFilter, bulkBatchIdFilter])
+  }, [debouncedSearchQuery, statusFilter, bulkBatchIdFilter])
 
   const reloadList = useCallback(() => {
-    const params = listQueryParams()
-    return loadData(async () =>
-      apiFetch<MemberSubscriptionsResponse>(`/super-admin/member-subscriptions?${params.toString()}`)
-    )
-  }, [loadData, listQueryParams])
-
-  // Debounced search
-  const debouncedSearch = useCallback(
-    (() => {
-      let timeoutId: NodeJS.Timeout
-      return (query: string) => {
-        clearTimeout(timeoutId)
-        timeoutId = setTimeout(() => {
-          loadData(async () => {
-            const params = new URLSearchParams()
-            params.append("type", "list")
-            if (query) params.append("search", query)
-            if (statusFilter !== "all") params.append("status", statusFilter)
-            if (paymentStatusFilter !== "all") params.append("payment_status", paymentStatusFilter)
-            if (bulkBatchIdFilter.trim()) params.append("bulk_batch_id", bulkBatchIdFilter.trim())
-            const response = await apiFetch<MemberSubscriptionsResponse>(
-              `/super-admin/member-subscriptions?${params.toString()}`
-            )
-            return response
-          })
-        }, 300)
-      }
-    })(),
-    [loadData, statusFilter, paymentStatusFilter, bulkBatchIdFilter]
-  )
-
-  useEffect(() => {
-    debouncedSearch(searchQuery)
-  }, [searchQuery, debouncedSearch])
-
-  useEffect(() => {
-    loadData(async () => {
-      const params = listQueryParams()
-      const response = await apiFetch<MemberSubscriptionsResponse>(
-        `/super-admin/member-subscriptions?${params.toString()}`
-      )
-      return response
-    })
-  }, [loadData, listQueryParams])
+    return loadData(loadSubscriptions)
+  }, [loadData, loadSubscriptions])
 
   if (error) return <div className="p-6 text-red-600">{error}</div>
-  if (isLoading || !data) return null
+  if (!data && isLoading) {
+    return (
+      <div className="flex justify-center items-center py-24 text-muted-foreground">
+        <Loader2 className="h-8 w-8 animate-spin mr-2" />
+        Loading subscriptions…
+      </div>
+    )
+  }
+  if (!data) return null
 
-  const subscriptions = data?.subscriptions || []
-  const filteredSubscriptions = subscriptions.filter((sub) => {
-    if (statusFilter !== 'all' && sub.status !== statusFilter) return false
-    if (paymentStatusFilter !== 'all' && sub.payment_status !== paymentStatusFilter) return false
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      return (
-        sub.member_name?.toLowerCase().includes(query) ||
-        sub.member_email?.toLowerCase().includes(query) ||
-        sub.business_name?.toLowerCase().includes(query) ||
-        sub.package_name?.toLowerCase().includes(query) ||
-        sub.payment_reference?.toLowerCase().includes(query)
-      )
-    }
-    return true
-  })
+  const subscriptions = data.subscriptions || []
 
   return (
-    <div className="space-y-6">
+    <div className={cn("space-y-6 relative", isLoading && "opacity-75")}>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Member Subscriptions</h1>
@@ -222,7 +194,7 @@ export default function MemberSubscriptionsListPage() {
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by member name, email, business, package..."
+              placeholder="Package, payment ref, batch ID, payer name/phone, business name, member UUID…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -297,12 +269,12 @@ export default function MemberSubscriptionsListPage() {
 
       {/* Subscriptions List */}
       <div className="space-y-4">
-        {filteredSubscriptions.length === 0 ? (
+        {subscriptions.length === 0 ? (
           <Card className="p-12 text-center">
             <p className="text-muted-foreground">No member subscriptions found.</p>
           </Card>
         ) : (
-          filteredSubscriptions.map((subscription) => (
+          subscriptions.map((subscription) => (
             <Card key={subscription.id} className="p-6">
               <div className="flex items-start justify-between">
                 <div className="flex items-start gap-4 flex-1">
@@ -408,14 +380,54 @@ export default function MemberSubscriptionsListPage() {
       </div>
 
       {/* Pagination */}
-      {data?.pagination && data.pagination.total > 0 && (
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <p>
-            Showing {((data.pagination.current_page - 1) * data.pagination.per_page) + 1} to{" "}
-            {Math.min(data.pagination.current_page * data.pagination.per_page, data.pagination.total)} of{" "}
-            {data.pagination.total} subscriptions
-          </p>
-        </div>
+      {data.pagination && data.pagination.total > 0 && (
+        <Card className="p-4">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground whitespace-nowrap">Per page</span>
+              <select
+                value={perPage}
+                onChange={(e) => setPerPage(Number(e.target.value))}
+                className="border rounded-md px-2 py-1.5 bg-background"
+              >
+                <option value={15}>15</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+            </div>
+            <p className="text-sm text-muted-foreground text-center lg:flex-1">
+              Showing {((data.pagination.current_page - 1) * data.pagination.per_page) + 1}–
+              {Math.min(data.pagination.current_page * data.pagination.per_page, data.pagination.total)} of{" "}
+              {data.pagination.total.toLocaleString()} subscriptions
+            </p>
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={data.pagination.current_page <= 1 || isLoading}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Previous
+              </Button>
+              <span className="text-sm tabular-nums text-muted-foreground px-2 min-w-[8rem] text-center">
+                Page {data.pagination.current_page} of {data.pagination.last_page}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={data.pagination.current_page >= data.pagination.last_page || isLoading}
+                onClick={() => setPage((p) => p + 1)}
+              >
+                Next
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            </div>
+          </div>
+        </Card>
       )}
 
       <AlertDialog open={confirmBulkApproveOpen} onOpenChange={setConfirmBulkApproveOpen}>
