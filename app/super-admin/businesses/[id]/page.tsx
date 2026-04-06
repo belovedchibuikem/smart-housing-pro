@@ -25,18 +25,37 @@ import { useEffect, use } from "react"
 import { apiFetch } from "@/lib/api/client"
 import { usePageLoading } from "@/hooks/use-loading"
 
+function formatPaymentGateway(g: string | null | undefined): string {
+  if (!g) return "Not recorded"
+  const key = g.toLowerCase()
+  const labels: Record<string, string> = {
+    paystack: "Paystack",
+    remita: "Remita",
+    manual: "Manual / bank transfer",
+    stripe: "Stripe",
+    bank_transfer: "Bank transfer",
+  }
+  return labels[key] ?? g.replace(/_/g, " ")
+}
+
+function formatSubscriptionStatusLabel(status: string): string {
+  const s = status.replace(/_/g, " ")
+  return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
 interface BusinessDetail {
   id: string
   name: string
   slug: string
+  package?: string | null
   custom_domain?: string
   full_domain?: string
   logo_url?: string
   primary_color?: string
   secondary_color?: string
-  contact_email: string
-  contact_phone?: string
-  address?: string
+  contact_email?: string | null
+  contact_phone?: string | null
+  address?: string | null
   status: string
   subscription_status: string
   trial_ends_at?: string
@@ -44,28 +63,49 @@ interface BusinessDetail {
   settings?: any
   subscription?: {
     id: string
-    package: string
+    package: string | null
     status: string
+    amount?: number | null
+    currency?: string
     ends_at?: string
-  }
+    trial_ends_at?: string
+    current_period_start?: string
+    current_period_end?: string
+    next_billing_date?: string
+    payment_method?: string | null
+  } | null
   created_at: string
   updated_at: string
-  // Additional fields for detail view
   members_count?: number
   properties_count?: number
   loans_count?: number
+  loan_products_count?: number
   monthly_revenue?: number
   total_revenue?: number
+  last_payment_gateway?: string | null
+}
+
+interface ActivityEntry {
+  id: string
+  action: string
+  details: string
+  module?: string | null
+  timestamp?: string
+}
+
+interface BusinessDetailResponse {
+  business: BusinessDetail
+  recent_activity?: ActivityEntry[]
 }
 
 export default function BusinessDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params)
-  const { isLoading, data, error, loadData } = usePageLoading<{ business: BusinessDetail }>()
+  const { isLoading, data, error, loadData } = usePageLoading<BusinessDetailResponse>()
 
   useEffect(() => {
     loadData(async () => {
       try {
-        const response = await apiFetch<{ business: BusinessDetail }>(`/super-admin/businesses/${resolvedParams.id}`)
+        const response = await apiFetch<BusinessDetailResponse>(`/super-admin/businesses/${resolvedParams.id}`)
         return response
       } catch (error) {
         console.error('Failed to load business details:', error)
@@ -78,21 +118,17 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
   if (!data) return <div className="p-6">Loading business details...</div>
 
   const business = data.business
+  const recentActivity = data.recent_activity ?? []
+
+  const planName = business.package ?? business.subscription?.package ?? "No package"
+  const subStatus = business.subscription_status
 
   const usageStats = [
     { label: "Members", current: business.members_count || 0, limit: 500, percentage: Math.min(((business.members_count || 0) / 500) * 100, 100) },
     { label: "Properties", current: business.properties_count || 0, limit: 100, percentage: Math.min(((business.properties_count || 0) / 100) * 100, 100) },
-    { label: "Loan Products", current: business.loans_count || 0, limit: 20, percentage: Math.min(((business.loans_count || 0) / 20) * 100, 100) },
+    { label: "Loan products", current: business.loan_products_count || 0, limit: 20, percentage: Math.min(((business.loan_products_count || 0) / 20) * 100, 100) },
     { label: "Storage", current: 0, limit: 25, unit: "GB", percentage: 0 },
   ]
-
-  // Recent activity would be fetched from API in a real implementation
-  const recentActivity: Array<{
-    id: string
-    action: string
-    details: string
-    timestamp: string
-  }> = []
 
   return (
     <div className="space-y-8">
@@ -105,20 +141,40 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
           <div>
             <h1 className="text-3xl font-bold">{business.name}</h1>
             <p className="text-muted-foreground mt-1">{business.slug}</p>
-            <div className="flex items-center gap-2 mt-2">
-              {business.subscription_status === "active" ? (
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              {business.status === "suspended" ? (
+                <div className="flex items-center gap-1 text-red-600 text-sm">
+                  <Ban className="h-4 w-4" />
+                  Suspended
+                </div>
+              ) : subStatus === "active" ? (
                 <div className="flex items-center gap-1 text-green-600 text-sm">
                   <CheckCircle className="h-4 w-4" />
-                  Active Subscription
+                  Active subscription
                 </div>
-              ) : (
+              ) : subStatus === "trial" ? (
                 <div className="flex items-center gap-1 text-orange-600 text-sm">
                   <AlertCircle className="h-4 w-4" />
-                  Trial Period
+                  Trial
+                </div>
+              ) : subStatus === "past_due" ? (
+                <div className="flex items-center gap-1 text-red-600 text-sm">
+                  <AlertCircle className="h-4 w-4" />
+                  Past due
+                </div>
+              ) : subStatus === "cancelled" || subStatus === "expired" ? (
+                <div className="flex items-center gap-1 text-muted-foreground text-sm">
+                  <AlertCircle className="h-4 w-4" />
+                  {subStatus === "cancelled" ? "Cancelled" : "Expired"}
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 text-muted-foreground text-sm">
+                  <AlertCircle className="h-4 w-4" />
+                  {formatSubscriptionStatusLabel(subStatus || "unknown")}
                 </div>
               )}
               <span className="text-muted-foreground">•</span>
-              <span className="text-sm text-muted-foreground">{business.package} Plan</span>
+              <span className="text-sm text-muted-foreground">{planName} plan</span>
             </div>
           </div>
         </div>
@@ -191,8 +247,9 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Monthly Revenue</p>
+                  <p className="text-sm text-muted-foreground">Monthly revenue</p>
                   <p className="text-2xl font-bold mt-1">₦{(business.monthly_revenue || 0).toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Completed platform charges this month</p>
                 </div>
                 <CreditCard className="h-8 w-8 text-primary" />
               </div>
@@ -207,21 +264,21 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
                 <Mail className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="text-sm text-muted-foreground">Email</p>
-                  <p className="font-medium">{business.contact_email}</p>
+                  <p className="font-medium">{business.contact_email?.trim() ? business.contact_email : "—"}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <Phone className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="text-sm text-muted-foreground">Phone</p>
-                  <p className="font-medium">{business.contact_phone}</p>
+                  <p className="font-medium">{business.contact_phone?.trim() ? business.contact_phone : "—"}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
                 <MapPin className="h-5 w-5 text-muted-foreground" />
                 <div>
                   <p className="text-sm text-muted-foreground">Address</p>
-                  <p className="font-medium">{business.address}</p>
+                  <p className="font-medium">{business.address?.trim() ? business.address : "—"}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -243,30 +300,62 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
                 <div className="flex items-center gap-3">
                   <Package className="h-8 w-8 text-primary" />
                   <div>
-                    <p className="font-semibold">{business.subscription?.package || 'No Package'} Plan</p>
-                    <p className="text-sm text-muted-foreground">₦{(business.monthly_revenue || 0).toLocaleString()}/month</p>
+                    <p className="font-semibold">{planName} plan</p>
+                    <p className="text-sm text-muted-foreground">
+                      {business.subscription?.amount != null
+                        ? `₦${Number(business.subscription.amount).toLocaleString()} per billing cycle`
+                        : "Amount not set on subscription"}
+                    </p>
                   </div>
                 </div>
-                <Button variant="outline" size="sm">
-                  Change Plan
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/super-admin/subscriptions`}>Manage subscriptions</Link>
                 </Button>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="p-4 border rounded-lg">
-                  <p className="text-sm text-muted-foreground">Status</p>
-                  <p className="font-semibold text-green-600 mt-1">Active</p>
+                  <p className="text-sm text-muted-foreground">Status (central record)</p>
+                  <p
+                    className={`font-semibold mt-1 ${
+                      business.subscription?.status === "active"
+                        ? "text-green-600"
+                        : business.subscription?.status === "trial"
+                          ? "text-orange-600"
+                          : business.subscription?.status === "past_due"
+                            ? "text-red-600"
+                            : "text-muted-foreground"
+                    }`}
+                  >
+                    {business.subscription?.status
+                      ? formatSubscriptionStatusLabel(business.subscription.status)
+                      : "No subscription row"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Display badge uses {formatSubscriptionStatusLabel(subStatus)}
+                  </p>
                 </div>
                 <div className="p-4 border rounded-lg">
-                  <p className="text-sm text-muted-foreground">Next Billing Date</p>
-                  <p className="font-semibold mt-1">{business.subscription_ends_at ? new Date(business.subscription_ends_at).toLocaleDateString() : 'N/A'}</p>
+                  <p className="text-sm text-muted-foreground">Next billing / period end</p>
+                  <p className="font-semibold mt-1">
+                    {(() => {
+                      const raw =
+                        business.subscription?.next_billing_date ||
+                        business.subscription?.ends_at ||
+                        business.subscription_ends_at
+                      return raw ? new Date(raw).toLocaleDateString() : "—"
+                    })()}
+                  </p>
                 </div>
                 <div className="p-4 border rounded-lg">
-                  <p className="text-sm text-muted-foreground">Total Revenue</p>
+                  <p className="text-sm text-muted-foreground">Platform revenue (completed)</p>
                   <p className="font-semibold mt-1">₦{(business.total_revenue || 0).toLocaleString()}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Sum of completed platform transactions for this business</p>
                 </div>
                 <div className="p-4 border rounded-lg">
-                  <p className="text-sm text-muted-foreground">Payment Method</p>
-                  <p className="font-semibold mt-1">Not configured</p>
+                  <p className="text-sm text-muted-foreground">Last payment channel</p>
+                  <p className="font-semibold mt-1">
+                    {formatPaymentGateway(business.last_payment_gateway ?? business.subscription?.payment_method)}
+                  </p>
                 </div>
               </div>
             </div>
@@ -305,18 +394,27 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
           <Card className="p-6">
             <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
             <div className="space-y-4">
-              {recentActivity.map((activity) => (
-                <div key={activity.id} className="flex items-start gap-4 p-4 border rounded-lg">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                    <CheckCircle className="h-5 w-5 text-primary" />
+              {recentActivity.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No recent activity logged for this business.</p>
+              ) : (
+                recentActivity.map((activity) => (
+                  <div key={activity.id} className="flex items-start gap-4 p-4 border rounded-lg">
+                    <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <CheckCircle className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium">{activity.action}</p>
+                      {activity.module ? (
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mt-0.5">{activity.module}</p>
+                      ) : null}
+                      <p className="text-sm text-muted-foreground">{activity.details || "—"}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {activity.timestamp ? new Date(activity.timestamp).toLocaleString() : "—"}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="font-medium">{activity.action}</p>
-                    <p className="text-sm text-muted-foreground">{activity.details}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{activity.timestamp}</p>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </Card>
         </TabsContent>

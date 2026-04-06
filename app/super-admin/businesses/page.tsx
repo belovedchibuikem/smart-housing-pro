@@ -18,7 +18,8 @@ interface Business {
   logo_url?: string
   primary_color?: string
   secondary_color?: string
-  contact_email: string
+  contact_email?: string | null
+  package?: string | null
   contact_phone?: string
   address?: string
   status: string
@@ -215,11 +216,11 @@ export default function BusinessesPage() {
                     </div>
                     <div>
                       <p className="text-muted-foreground">Package</p>
-                      <p className="font-medium">{business.subscription?.package || 'No Package'}</p>
+                      <p className="font-medium">{business.package ?? business.subscription?.package ?? "No package"}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Contact</p>
-                      <p className="font-medium text-sm">{business.contact_email}</p>
+                      <p className="font-medium text-sm">{business.contact_email?.trim() ? business.contact_email : "—"}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Joined</p>

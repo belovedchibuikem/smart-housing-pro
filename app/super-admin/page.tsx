@@ -1,12 +1,18 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Building2, Users, DollarSign, TrendingUp, Package, CreditCard, AlertCircle, CheckCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { apiFetch } from "@/lib/api/client"
 import { usePageLoading } from "@/hooks/use-loading"
+
+interface DashboardApiEnvelope {
+  success?: boolean
+  data?: DashboardData
+  message?: string
+}
 
 interface DashboardData {
   metrics: {
@@ -48,15 +54,24 @@ export default function SuperAdminDashboard() {
 
 	useEffect(() => {
     loadData(async () => {
-      const response = await apiFetch<{ data: DashboardData }>("/super-admin/dashboard/overview")
-      return response.data
+      const response = await apiFetch<DashboardApiEnvelope>("/super-admin/dashboard/overview")
+      const inner = response?.data
+      if (inner?.metrics && Array.isArray(inner.recent_businesses)) {
+        return inner
+      }
+      throw new Error("Invalid dashboard response from server")
     })
 	}, [loadData])
 
 	if (error) return <div className="p-6 text-red-600">{error}</div>
   if (isLoading || !data) return null // Let the skeleton loader handle the display
 
-  const { metrics, recent_businesses, alerts } = data || { metrics: {}, recent_businesses: [], alerts: [] }
+  const { metrics, recent_businesses, alerts } = data || {
+    metrics: {} as DashboardData["metrics"],
+    recent_businesses: [],
+    alerts: [],
+  }
+  const recentList = recent_businesses ?? []
 
 	return (
       <div className="space-y-8">
@@ -191,7 +206,10 @@ export default function SuperAdminDashboard() {
         </div>
         <div className="p-6">
           <div className="space-y-4">
-            {recent_businesses.map((business: DashboardData['recent_businesses'][0]) => (
+            {recentList.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No businesses to show yet.</p>
+            ) : null}
+            {recentList.map((business: DashboardData["recent_businesses"][0]) => (
               <div key={business.id} className="flex items-center justify-between p-4 border rounded-lg">
                 <div className="flex items-center gap-4">
                   <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
@@ -210,7 +228,7 @@ export default function SuperAdminDashboard() {
                     <p className="text-xs text-muted-foreground">
                       {(business.subscription_status ?? "trial") === "trial"
                         ? "Trial"
-                        : `₦${business.revenue || 0}/mo`}
+                        : `₦${Number(business.revenue ?? 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}/mo`}
                     </p>
                   </div>
                   <div>
@@ -228,6 +246,11 @@ export default function SuperAdminDashboard() {
                       <div className="flex items-center gap-1 text-muted-foreground text-sm">
                         <AlertCircle className="h-4 w-4" />
                         Cancelled
+                      </div>
+                    ) : (business.subscription_status ?? "") === "expired" ? (
+                      <div className="flex items-center gap-1 text-muted-foreground text-sm">
+                        <AlertCircle className="h-4 w-4" />
+                        Expired
                       </div>
                     ) : (
                       <div className="flex items-center gap-1 text-orange-600 text-sm">
