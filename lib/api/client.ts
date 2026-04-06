@@ -3446,6 +3446,42 @@ export async function rejectMemberSubscription(subscriptionId: string, rejection
 	})
 }
 
+export type SuperAdminBulkMemberSubscriptionFilters = {
+	search?: string
+	status?: string
+	business_id?: string
+	bulk_batch_id?: string
+}
+
+export async function bulkApproveSuperAdminMemberSubscriptions(payload: {
+	subscription_ids?: string[]
+	filters?: SuperAdminBulkMemberSubscriptionFilters
+}) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		approved_count?: number
+	}>(`/super-admin/member-subscriptions/bulk-approve`, {
+		method: "POST",
+		body: payload,
+	})
+}
+
+export async function bulkRejectSuperAdminMemberSubscriptions(payload: {
+	rejection_reason: string
+	subscription_ids?: string[]
+	filters?: SuperAdminBulkMemberSubscriptionFilters
+}) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		rejected_count?: number
+	}>(`/super-admin/member-subscriptions/bulk-reject`, {
+		method: "POST",
+		body: payload,
+	})
+}
+
 export interface SubmitPropertyPaymentPayload {
 	method: PropertyFundingOption
 	amount: number

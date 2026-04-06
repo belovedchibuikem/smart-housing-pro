@@ -3,10 +3,25 @@
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Search, CheckCircle, AlertCircle, XCircle, Calendar, CreditCard, User } from "lucide-react"
+import {
+  Search,
+  CheckCircle,
+  XCircle,
+  Calendar,
+  CreditCard,
+  User,
+  Loader2,
+  Layers,
+} from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect, useCallback } from "react"
-import { apiFetch, approveMemberSubscription, rejectMemberSubscription } from "@/lib/api/client"
+import {
+  apiFetch,
+  approveMemberSubscription,
+  rejectMemberSubscription,
+  bulkApproveSuperAdminMemberSubscriptions,
+  bulkRejectSuperAdminMemberSubscriptions,
+} from "@/lib/api/client"
 import { usePageLoading } from "@/hooks/use-loading"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -20,6 +35,16 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface MemberSubscription {
   id: string
@@ -91,16 +116,37 @@ export default function MemberSubscriptionsListPage() {
   const [rejectId, setRejectId] = useState<string | null>(null)
   const [rejectionReason, setRejectionReason] = useState("")
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null)
+  const [bulkBatchIdFilter, setBulkBatchIdFilter] = useState("")
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const [confirmBulkApproveOpen, setConfirmBulkApproveOpen] = useState(false)
+  const [confirmBulkRejectOpen, setConfirmBulkRejectOpen] = useState(false)
+  const [bulkRejectReason, setBulkRejectReason] = useState("")
   const { isLoading, data, error, loadData } = usePageLoading<MemberSubscriptionsResponse>()
 
-  const reloadList = useCallback(() => {
+  const listQueryParams = useCallback(() => {
     const params = new URLSearchParams()
     params.append("type", "list")
     if (searchQuery) params.append("search", searchQuery)
     if (statusFilter !== "all") params.append("status", statusFilter)
     if (paymentStatusFilter !== "all") params.append("payment_status", paymentStatusFilter)
-    return loadData(async () => apiFetch<MemberSubscriptionsResponse>(`/super-admin/member-subscriptions?${params.toString()}`))
-  }, [loadData, searchQuery, statusFilter, paymentStatusFilter])
+    if (bulkBatchIdFilter.trim()) params.append("bulk_batch_id", bulkBatchIdFilter.trim())
+    return params
+  }, [searchQuery, statusFilter, paymentStatusFilter, bulkBatchIdFilter])
+
+  const buildBulkFilters = useCallback(() => {
+    const filters: { search?: string; status?: string; bulk_batch_id?: string } = {}
+    if (searchQuery.trim()) filters.search = searchQuery.trim()
+    if (statusFilter !== "all") filters.status = statusFilter
+    if (bulkBatchIdFilter.trim()) filters.bulk_batch_id = bulkBatchIdFilter.trim()
+    return Object.keys(filters).length ? filters : undefined
+  }, [searchQuery, statusFilter, bulkBatchIdFilter])
+
+  const reloadList = useCallback(() => {
+    const params = listQueryParams()
+    return loadData(async () =>
+      apiFetch<MemberSubscriptionsResponse>(`/super-admin/member-subscriptions?${params.toString()}`)
+    )
+  }, [loadData, listQueryParams])
 
   // Debounced search
   const debouncedSearch = useCallback(
@@ -111,17 +157,20 @@ export default function MemberSubscriptionsListPage() {
         timeoutId = setTimeout(() => {
           loadData(async () => {
             const params = new URLSearchParams()
-            if (query) params.append('search', query)
-            if (statusFilter !== 'all') params.append('status', statusFilter)
-            if (paymentStatusFilter !== 'all') params.append('payment_status', paymentStatusFilter)
-            
-            const response = await apiFetch<MemberSubscriptionsResponse>(`/super-admin/member-subscriptions?type=list&${params.toString()}`)
+            params.append("type", "list")
+            if (query) params.append("search", query)
+            if (statusFilter !== "all") params.append("status", statusFilter)
+            if (paymentStatusFilter !== "all") params.append("payment_status", paymentStatusFilter)
+            if (bulkBatchIdFilter.trim()) params.append("bulk_batch_id", bulkBatchIdFilter.trim())
+            const response = await apiFetch<MemberSubscriptionsResponse>(
+              `/super-admin/member-subscriptions?${params.toString()}`
+            )
             return response
           })
         }, 300)
       }
     })(),
-    [loadData, statusFilter, paymentStatusFilter]
+    [loadData, statusFilter, paymentStatusFilter, bulkBatchIdFilter]
   )
 
   useEffect(() => {
@@ -130,16 +179,13 @@ export default function MemberSubscriptionsListPage() {
 
   useEffect(() => {
     loadData(async () => {
-      const params = new URLSearchParams()
-      params.append('type', 'list')
-      if (searchQuery) params.append('search', searchQuery)
-      if (statusFilter !== 'all') params.append('status', statusFilter)
-      if (paymentStatusFilter !== 'all') params.append('payment_status', paymentStatusFilter)
-      
-      const response = await apiFetch<MemberSubscriptionsResponse>(`/super-admin/member-subscriptions?${params.toString()}`)
+      const params = listQueryParams()
+      const response = await apiFetch<MemberSubscriptionsResponse>(
+        `/super-admin/member-subscriptions?${params.toString()}`
+      )
       return response
     })
-  }, [loadData, statusFilter, paymentStatusFilter])
+  }, [loadData, listQueryParams])
 
   if (error) return <div className="p-6 text-red-600">{error}</div>
   if (isLoading || !data) return null
@@ -203,7 +249,50 @@ export default function MemberSubscriptionsListPage() {
             <option value="pending">Pending</option>
             <option value="rejected">Rejected</option>
           </select>
+          <Input
+            placeholder="Bulk batch ID (optional)"
+            value={bulkBatchIdFilter}
+            onChange={(e) => setBulkBatchIdFilter(e.target.value)}
+            className="md:max-w-[220px]"
+            title="Limit list and bulk actions to one bulk import batch"
+          />
         </div>
+        {paymentStatusFilter === "pending" && (
+          <div className="mt-4 pt-4 border-t flex flex-col lg:flex-row lg:items-center gap-3 justify-between">
+            <p className="text-sm text-muted-foreground flex items-start gap-2">
+              <Layers className="h-4 w-4 shrink-0 mt-0.5" />
+              <span>
+                <strong>Bulk payment review:</strong> approve or reject every subscription with{" "}
+                <strong>pending payment</strong> that matches the filters above (search, subscription status, batch ID).
+                This uses the server-side total — currently{" "}
+                <strong>{(data?.pagination?.total ?? 0).toLocaleString()}</strong> — not just the rows on this page.
+              </span>
+            </p>
+            <div className="flex flex-wrap gap-2 shrink-0">
+              <Button
+                type="button"
+                className="bg-green-600 hover:bg-green-700"
+                disabled={bulkBusy}
+                onClick={() => setConfirmBulkApproveOpen(true)}
+              >
+                {bulkBusy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle className="h-4 w-4 mr-2" />}
+                Approve all matching
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={bulkBusy}
+                onClick={() => {
+                  setBulkRejectReason("")
+                  setConfirmBulkRejectOpen(true)
+                }}
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                Reject all matching
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Subscriptions List */}
@@ -328,6 +417,102 @@ export default function MemberSubscriptionsListPage() {
           </p>
         </div>
       )}
+
+      <AlertDialog open={confirmBulkApproveOpen} onOpenChange={setConfirmBulkApproveOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Approve all matching pending payments?</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <span>
+                Subscriptions that match your current filters will be marked approved and activated (up to the platform
+                limit per request). Platform transactions linked by payment reference will be completed.
+              </span>
+              {data?.pagination?.total != null && (
+                <span className="block font-medium text-foreground">
+                  Estimated rows: {data.pagination.total.toLocaleString()} (pending + filters)
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkBusy}>Cancel</AlertDialogCancel>
+            <Button
+              className="bg-green-600 hover:bg-green-700"
+              disabled={bulkBusy}
+              onClick={async () => {
+                setBulkBusy(true)
+                try {
+                  const filters = buildBulkFilters()
+                  const res = await bulkApproveSuperAdminMemberSubscriptions(
+                    filters && Object.keys(filters).length > 0 ? { filters } : {}
+                  )
+                  toast.success(res.message || `Approved ${res.approved_count ?? 0} subscription(s)`)
+                  setConfirmBulkApproveOpen(false)
+                  await reloadList()
+                } catch (e: unknown) {
+                  toast.error(e instanceof Error ? e.message : "Bulk approve failed")
+                } finally {
+                  setBulkBusy(false)
+                }
+              }}
+            >
+              {bulkBusy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Confirm approve all
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={confirmBulkRejectOpen} onOpenChange={setConfirmBulkRejectOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Reject all matching pending payments?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Matching subscriptions will be rejected and cancelled. This applies to every pending row that matches your
+              filters, not only this page.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="bulk-reject-reason">Reason (required)</Label>
+            <Textarea
+              id="bulk-reject-reason"
+              value={bulkRejectReason}
+              onChange={(e) => setBulkRejectReason(e.target.value)}
+              placeholder="Reason for rejection…"
+              rows={4}
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={bulkBusy}>Cancel</AlertDialogCancel>
+            <Button
+              variant="destructive"
+              disabled={bulkBusy || !bulkRejectReason.trim()}
+              onClick={async () => {
+                if (!bulkRejectReason.trim()) return
+                setBulkBusy(true)
+                try {
+                  const filters = buildBulkFilters()
+                  const res = await bulkRejectSuperAdminMemberSubscriptions({
+                    rejection_reason: bulkRejectReason.trim(),
+                    ...(filters && Object.keys(filters).length > 0 ? { filters } : {}),
+                  })
+                  toast.success(res.message || `Rejected ${res.rejected_count ?? 0} subscription(s)`)
+                  setConfirmBulkRejectOpen(false)
+                  setBulkRejectReason("")
+                  await reloadList()
+                } catch (e: unknown) {
+                  toast.error(e instanceof Error ? e.message : "Bulk reject failed")
+                } finally {
+                  setBulkBusy(false)
+                }
+              }}
+            >
+              {bulkBusy ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Confirm reject all
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={rejectId !== null} onOpenChange={(open) => !open && setRejectId(null)}>
         <DialogContent>
