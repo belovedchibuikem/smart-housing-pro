@@ -146,7 +146,8 @@ export default function NewSubscriptionPackagePage() {
                   <SelectContent>
                     <SelectItem value="weekly">Weekly</SelectItem>
                     <SelectItem value="monthly">Monthly</SelectItem>
-                    <SelectItem value="quarterly">Quarterly</SelectItem>
+                    <SelectItem value="quarterly">Quarterly (3 months)</SelectItem>
+                    <SelectItem value="semi_annual">Every 6 months</SelectItem>
                     <SelectItem value="yearly">Yearly</SelectItem>
                   </SelectContent>
                 </Select>
