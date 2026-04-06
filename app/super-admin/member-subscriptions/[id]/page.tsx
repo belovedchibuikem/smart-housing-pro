@@ -134,7 +134,7 @@ export default function MemberSubscriptionDetailPage({ params }: { params: Promi
 
   // If we have subscription data, show subscription view
   if (subscriptionData) {
-    const canApproveReject = subscriptionData.payment_method === 'manual' && subscriptionData.payment_status === 'pending'
+    const canApproveReject = subscriptionData.payment_status === 'pending'
     return (
       <>
       <div className="space-y-6">
@@ -375,16 +375,17 @@ export default function MemberSubscriptionDetailPage({ params }: { params: Promi
           </Card>
         )}
 
-        {/* Approval Actions - Only show for pending manual payments */}
+        {/* Approval actions for any subscription still in pending payment state (manual, Paystack awaiting verification, etc.) */}
         {canApproveReject && (
           <Card className="border-orange-200 bg-orange-50/50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <AlertCircle className="h-5 w-5 text-orange-600" />
-                Payment Approval Required
+                Payment approval required
               </CardTitle>
               <CardDescription>
-                This subscription requires manual approval. Review the payment details and approve or reject the subscription.
+                Payment status is pending. Confirm funds or evidence, then approve or reject. Method:{" "}
+                <span className="font-medium capitalize">{subscriptionData.payment_method}</span>.
               </CardDescription>
             </CardHeader>
             <CardContent>

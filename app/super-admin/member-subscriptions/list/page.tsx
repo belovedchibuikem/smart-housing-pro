@@ -6,9 +6,20 @@ import { Input } from "@/components/ui/input"
 import { Search, CheckCircle, AlertCircle, XCircle, Calendar, CreditCard, User } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect, useCallback } from "react"
-import { apiFetch } from "@/lib/api/client"
+import { apiFetch, approveMemberSubscription, rejectMemberSubscription } from "@/lib/api/client"
 import { usePageLoading } from "@/hooks/use-loading"
 import { Badge } from "@/components/ui/badge"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
+import { toast } from "sonner"
 
 interface MemberSubscription {
   id: string
@@ -32,6 +43,7 @@ interface MemberSubscription {
 }
 
 interface MemberSubscriptionsResponse {
+  success?: boolean
   subscriptions: MemberSubscription[]
   pagination: {
     current_page: number
@@ -74,7 +86,19 @@ export default function MemberSubscriptionsListPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [paymentStatusFilter, setPaymentStatusFilter] = useState("all")
+  const [rejectId, setRejectId] = useState<string | null>(null)
+  const [rejectionReason, setRejectionReason] = useState("")
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null)
   const { isLoading, data, error, loadData } = usePageLoading<MemberSubscriptionsResponse>()
+
+  const reloadList = useCallback(() => {
+    const params = new URLSearchParams()
+    params.append("type", "list")
+    if (searchQuery) params.append("search", searchQuery)
+    if (statusFilter !== "all") params.append("status", statusFilter)
+    if (paymentStatusFilter !== "all") params.append("payment_status", paymentStatusFilter)
+    return loadData(async () => apiFetch<MemberSubscriptionsResponse>(`/super-admin/member-subscriptions?${params.toString()}`))
+  }, [loadData, searchQuery, statusFilter, paymentStatusFilter])
 
   // Debounced search
   const debouncedSearch = useCallback(
@@ -239,7 +263,44 @@ export default function MemberSubscriptionsListPage() {
                     )}
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2 justify-end">
+                  {subscription.payment_status === "pending" && (
+                    <>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                        disabled={actionLoadingId === subscription.id}
+                        onClick={async () => {
+                          setActionLoadingId(subscription.id)
+                          try {
+                            await approveMemberSubscription(subscription.id)
+                            toast.success("Payment approved")
+                            await reloadList()
+                          } catch (e: unknown) {
+                            toast.error(e instanceof Error ? e.message : "Approve failed")
+                          } finally {
+                            setActionLoadingId(null)
+                          }
+                        }}
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Approve
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={actionLoadingId === subscription.id}
+                        onClick={() => {
+                          setRejectId(subscription.id)
+                          setRejectionReason("")
+                        }}
+                      >
+                        <XCircle className="h-4 w-4 mr-1" />
+                        Reject
+                      </Button>
+                    </>
+                  )}
                   <Link href={`/super-admin/member-subscriptions/${subscription.id}`}>
                     <Button variant="outline" size="sm">
                       View Details
@@ -262,6 +323,51 @@ export default function MemberSubscriptionsListPage() {
           </p>
         </div>
       )}
+
+      <Dialog open={rejectId !== null} onOpenChange={(open) => !open && setRejectId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject payment</DialogTitle>
+            <DialogDescription>Provide a reason. The subscription will be cancelled.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="reject-reason">Reason</Label>
+            <Textarea
+              id="reject-reason"
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="Reason for rejection…"
+              rows={4}
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setRejectId(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!rejectId || !rejectionReason.trim() || actionLoadingId !== null}
+              onClick={async () => {
+                if (!rejectId || !rejectionReason.trim()) return
+                setActionLoadingId(rejectId)
+                try {
+                  await rejectMemberSubscription(rejectId, rejectionReason.trim())
+                  toast.success("Payment rejected")
+                  setRejectId(null)
+                  setRejectionReason("")
+                  await reloadList()
+                } catch (e: unknown) {
+                  toast.error(e instanceof Error ? e.message : "Reject failed")
+                } finally {
+                  setActionLoadingId(null)
+                }
+              }}
+            >
+              Reject payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
