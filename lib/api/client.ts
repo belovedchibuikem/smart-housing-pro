@@ -3351,8 +3351,37 @@ export async function getAdminBulkMemberSubscriptionPaymentMethods() {
 	}>("/admin/member-subscriptions/bulk/payment-methods", { method: "GET" })
 }
 
+export async function previewAdminBulkMemberSubscription(data: {
+	lines?: BulkMemberSubscriptionLine[]
+	package_id?: string
+	member_scope?: "all_active" | "selected_ids"
+	member_ids?: string[]
+	member_search?: string
+	exclude_member_ids?: string[]
+}) {
+	return apiFetch<{
+		success: boolean
+		message?: string
+		member_count?: number
+		package_id?: string
+		package_name?: string
+		unit_price?: number
+		total_amount?: number
+		max_bulk_lines?: number
+		errors?: Record<string, string[]>
+	}>("/admin/member-subscriptions/bulk/preview", {
+		method: "POST",
+		body: data,
+	})
+}
+
 export async function initializeAdminBulkMemberSubscription(data: {
-	lines: BulkMemberSubscriptionLine[]
+	lines?: BulkMemberSubscriptionLine[]
+	package_id?: string
+	member_scope?: "all_active" | "selected_ids"
+	member_ids?: string[]
+	member_search?: string
+	exclude_member_ids?: string[]
 	payment_method: string
 	notes?: string
 	payer_name?: string
@@ -3367,6 +3396,7 @@ export async function initializeAdminBulkMemberSubscription(data: {
 		member_subscription_ids?: string[]
 		reference?: string
 		total_amount?: number
+		member_count?: number
 		breakdown?: Array<{
 			member_id: string
 			member_number?: string
@@ -3375,6 +3405,7 @@ export async function initializeAdminBulkMemberSubscription(data: {
 			amount: number
 			member_subscription_id?: string
 		}>
+		breakdown_truncated?: boolean
 		payment_url?: string
 		requires_approval?: boolean
 	}>("/admin/member-subscriptions/bulk/initialize", {

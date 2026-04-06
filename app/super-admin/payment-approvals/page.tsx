@@ -62,6 +62,7 @@ interface PaymentTransaction {
     is_bulk_member_subscription?: boolean
     line_count?: number
     breakdown?: BulkBreakdownLine[]
+    breakdown_truncated?: boolean
     member_subscription_ids?: string[]
   }
   tenant: {
@@ -362,6 +363,12 @@ export default function PaymentApprovalsPage() {
                           members
                         </span>
                       </div>
+                      {transaction.metadata.breakdown_truncated && (
+                        <p className="text-xs text-muted-foreground">
+                          Showing a sample of the breakdown; full line-up is stored on each member subscription for this
+                          payment reference.
+                        </p>
+                      )}
                       {transaction.metadata.breakdown && transaction.metadata.breakdown.length > 0 && (
                         <div className="overflow-x-auto text-sm">
                           <table className="w-full border-collapse">

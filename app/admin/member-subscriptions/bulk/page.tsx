@@ -9,11 +9,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
   getAdminBulkMemberSubscriptionPackages,
   getAdminBulkMemberSubscriptionPaymentMethods,
+  previewAdminBulkMemberSubscription,
   initializeAdminBulkMemberSubscription,
   uploadPaymentEvidence,
   apiFetch,
   type BulkMemberSubscriptionLine,
 } from "@/lib/api/client"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Select,
   SelectContent,
@@ -55,6 +57,12 @@ function formatNgn(n: number) {
   return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(n)
 }
 
+function parseUuidList(text: string): string[] {
+  const raw = text.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean)
+  const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  return [...new Set(raw.filter((s) => uuidRe.test(s)))]
+}
+
 export default function AdminBulkMemberSubscriptionsPage() {
   const { toast } = useToast()
   const [loading, setLoading] = useState(true)
@@ -74,6 +82,18 @@ export default function AdminBulkMemberSubscriptionsPage() {
   const [uploadingEv, setUploadingEv] = useState(false)
   const [pickMemberId, setPickMemberId] = useState<string>("")
   const [pickPackageId, setPickPackageId] = useState<string>("")
+  const [batchTab, setBatchTab] = useState<"mass" | "custom">("mass")
+  const [massPackageId, setMassPackageId] = useState<string>("")
+  const [massScope, setMassScope] = useState<"all_active" | "selected_ids">("all_active")
+  const [massSearch, setMassSearch] = useState("")
+  const [idsTextarea, setIdsTextarea] = useState("")
+  const [previewResult, setPreviewResult] = useState<{
+    member_count: number
+    total_amount: number
+    package_name?: string
+    unit_price?: number
+  } | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
 
   const loadCore = useCallback(async () => {
     setLoading(true)
@@ -82,7 +102,12 @@ export default function AdminBulkMemberSubscriptionsPage() {
         getAdminBulkMemberSubscriptionPackages(),
         getAdminBulkMemberSubscriptionPaymentMethods(),
       ])
-      setPackages(pkgRes.packages || [])
+      const pkgs = pkgRes.packages || []
+      setPackages(pkgs)
+      if (pkgs[0]?.id) {
+        setPickPackageId(pkgs[0].id)
+        setMassPackageId(pkgs[0].id)
+      }
       const enabled = (pmRes.payment_methods || []).filter((m) => m.is_enabled)
       setPaymentMethods(enabled)
       const first = enabled.find((m) => m.id !== "stripe")?.id || enabled[0]?.id || ""
@@ -153,6 +178,72 @@ export default function AdminBulkMemberSubscriptionsPage() {
 
   const grandTotal = lines.reduce((s, l) => s + lineTotal(l.package_id), 0)
 
+  const runPreview = async () => {
+    setPreviewLoading(true)
+    setPreviewResult(null)
+    try {
+      if (batchTab === "custom") {
+        if (lines.length === 0) {
+          toast({ title: "Nothing to preview", description: "Add at least one line, or use the large batch tab." })
+          return
+        }
+        const res = await previewAdminBulkMemberSubscription({ lines })
+        if (!res.success) throw new Error(typeof res.message === "string" ? res.message : "Preview failed")
+        setPreviewResult({
+          member_count: res.member_count ?? 0,
+          total_amount: res.total_amount ?? 0,
+          package_name: res.package_name,
+          unit_price: res.unit_price,
+        })
+        return
+      }
+      if (!massPackageId) {
+        toast({ title: "Package required", description: "Choose a subscription package." })
+        return
+      }
+      if (massScope === "all_active") {
+        const res = await previewAdminBulkMemberSubscription({
+          package_id: massPackageId,
+          member_scope: "all_active",
+          member_search: massSearch.trim() || undefined,
+        })
+        if (!res.success) throw new Error(typeof res.message === "string" ? res.message : "Preview failed")
+        setPreviewResult({
+          member_count: res.member_count ?? 0,
+          total_amount: res.total_amount ?? 0,
+          package_name: res.package_name,
+          unit_price: res.unit_price,
+        })
+        return
+      }
+      const ids = parseUuidList(idsTextarea)
+      if (ids.length === 0) {
+        toast({ title: "Member IDs", description: "Paste one member UUID per line (or comma-separated)." })
+        return
+      }
+      const res = await previewAdminBulkMemberSubscription({
+        package_id: massPackageId,
+        member_scope: "selected_ids",
+        member_ids: ids,
+      })
+      if (!res.success) throw new Error(typeof res.message === "string" ? res.message : "Preview failed")
+      setPreviewResult({
+        member_count: res.member_count ?? 0,
+        total_amount: res.total_amount ?? 0,
+        package_name: res.package_name,
+        unit_price: res.unit_price,
+      })
+    } catch (e: unknown) {
+      toast({
+        title: "Preview failed",
+        description: e instanceof Error ? e.message : "Could not preview batch",
+        variant: "destructive",
+      })
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
   const handleEvidence = async (files: FileList | null) => {
     if (!files?.length) return
     setUploadingEv(true)
@@ -163,7 +254,6 @@ export default function AdminBulkMemberSubscriptionsPage() {
         urls.push(url)
       }
       setEvidenceUrls((prev) => [...prev, ...urls])
-      setEvidenceFiles([])
     } catch (e: unknown) {
       toast({
         title: "Upload failed",
@@ -176,29 +266,51 @@ export default function AdminBulkMemberSubscriptionsPage() {
   }
 
   const submit = async () => {
-    if (lines.length === 0) {
-      toast({ title: "Add members", description: "Add at least one member and package.", variant: "destructive" })
-      return
-    }
     if (!paymentMethod) {
       toast({ title: "Payment method", description: "Choose a payment method.", variant: "destructive" })
       return
     }
+    let body: Parameters<typeof initializeAdminBulkMemberSubscription>[0] = {
+      payment_method: paymentMethod,
+      notes: notes || undefined,
+    }
+    if (batchTab === "custom") {
+      if (lines.length === 0) {
+        toast({ title: "Add members", description: "Add at least one line or switch to large batch.", variant: "destructive" })
+        return
+      }
+      body = { ...body, lines }
+    } else {
+      if (!massPackageId) {
+        toast({ title: "Package", description: "Select a package for the whole batch.", variant: "destructive" })
+        return
+      }
+      if (massScope === "all_active") {
+        body = {
+          ...body,
+          package_id: massPackageId,
+          member_scope: "all_active",
+          member_search: massSearch.trim() || undefined,
+        }
+      } else {
+        const ids = parseUuidList(idsTextarea)
+        if (ids.length === 0) {
+          toast({ title: "Member IDs", description: "Paste member UUIDs for selected members.", variant: "destructive" })
+          return
+        }
+        body = { ...body, package_id: massPackageId, member_scope: "selected_ids", member_ids: ids }
+      }
+    }
+    if (isManual) {
+      if (manualCfg.require_payer_name !== false) body.payer_name = payerName
+      if (manualCfg.require_payer_phone) body.payer_phone = payerPhone
+      if (manualCfg.require_account_details) body.account_details = accountDetails
+      if (manualCfg.require_payment_evidence !== false && evidenceUrls.length > 0) {
+        body.payment_evidence = evidenceUrls
+      }
+    }
     setSubmitting(true)
     try {
-      const body: Parameters<typeof initializeAdminBulkMemberSubscription>[0] = {
-        lines,
-        payment_method: paymentMethod,
-        notes: notes || undefined,
-      }
-      if (isManual) {
-        if (manualCfg.require_payer_name !== false) body.payer_name = payerName
-        if (manualCfg.require_payer_phone) body.payer_phone = payerPhone
-        if (manualCfg.require_account_details) body.account_details = accountDetails
-        if (manualCfg.require_payment_evidence !== false && evidenceUrls.length > 0) {
-          body.payment_evidence = evidenceUrls
-        }
-      }
       const res = await initializeAdminBulkMemberSubscription(body)
       if (!res.success) {
         throw new Error(res.message || "Initialization failed")
@@ -210,11 +322,13 @@ export default function AdminBulkMemberSubscriptionsPage() {
         })
         setLines([])
         setEvidenceUrls([])
+        setPreviewResult(null)
         return
       }
       if (paymentMethod === "wallet") {
         toast({ title: "Paid", description: `${formatNgn(res.total_amount || grandTotal)} charged from wallet.` })
         setLines([])
+        setPreviewResult(null)
         return
       }
       const payUrl = res.payment_url
@@ -268,15 +382,118 @@ export default function AdminBulkMemberSubscriptionsPage() {
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Super admin gateway</AlertTitle>
         <AlertDescription>
-          Charges use the platform payment settings configured by the super admin, consistent with individual member
-          checkout. Super admins see these as bulk transactions with a per-member breakdown.
+          Charges use the platform payment settings configured by the super admin. For very large cooperatives (e.g.
+          2,000+ members), use <strong>Large batch</strong>: one payment covers everyone on the same plan—no need to add
+          people one by one.
         </AlertDescription>
       </Alert>
 
+      <Tabs
+        value={batchTab}
+        onValueChange={(v) => {
+          setBatchTab(v as "mass" | "custom")
+          setPreviewResult(null)
+        }}
+      >
+        <TabsList className="mb-2">
+          <TabsTrigger value="mass">Large batch (recommended)</TabsTrigger>
+          <TabsTrigger value="custom">Custom lines</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="mass" className="space-y-4 mt-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Same package for the whole cooperative</CardTitle>
+              <CardDescription>
+                Include every <strong>active</strong> member automatically, or paste member UUIDs (e.g. from an export).
+                Preview to confirm count and total before paying.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Package</Label>
+                  <Select value={massPackageId || undefined} onValueChange={setMassPackageId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Package" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {packages.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.name} — {formatNgn(p.price)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Audience</Label>
+                  <Select value={massScope} onValueChange={(v) => setMassScope(v as "all_active" | "selected_ids")}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all_active">All active members</SelectItem>
+                      <SelectItem value="selected_ids">Only pasted member UUIDs</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {massScope === "all_active" && (
+                <div className="space-y-2">
+                  <Label>Optional filter (narrows who counts as “all active”)</Label>
+                  <Input
+                    placeholder="Name, email, or member number… (leave blank for everyone active)"
+                    value={massSearch}
+                    onChange={(e) => setMassSearch(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Server loads every matching active member—safe into the thousands per payment (max 10,000).
+                  </p>
+                </div>
+              )}
+
+              {massScope === "selected_ids" && (
+                <div className="space-y-2">
+                  <Label>Member UUIDs</Label>
+                  <Textarea
+                    rows={10}
+                    placeholder={"One UUID per line, or comma / space separated\ne.g. from admin export or your database"}
+                    value={idsTextarea}
+                    onChange={(e) => setIdsTextarea(e.target.value)}
+                  />
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2 items-center">
+                <Button type="button" variant="secondary" onClick={() => void runPreview()} disabled={previewLoading}>
+                  {previewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Preview count &amp; total
+                </Button>
+              </div>
+
+              {previewResult && batchTab === "mass" && (
+                <Alert>
+                  <AlertDescription>
+                    <strong>{previewResult.member_count}</strong> members
+                    {previewResult.package_name ? <> — {previewResult.package_name}</> : null}
+                    {typeof previewResult.unit_price === "number" ? <> @ {formatNgn(previewResult.unit_price)} each</> : null}
+                    . Total: <strong>{formatNgn(previewResult.total_amount)}</strong>.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="custom" className="space-y-4 mt-4">
       <Card>
         <CardHeader>
           <CardTitle>Add lines</CardTitle>
-          <CardDescription>Search members, pick a package, then add to the batch.</CardDescription>
+          <CardDescription>
+            Mix different packages—search members and add one row at a time (best for smaller batches).
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 md:grid-cols-2">
@@ -390,10 +607,26 @@ export default function AdminBulkMemberSubscriptionsPage() {
           )}
 
           {lines.length > 0 && (
-            <div className="flex justify-end text-lg font-semibold">Total: {formatNgn(grandTotal)}</div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={() => void runPreview()} disabled={previewLoading}>
+                {previewLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Preview
+              </Button>
+              <span className="text-lg font-semibold">Total: {formatNgn(grandTotal)}</span>
+            </div>
+          )}
+          {previewResult && batchTab === "custom" && lines.length > 0 && (
+            <Alert>
+              <AlertDescription>
+                Preview: <strong>{previewResult.member_count}</strong> lines, total{" "}
+                <strong>{formatNgn(previewResult.total_amount)}</strong>.
+              </AlertDescription>
+            </Alert>
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
 
       <Card>
         <CardHeader>
