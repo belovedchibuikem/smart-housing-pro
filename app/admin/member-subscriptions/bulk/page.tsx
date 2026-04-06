@@ -151,6 +151,12 @@ export default function AdminBulkMemberSubscriptionsPage() {
 
   const selectedPm = paymentMethods.find((m) => m.id === paymentMethod)
   const isManual = paymentMethod === "manual"
+  const massAudienceReady =
+    massScope === "all_active" || parseUuidList(idsTextarea).length > 0
+  const batchReady =
+    batchTab === "custom"
+      ? lines.length > 0
+      : Boolean(massPackageId && massAudienceReady)
   const manualCfg = (selectedPm?.configuration || {}) as {
     require_payer_name?: boolean
     require_payer_phone?: boolean
@@ -726,7 +732,7 @@ export default function AdminBulkMemberSubscriptionsPage() {
           )}
 
           <div className="flex flex-wrap gap-2">
-            <Button onClick={submit} disabled={submitting || lines.length === 0}>
+            <Button onClick={submit} disabled={submitting || !batchReady}>
               {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
               Pay bulk total
             </Button>
