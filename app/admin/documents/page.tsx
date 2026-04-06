@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog"
 import { Search, Download, Eye, Upload, FileText, ImageIcon, File, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { getDocuments, uploadDocument, viewDocument, downloadDocument, approveDocument, rejectDocument, deleteDocument, getUsers } from "@/lib/api/client"
+import { getDocuments, uploadDocument, viewDocument, downloadDocument, approveDocument, rejectDocument, deleteDocument, apiFetch } from "@/lib/api/client"
 import Link from "next/link"
 import {
   DropdownMenu,
@@ -66,9 +66,15 @@ export default function AdminDocumentsPage() {
   }, [searchQuery, typeFilter, statusFilter])
 
   useEffect(() => {
-    if (memberSearch.length >= 2) {
-      loadMembers()
+    const q = memberSearch.trim()
+    if (q.length < 2) {
+      setMembers([])
+      return
     }
+    const timer = setTimeout(() => {
+      loadMembers(q)
+    }, 300)
+    return () => clearTimeout(timer)
   }, [memberSearch])
 
   const fetchDocuments = async () => {
@@ -97,28 +103,31 @@ export default function AdminDocumentsPage() {
     }
   }
 
-  const loadMembers = async () => {
+  const loadMembers = async (search: string) => {
     try {
-      const response = await getUsers({
-        search: memberSearch,
-        status: 'active',
-        per_page: 10,
-      })
-      // Handle both response formats: { success: true, data: [] } or { users: [] }
-      const membersList = (response as any).data || (response as any).users || []
-      setMembers(membersList)
-    } catch (error) {
-      // Silently fail member search
+      const response = await apiFetch<{
+        success: boolean
+        members?: Array<{
+          id: string
+          member_number?: string | null
+          first_name?: string | null
+          last_name?: string | null
+          email?: string | null
+        }>
+      }>(`/admin/members?search=${encodeURIComponent(search)}&per_page=10`)
+      setMembers(response.success && response.members ? response.members : [])
+    } catch {
+      setMembers([])
     }
   }
 
   const handleUploadDocument = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (!formData.file || !formData.title || !formData.type) {
+    if (!formData.file || !formData.title || !formData.type || !formData.member_id) {
       toast({
         title: "Error",
-        description: "Please fill in all required fields",
+        description: "Please fill in all required fields, including member",
         variant: "destructive",
       })
       return
@@ -133,9 +142,7 @@ export default function AdminDocumentsPage() {
       if (formData.description) {
         formDataToSend.append('description', formData.description)
       }
-      if (formData.member_id) {
-        formDataToSend.append('member_id', formData.member_id)
-      }
+      formDataToSend.append('member_id', formData.member_id)
 
       const response = await uploadDocument(formDataToSend)
       
@@ -152,6 +159,7 @@ export default function AdminDocumentsPage() {
           member_id: "",
           file: null,
         })
+        setMemberSearch("")
         fetchDocuments()
       }
     } catch (error: any) {
@@ -341,7 +349,7 @@ export default function AdminDocumentsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="memberSearch">Member (Optional)</Label>
+                <Label htmlFor="memberSearch">Member *</Label>
                 <div className="relative">
                   <Input 
                     id="memberSearch" 
@@ -364,7 +372,7 @@ export default function AdminDocumentsPage() {
                     </Button>
                   )}
                 </div>
-                {memberSearch.length >= 2 && members.length > 0 && (
+                {memberSearch.trim().length >= 2 && members.length > 0 && (
                   <div className="border rounded-lg mt-1 max-h-40 overflow-auto">
                     {members.map((member) => (
                       <div
@@ -372,11 +380,21 @@ export default function AdminDocumentsPage() {
                         className="p-2 hover:bg-accent cursor-pointer border-b last:border-b-0"
                         onClick={() => {
                           setFormData({ ...formData, member_id: member.id })
-                          setMemberSearch(`${member.first_name} ${member.last_name}`)
+                          setMemberSearch(
+                            `${member.first_name ?? ""} ${member.last_name ?? ""}`.trim() ||
+                              member.member_number ||
+                              member.email ||
+                              member.id
+                          )
                         }}
                       >
-                        <div className="font-medium">{member.first_name} {member.last_name}</div>
-                        <div className="text-sm text-muted-foreground">{member.email}</div>
+                        <div className="font-medium">
+                          {member.first_name} {member.last_name}
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {member.email}
+                          {member.member_number ? ` · ${member.member_number}` : ""}
+                        </div>
                       </div>
                     ))}
                   </div>

@@ -5,7 +5,7 @@ import type React from "react"
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Loader2, Search, Check } from "lucide-react"
+import { ArrowLeft, Loader2, Search, Check, ChevronDown } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -17,6 +17,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch, getPropertyPaymentPlanDetails, getApprovedPropertyInterests, type ApprovedPropertyInterest } from "@/lib/api/client"
+import { Checkbox } from "@/components/ui/checkbox"
+import { MORTGAGE_PROPERTY_TITLE_OPTIONS } from "@/lib/mortgage-property-titles"
 
 interface MortgageProvider {
   id: string
@@ -39,6 +41,7 @@ interface MortgageDetail {
   id: string
   member_id: string
   property_id?: string | null
+  property_titles?: string[] | null
   provider_id?: string | null
   loan_amount: number
   interest_rate: number
@@ -72,6 +75,7 @@ export default function EditMortgagePage() {
   const [formData, setFormData] = useState({
     member_id: "",
     property_id: "",
+    property_titles: [] as string[],
     provider_id: "",
     loan_amount: "",
     interest_rate: "",
@@ -130,7 +134,7 @@ export default function EditMortgagePage() {
         })
     } else {
       setPropertyOptions([])
-      setFormData(prev => ({ ...prev, property_id: "" }))
+      setFormData(prev => ({ ...prev, property_id: "", property_titles: [] }))
     }
   }, [formData.member_id])
 
@@ -211,6 +215,7 @@ export default function EditMortgagePage() {
       setFormData({
         member_id: mortgage.member_id ?? "",
         property_id: mortgage.property_id ?? "",
+        property_titles: Array.isArray(mortgage.property_titles) ? mortgage.property_titles : [],
         provider_id: mortgage.provider_id ?? "",
         loan_amount: mortgage.loan_amount?.toString() ?? "",
         interest_rate: mortgage.interest_rate?.toString() ?? "",
@@ -295,6 +300,22 @@ export default function EditMortgagePage() {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
     if (!mortgageId) return
+    if (!formData.property_id) {
+      toast({
+        title: "Property required",
+        description: "Select the property this mortgage applies to.",
+        variant: "destructive",
+      })
+      return
+    }
+    if (formData.property_titles.length === 0) {
+      toast({
+        title: "Property titles required",
+        description: "Select at least one property title (e.g. C of O, R of O).",
+        variant: "destructive",
+      })
+      return
+    }
     setSubmitting(true)
 
     try {
@@ -302,7 +323,8 @@ export default function EditMortgagePage() {
         method: "PUT",
         body: {
           member_id: formData.member_id,
-          property_id: formData.property_id || null,
+          property_id: formData.property_id,
+          property_titles: formData.property_titles,
           provider_id: formData.provider_id || null,
           loan_amount: parseFloat(formData.loan_amount),
           interest_rate: parseFloat(formData.interest_rate),
@@ -413,7 +435,7 @@ export default function EditMortgagePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="property_id">Property (Optional)</Label>
+                  <Label htmlFor="property_id">Property *</Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -427,7 +449,7 @@ export default function EditMortgagePage() {
                             "Selected property"
                           : loadingProperties
                             ? "Loading properties..."
-                            : "Search and select a property (optional)..."}
+                            : "Search and select a property..."}
                         <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
@@ -442,17 +464,6 @@ export default function EditMortgagePage() {
                         />
                       </div>
                       <div className="max-h-[300px] overflow-auto">
-                        <button
-                          type="button"
-                          className={cn(
-                            "flex w-full items-center justify-between px-4 py-2 text-left hover:bg-accent",
-                            !formData.property_id && "bg-accent"
-                          )}
-                          onClick={() => setFormData({ ...formData, property_id: "" })}
-                        >
-                          <span className="font-medium">None</span>
-                          {!formData.property_id && <Check className="h-4 w-4" />}
-                        </button>
                         {loadingProperties ? (
                           <div className="p-4 text-center text-sm text-muted-foreground">Loading properties...</div>
                         ) : filteredProperties.length === 0 ? (
@@ -487,6 +498,53 @@ export default function EditMortgagePage() {
                       </div>
                     </PopoverContent>
                   </Popover>
+                </div>
+
+                <div className="space-y-2 sm:col-span-2">
+                  <Label>Property titles *</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-between font-normal",
+                          formData.property_titles.length === 0 && "text-muted-foreground"
+                        )}
+                      >
+                        {formData.property_titles.length === 0
+                          ? "Select one or more titles (C of O, R of O, …)"
+                          : `${formData.property_titles.length} title${formData.property_titles.length === 1 ? "" : "s"} selected`}
+                        <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-2" align="start">
+                      <div className="max-h-[280px] space-y-1 overflow-y-auto pr-1">
+                        {MORTGAGE_PROPERTY_TITLE_OPTIONS.map((opt) => (
+                          <label
+                            key={opt.key}
+                            className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 hover:bg-accent"
+                          >
+                            <Checkbox
+                              checked={formData.property_titles.includes(opt.key)}
+                              onCheckedChange={() => {
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  property_titles: prev.property_titles.includes(opt.key)
+                                    ? prev.property_titles.filter((k) => k !== opt.key)
+                                    : [...prev.property_titles, opt.key],
+                                }))
+                              }}
+                            />
+                            <span className="text-sm leading-snug">{opt.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  <p className="text-xs text-muted-foreground">
+                    Documents or title types that apply to this property (you can select several).
+                  </p>
                 </div>
 
                 <div className="space-y-2 sm:col-span-2">
@@ -533,6 +591,9 @@ export default function EditMortgagePage() {
                     disabled={loanAmountLocked}
                   />
                   {loanAmountLocked && <p className="text-xs text-muted-foreground">Auto-filled from mortgage allocation</p>}
+                  <p className="text-xs text-muted-foreground">
+                    Principal drawn for this mortgage on the selected property (adjust only when terms differ from the plan).
+                  </p>
                 </div>
 
                 <div className="space-y-2">

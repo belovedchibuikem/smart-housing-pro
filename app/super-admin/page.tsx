@@ -27,6 +27,7 @@ interface DashboardData {
     slug: string
     package: string
     status: string
+    subscription_status?: string
     members: number
     revenue: number
     joined_date: string
@@ -207,14 +208,26 @@ export default function SuperAdminDashboard() {
                   <div className="text-right">
                     <p className="text-sm font-medium">{business.package}</p>
                     <p className="text-xs text-muted-foreground">
-                      {business.status === "trial" ? "Trial" : `₦${business.revenue || 0}/mo`}
+                      {(business.subscription_status ?? "trial") === "trial"
+                        ? "Trial"
+                        : `₦${business.revenue || 0}/mo`}
                     </p>
                   </div>
                   <div>
-                    {business.status === "active" ? (
+                    {(business.subscription_status ?? "trial") === "active" ? (
                       <div className="flex items-center gap-1 text-green-600 text-sm">
                         <CheckCircle className="h-4 w-4" />
                         Active
+                      </div>
+                    ) : (business.subscription_status ?? "") === "past_due" ? (
+                      <div className="flex items-center gap-1 text-red-600 text-sm">
+                        <AlertCircle className="h-4 w-4" />
+                        Past due
+                      </div>
+                    ) : (business.subscription_status ?? "") === "cancelled" ? (
+                      <div className="flex items-center gap-1 text-muted-foreground text-sm">
+                        <AlertCircle className="h-4 w-4" />
+                        Cancelled
                       </div>
                     ) : (
                       <div className="flex items-center gap-1 text-orange-600 text-sm">

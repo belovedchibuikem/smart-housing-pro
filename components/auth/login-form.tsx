@@ -100,15 +100,19 @@ export function LoginForm({ allowRegistration = true }: LoginFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
-        <Label htmlFor="email">Email Address</Label>
+        <Label htmlFor="email">Email, Member ID, IPPIS, or PIN</Label>
         <Input
           id="email"
-          type="email"
-          placeholder="you@example.com"
+          type="text"
+          autoComplete="username"
+          placeholder="Email, member ID, IPPIS, or PIN"
           value={formData.email}
           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
           required
         />
+        <p className="text-xs text-muted-foreground">
+          Cooperative members may sign in with the same password and any of these identifiers.
+        </p>
       </div>
 
       <div className="space-y-2">

@@ -28,6 +28,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch, repayMortgage, getMortgageRepaymentSchedule, getMortgageNextPayment, type RepaymentSchedule, type RepayMortgagePayload, type NextPaymentDetails } from "@/lib/api/client"
+import { labelForMortgagePropertyTitle } from "@/lib/mortgage-property-titles"
 import { CheckCircle2, Calendar, DollarSign, AlertTriangle } from "lucide-react"
 
 interface MortgageDetail {
@@ -56,6 +57,7 @@ interface MortgageDetail {
     city?: string | null
     state?: string | null
   } | null
+  property_titles?: string[] | null
   loan_amount: number
   interest_rate: number
   tenure_years: number
@@ -501,6 +503,18 @@ export default function AdminMortgageDetailsPage() {
                     : "—"}
                 </p>
               </div>
+              {mortgage.property_titles && mortgage.property_titles.length > 0 && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Property titles</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {mortgage.property_titles.map((key) => (
+                      <Badge key={key} variant="secondary">
+                        {labelForMortgagePropertyTitle(key)}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 

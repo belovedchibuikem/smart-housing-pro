@@ -370,6 +370,10 @@ export default function ContributionPlansPage() {
                   onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                   placeholder="e.g., 50000"
                 />
+                <p className="text-xs text-muted-foreground">
+                  The standard (target) contribution per cycle for this plan. Members use this as the reference amount they can
+                  meet or exceed; it must be greater than or equal to the minimum below.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="minimum_amount">Minimum Amount (₦) *</Label>

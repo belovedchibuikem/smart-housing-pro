@@ -45,9 +45,11 @@ export default function BulkUploadContributionsPage() {
             || row['IPPIS']
             || '',
           amount: row['Amount'] || row['amount'] || '',
-          type: row['Contribution Type'] 
-            || row['Type'] 
-            || row['type'] 
+          type:
+            row['Contribution Type (monthly, quarterly, annual, special, emergency)']
+            || row['Contribution Type']
+            || row['Type']
+            || row['type']
             || row['contribution_type']
             || '',
           paymentMethod: row['Payment Method'] 
@@ -60,7 +62,12 @@ export default function BulkUploadContributionsPage() {
             || row['payment_date'] 
             || row['payment_date_yyyy_mm_dd']
             || '',
-          notes: row['Notes'] || row['notes'] || '',
+          notes:
+            row['Payment Description']
+            || row['payment_description']
+            || row['Notes']
+            || row['notes']
+            || '',
         }))
         
         // Validate required fields

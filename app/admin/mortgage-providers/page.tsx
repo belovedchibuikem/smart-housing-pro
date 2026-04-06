@@ -17,6 +17,7 @@ interface MortgageProvider {
   description?: string
   contact_email?: string
   contact_phone?: string
+  contact_person?: string
   interest_rate_min?: number
   interest_rate_max?: number
   min_loan_amount?: number
@@ -147,11 +148,17 @@ export default function MortgageProvidersPage() {
                       )}
                     </TableCell>
                     <TableCell>
+                      {provider.contact_person && (
+                        <div className="text-sm font-medium">{provider.contact_person}</div>
+                      )}
                       {provider.contact_email && (
                         <div className="text-sm">{provider.contact_email}</div>
                       )}
                       {provider.contact_phone && (
                         <div className="text-sm text-muted-foreground">{provider.contact_phone}</div>
+                      )}
+                      {!provider.contact_person && !provider.contact_email && !provider.contact_phone && (
+                        <span className="text-muted-foreground">—</span>
                       )}
                     </TableCell>
                     <TableCell>

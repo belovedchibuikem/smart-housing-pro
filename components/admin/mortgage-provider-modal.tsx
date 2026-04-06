@@ -15,6 +15,7 @@ interface MortgageProvider {
   description?: string
   contact_email?: string
   contact_phone?: string
+  contact_person?: string
   website?: string
   address?: string
   interest_rate_min?: number
@@ -38,6 +39,7 @@ export function CreateMortgageProviderModal({ open, onClose, provider }: CreateM
     description: "",
     contact_email: "",
     contact_phone: "",
+    contact_person: "",
     website: "",
     address: "",
     interest_rate_min: undefined,
@@ -60,6 +62,7 @@ export function CreateMortgageProviderModal({ open, onClose, provider }: CreateM
         description: "",
         contact_email: "",
         contact_phone: "",
+        contact_person: "",
         website: "",
         address: "",
         interest_rate_min: undefined,
@@ -139,6 +142,16 @@ export function CreateMortgageProviderModal({ open, onClose, provider }: CreateM
               value={formData.description || ""}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="contact_person">Contact person / account officer</Label>
+            <Input
+              id="contact_person"
+              value={formData.contact_person || ""}
+              onChange={(e) => setFormData({ ...formData, contact_person: e.target.value })}
+              placeholder="e.g. primary relationship manager at the bank"
             />
           </div>
 

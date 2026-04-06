@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
 import { parseFile } from "@/lib/utils/file-parser"
+import { isMortgagePropertyTitleKey, MORTGAGE_PROPERTY_TITLE_KEYS } from "@/lib/mortgage-property-titles"
 
 export default function BulkUploadMortgagesPage() {
   const [file, setFile] = useState<File | null>(null)
@@ -61,6 +62,12 @@ export default function BulkUploadMortgagesPage() {
             || row['propertyId'] 
             || row['property_id'] 
             || '',
+          propertyTitlesRaw:
+            row['Property Titles (comma-separated keys, e.g. c_of_o,r_of_o)']
+            || row['Property Titles']
+            || row['property_titles']
+            || row['PropertyTitles']
+            || '',
           loanAmount: row['Loan Amount'] || row['loanAmount'] || row['loan_amount'] || '',
           interestRate: row['Interest Rate (%)'] 
             || row['interest_rate_percent']
@@ -78,13 +85,32 @@ export default function BulkUploadMortgagesPage() {
         
         // Validate required fields
         const validationErrors: string[] = []
+        const allowedTitles = MORTGAGE_PROPERTY_TITLE_KEYS.join(", ")
         mappedData.forEach((mortgage, index) => {
-          if (!mortgage.memberId) validationErrors.push(`Row ${index + 2}: Member ID is required`)
-          if (!mortgage.loanAmount) validationErrors.push(`Row ${index + 2}: Loan Amount is required`)
-          if (isNaN(parseFloat(mortgage.loanAmount))) validationErrors.push(`Row ${index + 2}: Loan Amount must be a valid number`)
-          if (!mortgage.interestRate) validationErrors.push(`Row ${index + 2}: Interest Rate is required`)
-          if (isNaN(parseFloat(mortgage.interestRate))) validationErrors.push(`Row ${index + 2}: Interest Rate must be a valid number`)
-          if (!mortgage.tenure) validationErrors.push(`Row ${index + 2}: Tenure is required`)
+          const rowLabel = index + 2
+          if (!mortgage.memberId) validationErrors.push(`Row ${rowLabel}: Member ID is required`)
+          if (!String(mortgage.propertyId || "").trim()) {
+            validationErrors.push(`Row ${rowLabel}: Property ID is required`)
+          }
+          const titleParts = String(mortgage.propertyTitlesRaw || "")
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+          if (titleParts.length === 0) {
+            validationErrors.push(`Row ${rowLabel}: Property Titles is required (comma-separated keys, e.g. c_of_o,r_of_o)`)
+          } else {
+            const invalid = titleParts.filter((p) => !isMortgagePropertyTitleKey(p))
+            if (invalid.length > 0) {
+              validationErrors.push(
+                `Row ${rowLabel}: Invalid property title(s): ${invalid.join(", ")}. Allowed: ${allowedTitles}`
+              )
+            }
+          }
+          if (!mortgage.loanAmount) validationErrors.push(`Row ${rowLabel}: Loan Amount is required`)
+          if (isNaN(parseFloat(mortgage.loanAmount))) validationErrors.push(`Row ${rowLabel}: Loan Amount must be a valid number`)
+          if (!mortgage.interestRate) validationErrors.push(`Row ${rowLabel}: Interest Rate is required`)
+          if (isNaN(parseFloat(mortgage.interestRate))) validationErrors.push(`Row ${rowLabel}: Interest Rate must be a valid number`)
+          if (!mortgage.tenure) validationErrors.push(`Row ${rowLabel}: Tenure is required`)
         })
         
         setPreviewData(mappedData)
@@ -286,9 +312,9 @@ export default function BulkUploadMortgagesPage() {
               Open the template in Excel or any spreadsheet software and fill in the mortgage details
             </p>
             <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
-              <li>Member ID, Loan Amount, Interest Rate, and Tenure are required</li>
+              <li>Member ID, Property ID, Property Titles, Loan Amount, Interest Rate, and Tenure are required</li>
+              <li>Property Titles: comma-separated keys ({MORTGAGE_PROPERTY_TITLE_KEYS.join(", ")})</li>
               <li>Mortgage Provider Name should match existing providers</li>
-              <li>Property ID is optional</li>
             </ul>
           </div>
 
@@ -343,6 +369,8 @@ export default function BulkUploadMortgagesPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Member ID</TableHead>
+                    <TableHead>Property ID</TableHead>
+                    <TableHead>Titles</TableHead>
                     <TableHead>Provider</TableHead>
                     <TableHead>Loan Amount</TableHead>
                     <TableHead>Interest Rate</TableHead>
@@ -353,6 +381,8 @@ export default function BulkUploadMortgagesPage() {
                   {previewData.map((mortgage, index) => (
                     <TableRow key={index}>
                       <TableCell>{mortgage.memberId}</TableCell>
+                      <TableCell className="max-w-[140px] truncate font-mono text-xs">{mortgage.propertyId || "—"}</TableCell>
+                      <TableCell className="max-w-[200px] truncate text-xs">{mortgage.propertyTitlesRaw || "—"}</TableCell>
                       <TableCell>{mortgage.providerName || '—'}</TableCell>
                       <TableCell>₦{parseFloat(mortgage.loanAmount || 0).toLocaleString()}</TableCell>
                       <TableCell>{mortgage.interestRate}%</TableCell>

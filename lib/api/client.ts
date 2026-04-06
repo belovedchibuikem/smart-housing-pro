@@ -1,5 +1,7 @@
 "use client"
 
+import type { AuthUser } from "@/lib/auth/types"
+
 // Lightweight API client for browser-side requests
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
@@ -244,8 +246,9 @@ export async function apiFetch<T = unknown>(
 		}
 }
 
+/** `email` is the login identifier: email, member number, IPPIS, FRSC PIN, or (tenant / cooperative subdomain only) member UUID. */
 export async function loginRequest(payload: { email: string; password: string; recaptcha_token?: string }) {
-	return apiFetch<{ message: string; user: unknown; token: string }>("/auth/login", {
+	return apiFetch<{ message: string; user: AuthUser; token: string }>("/auth/login", {
 		method: "POST",
 		body: payload,
 	})
@@ -452,6 +455,7 @@ export interface MortgageProvider {
 	code?: string | null
 	contact_email?: string | null
 	contact_phone?: string | null
+	contact_person?: string | null
 	address?: string | null
 }
 

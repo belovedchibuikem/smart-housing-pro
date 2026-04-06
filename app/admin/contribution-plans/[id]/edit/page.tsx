@@ -157,6 +157,10 @@ export default function EditContributionPlanPage({ params }: { params: Promise<{
 									onChange={(e) => setForm({ ...form, amount: e.target.value })}
 									required
 								/>
+								<p className="text-xs text-muted-foreground">
+									Standard (target) contribution per cycle. Members treat this as the default amount; they may pay
+									more, but not below the minimum. Must be ≥ minimum.
+								</p>
 							</div>
 							<div className="space-y-2">
 								<Label htmlFor="minimum_amount">Minimum (₦)</Label>
@@ -168,6 +172,7 @@ export default function EditContributionPlanPage({ params }: { params: Promise<{
 									onChange={(e) => setForm({ ...form, minimum_amount: e.target.value })}
 									required
 								/>
+								<p className="text-xs text-muted-foreground">Members must contribute at least this amount each cycle.</p>
 							</div>
 						</div>
 						<div className="space-y-2">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -208,13 +209,24 @@ export default function EquityPlansPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Equity Plans</h1>
-          <p className="text-muted-foreground mt-1">Manage equity contribution plans for property deposits</p>
+          <p className="text-muted-foreground mt-1">
+            Configure how members build equity toward land or house purchase
+          </p>
         </div>
         <Button onClick={() => setShowCreateDialog(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Create Plan
         </Button>
       </div>
+
+      <Alert className="border-muted bg-muted/30">
+        <AlertDescription className="text-sm leading-relaxed text-foreground/90">
+          <strong className="font-medium text-foreground">What equity contributions are:</strong> They are upfront
+          payments toward the purchase of land or a house. Amounts are usually worked out from house or land cost.
+          Members may pay once in full or in instalments (including cash where your cooperative allows). Built-up equity
+          is used to settle the initial deposit for the relevant land or house when allocation applies.
+        </AlertDescription>
+      </Alert>
 
       <Card>
         <CardHeader>
@@ -335,7 +347,9 @@ export default function EquityPlansPage() {
           <DialogHeader>
             <DialogTitle>{selectedPlan ? "Edit Equity Plan" : "Create Equity Plan"}</DialogTitle>
             <DialogDescription>
-              {selectedPlan ? "Update the equity plan details" : "Create a new equity contribution plan"}
+              {selectedPlan
+                ? "Update instalment rules and amount bounds for this equity plan."
+                : "Define name, amount limits, and frequency. Use the description to explain how this plan links to property cost and deposit rules."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -354,9 +368,13 @@ export default function EquityPlansPage() {
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Plan description..."
-                rows={3}
+                placeholder="e.g. How this equity ties to land/house cost, lump-sum vs instalments, and when equity applies to initial deposit…"
+                rows={4}
               />
+              <p className="text-xs text-muted-foreground">
+                Optional but recommended: spell out how this plan relates to property pricing, payment in full vs
+                instalments, and withdrawal or application of equity toward initial deposit.
+              </p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -370,6 +388,9 @@ export default function EquityPlansPage() {
                   min="0"
                   step="0.01"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Minimum each member may pay per contribution instalment (or per event) under this plan.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="max_amount">Maximum Amount (₦)</Label>
@@ -382,6 +403,9 @@ export default function EquityPlansPage() {
                   min="0"
                   step="0.01"
                 />
+                <p className="text-xs text-muted-foreground">
+                  Upper cap per payment if you limit instalment size; leave empty if there is no cap.
+                </p>
               </div>
             </div>
             <div className="space-y-2">
@@ -401,6 +425,10 @@ export default function EquityPlansPage() {
                   <SelectItem value="custom">Custom</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-muted-foreground">
+                How often members are expected to contribute under this plan (e.g. monthly instalments or a single
+                lump-sum when set to one time).
+              </p>
             </div>
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
