@@ -3323,6 +3323,76 @@ export async function verifyMemberSubscription(provider: string, reference: stri
 	})
 }
 
+export type BulkMemberSubscriptionLine = { member_id: string; package_id: string }
+
+export async function getAdminBulkMemberSubscriptionPackages() {
+	return apiFetch<{
+		packages: Array<{
+			id: string
+			name: string
+			price: number
+			duration_days?: number
+			billing_cycle?: string
+		}>
+	}>("/admin/member-subscriptions/bulk/packages", { method: "GET" })
+}
+
+export async function getAdminBulkMemberSubscriptionPaymentMethods() {
+	return apiFetch<{
+		payment_methods: Array<{
+			id: string
+			name: string
+			description: string
+			icon: string
+			is_enabled: boolean
+			configuration?: Record<string, unknown>
+			test_mode?: boolean
+		}>
+	}>("/admin/member-subscriptions/bulk/payment-methods", { method: "GET" })
+}
+
+export async function initializeAdminBulkMemberSubscription(data: {
+	lines: BulkMemberSubscriptionLine[]
+	payment_method: string
+	notes?: string
+	payer_name?: string
+	payer_phone?: string
+	account_details?: string
+	payment_evidence?: string[]
+}) {
+	return apiFetch<{
+		success: boolean
+		message?: string
+		bulk_batch_id?: string
+		member_subscription_ids?: string[]
+		reference?: string
+		total_amount?: number
+		breakdown?: Array<{
+			member_id: string
+			member_number?: string
+			member_name?: string
+			package_name?: string
+			amount: number
+			member_subscription_id?: string
+		}>
+		payment_url?: string
+		requires_approval?: boolean
+	}>("/admin/member-subscriptions/bulk/initialize", {
+		method: "POST",
+		body: data,
+	})
+}
+
+export async function verifyAdminBulkMemberSubscription(provider: string, reference: string) {
+	return apiFetch<{
+		success: boolean
+		message: string
+	}>("/admin/member-subscriptions/bulk/verify", {
+		method: "POST",
+		body: { provider, reference },
+	})
+}
+
 // Super Admin Member Subscription Approval
 export async function approveMemberSubscription(subscriptionId: string) {
 	return apiFetch<{

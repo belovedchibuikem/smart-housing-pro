@@ -38,6 +38,8 @@ interface MemberSubscription {
   end_date: string
   amount_paid: number
   payment_reference?: string
+  bulk_batch_id?: string | null
+  is_bulk_member_subscription_line?: boolean
   created_at: string
   updated_at: string
 }
@@ -232,6 +234,9 @@ export default function MemberSubscriptionsListPage() {
                       <Badge variant={getPaymentStatusBadge(subscription.payment_status)}>
                         {subscription.payment_status}
                       </Badge>
+                      {subscription.is_bulk_member_subscription_line && (
+                        <Badge variant="outline">Bulk batch</Badge>
+                      )}
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                       <div>

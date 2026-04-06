@@ -31,6 +31,15 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
 
+interface BulkBreakdownLine {
+  member_id?: string
+  member_number?: string
+  member_name?: string
+  member_email?: string
+  package_name?: string
+  amount?: number
+}
+
 interface PaymentTransaction {
   id: string
   reference: string
@@ -49,6 +58,12 @@ interface PaymentTransaction {
   approval_notes?: string
   rejection_reason?: string
   created_at: string
+  metadata?: {
+    is_bulk_member_subscription?: boolean
+    line_count?: number
+    breakdown?: BulkBreakdownLine[]
+    member_subscription_ids?: string[]
+  }
   tenant: {
     id: string
     name: string
@@ -59,6 +74,7 @@ interface PaymentTransaction {
     name: string
     email: string
   }
+  isManualPayment?: boolean
 }
 
 interface PaymentApprovalsResponse {
@@ -337,7 +353,45 @@ export default function PaymentApprovalsPage() {
                     </div>
                   </div>
 
-                  {transaction.isManualPayment && (
+                  {transaction.metadata?.is_bulk_member_subscription && (
+                    <div className="mb-4 rounded-lg border bg-muted/40 p-4 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="secondary">Bulk member subscriptions</Badge>
+                        <span className="text-sm text-muted-foreground">
+                          {transaction.metadata.line_count ?? transaction.metadata.member_subscription_ids?.length ?? "—"}{" "}
+                          members
+                        </span>
+                      </div>
+                      {transaction.metadata.breakdown && transaction.metadata.breakdown.length > 0 && (
+                        <div className="overflow-x-auto text-sm">
+                          <table className="w-full border-collapse">
+                            <thead>
+                              <tr className="border-b text-left text-muted-foreground">
+                                <th className="py-1 pr-2">Member</th>
+                                <th className="py-1 pr-2">Package</th>
+                                <th className="py-1 text-right">Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {transaction.metadata.breakdown.map((row, i) => (
+                                <tr key={i} className="border-b border-muted">
+                                  <td className="py-1 pr-2">
+                                    {row.member_name || row.member_email || row.member_number || row.member_id || "—"}
+                                  </td>
+                                  <td className="py-1 pr-2">{row.package_name || "—"}</td>
+                                  <td className="py-1 text-right">
+                                    {formatCurrency(Number(row.amount || 0), transaction.currency)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {(transaction.isManualPayment || transaction.payment_gateway?.toLowerCase() === "manual") && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-4 bg-muted rounded-lg">
                       <div>
                         <Label className="text-sm font-medium">Bank Name</Label>
@@ -407,7 +461,29 @@ export default function PaymentApprovalsPage() {
                                 </div>
                               </div>
 
-                              {selectedTransaction.isManualPayment && (
+                              {selectedTransaction.metadata?.is_bulk_member_subscription &&
+                                selectedTransaction.metadata.breakdown &&
+                                selectedTransaction.metadata.breakdown.length > 0 && (
+                                  <div className="rounded-lg border p-3">
+                                    <p className="font-medium mb-2 flex items-center gap-2">
+                                      <Badge variant="secondary">Bulk</Badge> Per-member breakdown
+                                    </p>
+                                    <div className="max-h-48 overflow-y-auto text-sm space-y-1">
+                                      {selectedTransaction.metadata.breakdown.map((row, i) => (
+                                        <div key={i} className="flex justify-between gap-2 border-b border-muted pb-1">
+                                          <span>
+                                            {row.member_name || row.member_email || row.member_number || "Member"}
+                                            {row.package_name ? ` · ${row.package_name}` : ""}
+                                          </span>
+                                          <span>{formatCurrency(Number(row.amount || 0), selectedTransaction.currency)}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+
+                              {(selectedTransaction.isManualPayment ||
+                                selectedTransaction.payment_gateway?.toLowerCase() === "manual") && (
                                 <div className="p-4 bg-muted rounded-lg">
                                   <h4 className="font-medium mb-2">Bank Transfer Details</h4>
                                   <div className="grid grid-cols-2 gap-4">
