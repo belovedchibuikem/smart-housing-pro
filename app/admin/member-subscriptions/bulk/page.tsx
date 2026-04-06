@@ -26,7 +26,18 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Loader2, Plus, Trash2, AlertCircle, ArrowLeft, Users, Upload, X } from "lucide-react"
+import {
+  Loader2,
+  Plus,
+  Trash2,
+  AlertCircle,
+  ArrowLeft,
+  Users,
+  Upload,
+  X,
+  CheckCircle2,
+  Clock,
+} from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 interface Pkg {
@@ -63,6 +74,24 @@ function parseUuidList(text: string): string[] {
   return [...new Set(raw.filter((s) => uuidRe.test(s)))]
 }
 
+type BulkSubmissionOutcome =
+  | {
+      kind: "awaiting_approval"
+      bulk_batch_id?: string
+      reference?: string
+      member_count?: number
+      total_amount?: number
+    }
+  | {
+      kind: "wallet_paid"
+      member_count?: number
+      total_amount: number
+    }
+  | {
+      kind: "followup"
+      detail: string
+    }
+
 export default function AdminBulkMemberSubscriptionsPage() {
   const { toast } = useToast()
   const [loading, setLoading] = useState(true)
@@ -94,6 +123,7 @@ export default function AdminBulkMemberSubscriptionsPage() {
     unit_price?: number
   } | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
+  const [submissionOutcome, setSubmissionOutcome] = useState<BulkSubmissionOutcome | null>(null)
 
   const loadCore = useCallback(async () => {
     setLoading(true)
@@ -323,8 +353,15 @@ export default function AdminBulkMemberSubscriptionsPage() {
       }
       if (res.requires_approval || paymentMethod === "manual") {
         toast({
-          title: "Submitted",
-          description: "Awaiting payment approval. You can track it under Payment approvals.",
+          title: "Submitted for approval",
+          description: "This payment is pending review. Details are shown below.",
+        })
+        setSubmissionOutcome({
+          kind: "awaiting_approval",
+          bulk_batch_id: res.bulk_batch_id,
+          reference: res.reference,
+          member_count: res.member_count,
+          total_amount: res.total_amount,
         })
         setLines([])
         setEvidenceUrls([])
@@ -332,7 +369,16 @@ export default function AdminBulkMemberSubscriptionsPage() {
         return
       }
       if (paymentMethod === "wallet") {
-        toast({ title: "Paid", description: `${formatNgn(res.total_amount || grandTotal)} charged from wallet.` })
+        const paidTotal = res.total_amount ?? grandTotal
+        toast({
+          title: "Payment completed",
+          description: `${formatNgn(paidTotal)} charged from wallet.`,
+        })
+        setSubmissionOutcome({
+          kind: "wallet_paid",
+          member_count: res.member_count,
+          total_amount: paidTotal,
+        })
         setLines([])
         setPreviewResult(null)
         return
@@ -342,7 +388,15 @@ export default function AdminBulkMemberSubscriptionsPage() {
         window.location.href = payUrl
         return
       }
-      toast({ title: "Next step", description: "Complete payment if redirected, or check payment status." })
+      toast({
+        title: "Next step",
+        description: "Complete payment in your bank or gateway app if applicable, then check Payment approvals.",
+      })
+      setSubmissionOutcome({
+        kind: "followup",
+        detail:
+          "If you were not redirected to a payment page, open Payment approvals to confirm status or contact support.",
+      })
     } catch (e: unknown) {
       toast({
         title: "Error",
@@ -383,6 +437,104 @@ export default function AdminBulkMemberSubscriptionsPage() {
           or organisation wallet).
         </p>
       </div>
+
+      {submissionOutcome && (
+        <Alert
+          className={
+            submissionOutcome.kind === "wallet_paid"
+              ? "relative border-emerald-200 bg-emerald-50 pr-12 text-emerald-950 dark:border-emerald-900 dark:bg-emerald-950/35 dark:text-emerald-50"
+              : submissionOutcome.kind === "awaiting_approval"
+                ? "relative border-amber-200 bg-amber-50 pr-12 text-amber-950 dark:border-amber-900 dark:bg-amber-950/35 dark:text-amber-50"
+                : "relative border-sky-200 bg-sky-50 pr-12 text-sky-950 dark:border-sky-900 dark:bg-sky-950/35 dark:text-sky-50"
+          }
+        >
+          {submissionOutcome.kind === "wallet_paid" ? (
+            <CheckCircle2 className="text-emerald-600 dark:text-emerald-400" />
+          ) : submissionOutcome.kind === "awaiting_approval" ? (
+            <Clock className="text-amber-600 dark:text-amber-400" />
+          ) : (
+            <AlertCircle className="text-sky-600 dark:text-sky-400" />
+          )}
+          <AlertTitle>
+            {submissionOutcome.kind === "wallet_paid"
+              ? "Payment completed from wallet"
+              : submissionOutcome.kind === "awaiting_approval"
+                ? "Payment sent — awaiting approval"
+                : "Submission recorded"}
+          </AlertTitle>
+          <AlertDescription className="text-current/85 space-y-2">
+            {submissionOutcome.kind === "awaiting_approval" ? (
+              <>
+                <p>
+                  This bulk payment has been submitted to the platform. A super admin will review and approve it before
+                  member subscriptions are fully activated. Until then, treat it as <strong>pending</strong>, not final.
+                </p>
+                {(submissionOutcome.member_count != null || submissionOutcome.total_amount != null) && (
+                  <p className="text-sm">
+                    {submissionOutcome.member_count != null
+                      ? `${submissionOutcome.member_count.toLocaleString()} member(s)`
+                      : null}
+                    {submissionOutcome.member_count != null && submissionOutcome.total_amount != null ? " · " : null}
+                    {submissionOutcome.total_amount != null
+                      ? `Total ${formatNgn(submissionOutcome.total_amount)}`
+                      : null}
+                  </p>
+                )}
+                {(submissionOutcome.reference || submissionOutcome.bulk_batch_id) && (
+                  <p className="text-xs font-mono opacity-90 break-all">
+                    {submissionOutcome.reference ? `Reference: ${submissionOutcome.reference}` : null}
+                    {submissionOutcome.reference && submissionOutcome.bulk_batch_id ? " · " : null}
+                    {submissionOutcome.bulk_batch_id ? `Batch: ${submissionOutcome.bulk_batch_id}` : null}
+                  </p>
+                )}
+                <p>
+                  <Link
+                    href="/admin/payment-approvals"
+                    className="font-medium underline underline-offset-2 hover:opacity-90"
+                  >
+                    Open Payment approvals
+                  </Link>{" "}
+                  to track or add notes for reviewers.
+                </p>
+              </>
+            ) : submissionOutcome.kind === "wallet_paid" ? (
+              <>
+                <p>
+                  The organisation wallet was charged successfully. Subscription records should update shortly. If
+                  anything looks wrong, check{" "}
+                  <Link
+                    href="/admin/payment-approvals"
+                    className="font-medium underline underline-offset-2 hover:opacity-90"
+                  >
+                    Payment approvals
+                  </Link>{" "}
+                  or member subscription lists.
+                </p>
+                <p className="text-sm">
+                  {[
+                    submissionOutcome.member_count != null
+                      ? `${submissionOutcome.member_count.toLocaleString()} member(s)`
+                      : null,
+                    formatNgn(submissionOutcome.total_amount),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              </>
+            ) : (
+              <p>{submissionOutcome.detail}</p>
+            )}
+          </AlertDescription>
+          <button
+            type="button"
+            onClick={() => setSubmissionOutcome(null)}
+            className="absolute right-3 top-3 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+            aria-label="Dismiss notice"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </Alert>
+      )}
 
       <Alert>
         <AlertCircle className="h-4 w-4" />
