@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, Building2, CreditCard, Loader2, Wallet } from "lucide-react"
@@ -22,6 +22,8 @@ import {
 } from "@/lib/api/client"
 import { toast as sonnerToast } from "sonner"
 import { cn } from "@/lib/utils"
+import { Recaptcha, RecaptchaRef } from "@/components/auth/recaptcha"
+import { useI18n } from "@/lib/i18n/i18n-provider"
 
 interface EquityPlan {
   id: string
@@ -97,8 +99,10 @@ type SubmissionInfo = {
 }
 
 export default function NewEquityContributionPage() {
+  const { t } = useI18n()
   const router = useRouter()
   const searchParams = useSearchParams()
+  const recaptchaRef = useRef<RecaptchaRef>(null)
 
   const [loading, setLoading] = useState(true)
   const [plans, setPlans] = useState<EquityPlan[]>([])
@@ -178,8 +182,8 @@ export default function NewEquityContributionPage() {
         }
       } catch (error: any) {
         console.error("Failed to load equity contribution setup", error)
-        sonnerToast.error("Unable to load equity contribution setup", {
-          description: error?.message || "Please try again later.",
+        sonnerToast.error(t("equityCheckout.loadError"), {
+          description: error?.message || t("equityCheckout.loadErrorDesc"),
         })
       } finally {
         if (active) {
@@ -262,87 +266,93 @@ export default function NewEquityContributionPage() {
   const validateInputs = () => {
     const numericAmount = Number(amount)
     if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
-      sonnerToast.error("Invalid amount", {
-        description: "Enter a valid equity contribution amount.",
+      sonnerToast.error(t("equityCheckout.errInvalidAmount"), {
+        description: t("equityCheckout.errInvalidAmountDesc"),
       })
       return false
     }
 
     if (numericAmount < 100) {
-      sonnerToast.error("Amount too low", {
-        description: "Minimum contribution amount is ₦100.",
+      sonnerToast.error(t("equityCheckout.errTooLow"), {
+        description: t("equityCheckout.errTooLowDesc"),
       })
       return false
     }
 
     if (selectedPlan) {
       if (numericAmount < selectedPlan.min_amount) {
-        sonnerToast.error("Amount below minimum", {
-          description: `Minimum for this plan is ${currencyFormatter.format(selectedPlan.min_amount)}.`,
+        sonnerToast.error(t("equityCheckout.errBelowMin"), {
+          description: t("equityCheckout.errBelowMinDesc").replace(
+            "{amount}",
+            currencyFormatter.format(selectedPlan.min_amount),
+          ),
         })
         return false
       }
       if (selectedPlan.max_amount && numericAmount > selectedPlan.max_amount) {
-        sonnerToast.error("Amount exceeds maximum", {
-          description: `Maximum for this plan is ${currencyFormatter.format(selectedPlan.max_amount)}.`,
+        sonnerToast.error(t("equityCheckout.errAboveMax"), {
+          description: t("equityCheckout.errAboveMaxDesc").replace(
+            "{amount}",
+            currencyFormatter.format(selectedPlan.max_amount),
+          ),
         })
         return false
       }
     }
 
     if (paymentMethod === "wallet" && walletBalance !== null && numericAmount > walletBalance) {
-      sonnerToast.error("Insufficient wallet balance", {
-        description: `Available wallet balance is ${currencyFormatter.format(walletBalance)}.`,
+      sonnerToast.error(t("equityCheckout.errWallet"), {
+        description: t("equityCheckout.errWalletDesc").replace("{amount}", currencyFormatter.format(walletBalance)),
       })
       return false
     }
 
     if (!paymentMethod) {
-      sonnerToast.error("Select payment method", {
-        description: "Choose how you would like to pay for this contribution.",
+      sonnerToast.error(t("equityCheckout.errPayMethod"), {
+        description: t("equityCheckout.errPayMethodDesc"),
       })
       return false
     }
 
     if (isManualPayment) {
       if (!manualConfig) {
-        sonnerToast.error("Manual payment not configured", {
-          description: "Manual payment has not been configured yet. Please contact your administrator.",
+        sonnerToast.error(t("equityCheckout.errManualCfg"), {
+          description: t("equityCheckout.errManualCfgDesc"),
         })
         return false
       }
 
       if (manualConfig.bank_accounts && manualConfig.bank_accounts.length > 1 && !manualDetails.bankAccountId) {
-        sonnerToast.error("Select bank account", {
-          description: "Choose the destination bank account for your transfer.",
+        sonnerToast.error(t("equityCheckout.errPickBank"), {
+          description: t("equityCheckout.errPickBankDesc"),
         })
         return false
       }
 
       if ((manualConfig.require_payer_name ?? true) && !manualDetails.payerName.trim()) {
-        sonnerToast.error("Payer name required", {
-          description: "Please provide the payer's full name.",
+        sonnerToast.error(t("equityCheckout.errPayerName"), {
+          description: t("equityCheckout.errPayerNameDesc"),
         })
         return false
       }
 
       if ((manualConfig.require_payer_phone ?? false) && !manualDetails.payerPhone.trim()) {
-        sonnerToast.error("Payer phone required", {
-          description: "Please provide the payer's phone number.",
+        sonnerToast.error(t("equityCheckout.errPayerPhone"), {
+          description: t("equityCheckout.errPayerPhoneDesc"),
         })
         return false
       }
 
       if ((manualConfig.require_transaction_reference ?? true) && !manualDetails.transactionReference.trim()) {
-        sonnerToast.error("Transaction reference required", {
-          description: "Enter the bank transfer reference or transaction ID.",
+        sonnerToast.error(t("equityCheckout.errTxnRef"), {
+          description: t("equityCheckout.errTxnRefDesc"),
         })
         return false
       }
 
       if ((manualConfig.require_payment_evidence ?? true) && manualEvidence.length === 0) {
-        sonnerToast.error("Payment evidence required", {
-          description: "Upload at least one proof of payment for manual contributions.",
+        sonnerToast.error(t("equityCheckout.errEvidence"), {
+          description: t("equityCheckout.errEvidenceDesc"),
         })
         return false
       }
@@ -359,10 +369,14 @@ export default function NewEquityContributionPage() {
     try {
       const uploads = await Promise.all(Array.from(files).map((file) => uploadPaymentEvidence(file)))
       setManualEvidence((prev) => Array.from(new Set([...prev, ...uploads])))
-      sonnerToast.success(uploads.length > 1 ? `${uploads.length} files uploaded successfully.` : "Evidence uploaded")
+      sonnerToast.success(
+        uploads.length > 1
+          ? t("equityCheckout.uploadOkMulti").replace("{n}", String(uploads.length))
+          : t("equityCheckout.uploadOk"),
+      )
     } catch (error: any) {
-      sonnerToast.error("Upload failed", {
-        description: error?.message || "Unable to upload payment evidence.",
+      sonnerToast.error(t("equityCheckout.uploadFail"), {
+        description: error?.message || t("equityCheckout.uploadFailDesc"),
       })
     } finally {
       setEvidenceUploading(false)
@@ -407,6 +421,23 @@ export default function NewEquityContributionPage() {
       return
     }
 
+    let recaptchaToken: string
+    if (recaptchaRef.current) {
+      try {
+        recaptchaToken = await recaptchaRef.current.execute()
+      } catch {
+        sonnerToast.error(t("equityCheckout.submitFail"), {
+          description: t("equityCheckout.recaptchaNotReady"),
+        })
+        return
+      }
+    } else {
+      sonnerToast.error(t("equityCheckout.submitFail"), {
+        description: t("equityCheckout.recaptchaNotReady"),
+      })
+      return
+    }
+
     try {
       setSubmitting(true)
       setSubmissionInfo(null)
@@ -417,6 +448,7 @@ export default function NewEquityContributionPage() {
         amount: numericAmount,
         payment_method: paymentMethod,
         notes: notes.trim() || null,
+        recaptcha_token: recaptchaToken,
       }
 
       if (isManualPayment) {
@@ -430,7 +462,7 @@ export default function NewEquityContributionPage() {
       const response = await createEquityContribution(payload)
 
       if (!response.success) {
-        throw new Error(response.message || "Failed to submit equity contribution.")
+        throw new Error(response.message || t("equityCheckout.submitFail"))
       }
 
       setSubmissionInfo({
@@ -468,13 +500,20 @@ export default function NewEquityContributionPage() {
         return
       }
 
-      sonnerToast.success(response.message || "Equity contribution initialized successfully.")
+      sonnerToast.success(response.message || t("equityCheckout.initSuccess"))
       router.push("/dashboard/equity-contributions")
     } catch (error: any) {
       console.error("Failed to submit equity contribution", error)
-      sonnerToast.error("Unable to process contribution", {
-        description: error?.message || "Please try again later.",
+      sonnerToast.error(t("equityCheckout.submitFail"), {
+        description: error?.message || t("equityCheckout.submitFailDesc"),
       })
+      if (recaptchaRef.current) {
+        try {
+          await recaptchaRef.current.execute()
+        } catch {
+          /* ignore */
+        }
+      }
     } finally {
       setSubmitting(false)
     }
@@ -498,14 +537,12 @@ export default function NewEquityContributionPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">Make Equity Contribution</h1>
-            <p className="text-muted-foreground mt-1">Contribute to your equity wallet for property deposits</p>
+            <h1 className="text-3xl font-bold">{t("equityCheckout.title")}</h1>
+            <p className="text-muted-foreground mt-1">{t("equityCheckout.subtitle")}</p>
           </div>
         </div>
         <Alert>
-          <AlertDescription>
-            No payment methods are currently available. Please contact your administrator to configure payment gateways.
-          </AlertDescription>
+          <AlertDescription>{t("equityCheckout.noMethods")}</AlertDescription>
         </Alert>
       </div>
     )
@@ -521,30 +558,30 @@ export default function NewEquityContributionPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">Review Equity Contribution</h1>
-            <p className="text-muted-foreground mt-1">Confirm the details before you proceed to payment.</p>
+            <h1 className="text-3xl font-bold">{t("equityCheckout.reviewTitle")}</h1>
+            <p className="text-muted-foreground mt-1">{t("equityCheckout.reviewSubtitle")}</p>
           </div>
         </div>
 
         <form onSubmit={handleProceedFromReview} className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Contribution Summary</CardTitle>
-              <CardDescription>Ensure everything looks correct before you continue.</CardDescription>
+              <CardTitle>{t("equityCheckout.summaryTitle")}</CardTitle>
+              <CardDescription>{t("equityCheckout.summaryDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-lg border p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Amount</span>
+                  <span className="text-muted-foreground">{t("walletFund.amount")}</span>
                   <span className="text-2xl font-semibold">{currencyFormatter.format(Number(amount || 0))}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Payment Method</span>
+                  <span className="text-muted-foreground">{t("walletFund.paymentMethod")}</span>
                   <span className="font-medium">{selectedMethod?.name ?? paymentMethod}</span>
                 </div>
                 {selectedPlan && (
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Plan</span>
+                    <span className="text-muted-foreground">{t("equityCheckout.plan")}</span>
                     <span className="font-medium">{selectedPlan.name}</span>
                   </div>
                 )}
@@ -552,7 +589,7 @@ export default function NewEquityContributionPage() {
 
               {notes.trim() && (
                 <div className="rounded-lg border p-4">
-                  <p className="text-sm text-muted-foreground">Notes</p>
+                  <p className="text-sm text-muted-foreground">{t("equityCheckout.notes")}</p>
                   <p className="mt-1 text-sm">{notes}</p>
                 </div>
               )}
@@ -562,22 +599,22 @@ export default function NewEquityContributionPage() {
           {isManualPayment && manualConfig && (
             <Card>
               <CardHeader>
-                <CardTitle>Manual Payment Details</CardTitle>
-                <CardDescription>These details will help the admin verify your payment.</CardDescription>
+                <CardTitle>{t("equityCheckout.manualCardTitle")}</CardTitle>
+                <CardDescription>{t("equityCheckout.manualCardDesc")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {selectedManualAccount ? (
                   <div className="rounded-lg border p-4 text-sm space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Bank</span>
+                      <span className="text-muted-foreground">{t("walletFund.bank")}</span>
                       <span className="font-medium">{selectedManualAccount.bank_name}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Account Name</span>
+                      <span className="text-muted-foreground">{t("walletFund.accountName")}</span>
                       <span className="font-medium break-all">{selectedManualAccount.account_name}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Account Number</span>
+                      <span className="text-muted-foreground">{t("walletFund.accountNumber")}</span>
                       <span className="font-medium">{selectedManualAccount.account_number}</span>
                     </div>
                     {selectedManualAccount.instructions && (
@@ -586,28 +623,32 @@ export default function NewEquityContributionPage() {
                   </div>
                 ) : (
                   <Alert>
-                    <AlertDescription>No manual bank account selected.</AlertDescription>
+                    <AlertDescription>{t("equityCheckout.noManualBank")}</AlertDescription>
                   </Alert>
                 )}
 
                 <div className="grid gap-2 text-sm md:grid-cols-2">
                   <div>
-                    <p className="text-muted-foreground">Payer Name</p>
-                    <p className="font-medium">{manualDetails.payerName || "Not provided"}</p>
+                    <p className="text-muted-foreground">{t("walletFund.payerName")}</p>
+                    <p className="font-medium">{manualDetails.payerName || t("walletFund.notProvided")}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Payer Phone</p>
-                    <p className="font-medium">{manualDetails.payerPhone || "Not provided"}</p>
+                    <p className="text-muted-foreground">{t("walletFund.payerPhone")}</p>
+                    <p className="font-medium">{manualDetails.payerPhone || t("walletFund.notProvided")}</p>
                   </div>
                   <div className="md:col-span-2">
-                    <p className="text-muted-foreground">Transaction Reference</p>
-                    <p className="font-medium break-all">{manualDetails.transactionReference || "Not provided"}</p>
+                    <p className="text-muted-foreground">{t("walletFund.transactionRef")}</p>
+                    <p className="font-medium break-all">
+                      {manualDetails.transactionReference || t("walletFund.notProvided")}
+                    </p>
                   </div>
                 </div>
 
                 {manualEvidence.length > 0 ? (
                   <div className="space-y-2">
-                    <p className="text-sm font-medium">Uploaded Evidence ({manualEvidence.length})</p>
+                    <p className="text-sm font-medium">
+                      {t("equityCheckout.uploadedEvidence").replace("{n}", String(manualEvidence.length))}
+                    </p>
                     <ul className="space-y-1 text-sm text-muted-foreground">
                       {manualEvidence.map((url) => (
                         <li key={url} className="truncate">
@@ -619,7 +660,7 @@ export default function NewEquityContributionPage() {
                 ) : (
                   (manualConfig.require_payment_evidence ?? true) && (
                     <Alert>
-                      <AlertDescription>No payment evidence uploaded.</AlertDescription>
+                      <AlertDescription>{t("equityCheckout.noEvidence")}</AlertDescription>
                     </Alert>
                   )
                 )}
@@ -629,9 +670,9 @@ export default function NewEquityContributionPage() {
 
           <div className="flex justify-between">
             <Button type="button" variant="outline" onClick={goToPreviousStage}>
-              Back
+              {t("equityCheckout.back")}
             </Button>
-            <Button type="submit">Proceed to Confirmation</Button>
+            <Button type="submit">{t("equityCheckout.proceedConfirm")}</Button>
           </div>
         </form>
       </div>
@@ -646,60 +687,62 @@ export default function NewEquityContributionPage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-3xl font-bold">Confirm Equity Contribution</h1>
-            <p className="text-muted-foreground mt-1">Everything looks good! Complete your contribution.</p>
+            <h1 className="text-3xl font-bold">{t("equityCheckout.confirmTitle")}</h1>
+            <p className="text-muted-foreground mt-1">{t("equityCheckout.confirmSubtitle")}</p>
           </div>
         </div>
 
         <form onSubmit={submitContribution} className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Contribution Summary</CardTitle>
+              <CardTitle>{t("equityCheckout.summaryTitle")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-lg border p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Amount</span>
+                  <span className="text-muted-foreground">{t("walletFund.amount")}</span>
                   <span className="text-2xl font-semibold">{currencyFormatter.format(Number(amount || 0))}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Payment Method</span>
+                  <span className="text-muted-foreground">{t("walletFund.paymentMethod")}</span>
                   <span className="font-medium">{selectedMethod?.name ?? paymentMethod}</span>
                 </div>
                 {selectedPlan && (
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Plan</span>
+                    <span className="text-muted-foreground">{t("equityCheckout.plan")}</span>
                     <span className="font-medium">{selectedPlan.name}</span>
                   </div>
                 )}
               </div>
 
-              <p className="text-sm text-muted-foreground">
-                By clicking confirm, you authorize this equity contribution and acknowledge that the amount will be charged via the selected payment method.
-              </p>
+              <p className="text-sm text-muted-foreground">{t("equityCheckout.authorize")}</p>
 
               {submissionInfo?.manualInstructions && isManualPayment && selectedManualAccount && (
                 <Alert>
                   <AlertDescription>
-                    {submissionInfo.manualInstructions.message || "Your contribution has been submitted and is awaiting confirmation."}
+                    {submissionInfo.manualInstructions.message || t("equityCheckout.awaitingDefault")}
                   </AlertDescription>
                 </Alert>
               )}
             </CardContent>
           </Card>
 
+          <Recaptcha ref={recaptchaRef} onVerify={() => {}} onError={() => {}} action="equity_contribution" />
+
+          <p className="text-[11px] text-muted-foreground text-center leading-snug">{t("equityCheckout.recaptcha")}</p>
+
           <div className="flex justify-between">
             <Button type="button" variant="outline" onClick={goToPreviousStage}>
-              Back
+              {t("equityCheckout.back")}
             </Button>
             <Button type="submit" disabled={submitting || evidenceUploading}>
               {submitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
+                  {t("equityCheckout.processing")}
                 </>
               ) : (
-                "Confirm Contribution"
+                t("equityCheckout.confirmBtn")
               )}
             </Button>
           </div>
@@ -717,30 +760,32 @@ export default function NewEquityContributionPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">Make Equity Contribution</h1>
-          <p className="text-muted-foreground mt-1">Contribute to your equity wallet for property deposits.</p>
+          <h1 className="text-3xl font-bold">{t("equityCheckout.title")}</h1>
+          <p className="text-muted-foreground mt-1">{t("equityCheckout.subtitle")}</p>
         </div>
       </div>
 
       <form onSubmit={handleProceedFromDetails} className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Contribution Details</CardTitle>
-            <CardDescription>Select your equity plan and contribution amount.</CardDescription>
+            <CardTitle>{t("equityCheckout.detailsTitle")}</CardTitle>
+            <CardDescription>{t("equityCheckout.detailsDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="plan_id">Equity Plan (Optional)</Label>
+              <Label htmlFor="plan_id">{t("equityCheckout.planOptional")}</Label>
               <Select
                 value={selectedPlanId || "custom"}
                 onValueChange={(value) => setSelectedPlanId(value === "custom" ? "" : value)}
                 disabled={!plans.length}
               >
                 <SelectTrigger id="plan_id">
-                  <SelectValue placeholder={plans.length ? "Select a plan (optional)" : "No plans available"} />
+                  <SelectValue
+                    placeholder={plans.length ? t("equityCheckout.planPlaceholder") : t("equityCheckout.noPlans")}
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="custom">No Plan (Custom Amount)</SelectItem>
+                  <SelectItem value="custom">{t("equityCheckout.customAmount")}</SelectItem>
                   {plans.map((plan) => (
                     <SelectItem key={plan.id} value={plan.id}>
                       <div className="flex flex-col">
@@ -759,7 +804,7 @@ export default function NewEquityContributionPage() {
                   <p className="font-medium">{selectedPlan.name}</p>
                   {selectedPlan.description && <p className="text-muted-foreground">{selectedPlan.description}</p>}
                   <p className="text-muted-foreground">
-                    Range: {currencyFormatter.format(selectedPlan.min_amount)}
+                    {t("equityCheckout.range")} {currencyFormatter.format(selectedPlan.min_amount)}
                     {selectedPlan.max_amount ? ` - ${currencyFormatter.format(selectedPlan.max_amount)}` : "+"}
                   </p>
                 </div>
@@ -767,13 +812,13 @@ export default function NewEquityContributionPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="amount">Amount (₦)</Label>
+              <Label htmlFor="amount">{t("equityCheckout.amountLabel")}</Label>
               <Input
                 id="amount"
                 type="number"
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
-                placeholder="Enter amount e.g. 250000"
+                placeholder={t("equityCheckout.amountPlaceholder")}
                 min={0}
                 step="0.01"
                 required
@@ -784,8 +829,8 @@ export default function NewEquityContributionPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Payment Method</CardTitle>
-            <CardDescription>Select how you want to pay for this contribution.</CardDescription>
+            <CardTitle>{t("equityCheckout.payTitle")}</CardTitle>
+            <CardDescription>{t("equityCheckout.payDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="space-y-3">
@@ -805,7 +850,7 @@ export default function NewEquityContributionPage() {
                       <span className="flex-1">
                         <span className="flex items-center gap-2">
                           <span className="font-medium">{method.name}</span>
-                          {method.id === "manual" && <Badge variant="secondary">Admin approval</Badge>}
+                          {method.id === "manual" && <Badge variant="secondary">{t("equityCheckout.adminApproval")}</Badge>}
                         </span>
                         <span className="text-sm text-muted-foreground">{method.description}</span>
                       </span>
@@ -819,18 +864,15 @@ export default function NewEquityContributionPage() {
               <Alert>
                 <AlertDescription>
                   {walletBalance !== null
-                    ? `Available wallet balance: ${currencyFormatter.format(walletBalance)}`
-                    : "We could not load your wallet balance. Please ensure you have funds available before continuing."}
+                    ? t("equityCheckout.walletBalance").replace("{amount}", currencyFormatter.format(walletBalance))
+                    : t("equityCheckout.walletBalanceUnknown")}
                 </AlertDescription>
               </Alert>
             )}
 
             {isManualPayment && manualConfig && (
               <Alert>
-                <AlertDescription>
-                  Manual payments require admin verification before the funds reflect in your equity wallet.
-                  Provide accurate transfer details for faster approval.
-                </AlertDescription>
+                <AlertDescription>{t("equityCheckout.manualAlert")}</AlertDescription>
               </Alert>
             )}
           </CardContent>
@@ -839,13 +881,13 @@ export default function NewEquityContributionPage() {
         {isManualPayment && manualConfig && (
           <Card>
             <CardHeader>
-              <CardTitle>Manual Payment Details</CardTitle>
-              <CardDescription>Provide the details of your transfer for verification.</CardDescription>
+              <CardTitle>{t("equityCheckout.manualSectionTitle")}</CardTitle>
+              <CardDescription>{t("equityCheckout.manualSectionDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {manualAccounts.length > 0 ? (
                 <div className="space-y-2">
-                  <Label htmlFor="manual-account">Destination Account</Label>
+                  <Label htmlFor="manual-account">{t("equityCheckout.destAccount")}</Label>
                   <Select
                     value={manualDetails.bankAccountId}
                     onValueChange={(value) =>
@@ -856,7 +898,7 @@ export default function NewEquityContributionPage() {
                     }
                   >
                     <SelectTrigger id="manual-account">
-                      <SelectValue placeholder="Select bank account" />
+                      <SelectValue placeholder={t("equityCheckout.selectBank")} />
                     </SelectTrigger>
                     <SelectContent>
                       {manualAccounts.map((account) => (
@@ -874,13 +916,18 @@ export default function NewEquityContributionPage() {
                 </div>
               ) : (
                 <Alert>
-                  <AlertDescription>No manual bank accounts configured. Contact your administrator.</AlertDescription>
+                  <AlertDescription>{t("equityCheckout.noManualConfigured")}</AlertDescription>
                 </Alert>
               )}
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Payer Name {manualConfig.require_payer_name ?? true ? "*" : "(optional)"}</Label>
+                  <Label>
+                    {t("walletFund.payerNameLabel")}{" "}
+                    {manualConfig.require_payer_name ?? true
+                      ? t("equityCheckout.requiredMark")
+                      : t("equityCheckout.optional")}
+                  </Label>
                   <Input
                     value={manualDetails.payerName}
                     onChange={(event) =>
@@ -889,11 +936,14 @@ export default function NewEquityContributionPage() {
                         payerName: event.target.value,
                       }))
                     }
-                    placeholder="Full name of the payer"
+                    placeholder={t("equityCheckout.payerNamePlaceholder")}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Payer Phone {manualConfig.require_payer_phone ? "*" : "(optional)"}</Label>
+                  <Label>
+                    {t("walletFund.payerPhoneLabel")}{" "}
+                    {manualConfig.require_payer_phone ? t("equityCheckout.requiredMark") : t("equityCheckout.optional")}
+                  </Label>
                   <Input
                     value={manualDetails.payerPhone}
                     onChange={(event) =>
@@ -902,14 +952,17 @@ export default function NewEquityContributionPage() {
                         payerPhone: event.target.value,
                       }))
                     }
-                    placeholder="Phone number used for the transfer"
+                    placeholder={t("equityCheckout.payerPhonePlaceholder")}
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label>
-                  Transaction Reference {manualConfig.require_transaction_reference ?? true ? "*" : "(optional)"}
+                  {t("walletFund.transactionRef")}{" "}
+                  {manualConfig.require_transaction_reference ?? true
+                    ? t("equityCheckout.requiredMark")
+                    : t("equityCheckout.optional")}
                 </Label>
                 <Input
                   value={manualDetails.transactionReference}
@@ -919,18 +972,21 @@ export default function NewEquityContributionPage() {
                       transactionReference: event.target.value,
                     }))
                   }
-                  placeholder="Bank transfer reference"
+                  placeholder={t("equityCheckout.txnRefPlaceholder")}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label>
-                  Payment Evidence {manualConfig.require_payment_evidence ?? true ? "*" : "(optional)"}
+                  {t("equityCheckout.evidenceLabel")}{" "}
+                  {manualConfig.require_payment_evidence ?? true
+                    ? t("equityCheckout.requiredMark")
+                    : t("equityCheckout.optional")}
                 </Label>
                 <Input type="file" multiple accept="image/*,.pdf" onChange={handleEvidenceUpload} disabled={evidenceUploading} />
                 {evidenceUploading && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Uploading evidence...
+                    <Loader2 className="h-4 w-4 animate-spin" /> {t("equityCheckout.uploadingEvidence")}
                   </div>
                 )}
                 {manualEvidence.length > 0 && (
@@ -938,10 +994,10 @@ export default function NewEquityContributionPage() {
                     {manualEvidence.map((url) => (
                       <div key={url} className="flex items-center justify-between rounded border p-2 text-sm">
                         <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
-                          View evidence
+                          {t("equityCheckout.viewEvidence")}
                         </a>
                         <Button type="button" variant="ghost" size="sm" onClick={() => removeEvidence(url)}>
-                          Remove
+                          {t("equityCheckout.remove")}
                         </Button>
                       </div>
                     ))}
@@ -954,12 +1010,12 @@ export default function NewEquityContributionPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Notes</CardTitle>
-            <CardDescription>Provide any additional context for this contribution.</CardDescription>
+            <CardTitle>{t("equityCheckout.notesTitle")}</CardTitle>
+            <CardDescription>{t("equityCheckout.notesHint")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Textarea
-              placeholder="Add any information the finance team should know"
+              placeholder={t("equityCheckout.notesPlaceholder")}
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
               rows={3}
@@ -970,10 +1026,10 @@ export default function NewEquityContributionPage() {
         <div className="flex justify-between">
           <Link href="/dashboard/equity-contributions">
             <Button type="button" variant="outline">
-              Cancel
+              {t("equityCheckout.cancel")}
             </Button>
           </Link>
-          <Button type="submit">Review Contribution</Button>
+          <Button type="submit">{t("equityCheckout.reviewContinue")}</Button>
         </div>
       </form>
     </div>

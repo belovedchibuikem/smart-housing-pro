@@ -15,24 +15,16 @@ import {
 	updateUserSettings,
 	changePassword,
 	toggleTwoFactor,
-	getUserProfile,
+	getContributionPlans,
+	updateMyMonthlyContributionAmount,
 	type UserSettings,
 } from "@/lib/api/client"
 import { toast } from "sonner"
 import { Loader2, AlertCircle, CheckCircle2, Shield, Bell, Globe, Lock } from "lucide-react"
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-	AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
-
+import Link from "next/link"
+import { useI18n } from "@/lib/i18n/i18n-provider"
 export default function SettingsPage() {
+	const { t } = useI18n()
 	const [loading, setLoading] = useState(true)
 	const [saving, setSaving] = useState(false)
 	const [settings, setSettings] = useState<UserSettings | null>(null)
@@ -63,6 +55,10 @@ export default function SettingsPage() {
 		timezone: "Africa/Lagos",
 		two_factor_enabled: false,
 	})
+
+	const [contribMin, setContribMin] = useState<number | null>(null)
+	const [contribMyAmount, setContribMyAmount] = useState<string>("")
+	const [contribSaving, setContribSaving] = useState(false)
 
 	const fetchSettings = useCallback(async () => {
 		try {
@@ -98,6 +94,25 @@ export default function SettingsPage() {
 	useEffect(() => {
 		fetchSettings()
 	}, [fetchSettings])
+
+	useEffect(() => {
+		let cancelled = false
+		void (async () => {
+			try {
+				const r = await getContributionPlans()
+				if (cancelled) return
+				const min = r.member_plan?.plan?.minimum_amount
+				setContribMin(typeof min === "number" ? min : null)
+				const pref = r.my_contribution_amount ?? r.member_plan?.my_contribution_amount
+				setContribMyAmount(pref != null && pref > 0 ? String(pref) : "")
+			} catch {
+				/* ignore */
+			}
+		})()
+		return () => {
+			cancelled = true
+		}
+	}, [])
 
 	const handleNotificationChange = async (key: keyof typeof notificationSettings, value: boolean) => {
 		const updated = { ...notificationSettings, [key]: value }
@@ -144,6 +159,14 @@ export default function SettingsPage() {
 				if (response.success) {
 					setSettings(response.settings)
 					toast.success("Account settings updated")
+					if (key === "language" && typeof value === "string") {
+						try {
+							localStorage.setItem("dashboard_locale", value)
+						} catch {
+							/* ignore */
+						}
+						window.dispatchEvent(new CustomEvent("app:locale", { detail: value }))
+					}
 				}
 			}
 		} catch (err: any) {
@@ -203,8 +226,8 @@ export default function SettingsPage() {
 	return (
 		<div className="space-y-6">
 			<div>
-				<h1 className="text-3xl font-bold">Settings</h1>
-				<p className="text-muted-foreground mt-2">Manage your account settings and preferences</p>
+				<h1 className="text-3xl font-bold">{t("settings.title")}</h1>
+				<p className="text-muted-foreground mt-2">{t("settings.subtitle")}</p>
 			</div>
 
 			{error && (
@@ -219,9 +242,9 @@ export default function SettingsPage() {
 				<CardHeader>
 					<div className="flex items-center gap-2">
 						<Bell className="h-5 w-5" />
-						<CardTitle>Notifications</CardTitle>
+						<CardTitle>{t("settings.notifications")}</CardTitle>
 					</div>
-					<CardDescription>Configure how you receive notifications</CardDescription>
+					<CardDescription>{t("settings.notificationsDesc")}</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-6">
 					<div className="flex items-center justify-between">
@@ -315,9 +338,9 @@ export default function SettingsPage() {
 				<CardHeader>
 					<div className="flex items-center gap-2">
 						<Lock className="h-5 w-5" />
-						<CardTitle>Security</CardTitle>
+						<CardTitle>{t("settings.security")}</CardTitle>
 					</div>
-					<CardDescription>Manage your password and security preferences</CardDescription>
+					<CardDescription>{t("settings.securityDesc")}</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
 					<div className="space-y-2">
@@ -369,9 +392,9 @@ export default function SettingsPage() {
 				<CardHeader>
 					<div className="flex items-center gap-2">
 						<Globe className="h-5 w-5" />
-						<CardTitle>Account</CardTitle>
+						<CardTitle>{t("settings.account")}</CardTitle>
 					</div>
-					<CardDescription>Manage your account information and preferences</CardDescription>
+					<CardDescription>{t("settings.accountDesc")}</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-6">
 					<div className="flex items-center justify-between">
@@ -409,6 +432,7 @@ export default function SettingsPage() {
 								<SelectItem value="ig">Igbo</SelectItem>
 							</SelectContent>
 						</Select>
+						<p className="text-xs text-muted-foreground">{t("settings.langHint")}</p>
 					</div>
 					<Separator />
 					<div className="space-y-2">
@@ -438,62 +462,81 @@ export default function SettingsPage() {
 				</CardContent>
 			</Card>
 
-			{/* Danger Zone */}
-			<Card className="border-red-200">
+			<Card>
 				<CardHeader>
-					<CardTitle className="text-red-600">Danger Zone</CardTitle>
-					<CardDescription>Irreversible account actions</CardDescription>
+					<CardTitle>{t("settings.contributionPref")}</CardTitle>
+					<CardDescription>{t("settings.contribPrefDesc")}</CardDescription>
 				</CardHeader>
-				<CardContent className="space-y-4">
-					<div className="flex items-center justify-between">
-						<div>
-							<p className="font-medium">Deactivate Account</p>
-							<p className="text-sm text-muted-foreground">Temporarily disable your account</p>
-						</div>
-						<AlertDialog>
-							<AlertDialogTrigger asChild>
-								<Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50 bg-transparent">
-									Deactivate
-								</Button>
-							</AlertDialogTrigger>
-							<AlertDialogContent>
-								<AlertDialogHeader>
-									<AlertDialogTitle>Deactivate Account?</AlertDialogTitle>
-									<AlertDialogDescription>
-										This will temporarily disable your account. You can reactivate it later by contacting support.
-									</AlertDialogDescription>
-								</AlertDialogHeader>
-								<AlertDialogFooter>
-									<AlertDialogCancel>Cancel</AlertDialogCancel>
-									<AlertDialogAction className="bg-red-600 hover:bg-red-700">Deactivate</AlertDialogAction>
-								</AlertDialogFooter>
-							</AlertDialogContent>
-						</AlertDialog>
+				<CardContent className="space-y-4 max-w-md">
+					<div className="space-y-1">
+						<Label>{t("settings.minContribution")}</Label>
+						<p className="text-sm font-medium">
+							{contribMin != null ? `₦${contribMin.toLocaleString()}` : "—"}
+						</p>
 					</div>
-					<Separator />
-					<div className="flex items-center justify-between">
-						<div>
-							<p className="font-medium">Delete Account</p>
-							<p className="text-sm text-muted-foreground">Permanently delete your account and all data</p>
-						</div>
-						<AlertDialog>
-							<AlertDialogTrigger asChild>
-								<Button variant="destructive">Delete Account</Button>
-							</AlertDialogTrigger>
-							<AlertDialogContent>
-								<AlertDialogHeader>
-									<AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-									<AlertDialogDescription>
-										This action cannot be undone. This will permanently delete your account and remove all your data from our servers.
-									</AlertDialogDescription>
-								</AlertDialogHeader>
-								<AlertDialogFooter>
-									<AlertDialogCancel>Cancel</AlertDialogCancel>
-									<AlertDialogAction className="bg-red-600 hover:bg-red-700">Delete Account</AlertDialogAction>
-								</AlertDialogFooter>
-							</AlertDialogContent>
-						</AlertDialog>
+					<div className="space-y-2">
+						<Label htmlFor="settings-my-contrib">{t("settings.myContribution")}</Label>
+						<Input
+							id="settings-my-contrib"
+							type="number"
+							min={contribMin ?? 0}
+							step="1"
+							value={contribMyAmount}
+							onChange={(e) => setContribMyAmount(e.target.value)}
+							placeholder={contribMin != null ? String(contribMin) : ""}
+						/>
+						<p className="text-xs text-muted-foreground">
+							{contribMin != null
+								? `Must be at least ₦${contribMin.toLocaleString()} when you are enrolled in a plan.`
+								: "Join a contribution plan to set a minimum."}
+						</p>
 					</div>
+					<Button
+						type="button"
+						disabled={contribSaving}
+						onClick={async () => {
+							const n = Number(contribMyAmount)
+							if (contribMyAmount.trim() !== "" && (!Number.isFinite(n) || n < 0)) {
+								toast.error("Enter a valid amount")
+								return
+							}
+							setContribSaving(true)
+							try {
+								const amount = contribMyAmount.trim() === "" ? 0 : n
+								const res = await updateMyMonthlyContributionAmount(amount)
+								if (res.success) {
+									toast.success(res.message)
+									const v = res.my_contribution_amount
+									setContribMyAmount(v != null && v > 0 ? String(v) : "")
+								}
+							} catch (err: unknown) {
+								toast.error(err instanceof Error ? err.message : "Failed to save")
+							} finally {
+								setContribSaving(false)
+							}
+						}}
+					>
+						{contribSaving ? (
+							<>
+								<Loader2 className="h-4 w-4 animate-spin mr-2" />
+								{t("settings.saveContribution")}
+							</>
+						) : (
+							t("settings.saveContribution")
+						)}
+					</Button>
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>{t("settings.membership")}</CardTitle>
+					<CardDescription>{t("settings.membershipWithdrawDesc")}</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<Button variant="outline" asChild>
+						<Link href="/dashboard/withdraw-membership">{t("settings.withdrawLink")}</Link>
+					</Button>
 				</CardContent>
 			</Card>
 		</div>

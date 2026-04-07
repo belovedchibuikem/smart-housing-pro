@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -22,6 +22,8 @@ import {
   Wallet,
   Trash2,
 } from "lucide-react"
+import { Recaptcha, RecaptchaRef } from "@/components/auth/recaptcha"
+import { useI18n } from "@/lib/i18n/i18n-provider"
 
 type PaymentMethod = {
   id: string
@@ -103,26 +105,28 @@ function normalizeManualConfig(config?: Record<string, any>): ManualConfig {
   return merged
 }
 
-const methodDisplayName = (method: PaymentMethod) => {
+const methodDisplayName = (method: PaymentMethod, t: (key: string) => string) => {
   switch (method.id) {
     case "paystack":
-      return "Debit/Credit Card (Paystack)"
+      return t("walletFund.methodPaystack")
     case "paystack_virtual_account":
-      return method.name || "Paystack Titan (bank transfer)"
+      return method.name || t("walletFund.methodPaystackVa")
     case "remita":
-      return "Remita"
+      return t("walletFund.methodRemita")
     case "manual":
     case "bank_transfer":
-      return "Manual Bank Transfer"
+      return t("walletFund.methodManual")
     case "stripe":
-      return "Stripe"
+      return t("walletFund.methodStripe")
     default:
       return method.name ?? method.id
   }
 }
 
 export default function AddFundsPage() {
+  const { t } = useI18n()
   const router = useRouter()
+  const recaptchaRef = useRef<RecaptchaRef>(null)
   const [amount, setAmount] = useState("")
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
   const [paymentMethod, setPaymentMethod] = useState("")
@@ -162,7 +166,7 @@ export default function AddFundsPage() {
         }
       } catch (error: any) {
         console.error("Failed to load payment methods:", error)
-        toast.error(error?.message || "Failed to load payment methods")
+        toast.error(error?.message || t("walletFund.loadMethodsFailed"))
       } finally {
         setMethodsLoading(false)
       }
@@ -240,7 +244,7 @@ export default function AddFundsPage() {
     if (!value) return
     navigator.clipboard.writeText(value)
     setCopiedField(label)
-    toast.success(`${label} copied to clipboard`)
+    toast.success(t("walletFund.copied"))
     setTimeout(() => setCopiedField(null), 2000)
   }
 
@@ -280,43 +284,43 @@ export default function AddFundsPage() {
   const validatePaymentDetails = () => {
     const numericAmount = Number(amount)
     if (!Number.isFinite(numericAmount) || numericAmount < 100) {
-      toast.error("Please enter an amount of at least ₦100")
+      toast.error(t("walletFund.errMinAmount"))
       return false
     }
 
     if (!selectedMethod) {
-      toast.error("Please select a payment method")
+      toast.error(t("walletFund.errSelectMethod"))
       return false
     }
 
     if (selectedMethod.id === "manual" || selectedMethod.id === "bank_transfer") {
       if (!manualConfig) {
-        toast.error("Manual payment has not been configured yet. Please contact support.")
+        toast.error(t("walletFund.errManualConfig"))
         return false
       }
 
       if (manualConfig.bank_accounts.length > 0 && !selectedManualAccount) {
-        toast.error("Please select a bank account for your transfer")
+        toast.error(t("walletFund.errSelectBank"))
         return false
       }
 
       if ((manualConfig.require_payer_name ?? true) && !manualDetails.payerName.trim()) {
-        toast.error("Please enter the payer's full name")
+        toast.error(t("walletFund.errPayerName"))
         return false
       }
 
       if ((manualConfig.require_payer_phone ?? false) && !manualDetails.payerPhone.trim()) {
-        toast.error("Please enter the payer's phone number")
+        toast.error(t("walletFund.errPayerPhone"))
         return false
       }
 
       if ((manualConfig.require_transaction_reference ?? true) && !manualDetails.transactionReference.trim()) {
-        toast.error("Please enter the bank transfer reference/transaction ID")
+        toast.error(t("walletFund.errTxnRef"))
         return false
       }
 
       if ((manualConfig.require_payment_evidence ?? true) && manualDetails.evidenceFiles.length === 0) {
-        toast.error("Please upload at least one proof of payment")
+        toast.error(t("walletFund.errEvidence"))
         return false
       }
     }
@@ -347,7 +351,20 @@ export default function AddFundsPage() {
     }
 
     if (!selectedMethod) {
-      toast.error("Please select a payment method")
+      toast.error(t("walletFund.errSelectMethod"))
+      return
+    }
+
+    let recaptchaToken: string
+    if (recaptchaRef.current) {
+      try {
+        recaptchaToken = await recaptchaRef.current.execute()
+      } catch {
+        toast.error(t("walletFund.recaptchaNotReady"))
+        return
+      }
+    } else {
+      toast.error(t("walletFund.recaptchaNotReady"))
       return
     }
 
@@ -359,11 +376,12 @@ export default function AddFundsPage() {
 
       if (selectedMethod.id === "manual" || selectedMethod.id === "bank_transfer") {
         if (!manualConfig) {
-          toast.error("Manual payment has not been configured yet. Please contact support.")
+          toast.error(t("walletFund.errManualConfig"))
           return
         }
 
         const formData = new FormData()
+        formData.append("recaptcha_token", recaptchaToken)
         formData.append("amount", numericAmount.toString())
         formData.append("payment_method", "manual")
         formData.append("description", `Wallet funding of ${formattedAmount}`)
@@ -390,14 +408,12 @@ export default function AddFundsPage() {
         })
 
         if (response.success) {
-          toast.success(
-            response.message || "Manual payment submitted. Awaiting verification from accounts team.",
-          )
+          toast.success(response.message || t("walletFund.manualSubmitted"))
           router.push("/dashboard/wallet?pending=true")
           return
         }
 
-        toast.error(response.message || "Failed to submit manual payment")
+        toast.error(response.message || t("walletFund.errInitPay"))
         return
       }
 
@@ -431,11 +447,12 @@ export default function AddFundsPage() {
           amount: numericAmount,
           payment_method: backendMethod,
           description: `Wallet funding of ${formattedAmount}`,
+          recaptcha_token: recaptchaToken,
         },
       })
 
       if (!response.success || !response.data) {
-        toast.error(response.message || "Failed to initialize payment")
+        toast.error(response.message || t("walletFund.errInitPay"))
         return
       }
 
@@ -456,20 +473,16 @@ export default function AddFundsPage() {
             account: acc,
           })
           setStage("titan_instructions")
-          toast.success(
-            response.message || "Transfer to your dedicated account. Your wallet will update when Paystack confirms the deposit.",
-          )
+          toast.success(response.message || t("walletFund.titanSuccess"))
           return
         }
-        toast.error(response.message || "Could not load your Paystack Titan account. Check gateway keys and try again.")
+        toast.error(response.message || t("walletFund.errTitan"))
         return
       }
 
       if (backendMethod === "paystack" && response.data.payment_url) {
         if (response.data.payment_url.includes("/simulated/paystack/")) {
-          toast.error(
-            "Paystack is still in simulation mode on the server. Set PAYSTACK_SIMULATE=false in .env and configure real Paystack keys on the gateway.",
-          )
+          toast.error(t("walletFund.errSimulated"))
           return
         }
         window.location.href = response.data.payment_url
@@ -477,16 +490,23 @@ export default function AddFundsPage() {
       }
 
       if (backendMethod === "remita" && response.data.rrr) {
-        toast.info(`Your Remita RRR is ${response.data.rrr}. Please complete payment using this RRR.`)
+        toast.info(t("walletFund.remitaInfo").replace("{rrr}", response.data.rrr))
         router.push("/dashboard/wallet?pending=true")
         return
       }
 
-      toast.success(response.message || "Payment initialized successfully")
+      toast.success(response.message || t("walletFund.payInitSuccess"))
       router.push("/dashboard/wallet")
     } catch (error: any) {
       console.error("Payment initialization error:", error)
-      toast.error(error?.message || "An error occurred while processing your payment")
+      toast.error(error?.message || t("walletFund.payError"))
+      if (recaptchaRef.current) {
+        try {
+          await recaptchaRef.current.execute()
+        } catch {
+          /* ignore */
+        }
+      }
     } finally {
       setSubmitting(false)
     }
@@ -496,10 +516,10 @@ export default function AddFundsPage() {
       <div>
         <Button variant="ghost" size="sm" onClick={() => router.back()} className="mb-4">
           <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Wallet
+          {t("walletFund.back")}
         </Button>
-        <h1 className="text-3xl font-bold tracking-tight">Add Fund</h1>
-        <p className="text-muted-foreground mt-2">Top up your wallet balance</p>
+        <h1 className="text-3xl font-bold tracking-tight">{t("walletFund.title")}</h1>
+        <p className="text-muted-foreground mt-2">{t("walletFund.subtitle")}</p>
       </div>
   )
 
@@ -510,7 +530,7 @@ export default function AddFundsPage() {
         <Card>
           <CardContent className="py-12 text-center text-muted-foreground">
             <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin" />
-            Loading payment methods...
+            {t("walletFund.loadingMethods")}
           </CardContent>
         </Card>
       </div>
@@ -522,9 +542,7 @@ export default function AddFundsPage() {
       <div className="space-y-6 w-full max-w-2xl mx-auto px-4">
         <Header />
         <Alert>
-          <AlertDescription>
-            No payment methods are currently available. Please contact your administrator to configure payment gateways.
-          </AlertDescription>
+          <AlertDescription>{t("walletFund.noMethods")}</AlertDescription>
         </Alert>
       </div>
     )
@@ -539,31 +557,26 @@ export default function AddFundsPage() {
         <Header />
         <Card>
           <CardHeader>
-            <CardTitle>Paystack Titan transfer</CardTitle>
+            <CardTitle>{t("walletFund.titanTitle")}</CardTitle>
             <CardDescription>
-              Send exactly {formattedTitanAmount} from your bank app to the dedicated account below. Your wallet balance
-              updates automatically when Paystack confirms the deposit (usually within a few minutes).
+              {t("walletFund.titanDesc").replace("{amount}", formattedTitanAmount)}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Alert>
-              <AlertDescription>
-                Ensure your administrator has set the Paystack webhook URL for this cooperative to{" "}
-                <span className="font-mono text-xs break-all">…/api/payments/webhook/paystack</span> on the same host you
-                use for the API (tenant subdomain or custom domain).
-              </AlertDescription>
+              <AlertDescription>{t("walletFund.webhookHint")}</AlertDescription>
             </Alert>
             <div className="rounded-lg border p-4 space-y-3 text-sm">
               <div className="flex justify-between gap-4">
-                <span className="text-muted-foreground shrink-0">Bank</span>
+                <span className="text-muted-foreground shrink-0">{t("walletFund.bank")}</span>
                 <span className="font-medium text-right">{account.bank_name}</span>
               </div>
               <div className="flex justify-between gap-4 items-start">
-                <span className="text-muted-foreground shrink-0">Account name</span>
+                <span className="text-muted-foreground shrink-0">{t("walletFund.accountName")}</span>
                 <span className="font-medium text-right break-all">{account.account_name}</span>
               </div>
               <div className="flex justify-between gap-4 items-center">
-                <span className="text-muted-foreground shrink-0">Account number</span>
+                <span className="text-muted-foreground shrink-0">{t("walletFund.accountNumber")}</span>
                 <div className="flex items-center gap-2">
                   <span className="font-mono font-semibold">{account.account_number}</span>
                   <Button
@@ -583,10 +596,10 @@ export default function AddFundsPage() {
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <Button type="button" variant="outline" className="flex-1" onClick={() => setStage("confirm")}>
-                Back
+                {t("walletFund.back")}
               </Button>
               <Button type="button" className="flex-1" onClick={() => router.push("/dashboard/wallet")}>
-                Done — I have transferred
+                {t("walletFund.doneTransferred")}
               </Button>
             </div>
           </CardContent>
@@ -605,22 +618,22 @@ export default function AddFundsPage() {
         <form onSubmit={handleProceedFromReview} className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Review Wallet Funding</CardTitle>
-              <CardDescription>Confirm the details before you proceed to the final step.</CardDescription>
+              <CardTitle>{t("walletFund.reviewTitle")}</CardTitle>
+              <CardDescription>{t("walletFund.reviewDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between rounded-lg border p-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Amount</p>
+                  <p className="text-sm text-muted-foreground">{t("walletFund.amount")}</p>
                   <p className="text-2xl font-semibold">{formattedAmount}</p>
                 </div>
-                <Badge variant="outline">Amount</Badge>
+                <Badge variant="outline">{t("walletFund.amount")}</Badge>
               </div>
               <div className="flex items-center justify-between rounded-lg border p-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Payment Method</p>
+                  <p className="text-sm text-muted-foreground">{t("walletFund.paymentMethod")}</p>
                   <p className="text-lg font-medium">
-                    {selectedMethod ? methodDisplayName(selectedMethod) : "Not selected"}
+                    {selectedMethod ? methodDisplayName(selectedMethod, t) : t("walletFund.notSelected")}
                   </p>
                 </div>
                 <Badge variant="outline">{selectedMethod?.id ?? "method"}</Badge>
@@ -634,53 +647,51 @@ export default function AddFundsPage() {
           {(selectedMethod?.id === "manual" || selectedMethod?.id === "bank_transfer") && manualConfig && (
             <Card>
               <CardHeader>
-                <CardTitle>Manual Transfer Summary</CardTitle>
-                <CardDescription>
-                  These details will be sent to the accounts team to verify your transfer.
-                </CardDescription>
+                <CardTitle>{t("walletFund.manualSummaryTitle")}</CardTitle>
+                <CardDescription>{t("walletFund.manualSummaryDesc")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {selectedManualAccount ? (
                   <div className="rounded-lg border p-4 space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Bank</span>
+                      <span className="text-muted-foreground">{t("walletFund.bank")}</span>
                       <span className="font-medium">{selectedManualAccount.bank_name}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Account Name</span>
+                      <span className="text-muted-foreground">{t("walletFund.accountName")}</span>
                       <span className="font-medium break-all">{selectedManualAccount.account_name}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Account Number</span>
+                      <span className="text-muted-foreground">{t("walletFund.accountNumber")}</span>
                       <span className="font-medium">{selectedManualAccount.account_number}</span>
                     </div>
                   </div>
                 ) : (
                   <Alert>
-                    <AlertDescription>No bank account selected.</AlertDescription>
+                    <AlertDescription>{t("walletFund.noBankSelected")}</AlertDescription>
                   </Alert>
                 )}
 
                 <div className="grid gap-2 text-sm md:grid-cols-2">
                   <div>
-                    <p className="text-muted-foreground">Payer Name</p>
-                    <p className="font-medium">{manualDetails.payerName || "Not provided"}</p>
+                    <p className="text-muted-foreground">{t("walletFund.payerName")}</p>
+                    <p className="font-medium">{manualDetails.payerName || t("walletFund.notProvided")}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Payer Phone</p>
-                    <p className="font-medium">{manualDetails.payerPhone || "Not provided"}</p>
+                    <p className="text-muted-foreground">{t("walletFund.payerPhone")}</p>
+                    <p className="font-medium">{manualDetails.payerPhone || t("walletFund.notProvided")}</p>
                   </div>
                   <div className="md:col-span-2">
-                    <p className="text-muted-foreground">Transaction Reference</p>
+                    <p className="text-muted-foreground">{t("walletFund.transactionRef")}</p>
                     <p className="font-medium break-all">
-                      {manualDetails.transactionReference || "Not provided"}
+                      {manualDetails.transactionReference || t("walletFund.notProvided")}
                     </p>
                   </div>
                 </div>
 
                 {manualDetails.evidenceFiles.length > 0 ? (
                   <div className="space-y-2">
-                    <p className="text-sm font-medium">Uploaded Evidence</p>
+                    <p className="text-sm font-medium">{t("walletFund.uploadedEvidence")}</p>
                     <ul className="space-y-1 text-sm text-muted-foreground">
                       {manualDetails.evidenceFiles.map((file, index) => (
                         <li key={`${file.name}-${index}`} className="truncate">
@@ -692,7 +703,7 @@ export default function AddFundsPage() {
                 ) : (
                   (manualConfig.require_payment_evidence ?? true) && (
                     <Alert>
-                      <AlertDescription>No payment evidence attached yet.</AlertDescription>
+                      <AlertDescription>{t("walletFund.noEvidenceYet")}</AlertDescription>
                     </Alert>
                   )
                 )}
@@ -701,16 +712,14 @@ export default function AddFundsPage() {
           )}
 
           <Alert>
-            <AlertDescription>
-              If you need to make changes, go back to the previous step. Otherwise continue to confirm your payment.
-            </AlertDescription>
+            <AlertDescription>{t("walletFund.reviewAlert")}</AlertDescription>
           </Alert>
 
           <div className="flex justify-between">
             <Button type="button" variant="outline" onClick={previousStage}>
-              Back
+              {t("walletFund.back")}
             </Button>
-            <Button type="submit">Proceed to Confirmation</Button>
+            <Button type="submit">{t("walletFund.proceedConfirm")}</Button>
           </div>
         </form>
       </div>
@@ -727,24 +736,24 @@ export default function AddFundsPage() {
         <form onSubmit={submitPayment} className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Confirm &amp; Pay</CardTitle>
-              <CardDescription>We&apos;ll finalize your wallet funding with the details below.</CardDescription>
+              <CardTitle>{t("walletFund.confirmTitle")}</CardTitle>
+              <CardDescription>{t("walletFund.confirmDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="rounded-lg border p-4 space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Amount</span>
+                  <span className="text-muted-foreground">{t("walletFund.amount")}</span>
                   <span className="text-lg font-semibold">{formattedAmount}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Payment Method</span>
+                  <span className="text-muted-foreground">{t("walletFund.paymentMethod")}</span>
                   <span className="font-medium">
-                    {selectedMethod ? methodDisplayName(selectedMethod) : "Not selected"}
+                    {selectedMethod ? methodDisplayName(selectedMethod, t) : t("walletFund.notSelected")}
                   </span>
                 </div>
                 {(selectedMethod?.id === "manual" || selectedMethod?.id === "bank_transfer") && selectedManualAccount && (
                   <div className="flex flex-col gap-1 pt-2 border-t">
-                    <span className="text-xs uppercase text-muted-foreground">Transfer To</span>
+                    <span className="text-xs uppercase text-muted-foreground">{t("walletFund.transferTo")}</span>
                     <span className="font-medium">{selectedManualAccount.bank_name}</span>
                     <span className="text-sm text-muted-foreground">
                       {selectedManualAccount.account_name} • {selectedManualAccount.account_number}
@@ -753,24 +762,31 @@ export default function AddFundsPage() {
                 )}
               </div>
 
-              <p className="text-sm text-muted-foreground">
-                By clicking confirm, you authorize this wallet funding and acknowledge the selected payment method.
-              </p>
+              <p className="text-sm text-muted-foreground">{t("walletFund.confirmAuth")}</p>
             </CardContent>
           </Card>
 
+          <Recaptcha
+            ref={recaptchaRef}
+            onVerify={() => {}}
+            onError={() => {}}
+            action="wallet_fund"
+          />
+
+          <p className="text-[11px] text-muted-foreground text-center leading-snug">{t("walletFund.recaptcha")}</p>
+
           <div className="flex justify-between">
             <Button type="button" variant="outline" onClick={previousStage}>
-              Back
+              {t("walletFund.back")}
             </Button>
             <Button type="submit" disabled={submitting}>
               {submitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
+                  {t("walletFund.processing")}
                 </>
               ) : (
-                "Confirm Payment"
+                t("walletFund.confirmPayment")
               )}
             </Button>
           </div>
@@ -786,16 +802,16 @@ export default function AddFundsPage() {
       <form onSubmit={handleProceedFromDetails} className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Enter Amount</CardTitle>
-            <CardDescription>How much would you like to add to your wallet?</CardDescription>
+            <CardTitle>{t("walletFund.enterAmountTitle")}</CardTitle>
+            <CardDescription>{t("walletFund.enterAmountDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="amount">Amount (₦)</Label>
+              <Label htmlFor="amount">{t("walletFund.amountLabel")}</Label>
               <Input
                 id="amount"
                 type="number"
-                placeholder="Enter amount"
+                placeholder={t("walletFund.amountPlaceholder")}
                 value={amount}
                 onChange={(event) => setAmount(event.target.value)}
                 min="100"
@@ -804,7 +820,7 @@ export default function AddFundsPage() {
             </div>
 
             <div>
-              <Label className="text-sm text-muted-foreground mb-2 block">Quick Select</Label>
+              <Label className="text-sm text-muted-foreground mb-2 block">{t("walletFund.quickSelect")}</Label>
               <div className="flex flex-wrap gap-2">
                 {quickAmounts.map((quickAmount) => (
                   <Button
@@ -824,8 +840,8 @@ export default function AddFundsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Payment Method</CardTitle>
-            <CardDescription>Select how you want to fund your wallet</CardDescription>
+            <CardTitle>{t("walletFund.payMethodTitle")}</CardTitle>
+            <CardDescription>{t("walletFund.payMethodDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod}>
@@ -842,7 +858,7 @@ export default function AddFundsPage() {
                       <Label htmlFor={`method-${method.id}`} className="flex items-center gap-3 cursor-pointer flex-1">
                         {icon}
                     <div>
-                          <p className="font-medium">{methodDisplayName(method)}</p>
+                          <p className="font-medium">{methodDisplayName(method, t)}</p>
                           {method.description && (
                             <p className="text-sm text-muted-foreground">{method.description}</p>
                           )}
@@ -859,15 +875,13 @@ export default function AddFundsPage() {
         {(selectedMethod?.id === "manual" || selectedMethod?.id === "bank_transfer") && manualConfig && (
           <Card>
             <CardHeader>
-              <CardTitle>Manual Transfer Details</CardTitle>
-              <CardDescription>
-                Provide your transfer information so our accounts team can verify your payment quickly.
-              </CardDescription>
+              <CardTitle>{t("walletFund.manualTitle")}</CardTitle>
+              <CardDescription>{t("walletFund.manualDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               {manualConfig.bank_accounts.length > 0 ? (
                 <div className="space-y-3">
-                  <Label className="text-sm font-medium">Select the account you paid into</Label>
+                  <Label className="text-sm font-medium">{t("walletFund.selectPaidInto")}</Label>
                   <RadioGroup
                     value={manualDetails.accountId}
                     onValueChange={(value) => setManualDetails((prev) => ({ ...prev, accountId: value }))}
@@ -880,7 +894,7 @@ export default function AddFundsPage() {
                           <Label htmlFor={`account-${account.id}`} className="flex-1 cursor-pointer space-y-2">
                             <div className="flex items-center gap-2">
                               <span className="font-medium">{account.bank_name}</span>
-                              {account.is_primary && <Badge variant="outline">Primary</Badge>}
+                              {account.is_primary && <Badge variant="outline">{t("walletFund.primary")}</Badge>}
                             </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                               <div className="flex items-center justify-between rounded bg-muted px-3 py-2">
@@ -922,45 +936,43 @@ export default function AddFundsPage() {
                 </div>
               ) : (
                 <Alert>
-                  <AlertDescription>
-                    No manual bank accounts have been configured yet. Please contact your administrator before proceeding.
-                  </AlertDescription>
+                  <AlertDescription>{t("walletFund.noManualAccounts")}</AlertDescription>
                 </Alert>
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="payerName">
-                    Payer Name
+                    {t("walletFund.payerNameLabel")}
                     {manualConfig.require_payer_name && <span className="text-destructive ml-1">*</span>}
                   </Label>
                   <Input
                     id="payerName"
-                    placeholder="Name of sender"
+                    placeholder={t("walletFund.nameOfSender")}
                     value={manualDetails.payerName}
                     onChange={(event) => setManualDetails((prev) => ({ ...prev, payerName: event.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="payerPhone">
-                    Payer Phone
+                    {t("walletFund.payerPhoneLabel")}
                     {manualConfig.require_payer_phone && <span className="text-destructive ml-1">*</span>}
                   </Label>
                   <Input
                     id="payerPhone"
-                    placeholder="Contact phone number"
+                    placeholder={t("walletFund.contactPhone")}
                     value={manualDetails.payerPhone}
                     onChange={(event) => setManualDetails((prev) => ({ ...prev, payerPhone: event.target.value }))}
                   />
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label htmlFor="transactionReference">
-                    Bank Transfer Reference / Transaction ID
+                    {t("walletFund.bankRefLabel")}
                     {manualConfig.require_transaction_reference && <span className="text-destructive ml-1">*</span>}
                   </Label>
                   <Input
                     id="transactionReference"
-                    placeholder="Enter the reference shown on your transfer receipt"
+                    placeholder={t("walletFund.bankRefPlaceholder")}
                     value={manualDetails.transactionReference}
                     onChange={(event) =>
                       setManualDetails((prev) => ({ ...prev, transactionReference: event.target.value }))
@@ -971,14 +983,12 @@ export default function AddFundsPage() {
 
               <div className="space-y-2">
                 <Label>
-                  Upload Payment Evidence
+                  {t("walletFund.uploadEvidence")}
                   {manualConfig.require_payment_evidence && <span className="text-destructive ml-1">*</span>}
                 </Label>
                 <div className="rounded-lg border border-dashed px-4 py-6 text-center">
                   <Upload className="mx-auto mb-3 h-6 w-6 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    Upload a screenshot or PDF of your transfer receipt (max 5MB each).
-                  </p>
+                  <p className="text-sm text-muted-foreground">{t("walletFund.uploadEvidenceHint")}</p>
                   <Input
                     type="file"
                     accept="image/*,.pdf"
@@ -999,7 +1009,7 @@ export default function AddFundsPage() {
                             variant="ghost"
                             size="icon"
                             onClick={() => removeEvidenceFile(index)}
-                            title="Remove file"
+                            title={t("walletFund.removeFile")}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -1011,28 +1021,22 @@ export default function AddFundsPage() {
               </div>
 
               <Alert>
-                <AlertDescription>
-                  Once you submit this form our accounts team will review your evidence and credit your wallet after
-                  verifying the transfer.
-                </AlertDescription>
+                <AlertDescription>{t("walletFund.manualSubmitNote")}</AlertDescription>
               </Alert>
           </CardContent>
         </Card>
         )}
 
         <Alert>
-          <AlertDescription>
-            Payments are processed securely. Wallet credits will appear once the payment gateway confirms your
-            transaction or an administrator verifies your manual transfer.
-          </AlertDescription>
+          <AlertDescription>{t("walletFund.secureNote")}</AlertDescription>
         </Alert>
 
         <div className="flex gap-3">
           <Button type="button" variant="outline" onClick={() => router.back()} className="flex-1">
-            Cancel
+            {t("walletFund.cancel")}
           </Button>
           <Button type="submit" className="flex-1" disabled={submitting}>
-            Review Payment
+            {t("walletFund.reviewPayment")}
           </Button>
         </div>
       </form>

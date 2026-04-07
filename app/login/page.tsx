@@ -1,6 +1,7 @@
 "use client"
 
 import { LoginForm } from "@/components/auth/login-form"
+import { useI18n } from "@/lib/i18n/i18n-provider"
 import { Building2 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
@@ -9,6 +10,7 @@ import { useTenantSettings } from "@/lib/context/tenant-settings-context"
 import { MaintenanceMode } from "@/components/auth/maintenance-mode"
 
 export default function LoginPage() {
+  const { t } = useI18n()
   const { settings: whiteLabelSettings } = useWhiteLabel()
   const { getSetting } = useTenantSettings()
   
@@ -57,10 +59,8 @@ export default function LoginPage() {
           </Link>
         </div>
         <div className="space-y-6 relative z-10">
-          <h2 className="text-4xl font-bold text-balance">Welcome Back to Your Housing Journey</h2>
-          <p className="text-lg opacity-90 text-balance">
-            Access your account to manage contributions, track investments, and explore property opportunities.
-          </p>
+          <h2 className="text-4xl font-bold text-balance">{t("login.heroTitle")}</h2>
+          <p className="text-lg opacity-90 text-balance">{t("login.heroSubtitle")}</p>
         </div>
         <div className="text-sm opacity-75 relative z-10">&copy; {new Date().getFullYear()} {siteName}</div>
       </div>
@@ -83,15 +83,15 @@ export default function LoginPage() {
               )}
               <span className="font-bold text-xl">{siteName}</span>
             </Link>
-            <h1 className="text-3xl font-bold">Sign In</h1>
-            <p className="text-muted-foreground mt-2">Enter your credentials to access your account</p>
+            <h1 className="text-3xl font-bold">{t("login.title")}</h1>
+            <p className="text-muted-foreground mt-2">{t("login.subtitle")}</p>
           </div>
           <LoginForm allowRegistration={getSetting('allow_registration', true)} />
           {getSetting('allow_registration', true) && (
             <p className="text-center text-sm text-muted-foreground">
-              Don't have an account?{" "}
+              {t("login.registerPrompt")}{" "}
               <Link href="/register" className="text-primary font-medium hover:underline">
-                Register here
+                {t("login.register")}
               </Link>
             </p>
           )}

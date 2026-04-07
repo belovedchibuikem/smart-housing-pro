@@ -13,8 +13,10 @@ import { ChevronLeft, ChevronRight, Eye, EyeOff } from "lucide-react"
 import { meRequest, registerRequest, setAuthToken } from "@/lib/api/client"
 import { OtpVerificationDialog } from "@/components/auth/otp-verification-dialog"
 import { Recaptcha, RecaptchaRef } from "@/components/auth/recaptcha"
+import { useI18n } from "@/lib/i18n/i18n-provider"
 
 export function RegisterForm() {
+  const { t } = useI18n()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [showOtpDialog, setShowOtpDialog] = useState(false)
@@ -81,19 +83,19 @@ export function RegisterForm() {
     switch (step) {
       case 1:
         if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone) {
-          alert("Please fill in all personal information fields")
+          alert(t("register.valPersonal"))
           return false
         }
         if (!formData.password || !formData.confirmPassword) {
-          alert("Please enter and confirm your password")
+          alert(t("register.valPassword"))
           return false
         }
         if (formData.password !== formData.confirmPassword) {
-          alert("Passwords do not match")
+          alert(t("register.valPasswordMatch"))
           return false
         }
         if (formData.membershipType === "non-member" && (!formData.idType || !formData.idNumber)) {
-          alert("Please provide valid ID information")
+          alert(t("register.valId"))
           return false
         }
         return true
@@ -107,7 +109,7 @@ export function RegisterForm() {
             !formData.unit ||
             !formData.staffNumber
           ) {
-            alert("Please fill in all employment details")
+            alert(t("register.valEmployment"))
             return false
           }
         }
@@ -115,14 +117,14 @@ export function RegisterForm() {
 
       case 3:
         if (!formData.nokName || !formData.nokRelationship || !formData.nokPhone) {
-          alert("Please fill in Next of Kin information")
+          alert(t("register.valNok"))
           return false
         }
         return true
 
       case 4:
         if (!formData.agreeToTerms) {
-          alert("Please agree to the terms and conditions")
+          alert(t("register.valTerms"))
           return false
         }
         return true
@@ -160,7 +162,7 @@ export function RegisterForm() {
       if (recaptchaRef.current) {
         token = await recaptchaRef.current.execute()
       } else {
-        alert("reCAPTCHA not ready. Please try again.")
+        alert(t("register.recaptchaNotReady"))
         setIsLoading(false)
         return
       }
@@ -206,10 +208,10 @@ export function RegisterForm() {
       if (response.success || response.requires_otp_verification) {
       setShowOtpDialog(true)
       } else {
-        throw new Error(response.message || "Registration failed")
+        throw new Error(response.message || t("register.registrationFailed"))
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Registration failed"
+      const message = err instanceof Error ? err.message : t("register.registrationFailed")
       alert(message)
       // Reset reCAPTCHA token on error
       setRecaptchaToken(null)
@@ -247,7 +249,7 @@ export function RegisterForm() {
     }
   }
 
-  const stepTitles = ["Personal", "Employment", "Next of Kin", "Documents"]
+  const stepTitles = [t("register.stepPersonal"), t("register.stepEmployment"), t("register.stepNok"), t("register.stepDocuments")]
   const progressPercentage = (currentStep / totalSteps) * 100
 
   return (
@@ -256,9 +258,11 @@ export function RegisterForm() {
         <div className="space-y-4">
           <div className="flex items-center justify-between text-sm">
             <span className="font-medium">
-              Step {currentStep} of {totalSteps}
+              {t("register.stepOf").replace("{current}", String(currentStep)).replace("{total}", String(totalSteps))}
             </span>
-            <span className="text-muted-foreground">{Math.round(progressPercentage)}% Complete</span>
+            <span className="text-muted-foreground">
+              {t("register.percentComplete").replace("{n}", String(Math.round(progressPercentage)))}
+            </span>
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
@@ -300,12 +304,12 @@ export function RegisterForm() {
         {currentStep === 1 && (
           <div className="space-y-4">
             <div>
-              <h2 className="text-xl font-semibold">Personal Information</h2>
-              <p className="text-sm text-muted-foreground">Provide your basic details</p>
+              <h2 className="text-xl font-semibold">{t("register.personalTitle")}</h2>
+              <p className="text-sm text-muted-foreground">{t("register.personalDesc")}</p>
             </div>
 
             <div className="space-y-3">
-              <Label>Membership Type</Label>
+              <Label>{t("register.membershipType")}</Label>
               <RadioGroup
                 value={formData.membershipType}
                 onValueChange={(value) => setFormData({ ...formData, membershipType: value })}
@@ -314,26 +318,24 @@ export function RegisterForm() {
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="member" id="member" />
                   <Label htmlFor="member" className="font-normal cursor-pointer">
-                    FRSC Member
+                    {t("register.frscMember")}
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="non-member" id="non-member" />
                   <Label htmlFor="non-member" className="font-normal cursor-pointer">
-                    Non-Member
+                    {t("register.nonMember")}
                   </Label>
                 </div>
               </RadioGroup>
               <p className="text-xs text-muted-foreground">
-                {formData.membershipType === "member"
-                  ? "For FRSC staff members"
-                  : "For non-FRSC members (higher interest rates apply)"}
+                {formData.membershipType === "member" ? t("register.memberHint") : t("register.nonMemberHint")}
               </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName">First Name</Label>
+                <Label htmlFor="firstName">{t("register.firstName")}</Label>
                 <Input
                   id="firstName"
                   placeholder="John"
@@ -343,7 +345,7 @@ export function RegisterForm() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
+                <Label htmlFor="lastName">{t("register.lastName")}</Label>
                 <Input
                   id="lastName"
                   placeholder="Doe"
@@ -355,7 +357,7 @@ export function RegisterForm() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
+              <Label htmlFor="email">{t("register.email")}</Label>
               <Input
                 id="email"
                 type="email"
@@ -367,7 +369,7 @@ export function RegisterForm() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
+              <Label htmlFor="phone">{t("register.phone")}</Label>
               <Input
                 id="phone"
                 type="tel"
@@ -381,27 +383,27 @@ export function RegisterForm() {
             {formData.membershipType === "non-member" && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="idType">Valid ID Type</Label>
+                  <Label htmlFor="idType">{t("register.idType")}</Label>
                   <Select
                     value={formData.idType}
                     onValueChange={(value) => setFormData({ ...formData, idType: value })}
                   >
                     <SelectTrigger id="idType">
-                      <SelectValue placeholder="Select ID type" />
+                      <SelectValue placeholder={t("register.idTypePlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="drivers-license">Driver's License</SelectItem>
-                      <SelectItem value="nin">NIN Card</SelectItem>
-                      <SelectItem value="frsc-id">FRSC ID</SelectItem>
-                      <SelectItem value="international-passport">International Passport</SelectItem>
+                      <SelectItem value="drivers-license">{t("register.idDrivers")}</SelectItem>
+                      <SelectItem value="nin">{t("register.idNin")}</SelectItem>
+                      <SelectItem value="frsc-id">{t("register.idFrsc")}</SelectItem>
+                      <SelectItem value="international-passport">{t("register.idPassport")}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="idNumber">ID Number</Label>
+                  <Label htmlFor="idNumber">{t("register.idNumber")}</Label>
                   <Input
                     id="idNumber"
-                    placeholder="Enter ID number"
+                    placeholder={t("register.idNumberPlaceholder")}
                     value={formData.idNumber}
                     onChange={(e) => setFormData({ ...formData, idNumber: e.target.value })}
                     required={formData.membershipType === "non-member"}
@@ -411,12 +413,12 @@ export function RegisterForm() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t("register.password")}</Label>
               <div className="relative">
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="Create a strong password"
+                  placeholder={t("register.passwordPlaceholder")}
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   className="pr-10"
@@ -433,12 +435,12 @@ export function RegisterForm() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Label htmlFor="confirmPassword">{t("register.confirmPassword")}</Label>
               <div className="relative">
                 <Input
                   id="confirmPassword"
                   type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Re-enter your password"
+                  placeholder={t("register.confirmPasswordPlaceholder")}
                   value={formData.confirmPassword}
                   onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
                   className="pr-10"
@@ -459,11 +461,9 @@ export function RegisterForm() {
         {currentStep === 2 && (
           <div className="space-y-4">
             <div>
-              <h2 className="text-xl font-semibold">Employment Information</h2>
+              <h2 className="text-xl font-semibold">{t("register.employmentTitle")}</h2>
               <p className="text-sm text-muted-foreground">
-                {formData.membershipType === "member"
-                  ? "Provide your FRSC employment details"
-                  : "This section is optional for non-members"}
+                {formData.membershipType === "member" ? t("register.employmentMemberDesc") : t("register.employmentNonMemberDesc")}
               </p>
             </div>
 
@@ -471,7 +471,7 @@ export function RegisterForm() {
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="staffNumber">Staff ID Number</Label>
+                    <Label htmlFor="staffNumber">{t("register.staffNumber")}</Label>
                     <Input
                       id="staffNumber"
                       placeholder="C-01943"
@@ -482,7 +482,7 @@ export function RegisterForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="ippisNumber">IPPIS Number</Label>
+                    <Label htmlFor="ippisNumber">{t("register.ippisNumber")}</Label>
                     <Input
                       id="ippisNumber"
                       placeholder="Enter IPPIS number"
@@ -494,10 +494,10 @@ export function RegisterForm() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="rank">Rank/Position</Label>
+                  <Label htmlFor="rank">{t("register.rank")}</Label>
                   <Select value={formData.rank} onValueChange={(value) => setFormData({ ...formData, rank: value })}>
                     <SelectTrigger id="rank">
-                      <SelectValue placeholder="Select rank" />
+                      <SelectValue placeholder={t("register.rankPlaceholder")} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="marshal">Corps Marshal</SelectItem>
@@ -518,13 +518,13 @@ export function RegisterForm() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="commandDepartment">Command/Department</Label>
+                    <Label htmlFor="commandDepartment">{t("register.commandDept")}</Label>
                     <Select
                       value={formData.commandDepartment}
                       onValueChange={(value) => setFormData({ ...formData, commandDepartment: value })}
                     >
                       <SelectTrigger id="commandDepartment">
-                        <SelectValue placeholder="Select command/department" />
+                        <SelectValue placeholder={t("register.commandPlaceholder")} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="headquarters">Headquarters</SelectItem>
@@ -540,7 +540,7 @@ export function RegisterForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="unit">Unit</Label>
+                    <Label htmlFor="unit">{t("register.unit")}</Label>
                     <Input
                       id="unit"
                       placeholder="CMO"
@@ -553,7 +553,7 @@ export function RegisterForm() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="dateOfFirstEmployment">Date of Employment</Label>
+                    <Label htmlFor="dateOfFirstEmployment">{t("register.dateEmployment")}</Label>
                     <Input
                       id="dateOfFirstEmployment"
                       type="date"
@@ -564,11 +564,11 @@ export function RegisterForm() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="yearsOfService">Years of Service</Label>
+                    <Label htmlFor="yearsOfService">{t("register.yearsOfService")}</Label>
                     <Input
                       id="yearsOfService"
                       value={formData.yearsOfService}
-                      placeholder="Auto-calculated"
+                      placeholder={t("register.yearsAuto")}
                       disabled
                       className="bg-muted"
                     />
@@ -577,8 +577,8 @@ export function RegisterForm() {
               </>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                <p>Employment information is not required for non-members.</p>
-                <p className="text-sm mt-2">Click Next to continue.</p>
+                <p>{t("register.employmentSkip")}</p>
+                <p className="text-sm mt-2">{t("register.employmentSkipNext")}</p>
               </div>
             )}
           </div>
@@ -587,15 +587,15 @@ export function RegisterForm() {
         {currentStep === 3 && (
           <div className="space-y-4">
             <div>
-              <h2 className="text-xl font-semibold">Next of Kin</h2>
-              <p className="text-sm text-muted-foreground">Provide emergency contact information</p>
+              <h2 className="text-xl font-semibold">{t("register.nokTitle")}</h2>
+              <p className="text-sm text-muted-foreground">{t("register.nokDesc")}</p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="nokName">Full Name</Label>
+              <Label htmlFor="nokName">{t("register.nokName")}</Label>
               <Input
                 id="nokName"
-                placeholder="Enter next of kin's full name"
+                placeholder={t("register.nokNamePlaceholder")}
                 value={formData.nokName}
                 onChange={(e) => setFormData({ ...formData, nokName: e.target.value })}
                 required
@@ -603,26 +603,26 @@ export function RegisterForm() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="nokRelationship">Relationship</Label>
+              <Label htmlFor="nokRelationship">{t("register.nokRelationship")}</Label>
               <Select
                 value={formData.nokRelationship}
                 onValueChange={(value) => setFormData({ ...formData, nokRelationship: value })}
               >
                 <SelectTrigger id="nokRelationship">
-                  <SelectValue placeholder="Select relationship" />
+                  <SelectValue placeholder={t("register.nokRelationshipPlaceholder")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="spouse">Spouse</SelectItem>
-                  <SelectItem value="parent">Parent</SelectItem>
-                  <SelectItem value="sibling">Sibling</SelectItem>
-                  <SelectItem value="child">Child</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
+                  <SelectItem value="spouse">{t("register.relSpouse")}</SelectItem>
+                  <SelectItem value="parent">{t("register.relParent")}</SelectItem>
+                  <SelectItem value="sibling">{t("register.relSibling")}</SelectItem>
+                  <SelectItem value="child">{t("register.relChild")}</SelectItem>
+                  <SelectItem value="other">{t("register.relOther")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="nokPhone">Phone Number</Label>
+              <Label htmlFor="nokPhone">{t("register.nokPhone")}</Label>
               <Input
                 id="nokPhone"
                 type="tel"
@@ -634,7 +634,7 @@ export function RegisterForm() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="nokEmail">Email Address (Optional)</Label>
+              <Label htmlFor="nokEmail">{t("register.nokEmail")}</Label>
               <Input
                 id="nokEmail"
                 type="email"
@@ -645,10 +645,10 @@ export function RegisterForm() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="nokAddress">Address</Label>
+              <Label htmlFor="nokAddress">{t("register.nokAddress")}</Label>
               <Input
                 id="nokAddress"
-                placeholder="Enter full address"
+                placeholder={t("register.nokAddressPlaceholder")}
                 value={formData.nokAddress}
                 onChange={(e) => setFormData({ ...formData, nokAddress: e.target.value })}
               />
@@ -659,30 +659,30 @@ export function RegisterForm() {
         {currentStep === 4 && (
           <div className="space-y-4">
             <div>
-              <h2 className="text-xl font-semibold">Documents</h2>
-              <p className="text-sm text-muted-foreground">Upload required documents (optional at registration)</p>
+              <h2 className="text-xl font-semibold">{t("register.documentsTitle")}</h2>
+              <p className="text-sm text-muted-foreground">{t("register.documentsDesc")}</p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="profilePhoto">Profile Photo</Label>
+              <Label htmlFor="profilePhoto">{t("register.profilePhoto")}</Label>
               <Input
                 id="profilePhoto"
                 type="file"
                 accept="image/*"
                 onChange={(e) => setFormData({ ...formData, profilePhoto: e.target.files?.[0] || null })}
               />
-              <p className="text-xs text-muted-foreground">Upload a clear passport photograph</p>
+              <p className="text-xs text-muted-foreground">{t("register.profilePhotoHint")}</p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="idDocument">ID Document</Label>
+              <Label htmlFor="idDocument">{t("register.idDocument")}</Label>
               <Input
                 id="idDocument"
                 type="file"
                 accept="image/*,.pdf"
                 onChange={(e) => setFormData({ ...formData, idDocument: e.target.files?.[0] || null })}
               />
-              <p className="text-xs text-muted-foreground">Upload a copy of your valid ID</p>
+              <p className="text-xs text-muted-foreground">{t("register.idDocumentHint")}</p>
             </div>
 
             <div className="flex items-start space-x-2 pt-4">
@@ -695,13 +695,13 @@ export function RegisterForm() {
                 htmlFor="terms"
                 className="text-sm leading-relaxed peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
               >
-                I agree to the{" "}
+                {t("register.termsPrefix")}{" "}
                 <a href="/terms" className="text-primary hover:underline">
-                  Terms of Service
+                  {t("register.termsLink")}
                 </a>{" "}
-                and{" "}
+                {t("register.termsAnd")}{" "}
                 <a href="/privacy" className="text-primary hover:underline">
-                  Privacy Policy
+                  {t("register.privacyLink")}
                 </a>
               </label>
             </div>
@@ -712,6 +712,7 @@ export function RegisterForm() {
               onError={handleRecaptchaError}
               action="register"
             />
+            <p className="text-[11px] text-muted-foreground text-center leading-snug">{t("register.recaptcha")}</p>
           </div>
         )}
 
@@ -719,17 +720,17 @@ export function RegisterForm() {
           {currentStep > 1 && (
             <Button type="button" variant="outline" onClick={handleBack} className="flex-1 bg-transparent">
               <ChevronLeft className="h-4 w-4 mr-2" />
-              Back
+              {t("register.back")}
             </Button>
           )}
           {currentStep < totalSteps ? (
             <Button type="button" onClick={handleNext} className="flex-1">
-              Next
+              {t("register.next")}
               <ChevronRight className="h-4 w-4 ml-2" />
             </Button>
           ) : (
             <Button type="submit" className="flex-1" disabled={isLoading}>
-              {isLoading ? "Creating account..." : "Create Account"}
+              {isLoading ? t("register.creating") : t("register.submit")}
             </Button>
           )}
         </div>

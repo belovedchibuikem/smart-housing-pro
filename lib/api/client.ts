@@ -3082,8 +3082,44 @@ export async function getContributionPlans(params?: { search?: string }) {
 			last_contribution_at: string | null
 			contributions_count: number
 			total_contributed: number
+			my_contribution_amount?: number | null
 		} | null
+		my_contribution_amount?: number | null
 	}>(`/user/contributions/plans${query.toString() ? `?${query.toString()}` : ""}`)
+}
+
+export async function updateMyMonthlyContributionAmount(amount: number) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		my_contribution_amount: number | null
+		member_plan: {
+			plan: {
+				id: string
+				name: string
+				description: string | null
+				amount: number
+				minimum_amount: number
+				frequency: string
+				is_mandatory: boolean
+			}
+			started_at: string | null
+			last_contribution_at: string | null
+			contributions_count: number
+			total_contributed: number
+			my_contribution_amount?: number | null
+		} | null
+	}>("/user/contributions/my-monthly-amount", {
+		method: "PUT",
+		body: { amount },
+	})
+}
+
+export async function submitMembershipWithdrawalRequest(payload?: { notes?: string }) {
+	return apiFetch<{ success: boolean; message: string }>("/user/membership/withdrawal-request", {
+		method: "POST",
+		body: payload ?? {},
+	})
 }
 
 export async function getContributionPaymentMethods() {
@@ -3148,6 +3184,7 @@ export async function switchContributionPlan(planId: string) {
 			last_contribution_at: string | null
 			contributions_count: number
 			total_contributed: number
+			my_contribution_amount?: number | null
 		} | null
 	}>(`/user/contributions/plans/${planId}/switch`, {
 		method: "POST",
@@ -3167,6 +3204,7 @@ export async function initializeContributionPayment(
 			transaction_reference?: string
 			bank_account_id?: string
 			payment_evidence?: string[]
+			recaptcha_token?: string
 		},
 ) {
 	return apiFetch<{
@@ -3208,6 +3246,7 @@ export async function createEquityContribution(
 				transaction_reference?: string | null
 				bank_account_id?: string | null
 				payment_evidence?: string[]
+				recaptcha_token?: string
 		  },
 ) {
 	return apiFetch<{

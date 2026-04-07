@@ -13,12 +13,14 @@ import { Eye, EyeOff } from "lucide-react"
 import { loginRequest, setAuthToken } from "@/lib/api/client"
 import { getDashboardRoute } from "@/lib/auth/redirect-utils"
 import { Recaptcha, RecaptchaRef } from "@/components/auth/recaptcha"
+import { useI18n } from "@/lib/i18n/i18n-provider"
 
 interface LoginFormProps {
   allowRegistration?: boolean
 }
 
 export function LoginForm({ allowRegistration = true }: LoginFormProps) {
+  const { t } = useI18n()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -100,7 +102,7 @@ export function LoginForm({ allowRegistration = true }: LoginFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
-        <Label htmlFor="email">Email, Member ID, IPPIS, or PIN</Label>
+        <Label htmlFor="email">{t("login.emailLabel")}</Label>
         <Input
           id="email"
           type="text"
@@ -110,16 +112,14 @@ export function LoginForm({ allowRegistration = true }: LoginFormProps) {
           onChange={(e) => setFormData({ ...formData, email: e.target.value })}
           required
         />
-        <p className="text-xs text-muted-foreground">
-          Cooperative members may sign in with the same password and any of these identifiers.
-        </p>
+        <p className="text-xs text-muted-foreground">{t("login.emailHelp")}</p>
       </div>
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <Label htmlFor="password">Password</Label>
+          <Label htmlFor="password">{t("login.password")}</Label>
           <Link href="/forgot-password" className="text-sm text-primary hover:underline">
-            Forgot password?
+            {t("login.forgotPassword")}
           </Link>
         </div>
         <div className="relative">
@@ -152,7 +152,7 @@ export function LoginForm({ allowRegistration = true }: LoginFormProps) {
           htmlFor="remember"
           className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
         >
-          Remember me
+          {t("login.remember")}
         </label>
       </div>
 
@@ -163,8 +163,10 @@ export function LoginForm({ allowRegistration = true }: LoginFormProps) {
         action="login"
       />
 
+      <p className="text-[11px] text-muted-foreground text-center leading-snug">{t("login.recaptcha")}</p>
+
       <Button type="submit" className="w-full" disabled={isLoading}>
-        {isLoading ? "Signing in..." : "Sign In"}
+        {isLoading ? t("login.signingIn") : t("login.signIn")}
       </Button>
     </form>
   )

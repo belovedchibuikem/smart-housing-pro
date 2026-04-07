@@ -7,7 +7,10 @@ import { toast as sonnerToast } from "sonner"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { getContributionPlans, switchContributionPlan } from "@/lib/api/client"
+import { getContributionPlans, switchContributionPlan, updateMyMonthlyContributionAmount } from "@/lib/api/client"
+import { useI18n } from "@/lib/i18n/i18n-provider"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 interface ContributionPlan {
   id: string
@@ -25,14 +28,18 @@ interface MemberPlan {
   last_contribution_at: string | null
   contributions_count: number
   total_contributed: number
+  my_contribution_amount?: number | null
 }
 
 export default function ContributionPlanPage() {
+  const { t } = useI18n()
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [plans, setPlans] = useState<ContributionPlan[]>([])
   const [memberPlan, setMemberPlan] = useState<MemberPlan | null>(null)
   const [submitting, setSubmitting] = useState<string | null>(null)
+  const [myAmountDraft, setMyAmountDraft] = useState("")
+  const [savingAmount, setSavingAmount] = useState(false)
 
   useEffect(() => {
     void fetchPlans(false)
@@ -49,6 +56,15 @@ export default function ContributionPlanPage() {
       const response = await getContributionPlans()
       setPlans(response.plans ?? [])
       setMemberPlan(response.member_plan ?? null)
+      const mp = response.member_plan
+      if (mp?.plan) {
+        const pref = mp.my_contribution_amount ?? response.my_contribution_amount
+        setMyAmountDraft(
+          pref != null && pref > 0 ? String(Math.round(pref)) : String(mp.plan.minimum_amount ?? ""),
+        )
+      } else {
+        setMyAmountDraft("")
+      }
     } catch (error: any) {
       console.error("Failed to load contribution plans:", error)
       sonnerToast.error("Failed to load contribution plans", {
@@ -126,16 +142,41 @@ export default function ContributionPlanPage() {
 
   const currentPlanId = memberPlan?.plan.id
 
+  const saveMyContribution = async () => {
+    if (!memberPlan?.plan) return
+    const n = Number(myAmountDraft)
+    if (!Number.isFinite(n) || n <= 0) {
+      sonnerToast.error("Enter a valid amount")
+      return
+    }
+    if (n + 0.00001 < memberPlan.plan.minimum_amount) {
+      sonnerToast.error(`Amount must be at least ${formatCurrency(memberPlan.plan.minimum_amount)}`)
+      return
+    }
+    setSavingAmount(true)
+    try {
+      const res = await updateMyMonthlyContributionAmount(n)
+      if (res.success) {
+        sonnerToast.success(res.message ?? t("contribPlan.saved"))
+        if (res.member_plan) setMemberPlan(res.member_plan as MemberPlan)
+      }
+    } catch (e: unknown) {
+      sonnerToast.error(e instanceof Error ? e.message : "Save failed")
+    } finally {
+      setSavingAmount(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h1 className="text-3xl font-bold">Contribution Plan</h1>
-          <p className="text-muted-foreground">Review your active plan and explore other contribution options.</p>
+        <h1 className="text-3xl font-bold">{t("contribPlan.title")}</h1>
+          <p className="text-muted-foreground">{t("contribPlan.subtitle")}</p>
         </div>
         <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading || refreshing}>
           {refreshing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-          Refresh
+          {t("contribPlan.refresh")}
         </Button>
       </div>
 
@@ -153,8 +194,8 @@ export default function ContributionPlanPage() {
           <div className="grid gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Current Plan</CardTitle>
-                <CardDescription>Your active contribution arrangement.</CardDescription>
+                <CardTitle>{t("contribPlan.current")}</CardTitle>
+                <CardDescription>{t("contribPlan.currentDesc")}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {memberPlan ? (
@@ -173,11 +214,11 @@ export default function ContributionPlanPage() {
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
             <div>
-                        <p className="text-xs text-muted-foreground">Contribution Amount</p>
+                        <p className="text-xs text-muted-foreground">Plan amount</p>
                         <p className="text-sm font-medium">{formatCurrency(memberPlan.plan.amount)}</p>
             </div>
             <div>
-                        <p className="text-xs text-muted-foreground">Minimum Amount</p>
+                        <p className="text-xs text-muted-foreground">{t("contribPlan.minLabel")}</p>
                         <p className="text-sm font-medium">{formatCurrency(memberPlan.plan.minimum_amount)}</p>
             </div>
             <div>
@@ -189,6 +230,23 @@ export default function ContributionPlanPage() {
                         <p className="text-sm font-medium">{formatDate(memberPlan.last_contribution_at)}</p>
             </div>
           </div>
+                    <div className="space-y-2 pt-2 border-t">
+                      <Label htmlFor="current-my-amt">{t("contribPlan.myLabel")}</Label>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <Input
+                          id="current-my-amt"
+                          type="number"
+                          min={memberPlan.plan.minimum_amount}
+                          step="1"
+                          value={myAmountDraft}
+                          onChange={(e) => setMyAmountDraft(e.target.value)}
+                          className="sm:max-w-[200px]"
+                        />
+                        <Button type="button" size="sm" variant="secondary" onClick={saveMyContribution} disabled={savingAmount}>
+                          {savingAmount ? <Loader2 className="h-4 w-4 animate-spin" /> : t("contribPlan.saveMy")}
+                        </Button>
+                      </div>
+                    </div>
                   </>
                 ) : (
                   <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
@@ -200,8 +258,8 @@ export default function ContributionPlanPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Plan Statistics</CardTitle>
-                <CardDescription>Summary of your contributions under the active plan.</CardDescription>
+                <CardTitle>{t("contribPlan.stats")}</CardTitle>
+                <CardDescription>{t("contribPlan.statsDesc")}</CardDescription>
               </CardHeader>
               <CardContent>
                 {memberPlan ? (
@@ -227,8 +285,8 @@ export default function ContributionPlanPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Available Plans</CardTitle>
-              <CardDescription>These plans are configured by your cooperative administrator.</CardDescription>
+              <CardTitle>{t("contribPlan.available")}</CardTitle>
+              <CardDescription>{t("contribPlan.availableDesc")}</CardDescription>
             </CardHeader>
             <CardContent>
               {plans.length === 0 ? (
@@ -260,8 +318,32 @@ export default function ContributionPlanPage() {
       </div>
 
                         <div className="rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-                          Minimum contribution: <span className="font-medium text-foreground">{formatCurrency(plan.minimum_amount)}</span>
+                          {t("contribPlan.minLabel")}: <span className="font-medium text-foreground">{formatCurrency(plan.minimum_amount)}</span>
                         </div>
+                        {isCurrent && (
+                          <div className="space-y-2">
+                            <Label className="text-xs">{t("contribPlan.myLabel")}</Label>
+                            <div className="flex flex-col gap-2">
+                              <Input
+                                type="number"
+                                min={plan.minimum_amount}
+                                step="1"
+                                value={myAmountDraft}
+                                onChange={(e) => setMyAmountDraft(e.target.value)}
+                              />
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                className="w-full"
+                                onClick={saveMyContribution}
+                                disabled={savingAmount}
+                              >
+                                {savingAmount ? <Loader2 className="h-4 w-4 animate-spin" /> : t("contribPlan.saveMy")}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
                         <Button
                           className="mt-auto w-full bg-amber-500 text-amber-950 hover:bg-amber-500/90 disabled:bg-amber-200 disabled:text-amber-500"
                           variant="default"
@@ -269,12 +351,10 @@ export default function ContributionPlanPage() {
                           disabled={isCurrent || submitting === plan.id}
                           onClick={() => handleSwitchPlan(plan.id)}
                         >
-                          {isCurrent ? "Current Plan" : submitting === plan.id ? "Switching..." : "Switch to Plan"}
+                          {isCurrent ? t("contribPlan.currentBadge") : submitting === plan.id ? "…" : t("contribPlan.switch")}
                         </Button>
                         {isCurrent && (
-                          <div className="text-center text-xs font-medium text-amber-700">
-                            You are currently enrolled in this plan.
-            </div>
+                          <div className="text-center text-xs font-medium text-amber-700">{t("contribPlan.enrolled")}</div>
                         )}
         </div>
                     )

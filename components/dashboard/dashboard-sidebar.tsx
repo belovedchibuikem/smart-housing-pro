@@ -45,67 +45,75 @@ import {
 import { Button } from "@/components/ui/button"
 import { useState, useEffect } from "react"
 import { getMemberCurrentSubscription } from "@/lib/api/client"
+import { useI18n } from "@/lib/i18n/i18n-provider"
 
 interface NavItem {
   href?: string
   label: string
+  displayKey?: string
   icon: any
   subItems?: NavItem[]
 }
 
 const navItems: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/dashboard/subscriptions", label: "Subscription", icon: Package },
+  { href: "/dashboard", label: "Dashboard", displayKey: "nav.dashboard", icon: LayoutDashboard },
+  { href: "/dashboard/subscriptions", label: "Subscription", displayKey: "nav.subscription", icon: Package },
   {
     href: "/dashboard/wallet",
     label: "My Wallet",
+    displayKey: "nav.myWallet",
     icon: Wallet,
     subItems: [
-      { href: "/dashboard/wallet", label: "Wallet", icon: Wallet },
-      { href: "/dashboard/wallet/add-funds", label: "Add Fund", icon: Plus },
-      { href: "/dashboard/wallet/history", label: "History", icon: History },
+      { href: "/dashboard/wallet", label: "Wallet", displayKey: "nav.wallet", icon: Wallet },
+      { href: "/dashboard/wallet/add-funds", label: "Add Fund", displayKey: "nav.addFund", icon: Plus },
+      { href: "/dashboard/wallet/history", label: "History", displayKey: "nav.history", icon: History },
     ],
   },
   {
     label: "My Contribution",
+    displayKey: "nav.myContribution",
     icon: CreditCard,
     subItems: [
-      { href: "/dashboard/contributions", label: "View Contributions", icon: Eye },
-      { href: "/dashboard/contributions/new", label: "Pay Contribution", icon: DollarSign },
-      { href: "/dashboard/contributions/plan", label: "Contribution Plan", icon: Calendar },
+      { href: "/dashboard/contributions", label: "View Contributions", displayKey: "nav.viewContributions", icon: Eye },
+      { href: "/dashboard/contributions/new", label: "Pay Contribution", displayKey: "nav.payContribution", icon: DollarSign },
+      { href: "/dashboard/contributions/plan", label: "Contribution Plan", displayKey: "nav.contributionPlan", icon: Calendar },
     ],
   },
   {
     label: "Equity Contributions",
+    displayKey: "nav.equity",
     icon: HandCoins,
     subItems: [
-      { href: "/dashboard/equity-contributions", label: "View Equity Contributions", icon: Eye },
-      { href: "/dashboard/equity-contributions/new", label: "Make Equity Contribution", icon: Plus },
-      { href: "/dashboard/equity-wallet", label: "Equity Wallet", icon: Wallet },
-      { href: "/dashboard/equity-plans", label: "Equity Plans", icon: Package },
+      { href: "/dashboard/equity-contributions", label: "View Equity Contributions", displayKey: "nav.equityView", icon: Eye },
+      { href: "/dashboard/equity-contributions/new", label: "Make Equity Contribution", displayKey: "nav.equityNew", icon: Plus },
+      { href: "/dashboard/equity-wallet", label: "Equity Wallet", displayKey: "nav.equityWallet", icon: Wallet },
+      { href: "/dashboard/equity-plans", label: "Equity Plans", displayKey: "nav.equityPlans", icon: Package },
     ],
   },
   {
     label: "My Loans",
+    displayKey: "nav.myLoans",
     icon: HandCoins,
     subItems: [
-      { href: "/dashboard/loans", label: "View Loans", icon: Eye },
-      { href: "/dashboard/loans/apply", label: "Request Loan", icon: PlusCircle },
-      { href: "/dashboard/loans/plans", label: "Loan Plans", icon: ListChecks },
+      { href: "/dashboard/loans", label: "View Loans", displayKey: "nav.viewLoans", icon: Eye },
+      { href: "/dashboard/loans/apply", label: "Request Loan", displayKey: "nav.requestLoan", icon: PlusCircle },
+      { href: "/dashboard/loans/plans", label: "Loan Plans", displayKey: "nav.loanPlans", icon: ListChecks },
     ],
   },
   {
     label: "My Investment",
+    displayKey: "nav.myInvestment",
     icon: TrendingUp,
     subItems: [
-      { href: "/dashboard/investment-plans", label: "Investment Plan", icon: ListChecks },
-      { href: "/dashboard/investments", label: "View My Investment", icon: Eye },
-      { href: "/dashboard/investments/withdraw", label: "Withdraw my Investment", icon: LogOut },
+      { href: "/dashboard/investment-plans", label: "Investment Plan", displayKey: "nav.investmentPlans", icon: ListChecks },
+      { href: "/dashboard/investments", label: "View My Investment", displayKey: "nav.viewInvestments", icon: Eye },
+      { href: "/dashboard/investments/withdraw", label: "Withdraw my Investment", displayKey: "nav.withdrawInvestment", icon: LogOut },
     ],
   },
   
   {
     label: "My Properties",
+    displayKey: "nav.myProperties",
     icon: Home,
     subItems: [
       {
@@ -128,6 +136,7 @@ const navItems: NavItem[] = [
   },
   {
     label: "Statutory Charges",
+    displayKey: "nav.statutory",
     icon: Receipt,
     subItems: [
       { href: "/dashboard/statutory-charges", label: "View Charges", icon: Eye },
@@ -137,6 +146,7 @@ const navItems: NavItem[] = [
   },
   {
     label: "Property Management",
+    displayKey: "nav.propertyMgmt",
     icon: Building2,
     subItems: [
       { href: "/dashboard/property-management/estates", label: "My Estates", icon: Building },
@@ -147,6 +157,7 @@ const navItems: NavItem[] = [
   },
   {
     label: "Mail Service",
+    displayKey: "nav.mail",
     icon: Mail,
     subItems: [
       { href: "/dashboard/mail-service/compose", label: "Compose Mail", icon: FileEdit },
@@ -158,6 +169,7 @@ const navItems: NavItem[] = [
   },
   {
     label: "Report",
+    displayKey: "nav.report",
     icon: FileBarChart,
     subItems: [
       { href: "/dashboard/reports/contributions", label: "Contribution Report", icon: CreditCard },
@@ -168,18 +180,19 @@ const navItems: NavItem[] = [
       { href: "/dashboard/reports/financial-summary", label: "Financial Summary", icon: PieChart },
     ],
   },
-  { href: "/dashboard/ai-recommendations", label: "AI", icon: Sparkles },
+  { href: "/dashboard/ai-recommendations", label: "AI", displayKey: "nav.ai", icon: Sparkles },
   { href: "/dashboard/blockchain-ledger", label: "Block Chain Ledger", icon: Shield },
   {
     label: "Refunds & Requests",
+    displayKey: "nav.refunds",
     icon: Receipt,
     subItems: [
       { href: "/dashboard/refunds", label: "My Requests", icon: FileText },
       { href: "/dashboard/refunds/new", label: "New Request", icon: Plus },
     ],
   },
-  { href: "/dashboard/withdraw-membership", label: "Withdraw Membership", icon: UserMinus },
-  { href: "/dashboard/settings", label: "Settings", icon: Settings },
+  { href: "/dashboard/withdraw-membership", label: "Withdraw Membership", displayKey: "nav.withdrawMembership", icon: UserMinus },
+  { href: "/dashboard/settings", label: "Settings", displayKey: "nav.settings", icon: Settings },
 ]
 
 interface DashboardSidebarProps {
@@ -189,8 +202,11 @@ interface DashboardSidebarProps {
 
 export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: DashboardSidebarProps) {
   const pathname = usePathname()
+  const { t } = useI18n()
   const [openMenus, setOpenMenus] = useState<string[]>([])
   const [hasActiveSubscription, setHasActiveSubscription] = useState<boolean | null>(null)
+
+  const navLabel = (item: NavItem) => (item.displayKey ? t(item.displayKey) : item.label)
 
   // Check subscription status on mount
   useEffect(() => {
@@ -252,7 +268,7 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
                 )}
               >
                 <Icon className={cn("h-5 w-5", level > 0 && "h-4 w-4")} />
-                {item.label}
+                {navLabel(item)}
               </Link>
             ) : (
               <div
@@ -262,7 +278,7 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
                 )}
               >
                 <Icon className={cn("h-5 w-5", level > 0 && "h-4 w-4")} />
-                {item.label}
+                {navLabel(item)}
               </div>
             )}
             <button
@@ -295,7 +311,7 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
         )}
       >
         <Icon className={cn("h-5 w-5", level > 0 && "h-4 w-4")} />
-        {item.label}
+        {navLabel(item)}
       </Link>
     )
   }

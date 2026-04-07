@@ -1,6 +1,6 @@
 "use client"
 
-import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react"
+import { ChangeEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -20,6 +20,7 @@ import {
   uploadPaymentEvidence,
 } from "@/lib/api/client"
 import { cn } from "@/lib/utils"
+import { Recaptcha, type RecaptchaRef } from "@/components/auth/recaptcha"
 import { Building2, CreditCard, Info, Loader2, Receipt, Wallet as WalletIcon } from "lucide-react"
 
 const currencyFormatter = new Intl.NumberFormat("en-NG", {
@@ -51,6 +52,7 @@ type MemberPlanSummary = {
   last_contribution_at: string | null
   contributions_count: number
   total_contributed: number
+  my_contribution_amount?: number | null
 }
 
 type ManualAccount = {
@@ -140,6 +142,7 @@ export function NewContributionForm() {
 
   const [submissionInfo, setSubmissionInfo] = useState<SubmissionInfo | null>(null)
   const [stage, setStage] = useState<Stage>("details")
+  const recaptchaRef = useRef<RecaptchaRef>(null)
 
   useEffect(() => {
     let active = true
@@ -164,7 +167,9 @@ export function NewContributionForm() {
           const defaultPlan =
             plansResponse.member_plan?.plan ?? fetchedPlans.find((plan) => plan.id === defaultPlanId)
           if (defaultPlan) {
-            setAmount(String(defaultPlan.amount))
+            const pledged =
+              plansResponse.member_plan?.my_contribution_amount ?? plansResponse.my_contribution_amount
+            setAmount(String(pledged != null && pledged > 0 ? pledged : defaultPlan.amount))
           }
         }
 
@@ -378,6 +383,19 @@ export function NewContributionForm() {
       setSubmitting(true)
       setSubmissionInfo(null)
 
+      let recaptchaToken = ""
+      try {
+        recaptchaToken = recaptchaRef.current ? await recaptchaRef.current.execute() : ""
+      } catch {
+        toast({
+          title: "Verification required",
+          description: "reCAPTCHA could not be completed. Please try again.",
+          variant: "destructive",
+        })
+        setSubmitting(false)
+        return
+      }
+
       const numericAmount = Number(amount)
       const planIdToSend = selectedPlanId || memberPlan?.plan?.id || undefined
 
@@ -394,6 +412,7 @@ export function NewContributionForm() {
           formData.append("transaction_reference", manualDetails.transactionReference.trim())
         if (manualDetails.bankAccountId) formData.append("bank_account_id", manualDetails.bankAccountId)
         manualEvidence.forEach((url) => formData.append("payment_evidence[]", url))
+        if (recaptchaToken) formData.append("recaptcha_token", recaptchaToken)
 
         const response = await initializeContributionPayment(formData)
 
@@ -427,6 +446,7 @@ export function NewContributionForm() {
         payment_method: paymentMethod,
         plan_id: planIdToSend,
         notes: notes.trim() || undefined,
+        recaptcha_token: recaptchaToken || undefined,
       }
 
       const response = await initializeContributionPayment(payload)
@@ -926,6 +946,12 @@ export function NewContributionForm() {
           </div>
         </CardContent>
       </Card>
+
+      <Recaptcha ref={recaptchaRef} onVerify={() => {}} onError={() => {}} action="contribution" />
+
+      <p className="text-[11px] text-muted-foreground">
+        Protected by reCAPTCHA when enabled for your cooperative.
+      </p>
 
       <div className="flex justify-end">
         <Button type="submit" disabled={submitting}>

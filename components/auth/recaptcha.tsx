@@ -52,7 +52,8 @@ export const Recaptcha = forwardRef<RecaptchaRef, RecaptchaProps>(({
     // Check if reCAPTCHA is enabled and fetch site key from API if not provided
     const loadRecaptcha = async () => {
       try {
-        let key = siteKey
+        const envPublicKey = (typeof process !== "undefined" && process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY) || ""
+        let key = siteKey || envPublicKey
         let enabled = true
         const hostname = window.location.hostname
         const isLocal = isLocalhostDomain(hostname) || process.env.NODE_ENV === 'development'

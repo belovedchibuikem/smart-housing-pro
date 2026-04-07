@@ -6,6 +6,7 @@ import { TenantProvider } from "@/lib/tenant/tenant-context"
 import { WhiteLabelProvider } from "@/lib/context/white-label-context"
 import { TenantSettingsProvider } from "@/lib/context/tenant-settings-context"
 import { Toaster } from "sonner"
+import { I18nProvider } from "@/lib/i18n/i18n-provider"
 
 const inter = Inter({
   subsets: ["latin"],
@@ -29,8 +30,10 @@ export default function RootLayout({
         <TenantProvider>
           <TenantSettingsProvider>
             <WhiteLabelProvider>
-              {children}
-              <Toaster position="top-right" />
+              <I18nProvider>
+                {children}
+                <Toaster position="top-right" />
+              </I18nProvider>
             </WhiteLabelProvider>
           </TenantSettingsProvider>
         </TenantProvider>
