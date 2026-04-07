@@ -19,9 +19,24 @@ import { cn } from "@/lib/utils"
 
 type TabKey = "personal" | "employment" | "next-of-kin" | "documents" | "account"
 
+/** HTML date inputs require YYYY-MM-DD; API often returns ISO datetimes. */
+function toDateInputValue(value: string | null | undefined): string {
+	if (!value) return ""
+	const trimmed = String(value).trim()
+	const ymd = trimmed.slice(0, 10)
+	if (/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ymd
+	const parsed = new Date(trimmed)
+	if (Number.isNaN(parsed.getTime())) return ""
+	const y = parsed.getFullYear()
+	const m = String(parsed.getMonth() + 1).padStart(2, "0")
+	const d = String(parsed.getDate()).padStart(2, "0")
+	return `${y}-${m}-${d}`
+}
+
 type PersonalFormState = {
 	first_name: string
 	last_name: string
+	email: string
 	phone: string
 	date_of_birth: string
 	gender: string
@@ -127,8 +142,9 @@ const [nextOfKinForm, setNextOfKinForm] = useState({
 		setPersonalForm({
 			first_name: user.first_name ?? "",
 			last_name: user.last_name ?? "",
+			email: user.email ?? "",
 			phone: user.phone ?? "",
-			date_of_birth: member?.date_of_birth ?? "",
+			date_of_birth: toDateInputValue(member?.date_of_birth),
 			gender: member?.gender ?? "",
 			marital_status: member?.marital_status ?? "",
 			nationality: member?.nationality ?? "",
@@ -145,8 +161,8 @@ const [nextOfKinForm, setNextOfKinForm] = useState({
 			rank: member?.rank ?? "",
 			department: member?.department ?? "",
 			command_state: member?.command_state ?? "",
-			employment_date: member?.employment_date ?? "",
-			years_of_service: member?.years_of_service?.toString() ?? "",
+			employment_date: toDateInputValue(member?.employment_date),
+			years_of_service: member?.years_of_service != null ? String(member.years_of_service) : "",
 		})
 
 	setNextOfKinForm({
@@ -189,6 +205,7 @@ const [nextOfKinForm, setNextOfKinForm] = useState({
 			await updateProfile({
 				first_name: personalForm.first_name,
 				last_name: personalForm.last_name,
+				email: personalForm.email,
 				phone: personalForm.phone,
 				date_of_birth: personalForm.date_of_birth || null,
 				gender: personalForm.gender || null,
@@ -330,6 +347,13 @@ const [nextOfKinForm, setNextOfKinForm] = useState({
 								{[
 									{ id: "firstName", label: "First Name", value: personalForm.first_name, required: true },
 									{ id: "lastName", label: "Last Name", value: personalForm.last_name, required: true },
+									{
+										id: "email",
+										label: "Email Address",
+										value: personalForm.email,
+										required: true,
+										type: "email",
+									},
 									{ id: "phone", label: "Phone Number", value: personalForm.phone, required: true, type: "tel" },
 									{ id: "dob", label: "Date of Birth", value: personalForm.date_of_birth, type: "date" },
 									{ id: "gender", label: "Gender", value: personalForm.gender, placeholder: "e.g. male, female" },
@@ -358,20 +382,21 @@ const [nextOfKinForm, setNextOfKinForm] = useState({
 											value={field.value ?? ""}
 											placeholder={field.placeholder}
 											required={field.required}
-											onChange={(event) =>
-												setPersonalForm((prev) => ({
-													...prev,
-													[field.id === "stateOfOrigin" ? "state_of_origin" : field.id === "maritalStatus"
-														? "marital_status"
-														: field.id === "firstName"
-														? "first_name"
-														: field.id === "lastName"
-														? "last_name"
-														: field.id === "dob"
-														? "date_of_birth"
-														: field.id]: event.target.value,
-												}))
-											}
+											onChange={(event) => {
+												const key =
+													field.id === "stateOfOrigin"
+														? "state_of_origin"
+														: field.id === "maritalStatus"
+															? "marital_status"
+															: field.id === "firstName"
+																? "first_name"
+																: field.id === "lastName"
+																	? "last_name"
+																	: field.id === "dob"
+																		? "date_of_birth"
+																		: field.id
+												setPersonalForm((prev) => ({ ...prev, [key]: event.target.value }))
+											}}
 										/>
               </div>
 								))}

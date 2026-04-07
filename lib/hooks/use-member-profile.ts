@@ -50,6 +50,26 @@ export function useMemberProfile(): UseMemberProfileResult {
 				const response = await updateUserProfile(payload)
 				setUser(response.user)
 				setMember(response.user.member ?? null)
+				if (typeof window !== "undefined") {
+					try {
+						const raw = localStorage.getItem("user_data")
+						if (raw) {
+							const prev = JSON.parse(raw) as { id?: string; member?: unknown }
+							if (prev?.id === response.user.id) {
+								localStorage.setItem(
+									"user_data",
+									JSON.stringify({
+										...prev,
+										...response.user,
+										member: response.user.member ?? prev.member,
+									}),
+								)
+							}
+						}
+					} catch {
+						/* ignore */
+					}
+				}
 			} catch (err: any) {
 				console.error("Failed to update profile", err)
 				throw err
