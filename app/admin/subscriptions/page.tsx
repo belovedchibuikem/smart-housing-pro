@@ -10,7 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
-import { getCurrentSubscription, getSubscriptionHistory, getSubscriptionPackages } from "@/lib/api/client"
+import { getAdminPendingBadges, getCurrentSubscription, getSubscriptionHistory, getSubscriptionPackages } from "@/lib/api/client"
 import { usePageLoading } from "@/hooks/use-loading"
 
 function formatDate(dateString: string): string {
@@ -47,6 +47,23 @@ export default function AdminSubscriptionsPage() {
     created_at: string
   }>>([])
   const [error, setError] = useState<string | null>(null)
+  const [coopPaymentPending, setCoopPaymentPending] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    getAdminPendingBadges()
+      .then((res) => {
+        if (!cancelled && res?.success && res.counts) {
+          setCoopPaymentPending(res.counts.business_subscription_payments_pending ?? 0)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setCoopPaymentPending(0)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     loadData(async () => {
@@ -100,6 +117,18 @@ export default function AdminSubscriptionsPage() {
           </Button>
         </Link>
       </div>
+
+      {coopPaymentPending > 0 ? (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Payment awaiting approval</AlertTitle>
+          <AlertDescription>
+            You have {coopPaymentPending} cooperative subscription payment
+            {coopPaymentPending === 1 ? "" : "s"} pending platform approval. Your subscription will update once
+            payment is confirmed.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       {activeSubscription ? (
       <Card className="border-primary">

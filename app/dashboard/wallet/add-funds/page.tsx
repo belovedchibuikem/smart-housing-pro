@@ -66,6 +66,7 @@ const currencyFormatter = new Intl.NumberFormat("en-NG", {
 
 const iconsByMethod: Record<string, JSX.Element> = {
   paystack: <CreditCard className="h-5 w-5 text-primary" />,
+  paystack_virtual_account: <Building2 className="h-5 w-5 text-primary" />,
   remita: <Wallet className="h-5 w-5 text-primary" />,
   stripe: <CreditCard className="h-5 w-5 text-primary" />,
   manual: <Building2 className="h-5 w-5 text-primary" />,
@@ -106,6 +107,8 @@ const methodDisplayName = (method: PaymentMethod) => {
   switch (method.id) {
     case "paystack":
       return "Debit/Credit Card (Paystack)"
+    case "paystack_virtual_account":
+      return method.name || "Paystack Titan (bank transfer)"
     case "remita":
       return "Remita"
     case "manual":
@@ -124,9 +127,20 @@ export default function AddFundsPage() {
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
   const [paymentMethod, setPaymentMethod] = useState("")
   const [methodsLoading, setMethodsLoading] = useState(true)
-  const stages = ["details", "review", "confirm"] as const
+  const stages = ["details", "review", "confirm", "titan_instructions"] as const
   const [stage, setStage] = useState<typeof stages[number]>("details")
   const [submitting, setSubmitting] = useState(false)
+  const [titanFunding, setTitanFunding] = useState<{
+    amount: number
+    currency: string
+    account: {
+      account_number: string
+      account_name: string
+      bank_name: string
+      bank_slug?: string
+      currency?: string
+    }
+  } | null>(null)
   const [manualDetails, setManualDetails] = useState<ManualDetails>({
     accountId: "",
     payerName: "",
@@ -206,7 +220,16 @@ export default function AddFundsPage() {
         evidenceFiles: [],
       })
     }
+    if (selectedMethod?.id !== "paystack_virtual_account") {
+      setTitanFunding(null)
+    }
   }, [selectedMethod])
+
+  useEffect(() => {
+    if (stage === "titan_instructions" && !titanFunding) {
+      setStage("details")
+    }
+  }, [stage, titanFunding])
 
   const selectedManualAccount = useMemo(() => {
     if (!manualConfig) return null
@@ -385,6 +408,15 @@ export default function AddFundsPage() {
         data?: {
           reference?: string
           payment_url?: string
+          amount?: number
+          currency?: string
+          account?: {
+            account_number: string
+            account_name: string
+            bank_name: string
+            bank_slug?: string
+            currency?: string
+          }
           rrr?: string
           status?: string
           bank_details?: {
@@ -407,7 +439,39 @@ export default function AddFundsPage() {
         return
       }
 
+      if (backendMethod === "paystack_virtual_account") {
+        const acc = response.data.account as
+          | {
+              account_number: string
+              account_name: string
+              bank_name: string
+              bank_slug?: string
+              currency?: string
+            }
+          | undefined
+        if (acc?.account_number) {
+          setTitanFunding({
+            amount: Number(response.data.amount ?? numericAmount),
+            currency: (response.data.currency as string) || "NGN",
+            account: acc,
+          })
+          setStage("titan_instructions")
+          toast.success(
+            response.message || "Transfer to your dedicated account. Your wallet will update when Paystack confirms the deposit.",
+          )
+          return
+        }
+        toast.error(response.message || "Could not load your Paystack Titan account. Check gateway keys and try again.")
+        return
+      }
+
       if (backendMethod === "paystack" && response.data.payment_url) {
+        if (response.data.payment_url.includes("/simulated/paystack/")) {
+          toast.error(
+            "Paystack is still in simulation mode on the server. Set PAYSTACK_SIMULATE=false in .env and configure real Paystack keys on the gateway.",
+          )
+          return
+        }
         window.location.href = response.data.payment_url
         return
       }
@@ -462,6 +526,71 @@ export default function AddFundsPage() {
             No payment methods are currently available. Please contact your administrator to configure payment gateways.
           </AlertDescription>
         </Alert>
+      </div>
+    )
+  }
+
+  if (stage === "titan_instructions" && titanFunding) {
+    const formattedTitanAmount = currencyFormatter.format(titanFunding.amount)
+    const { account } = titanFunding
+
+    return (
+      <div className="space-y-6 w-full max-w-2xl mx-auto px-4">
+        <Header />
+        <Card>
+          <CardHeader>
+            <CardTitle>Paystack Titan transfer</CardTitle>
+            <CardDescription>
+              Send exactly {formattedTitanAmount} from your bank app to the dedicated account below. Your wallet balance
+              updates automatically when Paystack confirms the deposit (usually within a few minutes).
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Alert>
+              <AlertDescription>
+                Ensure your administrator has set the Paystack webhook URL for this cooperative to{" "}
+                <span className="font-mono text-xs break-all">…/api/payments/webhook/paystack</span> on the same host you
+                use for the API (tenant subdomain or custom domain).
+              </AlertDescription>
+            </Alert>
+            <div className="rounded-lg border p-4 space-y-3 text-sm">
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground shrink-0">Bank</span>
+                <span className="font-medium text-right">{account.bank_name}</span>
+              </div>
+              <div className="flex justify-between gap-4 items-start">
+                <span className="text-muted-foreground shrink-0">Account name</span>
+                <span className="font-medium text-right break-all">{account.account_name}</span>
+              </div>
+              <div className="flex justify-between gap-4 items-center">
+                <span className="text-muted-foreground shrink-0">Account number</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-semibold">{account.account_number}</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => copyToClipboard(account.account_number, "Account number")}
+                  >
+                    {copiedField === "Account number" ? (
+                      <Check className="h-4 w-4 text-green-600" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setStage("confirm")}>
+                Back
+              </Button>
+              <Button type="button" className="flex-1" onClick={() => router.push("/dashboard/wallet")}>
+                Done — I have transferred
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }

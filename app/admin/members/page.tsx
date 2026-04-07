@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { usePageLoading } from "@/hooks/use-loading"
 import { useMemberStats } from "@/lib/hooks/use-members"
 import { apiFetch } from "@/lib/api/client"
+import { cn } from "@/lib/utils"
 import { Search, UserPlus, Upload, Eye, Edit, MoreHorizontal, Users, Phone, Mail, Calendar, Shield } from "lucide-react"
 import {
   DropdownMenu,
@@ -54,6 +55,7 @@ export default function AdminMembersPage() {
 	const [query, setQuery] = useState("")
 	const [statusFilter, setStatusFilter] = useState("all")
 	const [kycFilter, setKycFilter] = useState("all")
+	const [listTab, setListTab] = useState<"all" | "kyc_review">("all")
 	const [page, setPage] = useState(1)
 	const [total, setTotal] = useState(0)
 	const [perPage] = useState(15)
@@ -71,7 +73,8 @@ export default function AdminMembersPage() {
 				})
 				if (query) params.append('search', query)
 				if (statusFilter !== 'all') params.append('status', statusFilter)
-				if (kycFilter !== 'all') params.append('kyc_status', kycFilter)
+				if (listTab === "kyc_review") params.append('kyc_status', 'review')
+				else if (kycFilter !== 'all') params.append('kyc_status', kycFilter)
 				
 				const rawResponse = await apiFetch<any>(`/admin/members?${params.toString()}`)
 				console.log('Members API Raw Response:', rawResponse)
@@ -94,7 +97,11 @@ export default function AdminMembersPage() {
 				return { members: [], pagination: { current_page: 1, last_page: 1, per_page: perPage, total: 0 } }
 			}
 		})
-	}, [page, query, statusFilter, kycFilter, loadData, perPage])
+	}, [page, query, statusFilter, kycFilter, listTab, loadData, perPage])
+
+	useEffect(() => {
+		setPage(1)
+	}, [listTab])
 
 	const getStatusBadge = (status?: string) => {
 		if (status === 'active') return <Badge variant="default" className="bg-green-500">Active</Badge>
@@ -128,6 +135,42 @@ export default function AdminMembersPage() {
 						Add Member
 					</Button>
 				</div>
+			</div>
+
+			<div
+				className="inline-flex h-9 items-center rounded-lg bg-muted p-1 text-muted-foreground"
+				role="tablist"
+				aria-label="Member list view"
+			>
+				<button
+					type="button"
+					role="tab"
+					aria-selected={listTab === "all"}
+					className={cn(
+						"inline-flex items-center justify-center rounded-md px-3 py-1 text-sm font-medium transition-all",
+						listTab === "all" ? "bg-background text-foreground shadow" : "hover:text-foreground",
+					)}
+					onClick={() => setListTab("all")}
+				>
+					All members
+				</button>
+				<button
+					type="button"
+					role="tab"
+					aria-selected={listTab === "kyc_review"}
+					className={cn(
+						"inline-flex items-center justify-center gap-2 rounded-md px-3 py-1 text-sm font-medium transition-all",
+						listTab === "kyc_review" ? "bg-background text-foreground shadow" : "hover:text-foreground",
+					)}
+					onClick={() => setListTab("kyc_review")}
+				>
+					KYC review
+					{(stats?.kyc_pending ?? 0) > 0 ? (
+						<Badge variant="destructive" className="h-5 min-w-[1.25rem] px-1 text-[10px] tabular-nums">
+							{(stats?.kyc_pending ?? 0) > 99 ? "99+" : stats?.kyc_pending}
+						</Badge>
+					) : null}
+				</button>
 			</div>
 
 			{/* Stats Cards */}
@@ -213,7 +256,11 @@ export default function AdminMembersPage() {
 									<SelectItem value="suspended">Suspended</SelectItem>
 								</SelectContent>
 							</Select>
-							<Select value={kycFilter} onValueChange={setKycFilter}>
+							<Select
+								value={kycFilter}
+								onValueChange={setKycFilter}
+								disabled={listTab === "kyc_review"}
+							>
 								<SelectTrigger className="w-[140px]">
 									<SelectValue placeholder="KYC Status" />
 								</SelectTrigger>
@@ -221,6 +268,7 @@ export default function AdminMembersPage() {
 									<SelectItem value="all">All KYC</SelectItem>
 									<SelectItem value="verified">Verified</SelectItem>
 									<SelectItem value="pending">Pending</SelectItem>
+									<SelectItem value="submitted">Submitted</SelectItem>
 									<SelectItem value="rejected">Rejected</SelectItem>
 								</SelectContent>
 							</Select>

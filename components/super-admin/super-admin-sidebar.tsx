@@ -30,7 +30,27 @@ import {
   Heart,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { useState, useEffect } from "react"
+import { getSuperAdminPendingBadges, type SuperAdminPendingBadgeCounts } from "@/lib/api/client"
+
+const SUPER_ADMIN_BADGE_BY_HREF: Partial<Record<string, keyof SuperAdminPendingBadgeCounts>> = {
+  "/super-admin/payment-approvals": "platform_payment_approvals_pending",
+  "/super-admin/subscriptions": "business_subscription_payments_pending",
+  "/super-admin/member-subscriptions/list": "member_subscription_payments_pending",
+  "/super-admin/domain-requests": "domain_requests_pending",
+  "/super-admin/businesses": "kyc_pending_review",
+}
+
+function SuperPendingBadge({ count }: { count: number }) {
+  if (count < 1) return null
+  const label = count > 99 ? "99+" : String(count)
+  return (
+    <Badge variant="destructive" className="h-5 min-w-[1.25rem] px-1.5 text-[10px] font-semibold tabular-nums shrink-0">
+      {label}
+    </Badge>
+  )
+}
 
 interface NavItem {
   href?: string
@@ -99,6 +119,35 @@ interface SuperAdminSidebarProps {
 export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAdminSidebarProps) {
   const pathname = usePathname()
   const [openMenus, setOpenMenus] = useState<string[]>([])
+  const [pendingBadges, setPendingBadges] = useState<SuperAdminPendingBadgeCounts | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      try {
+        const res = await getSuperAdminPendingBadges()
+        if (!cancelled && res?.success && res.counts) {
+          setPendingBadges(res.counts)
+        }
+      } catch {
+        if (!cancelled) setPendingBadges(null)
+      }
+    }
+    load()
+    const t = setInterval(load, 120000)
+    return () => {
+      cancelled = true
+      clearInterval(t)
+    }
+  }, [])
+
+  const badgeCountForHref = (href: string | undefined): number => {
+    if (!href || !pendingBadges) return 0
+    const key = SUPER_ADMIN_BADGE_BY_HREF[href]
+    if (!key) return 0
+    const n = pendingBadges[key]
+    return typeof n === "number" && n > 0 ? n : 0
+  }
 
   const toggleMenu = (label: string) => {
     setOpenMenus((prev) => (prev.includes(label) ? prev.filter((item) => item !== label) : [...prev, label]))
@@ -183,21 +232,23 @@ export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAd
                   // Match if pathname starts with the href
                   return pathname.startsWith(subItem.href + "/")
                 })() : false
+                const subBadge = badgeCountForHref(subItem.href)
                 return (
                   <Link
                     key={subItem.href}
                     href={subItem.href!}
                     onClick={() => setMobileMenuOpen(false)}
                     className={cn(
-                      "flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-medium transition-colors",
+                      "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-colors",
                       isSubActive
                         ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                     title={`${subItem.label} - ${isSubActive ? 'ACTIVE' : 'inactive'} (${pathname})`}
                   >
-                    <SubIcon className="h-4 w-4" />
-                    {subItem.label}
+                    <SubIcon className="h-4 w-4 shrink-0" />
+                    <span className="flex-1 truncate">{subItem.label}</span>
+                    <SuperPendingBadge count={subBadge} />
                   </Link>
                 )
               })}
@@ -206,6 +257,8 @@ export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAd
         </div>
       )
     }
+
+    const topBadge = badgeCountForHref(item.href)
 
     return (
       <Link
@@ -220,8 +273,9 @@ export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAd
         )}
         title={`${item.label} - ${isActive ? 'ACTIVE' : 'inactive'} (${pathname})`}
       >
-        <Icon className="h-5 w-5" />
-        {item.label}
+        <Icon className="h-5 w-5 shrink-0" />
+        <span className="flex-1 truncate">{item.label}</span>
+        <SuperPendingBadge count={topBadge} />
       </Link>
     )
   }

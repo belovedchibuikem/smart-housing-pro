@@ -136,6 +136,7 @@ export default function PaymentApprovalsPage() {
     date_to: ""
   })
   const [reconciliationData, setReconciliationData] = useState<ReconciliationData | null>(null)
+  const [pendingTotal, setPendingTotal] = useState(0)
 
   useEffect(() => {
     loadPendingApprovals()
@@ -147,6 +148,7 @@ export default function PaymentApprovalsPage() {
       setLoading(true)
       const response = await apiFetch<PaymentApprovalsResponse>("/super-admin/payment-approvals")
       setTransactions(response.transactions.data)
+      setPendingTotal(response.pagination?.total ?? response.transactions?.total ?? 0)
     } catch (error) {
       console.error("Error loading pending approvals:", error)
       toast({
@@ -293,7 +295,14 @@ export default function PaymentApprovalsPage() {
 
       <Tabs defaultValue="pending" className="space-y-6">
         <TabsList>
-          <TabsTrigger value="pending">Pending Approvals</TabsTrigger>
+          <TabsTrigger value="pending" className="gap-2">
+            Pending Approvals
+            {pendingTotal > 0 ? (
+              <Badge variant="destructive" className="h-5 min-w-[1.25rem] px-1 text-[10px] tabular-nums">
+                {pendingTotal > 99 ? "99+" : pendingTotal}
+              </Badge>
+            ) : null}
+          </TabsTrigger>
           <TabsTrigger value="logs">Payment Logs</TabsTrigger>
           <TabsTrigger value="reconciliation">Reconciliation</TabsTrigger>
         </TabsList>

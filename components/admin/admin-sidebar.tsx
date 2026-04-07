@@ -44,9 +44,30 @@ import {
   Bell,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { useState, useEffect } from "react"
 import { getFilteredNavItems, type UserRole } from "@/lib/roles"
-import { getCurrentSubscription } from "@/lib/api/client"
+import { getAdminPendingBadges, getCurrentSubscription, type AdminPendingBadgeCounts } from "@/lib/api/client"
+
+const ADMIN_BADGE_BY_HREF: Partial<Record<string, keyof AdminPendingBadgeCounts>> = {
+  "/admin/payment-approvals": "payment_approvals_pending",
+  "/admin/wallets/pending": "wallet_withdrawals_pending",
+  "/admin/refunds": "refund_requests_pending",
+  "/admin/investment-withdrawal-requests": "investment_withdrawals_pending",
+  "/admin/subscriptions": "business_subscription_payments_pending",
+  "/admin/member-subscriptions/bulk": "member_subscription_payments_pending",
+  "/admin/members": "kyc_pending_review",
+}
+
+function PendingBadge({ count }: { count: number }) {
+  if (count < 1) return null
+  const label = count > 99 ? "99+" : String(count)
+  return (
+    <Badge variant="destructive" className="h-5 min-w-[1.25rem] px-1.5 text-[10px] font-semibold tabular-nums shrink-0">
+      {label}
+    </Badge>
+  )
+}
 
 interface NavItem {
   href?: string
@@ -254,6 +275,35 @@ export function AdminSidebar({ mobileMenuOpen, setMobileMenuOpen, userRole = "su
   const pathname = usePathname()
   const [openMenus, setOpenMenus] = useState<string[]>([])
   const [hasActiveSubscription, setHasActiveSubscription] = useState<boolean | null>(null)
+  const [pendingBadges, setPendingBadges] = useState<AdminPendingBadgeCounts | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const loadBadges = async () => {
+      try {
+        const res = await getAdminPendingBadges()
+        if (!cancelled && res?.success && res.counts) {
+          setPendingBadges(res.counts)
+        }
+      } catch {
+        if (!cancelled) setPendingBadges(null)
+      }
+    }
+    loadBadges()
+    const t = setInterval(loadBadges, 120000)
+    return () => {
+      cancelled = true
+      clearInterval(t)
+    }
+  }, [])
+
+  const badgeCountForHref = (href: string | undefined): number => {
+    if (!href || !pendingBadges) return 0
+    const key = ADMIN_BADGE_BY_HREF[href]
+    if (!key) return 0
+    const n = pendingBadges[key]
+    return typeof n === "number" && n > 0 ? n : 0
+  }
 
   // Check subscription status on mount
   useEffect(() => {
@@ -309,10 +359,11 @@ export function AdminSidebar({ mobileMenuOpen, setMobileMenuOpen, userRole = "su
                 "flex items-center flex-1 gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground",
               )}
             >
-              <Icon className="h-5 w-5" />
-              {item.label}
+              <Icon className="h-5 w-5 shrink-0" />
+              <span className="flex-1 truncate">{item.label}</span>
             </div>
             <button
+              type="button"
               onClick={() => toggleMenu(item.label)}
               className="p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
             >
@@ -324,20 +375,22 @@ export function AdminSidebar({ mobileMenuOpen, setMobileMenuOpen, userRole = "su
               {item.subItems?.map((subItem) => {
                 const SubIcon = subItem.icon
                 const isSubActive = pathname === subItem.href || pathname.startsWith(subItem.href! + "/")
+                const subBadge = badgeCountForHref(subItem.href)
                 return (
                   <Link
                     key={subItem.href}
                     href={subItem.href!}
                     onClick={() => setMobileMenuOpen(false)}
                     className={cn(
-                      "flex items-center gap-3 px-4 py-2 rounded-lg text-xs font-medium transition-colors",
+                      "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-colors",
                       isSubActive
                         ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >
-                    <SubIcon className="h-4 w-4" />
-                    {subItem.label}
+                    <SubIcon className="h-4 w-4 shrink-0" />
+                    <span className="flex-1 truncate">{subItem.label}</span>
+                    <PendingBadge count={subBadge} />
                   </Link>
                 )
               })}
@@ -346,6 +399,8 @@ export function AdminSidebar({ mobileMenuOpen, setMobileMenuOpen, userRole = "su
         </div>
       )
     }
+
+    const topBadge = badgeCountForHref(item.href)
 
     return (
       <Link
@@ -359,8 +414,9 @@ export function AdminSidebar({ mobileMenuOpen, setMobileMenuOpen, userRole = "su
             : "text-muted-foreground hover:bg-muted hover:text-foreground",
         )}
       >
-        <Icon className="h-5 w-5" />
-        {item.label}
+        <Icon className="h-5 w-5 shrink-0" />
+        <span className="flex-1 truncate">{item.label}</span>
+        <PendingBadge count={topBadge} />
       </Link>
     )
   }

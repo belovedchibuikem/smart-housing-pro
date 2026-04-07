@@ -24,6 +24,7 @@ import {
   rejectMemberSubscription,
   bulkApproveSuperAdminMemberSubscriptions,
   bulkRejectSuperAdminMemberSubscriptions,
+  getSuperAdminPendingBadges,
 } from "@/lib/api/client"
 import { usePageLoading } from "@/hooks/use-loading"
 import { Badge } from "@/components/ui/badge"
@@ -127,7 +128,28 @@ export default function MemberSubscriptionsListPage() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("")
   const [page, setPage] = useState(1)
   const [perPage, setPerPage] = useState(20)
+  const [pendingPaymentBadge, setPendingPaymentBadge] = useState(0)
   const { isLoading, data, error, loadData } = usePageLoading<MemberSubscriptionsResponse>()
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      try {
+        const res = await getSuperAdminPendingBadges()
+        if (!cancelled && res?.success && res.counts) {
+          setPendingPaymentBadge(res.counts.member_subscription_payments_pending ?? 0)
+        }
+      } catch {
+        if (!cancelled) setPendingPaymentBadge(0)
+      }
+    }
+    load()
+    const t = setInterval(load, 120000)
+    return () => {
+      cancelled = true
+      clearInterval(t)
+    }
+  }, [])
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearchQuery(searchQuery), 300)
@@ -210,17 +232,61 @@ export default function MemberSubscriptionsListPage() {
             <option value="expired">Expired</option>
             <option value="cancelled">Cancelled</option>
           </select>
-          <select
-            value={paymentStatusFilter}
-            onChange={(e) => setPaymentStatusFilter(e.target.value)}
-            className="px-4 py-2 border rounded-lg"
-          >
-            <option value="all">All Payment Status</option>
-            <option value="completed">Completed</option>
-            <option value="approved">Approved</option>
-            <option value="pending">Pending</option>
-            <option value="rejected">Rejected</option>
-          </select>
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+            <div
+              className="inline-flex h-9 items-center rounded-lg bg-muted p-1 text-muted-foreground shrink-0"
+              role="tablist"
+              aria-label="Payment status quick filter"
+            >
+              <button
+                type="button"
+                role="tab"
+                aria-selected={paymentStatusFilter === "all"}
+                className={cn(
+                  "inline-flex items-center justify-center rounded-md px-3 py-1 text-sm font-medium transition-all",
+                  paymentStatusFilter === "all"
+                    ? "bg-background text-foreground shadow"
+                    : "hover:text-foreground",
+                )}
+                onClick={() => setPaymentStatusFilter("all")}
+              >
+                All payments
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={paymentStatusFilter === "pending"}
+                className={cn(
+                  "inline-flex items-center justify-center gap-2 rounded-md px-3 py-1 text-sm font-medium transition-all",
+                  paymentStatusFilter === "pending"
+                    ? "bg-background text-foreground shadow"
+                    : "hover:text-foreground",
+                )}
+                onClick={() => setPaymentStatusFilter("pending")}
+              >
+                Pending
+                {pendingPaymentBadge > 0 ? (
+                  <Badge variant="destructive" className="h-5 min-w-[1.25rem] px-1 text-[10px] tabular-nums">
+                    {pendingPaymentBadge > 99 ? "99+" : pendingPaymentBadge}
+                  </Badge>
+                ) : null}
+              </button>
+            </div>
+            <select
+              value={["all", "pending"].includes(paymentStatusFilter) ? "" : paymentStatusFilter}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v) setPaymentStatusFilter(v)
+              }}
+              className="px-4 py-2 border rounded-lg min-w-[180px]"
+              aria-label="Other payment statuses"
+            >
+              <option value="">Other status…</option>
+              <option value="completed">Completed</option>
+              <option value="approved">Approved</option>
+              <option value="rejected">Rejected</option>
+            </select>
+          </div>
           <Input
             placeholder="Bulk batch ID (optional)"
             value={bulkBatchIdFilter}

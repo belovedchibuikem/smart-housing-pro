@@ -18,6 +18,7 @@ function formatDuration(days: number): string {
   if (days === 7) return "7 days"
   if (days === 30) return "30 days"
   if (days === 90) return "90 days"
+  if (days === 180) return "180 days"
   if (days === 365) return "365 days"
   return `${days} days`
 }

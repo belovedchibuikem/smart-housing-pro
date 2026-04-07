@@ -3,10 +3,11 @@
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Search, CheckCircle, AlertCircle, XCircle, Calendar, CreditCard, Building2 } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect, useCallback } from "react"
-import { apiFetch } from "@/lib/api/client"
+import { apiFetch, getSuperAdminPendingBadges } from "@/lib/api/client"
 import { usePageLoading } from "@/hooks/use-loading"
 
 interface BusinessSubscription {
@@ -37,7 +38,24 @@ interface SubscriptionsResponse {
 export default function SubscriptionsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [subscriptionPaymentsPending, setSubscriptionPaymentsPending] = useState(0)
   const { isLoading, data, error, loadData } = usePageLoading<SubscriptionsResponse>()
+
+  useEffect(() => {
+    let cancelled = false
+    getSuperAdminPendingBadges()
+      .then((res) => {
+        if (!cancelled && res?.success && res.counts) {
+          setSubscriptionPaymentsPending(res.counts.business_subscription_payments_pending ?? 0)
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSubscriptionPaymentsPending(0)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   // Debounced search
   const debouncedSearch = useCallback(
@@ -135,6 +153,22 @@ export default function SubscriptionsPage() {
         <h1 className="text-3xl font-bold">Subscriptions</h1>
         <p className="text-muted-foreground mt-2">Manage all business subscriptions and billing</p>
       </div>
+
+      {subscriptionPaymentsPending > 0 ? (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Subscription payments pending approval</AlertTitle>
+          <AlertDescription className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <span>
+              {subscriptionPaymentsPending} cooperative subscription payment
+              {subscriptionPaymentsPending === 1 ? "" : "s"} need review in Payment Approvals.
+            </span>
+            <Button variant="outline" size="sm" asChild className="shrink-0">
+              <Link href="/super-admin/payment-approvals">Open payment approvals</Link>
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       {/* Stats */}
       <div className="grid gap-4 md:grid-cols-5">

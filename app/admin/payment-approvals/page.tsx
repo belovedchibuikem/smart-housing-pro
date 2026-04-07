@@ -555,7 +555,14 @@ export default function TenantPaymentApprovalsPage() {
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList>
-          <TabsTrigger value="pending">Pending Approvals</TabsTrigger>
+          <TabsTrigger value="pending" className="gap-2">
+            Pending Approvals
+            {pendingPagination.total > 0 ? (
+              <Badge variant="destructive" className="h-5 min-w-[1.25rem] px-1 text-[10px] tabular-nums">
+                {pendingPagination.total > 99 ? "99+" : pendingPagination.total}
+              </Badge>
+            ) : null}
+          </TabsTrigger>
           <TabsTrigger value="logs">Payment Logs</TabsTrigger>
           <TabsTrigger value="reconciliation">Reconciliation</TabsTrigger>
         </TabsList>

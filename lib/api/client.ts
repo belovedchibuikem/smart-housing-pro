@@ -2823,6 +2823,34 @@ export async function getCurrentSubscription() {
 	}>("/subscriptions/current", { method: "GET" })
 }
 
+export type AdminPendingBadgeCounts = {
+	payment_approvals_pending: number
+	wallet_withdrawals_pending: number
+	refund_requests_pending: number
+	investment_withdrawals_pending: number
+	member_subscription_payments_pending: number
+	business_subscription_payments_pending: number
+	kyc_pending_review: number
+}
+
+export async function getAdminPendingBadges() {
+	return apiFetch<{ success: boolean; counts: AdminPendingBadgeCounts }>("/admin/pending-badges", { method: "GET" })
+}
+
+export type SuperAdminPendingBadgeCounts = {
+	platform_payment_approvals_pending: number
+	business_subscription_payments_pending: number
+	member_subscription_payments_pending: number
+	domain_requests_pending: number
+	kyc_pending_review: number
+}
+
+export async function getSuperAdminPendingBadges() {
+	return apiFetch<{ success: boolean; counts: SuperAdminPendingBadgeCounts }>("/super-admin/pending-badges", {
+		method: "GET",
+	})
+}
+
 export async function getSubscriptionHistory() {
 	return apiFetch<{
 		subscriptions: Array<{
