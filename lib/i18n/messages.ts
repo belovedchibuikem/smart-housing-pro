@@ -86,6 +86,8 @@ const en: Record<string, string> = {
   "withdraw.submitting": "Submitting…",
   "withdraw.success": "Request submitted",
   "login.title": "Sign In",
+  "login.heroTitle": "Open the door to your homeownership journey",
+  "login.heroSubtitle": "Manage contributions, savings, and property plans in one secure place.",
   "login.subtitle": "Enter your credentials to access your account",
   "login.emailLabel": "Email, Member ID, IPPIS, or PIN",
   "login.emailHelp": "Use the same password with any of these identifiers.",
