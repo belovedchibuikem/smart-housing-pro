@@ -33,7 +33,11 @@ interface Payment {
 interface Contribution {
   id: string
   member?: {
-    member_id?: string
+    id?: string
+    member_number?: string | null
+    staff_id?: string | null
+    ippis_number?: string | null
+    frsc_pin?: string | null
     user?: {
       first_name?: string
       last_name?: string
@@ -314,7 +318,16 @@ export default function ContributionDetailPage({ params }: { params: Promise<{ i
                 </div>
                 <div>
                   <label className="text-sm text-muted-foreground">Member ID</label>
-                  <p className="font-medium font-mono">{contribution.member?.member_id || 'N/A'}</p>
+                  <p className="font-medium font-mono">
+                    {contribution.member
+                      ? contribution.member.member_number ||
+                        contribution.member.staff_id ||
+                        contribution.member.ippis_number ||
+                        contribution.member.frsc_pin ||
+                        contribution.member.id ||
+                        'N/A'
+                      : 'N/A'}
+                  </p>
                 </div>
               </div>
               <div className="space-y-4">

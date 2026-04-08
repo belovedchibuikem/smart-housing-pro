@@ -16,7 +16,11 @@ import { apiFetch, exportReport } from "@/lib/api/client"
 interface Contribution {
   id: string
   member?: {
-    member_id?: string
+    id?: string
+    member_number?: string | null
+    staff_id?: string | null
+    ippis_number?: string | null
+    frsc_pin?: string | null
     user?: {
       first_name?: string
       last_name?: string
@@ -222,8 +226,17 @@ export default function AdminContributionsPage() {
     return 'N/A'
   }
 
-  const getMemberId = (contribution: Contribution) => {
-    return contribution.member?.member_id || 'N/A'
+  const getMemberSubtitle = (contribution: Contribution) => {
+    const m = contribution.member
+    if (!m) return 'N/A'
+    return (
+      m.member_number ||
+      m.staff_id ||
+      m.ippis_number ||
+      m.frsc_pin ||
+      m.id ||
+      'N/A'
+    )
   }
 
   return (
@@ -347,7 +360,7 @@ export default function AdminContributionsPage() {
                     <TableCell>
                       <div>
                               <div className="font-medium">{getMemberName(contribution)}</div>
-                              <div className="text-sm text-muted-foreground">{getMemberId(contribution)}</div>
+                              <div className="text-sm text-muted-foreground">{getMemberSubtitle(contribution)}</div>
                       </div>
                     </TableCell>
                           <TableCell>{contribution.type || contribution.frequency || '-'}</TableCell>
