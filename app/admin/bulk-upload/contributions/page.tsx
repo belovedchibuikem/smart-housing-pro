@@ -33,16 +33,27 @@ export default function BulkUploadContributionsPage() {
         
         // Map parsed data to contribution format - check for template headers first
         const mappedData = result.data.map((row: any) => ({
-          memberId: row['Member ID (UUID, Staff ID, or IPPIS)']
-            || row['Member ID (UUID or Staff ID)'] 
-            || row['Member ID'] 
-            || row['memberId'] 
-            || row['member_id'] 
+          memberId: row['Member ID (UUID, Member Number, Staff ID, IPPIS, or FRSC PIN)']
+            || row['Member ID (UUID, Staff ID, or IPPIS)']
+            || row['Member ID (UUID or Staff ID)']
+            || row['Member ID']
+            || row['memberId']
+            || row['member_id']
+            || row['member_id_uuid_member_number_staff_id_ippis_or_frsc_pin']
             || row['member_id_uuid_staff_id_or_ippis']
             || row['member_id_uuid_or_staff_id']
+            || row['Member Number']
+            || row['member_number']
+            || row['Staff ID']
+            || row['staff_id']
+            || row['StaffID']
             || row['IPPIS Number']
             || row['ippis_number']
             || row['IPPIS']
+            || row['FRSC PIN']
+            || row['frsc_pin']
+            || row['PIN']
+            || row['pin']
             || '',
           amount: row['Amount'] || row['amount'] || '',
           type:
@@ -73,9 +84,16 @@ export default function BulkUploadContributionsPage() {
         // Validate required fields
         const validationErrors: string[] = []
         mappedData.forEach((contribution, index) => {
-          if (!contribution.memberId) validationErrors.push(`Row ${index + 2}: Member ID is required`)
-          if (!contribution.amount) validationErrors.push(`Row ${index + 2}: Amount is required`)
-          if (isNaN(parseFloat(contribution.amount))) validationErrors.push(`Row ${index + 2}: Amount must be a valid number`)
+          if (!contribution.memberId) validationErrors.push(`Row ${index + 2}: Member identifier is required`)
+          const rawAmt =
+            contribution.amount === null || contribution.amount === undefined
+              ? ""
+              : String(contribution.amount).trim()
+          if (rawAmt === "") {
+            validationErrors.push(`Row ${index + 2}: Amount is required`)
+          } else if (!Number.isFinite(Number(rawAmt))) {
+            validationErrors.push(`Row ${index + 2}: Amount must be a valid number (0, negative, or positive allowed)`)
+          }
           if (!contribution.type) validationErrors.push(`Row ${index + 2}: Type is required`)
           if (!contribution.paymentMethod) validationErrors.push(`Row ${index + 2}: Payment Method is required`)
           if (!contribution.paymentDate) validationErrors.push(`Row ${index + 2}: Payment Date is required`)
@@ -275,7 +293,8 @@ export default function BulkUploadContributionsPage() {
           <div className="space-y-2">
             <h3 className="font-medium">Step 2: Fill in Contribution Data</h3>
             <p className="text-sm text-muted-foreground">
-              Open the template and fill in the contribution details
+              Use the first column to identify each member by UUID, member number, staff ID, IPPIS number, or FRSC PIN.
+              Amount can be zero or negative (e.g. adjustments) as well as positive.
             </p>
           </div>
 
@@ -326,7 +345,7 @@ export default function BulkUploadContributionsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Member ID</TableHead>
+                    <TableHead>Member identifier</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Payment Method</TableHead>
@@ -337,7 +356,9 @@ export default function BulkUploadContributionsPage() {
                   {previewData.map((contribution, index) => (
                     <TableRow key={index}>
                       <TableCell>{contribution.memberId}</TableCell>
-                      <TableCell>₦{parseFloat(contribution.amount || 0).toLocaleString()}</TableCell>
+                      <TableCell>
+                        ₦{Number(String(contribution.amount).trim() || 0).toLocaleString()}
+                      </TableCell>
                       <TableCell>{contribution.type}</TableCell>
                       <TableCell>{contribution.paymentMethod}</TableCell>
                       <TableCell>{contribution.paymentDate}</TableCell>
