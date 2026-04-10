@@ -299,6 +299,14 @@ export class MemberService {
     })
   }
 
+  // Reverse mistaken KYC approval (restores pending or submitted)
+  static async reverseKyc(memberId: string): Promise<{ success: boolean; message: string; kyc_status?: string }> {
+    return apiFetch<{ success: boolean; message: string; kyc_status?: string }>(
+      `/admin/members/${memberId}/kyc/reverse`,
+      { method: "POST" }
+    )
+  }
+
   // Reject KYC
   static async rejectKyc(memberId: string, reason: string): Promise<{ success: boolean; message: string }> {
     return apiFetch<{ success: boolean; message: string }>(`/admin/members/${memberId}/kyc/reject`, {

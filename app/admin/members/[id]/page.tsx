@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, Mail, Phone, MapPin, Calendar, CheckCircle, XCircle, AlertCircle, Upload, Download, Eye, Trash2, RefreshCw, User, Building, FileText, DollarSign, Pencil } from "lucide-react"
+import { ArrowLeft, Mail, Phone, MapPin, Calendar, CheckCircle, XCircle, AlertCircle, Upload, Download, Eye, Trash2, RefreshCw, User, Building, FileText, DollarSign, Pencil, Undo2 } from "lucide-react"
 import Link from "next/link"
 import {
   Dialog,
@@ -47,6 +47,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   // Dialog states
   const [showApproveDialog, setShowApproveDialog] = useState(false)
   const [showRejectDialog, setShowRejectDialog] = useState(false)
+  const [showReverseDialog, setShowReverseDialog] = useState(false)
   const [showDocumentUploadDialog, setShowDocumentUploadDialog] = useState(false)
   const [showDocumentViewDialog, setShowDocumentViewDialog] = useState(false)
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
@@ -152,6 +153,18 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
     } catch (error) {
       console.error("Error rejecting KYC:", error)
       toast.error("Failed to reject KYC")
+    }
+  }
+
+  const handleReverseKyc = async () => {
+    try {
+      await MemberService.reverseKyc(id)
+      toast.success("KYC approval reversed")
+      setShowReverseDialog(false)
+      loadMemberData()
+    } catch (error) {
+      console.error("Error reversing KYC:", error)
+      toast.error("Failed to reverse KYC approval")
     }
   }
 
@@ -290,25 +303,52 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
         </div>
       </div>
 
-      {/* KYC Status Alert */}
-      {["pending", "submitted"].includes((member.kyc_status || "").toLowerCase()) && (
+      {/* KYC — pending review (includes not-yet-submitted and resubmission after rejection) */}
+      {["pending", "submitted", "rejected"].includes((member.kyc_status || "").toLowerCase()) && (
         <Card className="border-orange-200 bg-orange-50">
           <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h3 className="font-semibold">KYC Verification Pending</h3>
-                <p className="text-sm text-muted-foreground">Review member documents and approve or reject KYC</p>
+                <h3 className="font-semibold">KYC verification</h3>
+                <p className="text-sm text-muted-foreground">
+                  {(member.kyc_status || "").toLowerCase() === "rejected"
+                    ? "Member was rejected — you can approve after review, or reject again with a reason."
+                    : "Review member details and documents. You may approve even if the member has not submitted the KYC form yet."}
+                </p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button onClick={() => setShowApproveDialog(true)}>
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Approve KYC
                 </Button>
-                <Button variant="destructive" onClick={() => setShowRejectDialog(true)}>
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Reject KYC
-                </Button>
+                {(member.kyc_status || "").toLowerCase() === "submitted" && (
+                  <Button variant="destructive" onClick={() => setShowRejectDialog(true)}>
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Reject KYC
+                  </Button>
+                )}
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* KYC verified — reverse mistaken approval */}
+      {(member.kyc_status || "").toLowerCase() === "verified" && (
+        <Card className="border-emerald-200 bg-emerald-50">
+          <CardContent className="pt-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="font-semibold">KYC verified</h3>
+                <p className="text-sm text-muted-foreground">
+                  If this approval was a mistake, you can reverse it. The member returns to{" "}
+                  {member.kyc_submitted_at ? "submitted" : "pending"} review.
+                </p>
+              </div>
+              <Button variant="outline" className="border-emerald-300 bg-white" onClick={() => setShowReverseDialog(true)}>
+                <Undo2 className="h-4 w-4 mr-2" />
+                Reverse approval
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -717,8 +757,8 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
           <DialogHeader>
             <DialogTitle>Approve KYC Verification</DialogTitle>
             <DialogDescription>
-              Are you sure you want to approve KYC verification for {member.first_name} {member.last_name}? 
-              This will grant them full access to the system.
+              Approve KYC for {member.first_name} {member.last_name}? This works even if they have not submitted
+              the KYC form yet. The member will be treated as verified.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -755,6 +795,28 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
             </Button>
             <Button variant="destructive" onClick={handleRejectKyc} disabled={!rejectionReason.trim()}>
               Reject KYC
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* KYC Reverse Dialog */}
+      <Dialog open={showReverseDialog} onOpenChange={setShowReverseDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reverse KYC approval</DialogTitle>
+            <DialogDescription>
+              This removes verified status from {member.first_name} {member.last_name}. They will return to{" "}
+              {member.kyc_submitted_at ? "submitted (awaiting review)" : "pending"} so you can review again if needed.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReverseDialog(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleReverseKyc}>
+              <Undo2 className="h-4 w-4 mr-2" />
+              Reverse approval
             </Button>
           </DialogFooter>
         </DialogContent>
