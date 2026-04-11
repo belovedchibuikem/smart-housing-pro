@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch, getPropertyPaymentPlanDetails, getApprovedPropertyInterests, type ApprovedPropertyInterest } from "@/lib/api/client"
+import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
 
 interface MortgageProvider {
   id: string
@@ -170,9 +171,10 @@ export default function CreateMortgagePage() {
 
   const fetchMembers = async () => {
     try {
-      const response = await apiFetch<{ members: Member[] }>("/admin/members?per_page=1000")
-      setMembers(response.members || [])
-      setFilteredMembers(response.members || [])
+      const response = await apiFetch("/admin/members?per_page=1000")
+      const list = normalizeAdminMembersList(response) as Member[]
+      setMembers(list)
+      setFilteredMembers(list)
     } catch (error) {
       toast({
         title: "Error",

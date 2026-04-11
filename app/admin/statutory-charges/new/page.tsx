@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { createStatutoryCharge, getStatutoryChargeTypes } from "@/lib/api/client"
 import { apiFetch } from "@/lib/api/client"
+import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
 
 interface Member {
   id: string
@@ -60,9 +61,8 @@ export default function NewStatutoryChargePage() {
 
   const fetchMembers = async () => {
     try {
-      const response = await apiFetch<{ members?: Member[]; data?: Member[] }>("/admin/members?per_page=100")
-      const membersList = response.members || response.data || []
-      setMembers(membersList)
+      const response = await apiFetch("/admin/members?per_page=100")
+      setMembers(normalizeAdminMembersList(response) as Member[])
     } catch (error) {
       toast({
         title: "Error",

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '@/lib/api/client';
+import { normalizeAdminMembersList } from '@/lib/api/normalize-admin-members';
 
 export interface Member {
   id: string;
@@ -100,7 +101,8 @@ export function useMembers(params?: {
       const response = await apiFetch<MembersResponse>(`/admin/members?${queryParams.toString()}`);
       
       if (response.success) {
-        setMembers(response.members);
+        const list = normalizeAdminMembersList(response) as Member[];
+        setMembers(list);
         setPagination(response.pagination);
       } else {
         setError('Failed to fetch members');

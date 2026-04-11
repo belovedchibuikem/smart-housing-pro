@@ -11,16 +11,18 @@ import { ArrowLeft, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
-import { createPropertyAllottee, getPropertyAllottees } from "@/lib/api/client"
+import { createPropertyAllottee } from "@/lib/api/client"
 import { apiFetch } from "@/lib/api/client"
+import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
 
 interface Member {
   id: string
-  user: {
-    first_name: string
-    last_name: string
-    email: string
+  user?: {
+    first_name?: string
+    last_name?: string
+    email?: string
   }
+  member_number?: string
   member_id?: string
   staff_id?: string
 }
@@ -64,10 +66,8 @@ export default function NewAllotteePage() {
 
   const fetchMembers = async () => {
     try {
-      const response = await apiFetch<{ success: boolean; data: any[] }>("/admin/members?per_page=1000")
-      if (response.success) {
-        setMembers(response.data || [])
-      }
+      const response = await apiFetch<{ success: boolean }>("/admin/members?per_page=1000")
+      setMembers(normalizeAdminMembersList(response) as Member[])
     } catch (error) {
       toast({
         title: "Error",
@@ -169,7 +169,7 @@ export default function NewAllotteePage() {
                     <SelectContent>
                       {members.map((member) => (
                         <SelectItem key={member.id} value={member.id}>
-                          {member.user?.first_name} {member.user?.last_name} ({member.member_id || member.staff_id || '—'})
+                          {member.user?.first_name} {member.user?.last_name} ({member.member_number || member.member_id || member.staff_id || "—"})
                         </SelectItem>
                       ))}
                     </SelectContent>

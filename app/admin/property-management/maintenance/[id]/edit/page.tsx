@@ -13,6 +13,7 @@ import { useRouter, useParams } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { getPropertyMaintenanceById, updatePropertyMaintenance } from "@/lib/api/client"
 import { apiFetch } from "@/lib/api/client"
+import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
 
 interface Property {
   id: string
@@ -22,10 +23,11 @@ interface Property {
 
 interface Member {
   id: string
-  user: {
-    first_name: string
-    last_name: string
+  user?: {
+    first_name?: string
+    last_name?: string
   }
+  member_number?: string
   member_id?: string
   staff_id?: string
 }
@@ -124,10 +126,8 @@ export default function EditMaintenancePage() {
 
   const fetchMembers = async () => {
     try {
-      const response = await apiFetch<{ success: boolean; data: any[] }>("/admin/members?per_page=1000")
-      if (response.success) {
-        setMembers(response.data || [])
-      }
+      const response = await apiFetch<{ success?: boolean }>("/admin/members?per_page=1000")
+      setMembers(normalizeAdminMembersList(response) as Member[])
     } catch (error) {
       console.error("Failed to load members", error)
     }
@@ -135,10 +135,8 @@ export default function EditMaintenancePage() {
 
   const fetchUsers = async () => {
     try {
-      const response = await apiFetch<{ success: boolean; data: any[] }>("/admin/users?per_page=1000")
-      if (response.success) {
-        setUsers(response.data || [])
-      }
+      const response = await apiFetch<{ users?: User[]; data?: User[] }>("/admin/users?per_page=1000")
+      setUsers(response.users ?? response.data ?? [])
     } catch (error) {
       console.error("Failed to load users", error)
     }
@@ -258,7 +256,7 @@ export default function EditMaintenancePage() {
                     <SelectItem value="none">None</SelectItem>
                     {members.map((member) => (
                       <SelectItem key={member.id} value={member.id}>
-                        {member.user?.first_name} {member.user?.last_name} ({member.member_id || member.staff_id || '—'})
+                        {member.user?.first_name} {member.user?.last_name} ({member.member_number || member.member_id || member.staff_id || "—"})
                       </SelectItem>
                     ))}
                   </SelectContent>

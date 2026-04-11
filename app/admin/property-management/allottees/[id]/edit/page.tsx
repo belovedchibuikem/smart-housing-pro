@@ -13,6 +13,7 @@ import { useRouter, useParams } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { getPropertyAllottee, updatePropertyAllottee } from "@/lib/api/client"
 import { apiFetch } from "@/lib/api/client"
+import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
 
 interface Member {
   id: string
@@ -91,10 +92,8 @@ export default function EditAllotteePage() {
 
   const fetchMembers = async () => {
     try {
-      const response = await apiFetch<{ success: boolean; data: any[] }>("/admin/members?per_page=1000")
-      if (response.success) {
-        setMembers(response.data || [])
-      }
+      const response = await apiFetch<{ success: boolean }>("/admin/members?per_page=1000")
+      setMembers(normalizeAdminMembersList(response) as Member[])
     } catch (error) {
       console.error("Failed to load members", error)
     }
@@ -189,7 +188,7 @@ export default function EditAllotteePage() {
                   <SelectContent>
                     {members.map((member) => (
                       <SelectItem key={member.id} value={member.id}>
-                        {member.user?.first_name} {member.user?.last_name} ({member.member_id || member.staff_id || '—'})
+                        {member.user?.first_name} {member.user?.last_name} ({member.member_number || member.member_id || member.staff_id || "—"})
                       </SelectItem>
                     ))}
                   </SelectContent>
