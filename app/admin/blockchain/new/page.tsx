@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,6 +13,12 @@ import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { registerPropertyOnBlockchain } from "@/lib/api/client"
 import { apiFetch } from "@/lib/api/client"
+import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
+import {
+	SearchableSelect,
+	membersToSearchableOptions,
+	propertiesToSearchableOptions,
+} from "@/components/ui/searchable-select"
 
 interface Property {
   id: string
@@ -45,6 +51,9 @@ export default function RegisterPropertyBlockchainPage() {
   const [walletAddress, setWalletAddress] = useState("")
   const [ownershipPercentage, setOwnershipPercentage] = useState("")
 
+  const propertyOptions = useMemo(() => propertiesToSearchableOptions(properties), [properties])
+  const memberOptions = useMemo(() => membersToSearchableOptions(members), [members])
+
   useEffect(() => {
     fetchProperties()
     fetchMembers()
@@ -69,10 +78,8 @@ export default function RegisterPropertyBlockchainPage() {
 
   const fetchMembers = async () => {
     try {
-      const response = await apiFetch<{ success: boolean; data: any[] }>("/admin/members")
-      if (response.success && response.data) {
-        setMembers(response.data)
-      }
+      const response = await apiFetch("/admin/members?per_page=500")
+      setMembers(normalizeAdminMembersList(response) as Member[])
     } catch (error: any) {
       toast({
         title: "Error",
@@ -209,18 +216,14 @@ export default function RegisterPropertyBlockchainPage() {
           <CardContent className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="property_id">Property *</Label>
-              <Select value={formData.property_id} onValueChange={(value) => setFormData({ ...formData, property_id: value })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a property" />
-                </SelectTrigger>
-                <SelectContent>
-                  {properties.map((property) => (
-                    <SelectItem key={property.id} value={property.id}>
-                      {property.title || property.id} {property.location ? `- ${property.location}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={formData.property_id}
+                onValueChange={(value) => setFormData({ ...formData, property_id: value })}
+                options={propertyOptions}
+                placeholder="Select a property"
+                searchPlaceholder="Search by title or location…"
+                emptyText="No properties match your search."
+              />
             </div>
 
             <div className="space-y-2">
@@ -249,22 +252,14 @@ export default function RegisterPropertyBlockchainPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>Member</Label>
-                    <Select value={selectedMember} onValueChange={setSelectedMember}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select member" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {members.map((member) => (
-                          <SelectItem key={member.id} value={member.id}>
-                            {member.user
-                              ? `${member.user.first_name || ""} ${member.user.last_name || ""}`.trim() ||
-                                member.member_number ||
-                                member.id
-                              : member.member_number || member.id}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchableSelect
+                      value={selectedMember}
+                      onValueChange={setSelectedMember}
+                      options={memberOptions}
+                      placeholder="Select member"
+                      searchPlaceholder="Search members…"
+                      emptyText="No members match your search."
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Wallet Address (Optional)</Label>

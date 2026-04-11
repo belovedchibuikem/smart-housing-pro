@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,6 +14,12 @@ import { useToast } from "@/hooks/use-toast"
 import { createPropertyMaintenance } from "@/lib/api/client"
 import { apiFetch } from "@/lib/api/client"
 import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
+import {
+	SearchableSelect,
+	membersToSearchableOptions,
+	propertiesToSearchableOptions,
+	usersToSearchableOptions,
+} from "@/components/ui/searchable-select"
 
 interface Property {
   id: string
@@ -73,6 +79,10 @@ export default function NewMaintenancePage() {
     fetchUsers()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  const memberOptions = useMemo(() => membersToSearchableOptions(members), [members])
+  const propertyOptions = useMemo(() => propertiesToSearchableOptions(properties), [properties])
+  const userOptions = useMemo(() => usersToSearchableOptions(users), [users])
 
   const fetchProperties = async () => {
     try {
@@ -187,41 +197,27 @@ export default function NewMaintenancePage() {
                   <Label htmlFor="property_id">
                     Property <span className="text-red-500">*</span>
                   </Label>
-                  <Select
+                  <SearchableSelect
                     value={formData.property_id}
                     onValueChange={(value) => setFormData({ ...formData, property_id: value })}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a property" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {properties.map((property) => (
-                        <SelectItem key={property.id} value={property.id}>
-                          {property.title} - {property.location}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={propertyOptions}
+                    placeholder="Select a property"
+                    searchPlaceholder="Search by title or location…"
+                    emptyText="No properties match your search."
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="reported_by">Reported By (Member)</Label>
-                  <Select
+                  <SearchableSelect
                     value={formData.reported_by}
-                    onValueChange={(value) => setFormData({ ...formData, reported_by: value === "none" ? "" : value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select member (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {members.map((member) => (
-                        <SelectItem key={member.id} value={member.id}>
-                          {member.user?.first_name} {member.user?.last_name} ({member.member_number || member.member_id || member.staff_id || "—"})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onValueChange={(value) => setFormData({ ...formData, reported_by: value })}
+                    options={memberOptions}
+                    placeholder="Select member (optional)"
+                    searchPlaceholder="Search members…"
+                    emptyText="No members match your search."
+                    allowEmpty
+                    emptyValueLabel="None"
+                  />
                 </div>
               </div>
 
@@ -294,22 +290,16 @@ export default function NewMaintenancePage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="assigned_to">Assigned To</Label>
-                  <Select
+                  <SearchableSelect
                     value={formData.assigned_to}
-                    onValueChange={(value) => setFormData({ ...formData, assigned_to: value === "none" ? "" : value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select user (optional)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">None</SelectItem>
-                      {users.map((user) => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {user.first_name} {user.last_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onValueChange={(value) => setFormData({ ...formData, assigned_to: value })}
+                    options={userOptions}
+                    placeholder="Select user (optional)"
+                    searchPlaceholder="Search staff by name or email…"
+                    emptyText="No users match your search."
+                    allowEmpty
+                    emptyValueLabel="None"
+                  />
                 </div>
               </div>
 

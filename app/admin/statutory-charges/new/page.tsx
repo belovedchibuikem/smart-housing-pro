@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast"
 import { createStatutoryCharge, getStatutoryChargeTypes } from "@/lib/api/client"
 import { apiFetch } from "@/lib/api/client"
 import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
+import { SearchableSelect, membersToSearchableOptions } from "@/components/ui/searchable-select"
 
 interface Member {
   id: string
@@ -33,7 +34,13 @@ export default function NewStatutoryChargePage() {
   const [loadingData, setLoadingData] = useState(true)
   const [members, setMembers] = useState<Member[]>([])
   const [chargeTypes, setChargeTypes] = useState<string[]>([])
-  
+
+  const memberOptions = useMemo(() => membersToSearchableOptions(members), [members])
+  const chargeTypeOptions = useMemo(
+    () => chargeTypes.map((t) => ({ value: t, label: t, searchText: t })),
+    [chargeTypes]
+  )
+
   const [formData, setFormData] = useState({
     member_id: "",
     type: "",
@@ -161,24 +168,14 @@ export default function NewStatutoryChargePage() {
               <Label htmlFor="member_id">
                 Member <span className="text-red-500">*</span>
               </Label>
-              <Select
+              <SearchableSelect
                 value={formData.member_id}
                 onValueChange={(value) => setFormData({ ...formData, member_id: value })}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a member" />
-                </SelectTrigger>
-                <SelectContent>
-                  {members.map((member) => (
-                    <SelectItem key={member.id} value={member.id}>
-                      {member.user?.first_name} {member.user?.last_name} 
-                      {member.member_id && ` (${member.member_id})`}
-                      {!member.member_id && member.staff_id && ` (${member.staff_id})`}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                options={memberOptions}
+                placeholder="Select a member"
+                searchPlaceholder="Search members by name, number, or email…"
+                emptyText="No members match your search."
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -186,28 +183,27 @@ export default function NewStatutoryChargePage() {
                 <Label htmlFor="type">
                   Charge Type <span className="text-red-500">*</span>
                 </Label>
-                <Select
-                  value={formData.type}
-                  onValueChange={(value) => setFormData({ ...formData, type: value })}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select charge type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {chargeTypes.length > 0 ? (
-                      chargeTypes.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {type}
-                        </SelectItem>
-                      ))
-                    ) : (
+                {chargeTypes.length > 0 ? (
+                  <SearchableSelect
+                    value={formData.type}
+                    onValueChange={(value) => setFormData({ ...formData, type: value })}
+                    options={chargeTypeOptions}
+                    placeholder="Select charge type"
+                    searchPlaceholder="Search charge types…"
+                    emptyText="No charge types match your search."
+                  />
+                ) : (
+                  <Select value="" disabled>
+                    <SelectTrigger>
+                      <SelectValue placeholder="No types available" />
+                    </SelectTrigger>
+                    <SelectContent>
                       <SelectItem value="custom" disabled>
                         No types available
                       </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
+                    </SelectContent>
+                  </Select>
+                )}
                 {chargeTypes.length === 0 && (
                   <p className="text-xs text-muted-foreground">
                     <Link href="/admin/statutory-charges/types" className="text-primary underline">

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -94,6 +94,9 @@ export default function NewAllotteePage() {
     }
   }
 
+  const memberOptions = useMemo(() => membersToSearchableOptions(members), [members])
+  const propertyOptions = useMemo(() => propertiesToSearchableOptions(properties), [properties])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -158,43 +161,27 @@ export default function NewAllotteePage() {
                   <Label htmlFor="member_id">
                     Member <span className="text-red-500">*</span>
                   </Label>
-                  <Select
+                  <SearchableSelect
                     value={formData.member_id}
                     onValueChange={(value) => setFormData({ ...formData, member_id: value })}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a member" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {members.map((member) => (
-                        <SelectItem key={member.id} value={member.id}>
-                          {member.user?.first_name} {member.user?.last_name} ({member.member_number || member.member_id || member.staff_id || "—"})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={memberOptions}
+                    placeholder="Select a member"
+                    searchPlaceholder="Search by name, number, email…"
+                    emptyText="No members match your search."
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="property_id">
                     Property <span className="text-red-500">*</span>
                   </Label>
-                  <Select
+                  <SearchableSelect
                     value={formData.property_id}
                     onValueChange={(value) => setFormData({ ...formData, property_id: value })}
-                    required
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a property" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {properties.map((property) => (
-                        <SelectItem key={property.id} value={property.id}>
-                          {property.title} - {property.location}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    options={propertyOptions}
+                    placeholder="Select a property"
+                    searchPlaceholder="Search by title or location…"
+                    emptyText="No properties match your search."
+                  />
                 </div>
               </div>
 

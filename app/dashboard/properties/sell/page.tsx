@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,6 +13,7 @@ import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 import { getMemberProperties, type MemberHouse } from "@/lib/api/client"
 import { apiFetch } from "@/lib/api/client"
+import { SearchableSelect } from "@/components/ui/searchable-select"
 
 function formatCurrency(amount: number | null | undefined) {
   if (!amount || Number.isNaN(amount)) return "₦0"
@@ -64,6 +65,17 @@ export default function SellPropertyPage() {
 
     void fetchProperties()
   }, [toast])
+
+  const propertyOptions = useMemo(
+    () =>
+      properties.map((p) => ({
+        value: p.id,
+        label: p.title || "Property",
+        description: [p.location, formatCurrency(p.current_value || p.price)].filter(Boolean).join(" · "),
+        searchText: [p.title, p.location, formatCurrency(p.current_value || p.price), p.id].filter(Boolean).join(" "),
+      })),
+    [properties]
+  )
 
   const selectedProperty = properties.find((p) => p.id === formData.property_id)
   const transferFee = selectedProperty
@@ -186,21 +198,14 @@ export default function SellPropertyPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="property">Select Property *</Label>
-                <Select
+                <SearchableSelect
                   value={formData.property_id}
                   onValueChange={(value) => setFormData((prev) => ({ ...prev, property_id: value }))}
-                >
-                  <SelectTrigger id="property">
-                    <SelectValue placeholder="Choose property to sell/transfer" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {properties.map((property) => (
-                      <SelectItem key={property.id} value={property.id}>
-                        {property.title} - {property.location} ({formatCurrency(property.current_value || property.price)})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  options={propertyOptions}
+                  placeholder="Choose property to sell/transfer"
+                  searchPlaceholder="Search by title, location, or value…"
+                  emptyText="No properties match your search."
+                />
                 {selectedProperty && (
                   <p className="text-sm text-muted-foreground">
                     Current Value: {formatCurrency(selectedProperty.current_value || selectedProperty.price)} • Transfer Fee:{" "}

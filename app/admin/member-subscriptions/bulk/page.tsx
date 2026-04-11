@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -39,6 +39,7 @@ import {
   Clock,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { SearchableSelect, membersToSearchableOptions } from "@/components/ui/searchable-select"
 
 interface Pkg {
   id: string
@@ -178,6 +179,32 @@ export default function AdminBulkMemberSubscriptionsPage() {
     const t = setTimeout(searchMembers, 300)
     return () => clearTimeout(t)
   }, [memberSearch, searchMembers])
+
+  const memberPickOptions = useMemo(
+    () =>
+      membersToSearchableOptions(
+        members.map((m) => ({
+          id: m.id,
+          member_number: m.member_number,
+          user: m.user ?? {
+            first_name: m.first_name,
+            last_name: m.last_name,
+            email: m.email ?? m.user?.email ?? undefined,
+          },
+        }))
+      ),
+    [members]
+  )
+
+  const packageSelectOptions = useMemo(
+    () =>
+      packages.map((p) => ({
+        value: p.id,
+        label: `${p.name} — ${formatNgn(p.price)}`,
+        searchText: `${p.name} ${p.id} ${String(p.price)}`,
+      })),
+    [packages]
+  )
 
   const selectedPm = paymentMethods.find((m) => m.id === paymentMethod)
   const isManual = paymentMethod === "manual"
@@ -571,18 +598,14 @@ export default function AdminBulkMemberSubscriptionsPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Package</Label>
-                  <Select value={massPackageId || undefined} onValueChange={setMassPackageId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Package" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {packages.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name} — {formatNgn(p.price)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                    value={massPackageId || ""}
+                    onValueChange={setMassPackageId}
+                    options={packageSelectOptions}
+                    placeholder="Package"
+                    searchPlaceholder="Search packages…"
+                    emptyText="No packages match your search."
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Audience</Label>
@@ -665,44 +688,27 @@ export default function AdminBulkMemberSubscriptionsPage() {
               {loadingMembers ? (
                 <p className="text-sm text-muted-foreground">Searching…</p>
               ) : (
-                <Select value={pickMemberId || undefined} onValueChange={setPickMemberId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select member…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {members.map((m) => {
-                      const nm =
-                        [m.first_name || m.user?.first_name, m.last_name || m.user?.last_name]
-                          .filter(Boolean)
-                          .join(" ") ||
-                        m.email ||
-                        m.user?.email ||
-                        "Member"
-                      return (
-                        <SelectItem key={m.id} value={m.id}>
-                          {nm}
-                          {m.member_number ? ` (#${m.member_number})` : ""}
-                        </SelectItem>
-                      )
-                    })}
-                  </SelectContent>
-                </Select>
+                <SearchableSelect
+                  value={pickMemberId || ""}
+                  onValueChange={setPickMemberId}
+                  options={memberPickOptions}
+                  placeholder="Select member…"
+                  searchPlaceholder="Filter results…"
+                  emptyText="No members match your search."
+                  disabled={loadingMembers}
+                />
               )}
             </div>
             <div className="space-y-2">
               <Label>Package for new line</Label>
-              <Select value={pickPackageId || undefined} onValueChange={setPickPackageId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Package" />
-                </SelectTrigger>
-                <SelectContent>
-                  {packages.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name} — {formatNgn(p.price)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SearchableSelect
+                value={pickPackageId || ""}
+                onValueChange={setPickPackageId}
+                options={packageSelectOptions}
+                placeholder="Package"
+                searchPlaceholder="Search packages…"
+                emptyText="No packages match your search."
+              />
             </div>
           </div>
           <Button

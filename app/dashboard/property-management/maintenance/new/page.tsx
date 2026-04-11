@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,7 @@ import { ArrowLeft, Upload, Loader2, X } from "lucide-react"
 import Link from "next/link"
 import { createMaintenanceRequest, getMyPropertiesForMaintenance, type MemberProperty } from "@/lib/api/client"
 import { toast as sonnerToast } from "sonner"
+import { SearchableSelect, propertiesToSearchableOptions } from "@/components/ui/searchable-select"
 
 export default function NewMaintenanceRequestPage() {
   const router = useRouter()
@@ -28,6 +29,8 @@ export default function NewMaintenanceRequestPage() {
   const [properties, setProperties] = useState<MemberProperty[]>([])
   const [loadingProperties, setLoadingProperties] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+
+  const propertyOptions = useMemo(() => propertiesToSearchableOptions(properties), [properties])
 
   useEffect(() => {
     const fetchProperties = async () => {
@@ -131,28 +134,20 @@ export default function NewMaintenanceRequestPage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="property">Property *</Label>
-              <Select
-                value={formData.property_id}
-                onValueChange={(value) => setFormData({ ...formData, property_id: value })}
-                disabled={loadingProperties}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={loadingProperties ? "Loading properties..." : "Select property"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {properties.length === 0 ? (
-                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                      {loadingProperties ? "Loading..." : "No properties available"}
-                    </div>
-                  ) : (
-                    properties.map((property) => (
-                      <SelectItem key={property.id} value={property.id}>
-                        {property.title} - {property.location}
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
+              {loadingProperties ? (
+                <p className="text-sm text-muted-foreground py-2">Loading properties…</p>
+              ) : properties.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-2">No properties available</p>
+              ) : (
+                <SearchableSelect
+                  value={formData.property_id}
+                  onValueChange={(value) => setFormData({ ...formData, property_id: value })}
+                  options={propertyOptions}
+                  placeholder="Select property"
+                  searchPlaceholder="Search by title or location…"
+                  emptyText="No properties match your search."
+                />
+              )}
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
