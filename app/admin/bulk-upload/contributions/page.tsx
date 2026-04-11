@@ -57,8 +57,8 @@ export default function BulkUploadContributionsPage() {
             || '',
           amount: row['Amount'] || row['amount'] || '',
           type:
-            row['Contribution Type (monthly, quarterly, annual, special, emergency)']
-            || row['Contribution Type']
+            row['Contribution Type']
+            || row['Contribution Type (monthly, quarterly, annual, special, emergency)']
             || row['Type']
             || row['type']
             || row['contribution_type']
