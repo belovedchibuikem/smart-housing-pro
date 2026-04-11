@@ -22,7 +22,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner"
 import { MemberService, Member, Document, MemberStats } from "@/lib/api/member-service"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getStorageUrl } from "@/lib/api/config"
 
 const currencyFormatter = new Intl.NumberFormat("en-NG", {
   style: "currency",
@@ -51,6 +50,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   const [showDocumentUploadDialog, setShowDocumentUploadDialog] = useState(false)
   const [showDocumentViewDialog, setShowDocumentViewDialog] = useState(false)
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
+  const [openingKycIndex, setOpeningKycIndex] = useState<number | null>(null)
   
   // Form states
   const [rejectionReason, setRejectionReason] = useState("")
@@ -116,14 +116,29 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
     }
   }
 
-  const storageBaseUrl = getStorageUrl()
-
-  const buildStorageUrl = (path?: string | null) => {
-    if (!path) return null
-    if (path.startsWith("http://") || path.startsWith("https://")) {
-      return path
+  const handleViewKycDocument = async (index: number) => {
+    if (!member?.id) return
+    const path = member.kyc_documents?.[index]?.path
+    if (!path?.trim()) {
+      toast.error("File missing")
+      return
     }
-    return `${storageBaseUrl.replace(/\/$/, "")}/${path.replace(/^\/+/, "")}`
+    if (path.startsWith("http://") || path.startsWith("https://")) {
+      window.open(path, "_blank", "noopener,noreferrer")
+      return
+    }
+    setOpeningKycIndex(index)
+    try {
+      const blob = await MemberService.fetchKycDocumentBlob(member.id, index)
+      const url = URL.createObjectURL(blob)
+      window.open(url, "_blank", "noopener,noreferrer")
+      window.setTimeout(() => URL.revokeObjectURL(url), 120_000)
+    } catch (error) {
+      console.error("Error opening KYC document:", error)
+      toast.error(error instanceof Error ? error.message : "Failed to open document")
+    } finally {
+      setOpeningKycIndex(null)
+    }
   }
 
   const handleApproveKyc = async () => {
@@ -536,7 +551,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
               </CardHeader>
               <CardContent className="space-y-4">
                 {member.kyc_documents?.map((doc, index) => {
-                  const downloadUrl = buildStorageUrl(doc.path)
+                  const hasPath = Boolean(doc.path?.trim())
                   return (
                     <div key={`${doc.type}-${index}`} className="flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:justify-between">
                       <div>
@@ -546,11 +561,12 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        {downloadUrl ? (
+                        {hasPath ? (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => window.open(downloadUrl, "_blank", "noopener,noreferrer")}
+                            disabled={openingKycIndex === index}
+                            onClick={() => handleViewKycDocument(index)}
                           >
                             <Download className="h-3 w-3 mr-1" />
                             View File

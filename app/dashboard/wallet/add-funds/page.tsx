@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -134,6 +135,7 @@ export default function AddFundsPage() {
   const stages = ["details", "review", "confirm", "titan_instructions"] as const
   const [stage, setStage] = useState<typeof stages[number]>("details")
   const [submitting, setSubmitting] = useState(false)
+  const [paymentDescription, setPaymentDescription] = useState("")
   const [titanFunding, setTitanFunding] = useState<{
     amount: number
     currency: string
@@ -293,6 +295,11 @@ export default function AddFundsPage() {
       return false
     }
 
+    if (selectedMethod.id !== "paystack_virtual_account" && paymentDescription.trim().length < 3) {
+      toast.error(t("walletFund.errPaymentDescription"))
+      return false
+    }
+
     if (selectedMethod.id === "manual" || selectedMethod.id === "bank_transfer") {
       if (!manualConfig) {
         toast.error(t("walletFund.errManualConfig"))
@@ -384,7 +391,7 @@ export default function AddFundsPage() {
         formData.append("recaptcha_token", recaptchaToken)
         formData.append("amount", numericAmount.toString())
         formData.append("payment_method", "manual")
-        formData.append("description", `Wallet funding of ${formattedAmount}`)
+        formData.append("description", paymentDescription.trim())
         if (manualDetails.payerName) formData.append("payer_name", manualDetails.payerName.trim())
         if (manualDetails.payerPhone) formData.append("payer_phone", manualDetails.payerPhone.trim())
         if (manualDetails.transactionReference) {
@@ -446,7 +453,10 @@ export default function AddFundsPage() {
         body: {
           amount: numericAmount,
           payment_method: backendMethod,
-          description: `Wallet funding of ${formattedAmount}`,
+          description:
+            backendMethod === "paystack_virtual_account"
+              ? paymentDescription.trim() || "Wallet funding"
+              : paymentDescription.trim(),
           recaptcha_token: recaptchaToken,
         },
       })
@@ -640,6 +650,12 @@ export default function AddFundsPage() {
               </div>
               {selectedMethod?.description && (
                 <p className="text-sm text-muted-foreground">{selectedMethod.description}</p>
+              )}
+              {paymentDescription.trim() && (
+                <div className="rounded-lg border p-4">
+                  <p className="text-sm text-muted-foreground">{t("walletFund.paymentDescriptionLabel")}</p>
+                  <p className="text-sm font-medium whitespace-pre-wrap">{paymentDescription.trim()}</p>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -869,6 +885,27 @@ export default function AddFundsPage() {
                 })}
               </div>
             </RadioGroup>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("walletFund.paymentDescriptionLabel")}</CardTitle>
+            <CardDescription>{t("walletFund.paymentDescriptionHint")}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Label htmlFor="payment-description">{t("walletFund.paymentDescriptionLabel")}</Label>
+              <Textarea
+                id="payment-description"
+                value={paymentDescription}
+                onChange={(e) => setPaymentDescription(e.target.value)}
+                placeholder={t("walletFund.paymentDescriptionPlaceholder")}
+                rows={3}
+                maxLength={500}
+                required={selectedMethod?.id !== "paystack_virtual_account"}
+              />
+            </div>
           </CardContent>
         </Card>
 

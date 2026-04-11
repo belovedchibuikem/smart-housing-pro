@@ -69,6 +69,9 @@ interface PropertyDetail {
   status?: string
   created_at?: string
   updated_at?: string
+  total_slots?: number | null
+  slots_used?: number | null
+  slots_available?: number | null
   images?: PropertyImage[]
   allocations?: PropertyAllocation[]
 }
@@ -415,6 +418,27 @@ export default function PropertyDetailPage() {
               <CardTitle>Price Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {(property.total_slots != null || property.slots_used != null) && (
+                <div>
+                  <label className="text-sm text-muted-foreground">Slots</label>
+                  <p className="text-lg font-semibold">
+                    {property.total_slots != null ? (
+                      <>
+                        {property.slots_available ?? "—"} available of {property.total_slots}
+                        {property.slots_used != null && (
+                          <span className="text-muted-foreground font-normal text-sm block">
+                            {property.slots_used} approved
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {property.slots_used ?? 0} approved (unlimited capacity)
+                      </>
+                    )}
+                  </p>
+                </div>
+              )}
               <div>
                 <label className="text-sm text-muted-foreground">Property Value</label>
                 <p className="text-3xl font-bold">

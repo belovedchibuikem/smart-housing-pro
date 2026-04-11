@@ -246,6 +246,54 @@ export async function apiFetch<T = unknown>(
 		}
 }
 
+/**
+ * Authenticated GET that returns binary (e.g. KYC images). Omits JSON Content-Type so the backend can set the real MIME type.
+ */
+export async function apiFetchBlob(path: string): Promise<Blob> {
+	const url = `${getApiBaseUrl()}${path.startsWith("/") ? path : `/${path}`}`
+	const token = getAuthToken()
+	const headers: Record<string, string> = {}
+	if (token) {
+		headers["Authorization"] = `Bearer ${token}`
+	}
+	if (typeof window !== "undefined") {
+		try {
+			headers["X-Forwarded-Host"] = window.location.host
+			const tenantSlug = getTenantSlug()
+			if (tenantSlug) {
+				headers["X-Tenant-Slug"] = tenantSlug
+			}
+		} catch {
+			// no-op
+		}
+	}
+	try {
+		const response = await fetch(url, {
+			method: "GET",
+			headers,
+		}).catch((fetchError) => {
+			throw new Error(friendlyNetworkFailureMessage((fetchError as Error)?.message || ""))
+		})
+		if (!response.ok) {
+			const text = await response.text()
+			let data: unknown
+			const isJson = response.headers.get("content-type")?.includes("application/json")
+			try {
+				data = isJson && text ? JSON.parse(text) : text || undefined
+			} catch {
+				data = text
+			}
+			throw new Error(extractUserFacingApiError(data, response.status))
+		}
+		return response.blob()
+	} catch (error: unknown) {
+		if (error instanceof Error) {
+			throw new Error(finalizeUserErrorMessage(error.message, 503))
+		}
+		throw new Error(defaultMessageForStatus(500))
+	}
+}
+
 /** `email` is the login identifier: email, member number, IPPIS, FRSC PIN, or (tenant / cooperative subdomain only) member UUID. */
 export async function loginRequest(payload: { email: string; password: string; recaptcha_token?: string }) {
 	return apiFetch<{ message: string; user: AuthUser; token: string }>("/auth/login", {
@@ -306,6 +354,9 @@ export async function initializeWalletFunding(
   data: FormData | {
 	amount: number
 	payment_method: string
+	/** Required by API for wallet funding (min 3 chars), except paystack_virtual_account */
+	description?: string
+	/** @deprecated use description */
 	notes?: string
 	payer_name?: string
 	payer_phone?: string
@@ -391,6 +442,10 @@ export interface AvailableProperty {
 	created_at?: string | null
 	status: string
 	images: PropertyImage[]
+	/** When set, capacity is limited; slots_available is remaining. */
+	total_slots?: number | null
+	slots_used?: number | null
+	slots_available?: number | null
 }
 
 export interface MemberHouse {

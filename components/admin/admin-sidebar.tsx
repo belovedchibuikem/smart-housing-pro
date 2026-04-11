@@ -174,6 +174,7 @@ const navItems: NavItem[] = [
       { href: "/admin/eoi-forms", label: "EOI Forms", icon: ClipboardList },
       { href: "/admin/property-payment-plans", label: "Payment Plans", icon: CreditCard },
       { href: "/admin/bulk-upload/properties", label: "Bulk Upload", icon: Upload },
+      { href: "/admin/bulk-upload/property-subscribers", label: "Bulk Property Subscribers", icon: Upload },
     ],
   },
   {

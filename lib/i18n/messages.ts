@@ -296,6 +296,10 @@ const en: Record<string, string> = {
   "walletFund.errPayerPhone": "Please enter the payer's phone number",
   "walletFund.errTxnRef": "Please enter the bank transfer reference/transaction ID",
   "walletFund.errEvidence": "Please upload at least one proof of payment",
+  "walletFund.paymentDescriptionLabel": "Payment description",
+  "walletFund.paymentDescriptionPlaceholder": "Briefly describe the purpose of this payment (e.g. monthly wallet top-up)",
+  "walletFund.paymentDescriptionHint": "Required. At least 3 characters. Shown to administrators when they review your payment.",
+  "walletFund.errPaymentDescription": "Please enter a payment description (at least 3 characters)",
   "walletFund.errInitPay": "Failed to initialize payment",
   "walletFund.errTitan": "Could not load your Paystack Titan account. Check gateway keys and try again.",
   "walletFund.errSimulated":

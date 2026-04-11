@@ -98,7 +98,7 @@ export function useCreateRole() {
       setError(null)
       const response = await apiFetch('/admin/roles', {
         method: 'POST',
-        body: JSON.stringify(roleData)
+        body: roleData,
       })
       return response
     } catch (err: any) {
@@ -126,7 +126,7 @@ export function useUpdateRole() {
       setError(null)
       const response = await apiFetch(`/admin/roles/${id}`, {
         method: 'PUT',
-        body: JSON.stringify(roleData)
+        body: roleData,
       })
       return response
     } catch (err: any) {

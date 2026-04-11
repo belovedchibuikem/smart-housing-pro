@@ -798,6 +798,14 @@ export default function TenantPaymentApprovalsPage() {
                                   <Label>Payment Method</Label>
                                   <p className="text-sm">{selectedPayment.payment_method}</p>
                                 </div>
+                                <div className="md:col-span-2">
+                                  <Label>Payment description</Label>
+                                  <p className="text-sm whitespace-pre-wrap rounded-md border bg-muted/30 p-3">
+                                    {selectedPayment.description?.trim()
+                                      ? selectedPayment.description
+                                      : "—"}
+                                  </p>
+                                </div>
                               </div>
 
                               {(selectedPayment.payment_method === 'bank_transfer' || selectedPayment.payment_method === 'manual') && (

@@ -33,6 +33,60 @@ function getStatusBadge(status: string) {
   return variants[status] || "secondary"
 }
 
+function pad2(n: number) {
+  return String(n).padStart(2, "0")
+}
+
+function computeRemaining(endMs: number, nowMs: number) {
+  const diff = Math.max(0, endMs - nowMs)
+  if (diff <= 0) {
+    return { expired: true as const, days: 0, hours: 0, minutes: 0, seconds: 0 }
+  }
+  const days = Math.floor(diff / (24 * 60 * 60 * 1000))
+  const hours = Math.floor((diff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000))
+  const minutes = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000))
+  const seconds = Math.floor((diff % (60 * 1000)) / 1000)
+  return { expired: false as const, days, hours, minutes, seconds }
+}
+
+function SubscriptionTimeRemaining({ endDate }: { endDate: string }) {
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  const endMs = new Date(endDate).getTime()
+
+  useEffect(() => {
+    setNowMs(Date.now())
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000)
+    return () => window.clearInterval(id)
+  }, [endDate])
+
+  if (Number.isNaN(endMs)) {
+    return <span className="text-muted-foreground">—</span>
+  }
+
+  const r = computeRemaining(endMs, nowMs)
+
+  if (r.expired) {
+    return <span className="font-semibold text-destructive">Expired</span>
+  }
+
+  return (
+    <div
+      className="font-semibold text-xl tabular-nums tracking-tight"
+      aria-live="polite"
+      title={`${r.days}d ${r.hours}h ${r.minutes}m ${r.seconds}s remaining`}
+    >
+      <span>{r.days}</span>
+      <span className="text-muted-foreground font-normal text-base">d </span>
+      <span>{pad2(r.hours)}</span>
+      <span className="text-muted-foreground font-normal text-base">h </span>
+      <span>{pad2(r.minutes)}</span>
+      <span className="text-muted-foreground font-normal text-base">m </span>
+      <span>{pad2(r.seconds)}</span>
+      <span className="text-muted-foreground font-normal text-base">s</span>
+    </div>
+  )
+}
+
 export default function MySubscriptionsPage() {
   const { isLoading, loadData } = usePageLoading()
   const [activeSubscription, setActiveSubscription] = useState<any>(null)
@@ -94,7 +148,7 @@ export default function MySubscriptionsPage() {
         <Link href="/subscription">
           <Button>
             <Package className="h-4 w-4 mr-2" />
-            View All Packages
+            View all plans
           </Button>
         </Link>
       </div>
@@ -141,8 +195,16 @@ export default function MySubscriptionsPage() {
                 <CreditCard className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <div className="text-sm text-muted-foreground">Days Remaining</div>
-                  <div className="font-semibold text-2xl">{activeSubscription.days_remaining}</div>
+                <div className="text-sm text-muted-foreground">Time remaining</div>
+                {activeSubscription.end_date ? (
+                  <SubscriptionTimeRemaining endDate={activeSubscription.end_date} />
+                ) : (
+                  <div className="font-semibold text-2xl tabular-nums">
+                    {typeof activeSubscription.days_remaining === "number"
+                      ? `${Math.floor(activeSubscription.days_remaining)}d`
+                      : "—"}
+                  </div>
+                )}
                 <Link href="/subscription">
                   <Button variant="link" className="p-0 h-auto text-sm">
                     Renew Now

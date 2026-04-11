@@ -69,7 +69,14 @@ export function PropertyListings({ properties, loading }: PropertyListingsProps)
 									height={360}
 									className="h-48 w-full object-cover"
 								/>
-								<Badge className="absolute right-3 top-3 capitalize">{property.status.replace("_", " ")}</Badge>
+								<div className="absolute right-3 top-3 flex flex-col items-end gap-1">
+									<Badge className="capitalize">{property.status.replace("_", " ")}</Badge>
+									{property.total_slots != null && property.slots_available != null && (
+										<Badge variant="secondary" className="text-xs font-normal">
+											{property.slots_available} slot{property.slots_available === 1 ? "" : "s"} left
+										</Badge>
+									)}
+								</div>
           </div>
 							<div className="space-y-4 p-6">
             <div>

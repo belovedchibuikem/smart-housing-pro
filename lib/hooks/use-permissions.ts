@@ -209,7 +209,7 @@ export function useCreatePermission() {
       setError(null)
       const response = await apiFetch('/admin/permissions', {
         method: 'POST',
-        body: JSON.stringify(permissionData)
+        body: permissionData,
       })
       return response
     } catch (err: any) {
@@ -237,7 +237,7 @@ export function useUpdatePermission() {
       setError(null)
       const response = await apiFetch(`/admin/permissions/${id}`, {
         method: 'PUT',
-        body: JSON.stringify(permissionData)
+        body: permissionData,
       })
       return response
     } catch (err: any) {

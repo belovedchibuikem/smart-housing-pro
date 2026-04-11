@@ -37,6 +37,7 @@ export default function NewPropertyPage() {
     bathrooms: "",
     features: "",
     status: "available",
+    total_slots: "",
   })
 
   useEffect(() => {
@@ -168,6 +169,10 @@ export default function NewPropertyPage() {
       if (formData.size) submitData.size = parseFloat(formData.size)
       if (formData.bedrooms) submitData.bedrooms = parseInt(formData.bedrooms)
       if (formData.bathrooms) submitData.bathrooms = parseInt(formData.bathrooms)
+      if (formData.total_slots.trim() !== "") {
+        const n = parseInt(formData.total_slots, 10)
+        if (!Number.isNaN(n) && n >= 1) submitData.total_slots = n
+      }
       if (formData.features) {
         submitData.features = formData.features
           .split(',')
@@ -351,6 +356,21 @@ export default function NewPropertyPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="total_slots">Total slots (optional)</Label>
+              <Input
+                id="total_slots"
+                type="number"
+                min={1}
+                placeholder="Leave empty for unlimited"
+                value={formData.total_slots}
+                onChange={(e) => setFormData({ ...formData, total_slots: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Each approved EOI or bulk-imported subscriber uses one slot.
+              </p>
             </div>
 
             {propertyType !== "land" && (

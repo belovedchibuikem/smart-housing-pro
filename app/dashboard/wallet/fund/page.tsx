@@ -41,7 +41,8 @@ export default function WalletFundPage() {
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>("")
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  
+  const [paymentDescription, setPaymentDescription] = useState("")
+
   // Manual payment fields
   const [payerName, setPayerName] = useState("")
   const [payerPhone, setPayerPhone] = useState("")
@@ -121,6 +122,11 @@ export default function WalletFundPage() {
 
     const numericAmount = Number(amount)
 
+    if (paymentDescription.trim().length < 3) {
+      setError("Please enter a payment description (at least 3 characters).")
+      return
+    }
+
     // Validate manual payment fields
     if (isManualPayment) {
       if (manualConfig?.require_payer_name && !payerName.trim()) {
@@ -145,9 +151,10 @@ export default function WalletFundPage() {
     setError(null)
 
     try {
-      const requestData: any = {
+      const requestData: Record<string, unknown> = {
         amount: parseFloat(amount),
         payment_method: selectedPaymentMethod,
+        description: paymentDescription.trim(),
       }
 
       // Add manual payment fields if applicable
@@ -159,8 +166,13 @@ export default function WalletFundPage() {
       }
 
       // For gateway payments, redirect to checkout page
-      if (['paystack', 'remita', 'stripe'].includes(selectedPaymentMethod)) {
-        router.push(`/dashboard/wallet/fund/checkout?amount=${amount}&method=${selectedPaymentMethod}`)
+      if (["paystack", "remita", "stripe"].includes(selectedPaymentMethod)) {
+        const q = new URLSearchParams({
+          amount,
+          method: selectedPaymentMethod,
+          description: paymentDescription.trim(),
+        })
+        router.push(`/dashboard/wallet/fund/checkout?${q.toString()}`)
         return
       }
 
@@ -268,6 +280,30 @@ export default function WalletFundPage() {
                 </div>
               </>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Payment description</CardTitle>
+            <CardDescription>
+              Required. This is shown to administrators when they review your payment.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <Label htmlFor="payment-description">Description</Label>
+              <Textarea
+                id="payment-description"
+                value={paymentDescription}
+                onChange={(e) => setPaymentDescription(e.target.value)}
+                placeholder="e.g. Monthly wallet top-up for contributions"
+                rows={3}
+                minLength={3}
+                maxLength={500}
+                required
+              />
+            </div>
           </CardContent>
         </Card>
 

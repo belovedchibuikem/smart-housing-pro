@@ -28,8 +28,9 @@ function CheckoutContent() {
   const { toast } = useToast()
   const amount = searchParams.get('amount')
   const method = searchParams.get('method')
-  
-  const [notes, setNotes] = useState("")
+  const descriptionFromQuery = searchParams.get('description') ?? ''
+
+  const [description, setDescription] = useState("")
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -39,9 +40,20 @@ function CheckoutContent() {
     }
   }, [amount, method, router])
 
+  useEffect(() => {
+    if (descriptionFromQuery) {
+      setDescription(descriptionFromQuery)
+    }
+  }, [descriptionFromQuery])
+
   const handlePayment = async () => {
     if (!amount || !method) {
       setError("Missing payment information")
+      return
+    }
+
+    if (description.trim().length < 3) {
+      setError("Please enter a payment description (at least 3 characters).")
       return
     }
 
@@ -52,7 +64,7 @@ function CheckoutContent() {
       const response = await initializeWalletFunding({
         amount: parseFloat(amount),
         payment_method: method!,
-        notes: notes || undefined,
+        description: description.trim(),
       })
 
       if (response.success) {
@@ -146,16 +158,22 @@ function CheckoutContent() {
             </div>
           </div>
 
-          {/* Notes */}
+          {/* Payment description */}
           <div className="space-y-2">
-            <Label htmlFor="notes">Notes (Optional)</Label>
+            <Label htmlFor="checkout-description">Payment description</Label>
             <Textarea
-              id="notes"
-              placeholder="Add any notes about this transaction..."
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
+              id="checkout-description"
+              placeholder="Briefly describe the purpose of this payment"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
               rows={3}
+              minLength={3}
+              maxLength={500}
+              required
             />
+            <p className="text-xs text-muted-foreground">
+              Required. Administrators see this when approving your payment.
+            </p>
           </div>
 
           {error && (

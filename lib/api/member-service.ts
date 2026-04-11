@@ -1,6 +1,6 @@
 "use client"
 
-import { apiFetch } from "./client"
+import { apiFetch, apiFetchBlob } from "./client"
 
 export interface Member {
   id: string
@@ -313,6 +313,11 @@ export class MemberService {
       method: "POST",
       body: { reason }
     })
+  }
+
+  /** Fetch KYC file bytes (admin auth); use blob URL to view — public /storage URLs may return 403 on some hosts. */
+  static async fetchKycDocumentBlob(memberId: string, index: number): Promise<Blob> {
+    return apiFetchBlob(`/admin/members/${memberId}/kyc-documents/${index}`)
   }
 
   // Approve document
