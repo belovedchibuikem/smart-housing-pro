@@ -35,13 +35,15 @@ export default function BulkUploadMortgagesPage() {
         
         // Map parsed data to mortgage format - check for template headers first
         const mappedData = result.data.map((row: any) => ({
-          memberId: row['Member ID (UUID, Staff ID, or IPPIS)']
-            || row['Member ID (UUID or Staff ID)'] 
+          memberId: row['Member ID (UUID, Staff ID, IPPIS, or FRSC PIN)']
+            || row['Member ID (UUID, Staff ID, or IPPIS)']
+            || row['Member ID (UUID or Staff ID)']
+            || row['member_id_uuid_staff_id_ippis_or_frsc_pin']
             || row['member_id_uuid_staff_id_or_ippis']
             || row['member_id_uuid_or_staff_id']
-            || row['Member ID'] 
-            || row['memberId'] 
-            || row['member_id'] 
+            || row['Member ID']
+            || row['memberId']
+            || row['member_id']
             || row['Member Number']
             || row['member_number']
             || row['Staff ID']
@@ -49,6 +51,10 @@ export default function BulkUploadMortgagesPage() {
             || row['IPPIS Number']
             || row['ippis_number']
             || row['IPPIS']
+            || row['FRSC PIN']
+            || row['frsc_pin']
+            || row['PIN']
+            || row['pin']
             || '',
           providerName: row['Mortgage Provider Name'] 
             || row['mortgage_provider_name']

@@ -56,10 +56,10 @@ export default function BulkUploadRefundPage() {
             || row['pin']
             || '',
           amount: row['Amount'] || row['amount'] || '',
-          source: row['Source (contribution/investment_return/investment/equity_wallet)']
+          source: row['Source (wallet/contribution/investment_return/equity_wallet)']
+            || row['source_wallet_contribution_investment_return_equity_wallet']
+            || row['Source (contribution/investment_return/investment/equity_wallet)']
             || row['source_contribution_investment_return_investment_equity_wallet']
-            || row['Source (contribution/investment_return/investment)']
-            || row['source_contribution_investment_return_investment']
             || row['Source']
             || row['source']
             || '',
@@ -69,11 +69,19 @@ export default function BulkUploadRefundPage() {
         
         // Validate required fields
         const validationErrors: string[] = []
+        const allowedSources = ['wallet', 'contribution', 'investment_return', 'equity_wallet']
         mappedData.forEach((refund, index) => {
           if (!refund.memberId) validationErrors.push(`Row ${index + 2}: Member ID is required`)
           if (!refund.amount) validationErrors.push(`Row ${index + 2}: Amount is required`)
           if (isNaN(parseFloat(refund.amount))) validationErrors.push(`Row ${index + 2}: Amount must be a valid number`)
           if (!refund.source) validationErrors.push(`Row ${index + 2}: Source is required`)
+          else {
+            const s = String(refund.source).trim().toLowerCase()
+            const normalized = s === 'investment' ? 'investment_return' : s
+            if (!allowedSources.includes(normalized)) {
+              validationErrors.push(`Row ${index + 2}: Source must be one of: ${allowedSources.join(', ')} (investment maps to investment_return)`)
+            }
+          }
           if (!refund.reason) validationErrors.push(`Row ${index + 2}: Reason is required`)
         })
         
@@ -270,7 +278,7 @@ export default function BulkUploadRefundPage() {
           <div className="space-y-2">
             <h3 className="font-medium">Step 2: Fill in Refund Data</h3>
             <p className="text-sm text-muted-foreground">
-              Open the template and fill in the refund details. Identify members by UUID, member number, staff ID, IPPIS number, or FRSC PIN in the first column. Source must be: contribution, investment_return, investment, or equity_wallet
+              Open the template and fill in the refund details. Identify members by UUID, member number, staff ID, IPPIS number, or FRSC PIN in the first column. Source must match the admin refund API: wallet, contribution, investment_return, or equity_wallet (the alias investment is accepted as investment_return).
             </p>
           </div>
 
