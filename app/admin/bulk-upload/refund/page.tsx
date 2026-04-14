@@ -50,10 +50,12 @@ export default function BulkUploadRefundPage() {
             || row['IPPIS']
             || '',
           amount: row['Amount'] || row['amount'] || '',
-          source: row['Source (contribution/investment_return/investment)'] 
+          source: row['Source (contribution/investment_return/investment/equity_wallet)']
+            || row['source_contribution_investment_return_investment_equity_wallet']
+            || row['Source (contribution/investment_return/investment)']
             || row['source_contribution_investment_return_investment']
-            || row['Source'] 
-            || row['source'] 
+            || row['Source']
+            || row['source']
             || '',
           reason: row['Reason'] || row['reason'] || '',
           notes: row['Notes'] || row['notes'] || '',
@@ -262,7 +264,7 @@ export default function BulkUploadRefundPage() {
           <div className="space-y-2">
             <h3 className="font-medium">Step 2: Fill in Refund Data</h3>
             <p className="text-sm text-muted-foreground">
-              Open the template and fill in the refund details. Source must be: contribution, investment_return, or investment
+              Open the template and fill in the refund details. Source must be: contribution, investment_return, investment, or equity_wallet
             </p>
           </div>
 
