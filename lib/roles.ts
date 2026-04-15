@@ -43,6 +43,7 @@ export const rolePermissions: Record<UserRole, RolePermissions> = {
     allowedRoutes: [
       "/admin",
       "/admin/contributions",
+      "/admin/post-contribution",
       "/admin/bulk-upload/contributions",
       "/admin/investments",
       "/admin/wallets",

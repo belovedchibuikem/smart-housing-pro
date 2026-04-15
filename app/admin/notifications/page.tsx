@@ -42,11 +42,133 @@ interface AdminNotification {
   updated_at: string
   user?: {
     id: string
-    first_name: string
-    last_name: string
+    name?: string
+    first_name?: string | null
+    last_name?: string | null
     email: string
     avatar_url?: string
   }
+}
+
+function recipientDisplayName(user: AdminNotification["user"]): string {
+  if (!user) return "System"
+  const named = typeof user.name === "string" && user.name.trim() !== "" ? user.name.trim() : ""
+  if (named) return named
+  const combined = [user.first_name, user.last_name].filter(Boolean).join(" ").trim()
+  if (combined) return combined
+  return user.email?.trim() || "Admin"
+}
+
+const DATA_LABELS: Record<string, string> = {
+  member_name: "Member name",
+  member_number: "Member ID",
+  member_id: "Record reference",
+  contribution_id: "Contribution",
+  equity_contribution_id: "Equity contribution",
+  loan_id: "Loan",
+  investment_id: "Investment",
+  payment_id: "Payment",
+  document_id: "Document",
+  amount: "Amount",
+  reason: "Reason",
+  document_type: "Document type",
+}
+
+function isUuidLike(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value.trim())
+}
+
+function formatDataValue(key: string, value: unknown): string {
+  if (value === null || value === undefined) return "—"
+  if (typeof value === "boolean") return value ? "Yes" : "No"
+  if (typeof value === "number") {
+    if (key === "amount" || key.endsWith("_amount")) {
+      try {
+        return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(value)
+      } catch {
+        return String(value)
+      }
+    }
+    return String(value)
+  }
+  if (typeof value === "string") {
+    const t = value.trim()
+    if (t === "") return "—"
+    return t
+  }
+  if (typeof value === "object") {
+    return JSON.stringify(value)
+  }
+  return String(value)
+}
+
+function NotificationAdditionalData({ data }: { data: Record<string, any> }) {
+  const entries = Object.entries(data).filter(([, v]) => v !== null && v !== undefined && v !== "")
+
+  const showMemberHighlight =
+    (typeof data.member_name === "string" && data.member_name.trim() !== "") ||
+    (data.member_number != null && String(data.member_number).trim() !== "")
+
+  const orderedEntries = entries.sort(([a], [b]) => {
+    const order = (key: string) => {
+      if (key === "member_name") return 0
+      if (key === "member_number") return 1
+      if (key === "member_id") return 2
+      return 10
+    }
+    return order(a) - order(b)
+  })
+
+  return (
+    <div className="space-y-3 rounded-md border bg-muted/30 p-4">
+      {showMemberHighlight && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {typeof data.member_name === "string" && data.member_name.trim() !== "" && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Member name</p>
+              <p className="text-sm font-medium">{data.member_name.trim()}</p>
+            </div>
+          )}
+          {data.member_number != null && String(data.member_number).trim() !== "" && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Member ID</p>
+              <p className="text-sm font-medium tabular-nums">{String(data.member_number).trim()}</p>
+            </div>
+          )}
+        </div>
+      )}
+      <dl className="space-y-2">
+        {orderedEntries.map(([key, value]) => {
+          if (key === "member_name" || key === "member_number") {
+            return null
+          }
+          const label = DATA_LABELS[key] ?? key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+          const text = formatDataValue(key, value)
+          const hideUuidPrimary =
+            key === "member_id" &&
+            typeof value === "string" &&
+            isUuidLike(value) &&
+            (data.member_number != null || showMemberHighlight)
+
+          if (hideUuidPrimary) {
+            return (
+              <div key={key} className="text-xs text-muted-foreground border-t pt-2 mt-1">
+                <span className="font-medium">{label}: </span>
+                <span className="font-mono">{text}</span>
+              </div>
+            )
+          }
+
+          return (
+            <div key={key} className="flex flex-col sm:flex-row sm:justify-between sm:gap-4 text-sm">
+              <dt className="text-muted-foreground shrink-0">{label}</dt>
+              <dd className="font-medium text-right sm:text-right break-all">{text}</dd>
+            </div>
+          )
+        })}
+      </dl>
+    </div>
+  )
 }
 import { usePageLoading } from "@/hooks/use-loading"
 import { toast } from "sonner"
@@ -319,7 +441,7 @@ export default function AdminNotificationsPage() {
                           onCheckedChange={toggleSelectAll}
                         />
                       </TableHead>
-                      <TableHead>User</TableHead>
+                      <TableHead>Recipient</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Title</TableHead>
                       <TableHead>Status</TableHead>
@@ -340,9 +462,7 @@ export default function AdminNotificationsPage() {
                           {notification.user ? (
                             <div className="flex items-center gap-2">
                               <User className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm">
-                                {notification.user.first_name} {notification.user.last_name}
-                              </span>
+                              <span className="text-sm">{recipientDisplayName(notification.user)}</span>
                             </div>
                           ) : (
                             <span className="text-sm text-muted-foreground">System</span>
@@ -477,12 +597,13 @@ export default function AdminNotificationsPage() {
                   </div>
                 </div>
                 <div>
-                  <Label>User</Label>
+                  <Label>Recipient</Label>
                   <p className="text-sm">
-                    {selectedNotification.user
-                      ? `${selectedNotification.user.first_name} ${selectedNotification.user.last_name}`
-                      : "System"}
+                    {selectedNotification.user ? recipientDisplayName(selectedNotification.user) : "System"}
                   </p>
+                  {selectedNotification.user?.email && (
+                    <p className="text-xs text-muted-foreground mt-0.5">{selectedNotification.user.email}</p>
+                  )}
                 </div>
                 <div>
                   <Label>Date</Label>
@@ -504,10 +625,10 @@ export default function AdminNotificationsPage() {
               </div>
               {selectedNotification.data && Object.keys(selectedNotification.data).length > 0 && (
                 <div>
-                  <Label>Additional Data</Label>
-                  <pre className="text-xs bg-muted p-3 rounded-md overflow-auto max-h-40">
-                    {JSON.stringify(selectedNotification.data, null, 2)}
-                  </pre>
+                  <Label>Additional details</Label>
+                  <div className="mt-2">
+                    <NotificationAdditionalData data={selectedNotification.data} />
+                  </div>
                 </div>
               )}
             </div>

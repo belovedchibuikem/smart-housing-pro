@@ -119,6 +119,7 @@ const navItems: NavItem[] = [
     icon: CreditCard,
     subItems: [
       { href: "/admin/contributions", label: "All Contributions", icon: CreditCard },
+      { href: "/admin/post-contribution", label: "Post Contribution", icon: Plus },
       { href: "/admin/contribution-plans", label: "Contribution Plans", icon: Package },
       { href: "/admin/bulk-upload/contributions", label: "Bulk Upload Contribution", icon: Upload },
     ],

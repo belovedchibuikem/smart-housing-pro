@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
 import { StatsCards } from "@/components/dashboard/stats-cards"
+import { SavingsRefundsPanel } from "@/components/dashboard/savings-refunds-panel"
 import { ContributionChart } from "@/components/dashboard/contribution-chart"
 import { RecentTransactions } from "@/components/dashboard/recent-transactions"
 import { QuickActions } from "@/components/dashboard/quick-actions"
@@ -19,10 +20,29 @@ interface DashboardData {
   wallet_balance: number
   financial_summary: {
     total_contributions: number
+    contribution_balance?: number
+    contribution_wallet_balance?: number
+    total_contribution_refunded?: number
+    total_refunds?: number
     total_loans: number
     outstanding_loans: number
     total_investments: number
     total_repayments: number
+  }
+  refunds?: {
+    total_amount: number
+    history: Array<{
+      id: string
+      ticket_number: string | null
+      amount: number
+      source: string | null
+      source_label: string
+      status: string
+      reason: string | null
+      reference: string | null
+      created_at: string | null
+      completed_at: string | null
+    }>
   }
   recent_activity: {
     contributions: Array<{
@@ -158,6 +178,23 @@ export default function DashboardPage() {
 
       {/* Stats Cards */}
       <StatsCards data={dashboardData} loading={isLoading} />
+
+      <SavingsRefundsPanel
+        loading={isLoading}
+        contributionBalance={
+          dashboardData?.financial_summary?.contribution_balance ??
+          dashboardData?.financial_summary?.contribution_wallet_balance ??
+          0
+        }
+        totalContributions={dashboardData?.financial_summary?.total_contributions ?? 0}
+        totalRefunds={
+          dashboardData?.financial_summary?.total_refunds ??
+          dashboardData?.refunds?.total_amount ??
+          0
+        }
+        totalContributionRefunded={dashboardData?.financial_summary?.total_contribution_refunded ?? 0}
+        history={dashboardData?.refunds?.history}
+      />
 
       {/* Quick Actions */}
       <QuickActions />

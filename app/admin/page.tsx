@@ -2,10 +2,18 @@
 
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, Wallet, TrendingUp, Home, CheckCircle, Clock, DollarSign } from "lucide-react"
+import { Users, Wallet, TrendingUp, Home, CheckCircle, Clock, DollarSign, PiggyBank, RotateCcw } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { usePageLoading } from "@/hooks/use-loading"
 import { apiFetch } from "@/lib/api/client"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 
 interface DashboardData {
   tenant?: {
@@ -14,6 +22,8 @@ interface DashboardData {
   stats: {
     total_members: number
     total_contributions: number
+    total_contribution_balance?: number
+    total_refunds?: number
     total_loans: number
     total_investments: number
     total_properties: number
@@ -22,6 +32,17 @@ interface DashboardData {
     revenue_growth: number
     member_growth: number
   }
+  refund_history?: Array<{
+    id: string
+    ticket_number: string | null
+    amount: number
+    source: string | null
+    source_label: string
+    status: string
+    member_name: string
+    member_number: string | null
+    created_at: string | null
+  }>
   pending_approvals: {
     kyc: number
     loans: number
@@ -43,6 +64,8 @@ function emptyDashboardPayload(): DashboardData {
     stats: {
       total_members: 0,
       total_contributions: 0,
+      total_contribution_balance: 0,
+      total_refunds: 0,
       total_loans: 0,
       total_investments: 0,
       total_properties: 0,
@@ -53,6 +76,7 @@ function emptyDashboardPayload(): DashboardData {
     },
     pending_approvals: { kyc: 0, loans: 0, withdrawals: 0 },
     recent_activities: [],
+    refund_history: [],
   }
 }
 
@@ -67,6 +91,8 @@ function normalizeAdminDashboardPayload(raw: unknown): DashboardData {
     base.stats = {
       total_members: Number(stats.total_members) || 0,
       total_contributions: Number(stats.total_contributions) || 0,
+      total_contribution_balance: Number(stats.total_contribution_balance) || 0,
+      total_refunds: Number(stats.total_refunds) || 0,
       total_loans: Number(stats.total_loans) || 0,
       total_investments: Number(stats.total_investments) || 0,
       total_properties: Number(stats.total_properties) || 0,
@@ -87,6 +113,9 @@ function normalizeAdminDashboardPayload(raw: unknown): DashboardData {
   if (Array.isArray(inner.recent_activities)) {
     base.recent_activities = inner.recent_activities as DashboardData["recent_activities"]
   }
+  if (Array.isArray(inner.refund_history)) {
+    base.refund_history = inner.refund_history as DashboardData["refund_history"]
+  }
   if (inner.tenant && typeof inner.tenant === "object") {
     base.tenant = inner.tenant as DashboardData["tenant"]
   }
@@ -101,7 +130,6 @@ export default function AdminDashboardPage() {
     loadData(async () => {
       try {
         const response = await apiFetch<unknown>("/admin/dashboard/admin-stats")
-        console.log("Dashboard data loaded:", response)
         return normalizeAdminDashboardPayload(response)
       } catch (error) {
         console.error("Failed to load dashboard data:", error)
@@ -161,6 +189,16 @@ export default function AdminDashboardPage() {
   ] : []
 
   const recentActivities = data?.recent_activities || []
+  const refundRows = data?.refund_history ?? []
+
+  const formatRefundWhen = (iso: string | null | undefined) => {
+    if (!iso) return "—"
+    try {
+      return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
+    } catch {
+      return iso
+    }
+  }
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
@@ -187,6 +225,98 @@ export default function AdminDashboardPage() {
           )
         })}
       </div>
+
+      {/* Tenant-wide contributions & refunds */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total refunds</CardTitle>
+            <RotateCcw className="h-5 w-5 text-orange-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(data?.stats?.total_refunds ?? 0)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Completed &amp; processing (all sources)</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Contribution balances</CardTitle>
+            <PiggyBank className="h-5 w-5 text-emerald-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(data?.stats?.total_contribution_balance ?? 0)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Sum of members&apos; savings wallet balances</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total contributions (lifetime)</CardTitle>
+            <Wallet className="h-5 w-5 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {formatCurrency(data?.stats?.total_contributions ?? 0)}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Credited through contribution wallets</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent refunds</CardTitle>
+          <CardDescription>Latest refund activity with source and member</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {refundRows.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No refunds recorded</p>
+          ) : (
+            <div className="rounded-md border overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>When</TableHead>
+                    <TableHead>Member</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Source</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="hidden lg:table-cell">Ticket</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {refundRows.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                        {formatRefundWhen(row.created_at)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="font-medium">{row.member_name}</div>
+                        <div className="text-xs text-muted-foreground">{row.member_number || "—"}</div>
+                      </TableCell>
+                      <TableCell className="text-right font-medium tabular-nums">
+                        {formatCurrency(row.amount)}
+                      </TableCell>
+                      <TableCell>{row.source_label || row.source || "—"}</TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="capitalize">
+                          {row.status.replace(/_/g, " ")}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell font-mono text-xs">
+                        {row.ticket_number || "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Pending Approvals */}
       <Card>

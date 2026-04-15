@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Search, DollarSign, Wallet, TrendingUp, CreditCard, Loader2, AlertCircle, PiggyBank, Coins } from "lucide-react"
+import { Search, DollarSign, Wallet, TrendingUp, CreditCard, Loader2, AlertCircle, PiggyBank, Coins, X } from "lucide-react"
 import {
   apiFetch,
   getAdminRefundMemberSummary,
@@ -96,7 +96,7 @@ export default function RefundMemberPage() {
         return {
           id: String(m.id ?? user.id ?? ''),
           name: (user.first_name && user.last_name ? `${user.first_name} ${user.last_name}` : user.name ?? user.full_name ?? 'Unknown').trim(),
-          member_id: m.member_id ?? m.staff_id ?? m.code ?? '—',
+          member_id: m.member_number != null && String(m.member_number) !== '' ? String(m.member_number) : (m.staff_id ?? m.code ?? '—'),
           wallet_balance: Number(wallet.balance ?? wallet.current_balance ?? 0) || 0,
           contribution_balance: Number(m.contribution_balance ?? m.total_contributions ?? 0) || 0,
           investment_balance: Number(m.investment_balance ?? m.total_investments ?? 0) || 0,
@@ -115,13 +115,16 @@ export default function RefundMemberPage() {
   }
 
   useEffect(() => {
+    if (selectedMember) {
+      return
+    }
     const timer = setTimeout(() => {
       searchMembers()
     }, 500)
 
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery])
+  }, [searchQuery, selectedMember])
 
   const formatCurrency = (value?: number | null) => {
     const numeric = Number(value ?? 0)
@@ -157,9 +160,17 @@ export default function RefundMemberPage() {
   }, [summary])
 
   const handleSelectMember = (member: Member) => {
+    setMembers([])
     setSelectedMember(member)
     setRefundData({ source: "wallet", amount: "", reason: "", notes: "" })
     loadMemberSummary(member.id)
+  }
+
+  const clearMemberSelection = () => {
+    setSelectedMember(null)
+    setSummary(null)
+    setMembers([])
+    setSearchQuery("")
   }
 
   const handleSubmitRefund = async () => {
@@ -217,9 +228,8 @@ export default function RefundMemberPage() {
       }
       setShowConfirmDialog(false)
       
-      // Refresh member data if still selected
       if (selectedMember) {
-        searchMembers()
+        await loadMemberSummary(selectedMember.id)
       }
     } catch (error: any) {
       toast.error(error.message || 'Failed to process refund')
@@ -272,9 +282,24 @@ export default function RefundMemberPage() {
                 placeholder="Search by name or member ID..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                disabled={!!selectedMember}
                 className="pl-10"
               />
             </div>
+
+            {selectedMember && (
+              <div className="flex items-start justify-between gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">Selected member</p>
+                  <p className="font-medium truncate">{selectedMember.name}</p>
+                  <p className="text-sm text-muted-foreground">{selectedMember.member_id}</p>
+                </div>
+                <Button type="button" variant="ghost" size="sm" className="shrink-0" onClick={clearMemberSelection}>
+                  <X className="h-4 w-4 mr-1" />
+                  Change
+                </Button>
+              </div>
+            )}
 
             {searching && (
               <div className="flex items-center justify-center py-4">
@@ -282,14 +307,12 @@ export default function RefundMemberPage() {
               </div>
             )}
 
-            {!searching && members.length > 0 && (
+            {!searching && !selectedMember && members.length > 0 && (
               <div className="space-y-2 max-h-64 overflow-y-auto">
                 {members.map((member) => (
                   <Card
                     key={member.id}
-                    className={`cursor-pointer transition-colors ${
-                      selectedMember?.id === member.id ? 'border-primary bg-primary/5' : ''
-                    }`}
+                    className="cursor-pointer transition-colors hover:border-primary/40"
                     onClick={() => handleSelectMember(member)}
                   >
                     <CardContent className="p-4">
@@ -308,7 +331,7 @@ export default function RefundMemberPage() {
               </div>
             )}
 
-            {!searching && searchQuery && members.length === 0 && (
+            {!searching && !selectedMember && searchQuery && members.length === 0 && (
               <div className="text-center py-4 text-muted-foreground">
                 <AlertCircle className="h-6 w-6 mx-auto mb-2" />
                 No members found
@@ -528,11 +551,8 @@ export default function RefundMemberPage() {
                 variant="outline"
                 onClick={() => {
                   setRefundData({ source: "wallet", amount: "", reason: "", notes: "" })
-                  setSelectedMember(null)
-                  setSummary(null)
                   setSummaryLoading(false)
-                  setSearchQuery("")
-                  setMembers([])
+                  clearMemberSelection()
                 }}
               >
                 Cancel

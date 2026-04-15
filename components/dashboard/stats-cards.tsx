@@ -8,6 +8,8 @@ interface DashboardData {
   wallet_balance: number
   financial_summary: {
     total_contributions: number
+    contribution_balance?: number
+    total_refunds?: number
     total_loans: number
     outstanding_loans: number
     total_investments: number

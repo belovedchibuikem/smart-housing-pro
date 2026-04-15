@@ -1278,6 +1278,27 @@ export async function createAdminRefund(payload: CreateRefundPayload) {
 	})
 }
 
+export interface CreateAdminContributionPayload {
+	member_id: string
+	amount: number
+	type: "monthly" | "quarterly" | "annual" | "special" | "emergency"
+	contribution_date?: string
+	payment_method?: string
+	notes?: string
+	reference?: string
+}
+
+export async function createAdminContribution(payload: CreateAdminContributionPayload) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		data?: unknown
+	}>("/admin/contributions", {
+		method: "POST",
+		body: payload,
+	})
+}
+
 // User Investment Plans API (for members)
 export async function getUserInvestmentPlans() {
 	return apiFetch<{ plans: Array<{
@@ -2779,10 +2800,31 @@ export async function getUserDashboardStats() {
 		wallet_balance: number
 		financial_summary: {
 			total_contributions: number
+			contribution_balance?: number
+			contribution_wallet_balance?: number
+			total_contribution_refunded?: number
+			total_refunds?: number
+			total_investment_returns?: number
+			investment_wallet_balance?: number
 			total_loans: number
 			outstanding_loans: number
 			total_investments: number
 			total_repayments: number
+		}
+		refunds?: {
+			total_amount: number
+			history: Array<{
+				id: string
+				ticket_number: string | null
+				amount: number
+				source: string | null
+				source_label: string
+				status: string
+				reason: string | null
+				reference: string | null
+				created_at: string | null
+				completed_at: string | null
+			}>
 		}
 		recent_activity: {
 			contributions: Array<{
