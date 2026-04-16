@@ -5,6 +5,7 @@ import { useState, useEffect } from "react"
 import { AdminHeader } from "@/components/admin/admin-header"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
 import { AdminLoadingProvider } from "@/components/admin/admin-loading-context"
+import { AdminRoutePermissionGate } from "@/components/admin/admin-route-permission-gate"
 import { AuthGuard } from "@/lib/tenant/auth-guard"
 import type { UserRole } from "@/lib/roles"
 import { getUserData } from "@/lib/auth/auth-utils"
@@ -60,7 +61,7 @@ export default function AdminLayout({
           />
           <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-full overflow-x-hidden">
             <AdminLoadingProvider>
-              {children}
+              <AdminRoutePermissionGate>{children}</AdminRoutePermissionGate>
             </AdminLoadingProvider>
           </main>
         </div>

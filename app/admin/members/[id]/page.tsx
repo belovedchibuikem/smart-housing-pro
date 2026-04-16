@@ -728,7 +728,13 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                   </div>
                   <div>
                     <label className="text-sm text-muted-foreground">Monthly Contribution</label>
-                    <p className="text-lg font-semibold">{formatCurrency(financialStats?.monthly_contribution)}</p>
+                    <p className="text-lg font-semibold">
+                      {formatCurrency(
+                        financialStats?.monthly_contribution ||
+                          member?.monthly_contribution_amount ||
+                          0,
+                      )}
+                    </p>
                   </div>
                   <div>
                     <label className="text-sm text-muted-foreground">Last Payment</label>

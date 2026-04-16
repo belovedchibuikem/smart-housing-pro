@@ -6,7 +6,7 @@
 
 export const TENANT_ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
   dashboard:
-    "view_analytics|view_reports|view_financial_reports|view_members|view_contributions|view_loans|view_properties|view_equity_contributions|view_investments|view_documents",
+    "access_admin_panel|view_analytics|view_reports|view_financial_reports|view_members|view_contributions|view_loans|view_properties|view_equity_contributions|view_investments|view_documents",
   "pending-badges":
     "view_analytics|view_reports|view_financial_reports|view_members|view_contributions|view_loans|view_properties|view_equity_contributions|view_wallets|view_investments|manage_payments",
 
@@ -149,7 +149,25 @@ export function isTenantSuperAdminRole(roleNames: string[] | undefined): boolean
   if (!roleNames?.length) {
     return false
   }
-  return roleNames.some((r) => r === "super_admin" || r === "super-admin")
+  return roleNames.some((r) => {
+    const n = String(r).toLowerCase().replace(/-/g, "_")
+    return n === "super_admin"
+  })
+}
+
+/** Spatie roles array and/or legacy `users.role` string from login payload */
+export function isTenantSuperAdminContext(
+  roleNames: string[] | undefined,
+  legacyUserRole?: string,
+): boolean {
+  if (isTenantSuperAdminRole(roleNames)) {
+    return true
+  }
+  if (!legacyUserRole) {
+    return false
+  }
+  const n = String(legacyUserRole).toLowerCase().replace(/-/g, "_")
+  return n === "super_admin"
 }
 
 /**
@@ -160,8 +178,9 @@ export function getPermissionFilteredNavItems<T extends { href?: string; subItem
   permissions: string[] | undefined,
   roleNames: string[] | undefined,
   navItems: T[],
+  legacyUserRole?: string,
 ): T[] {
-  if (isTenantSuperAdminRole(roleNames)) {
+  if (isTenantSuperAdminContext(roleNames, legacyUserRole)) {
     return navItems
   }
   const perms = permissions ?? []

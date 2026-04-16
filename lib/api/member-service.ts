@@ -5,6 +5,8 @@ import { apiFetch, apiFetchBlob } from "./client"
 export interface Member {
   id: string
   member_number: string
+  contribution_plan_id?: string | null
+  monthly_contribution_amount?: number | null
   staff_id?: string
   ippis_number?: string
   frsc_pin?: string
@@ -75,6 +77,8 @@ export interface Loan {
   rejected_by?: string
   total_amount: number
   monthly_payment: number
+  /** Principal still owed (when API provides it) */
+  remaining_principal?: number
   created_at: string
   updated_at: string
 }
@@ -220,51 +224,83 @@ export class MemberService {
   // Get member financial stats
   static async getMemberFinancialStats(memberId: string): Promise<MemberStats> {
     try {
-      // Try to get financial data, but provide fallback if endpoints don't exist
+      const q = new URLSearchParams({
+        member_id: memberId,
+        per_page: "1000",
+      })
       const [loansResponse, contributionsResponse] = await Promise.allSettled([
-        apiFetch<{ loans: Loan[] }>(`/financial/loans?member_id=${memberId}`),
-        apiFetch<{ contributions: Contribution[] }>(`/financial/contributions?member_id=${memberId}`)
+        apiFetch<{ loans: Loan[] | { data: Loan[] } }>(`/financial/loans?${q.toString()}`),
+        apiFetch<{ contributions: Contribution[] | { data: Contribution[] } }>(
+          `/financial/contributions?${q.toString()}`,
+        ),
       ])
 
-      const loans = loansResponse.status === 'fulfilled' ? (loansResponse.value.loans || []) : []
-      const contributions = contributionsResponse.status === 'fulfilled' ? (contributionsResponse.value.contributions || []) : []
+      const unwrapList = <T>(payload: T[] | { data: T[] } | undefined): T[] => {
+        if (!payload) return []
+        if (Array.isArray(payload)) return payload
+        const inner = (payload as { data?: T[] }).data
+        return Array.isArray(inner) ? inner : []
+      }
+
+      const loansRaw =
+        loansResponse.status === "fulfilled" ? loansResponse.value.loans : undefined
+      const contributionsRaw =
+        contributionsResponse.status === "fulfilled" ? contributionsResponse.value.contributions : undefined
+
+      const loans = unwrapList<Loan>(loansRaw)
+      const contributions = unwrapList<Contribution>(contributionsRaw)
 
       const toNumber = (value: unknown) => {
-        if (typeof value === 'number') return value
-        if (typeof value === 'string') {
+        if (typeof value === "number") return value
+        if (typeof value === "string") {
           const parsed = Number(value)
           return Number.isFinite(parsed) ? parsed : 0
         }
         return 0
       }
 
-      const totalContributions = contributions
-        .filter(c => c.status === 'approved')
+      const isApprovedContribution = (c: Contribution) => c.status === "approved"
+
+      const totalPaidSum = contributions
+        .filter(isApprovedContribution)
+        .reduce((sum, c) => sum + toNumber(c.total_paid), 0)
+
+      const totalAmountApproved = contributions
+        .filter(isApprovedContribution)
         .reduce((sum, c) => sum + toNumber(c.amount), 0)
 
+      const totalContributions = totalPaidSum > 0 ? totalPaidSum : totalAmountApproved
+
       const monthlyContribution = contributions
-        .filter(c => c.status === 'approved' && c.frequency === 'monthly')
+        .filter((c) => isApprovedContribution(c) && c.frequency === "monthly")
         .reduce((sum, c) => sum + toNumber(c.amount), 0)
 
       const lastPayment = contributions
-        .filter(c => c.status === 'approved')
-        .sort((a, b) => new Date(b.contribution_date).getTime() - new Date(a.contribution_date).getTime())[0]
+        .filter(isApprovedContribution)
+        .sort(
+          (a, b) =>
+            new Date(b.contribution_date).getTime() - new Date(a.contribution_date).getTime(),
+        )[0]
 
-      const activeLoans = loans.filter(l => l.status === 'approved').length
+      const loanIsActive = (l: Loan) =>
+        l.status === "approved" || l.status === "active" || l.status === "disbursed"
+
+      const activeLoans = loans.filter(loanIsActive).length
       const totalBorrowed = loans
-        .filter(l => l.status === 'approved')
+        .filter(loanIsActive)
         .reduce((sum, l) => sum + toNumber(l.total_amount ?? l.amount), 0)
 
-      const outstandingBalance = loans
-        .filter(l => l.status === 'approved')
-        .reduce((sum, l) => {
-          const total = toNumber(l.total_amount ?? l.amount)
-          const monthly = toNumber(l.monthly_payment)
-          const duration = toNumber(l.duration_months)
-          const scheduled = monthly * duration
-          const remaining = Math.max(0, total - scheduled)
+      const outstandingBalance = loans.filter(loanIsActive).reduce((sum, l) => {
+        const remaining = toNumber(l.remaining_principal)
+        if (remaining > 0) {
           return sum + remaining
-        }, 0)
+        }
+        const total = toNumber(l.total_amount ?? l.amount)
+        const monthly = toNumber(l.monthly_payment)
+        const duration = toNumber(l.duration_months)
+        const scheduled = monthly * duration
+        return sum + Math.max(0, total - scheduled)
+      }, 0)
 
       return {
         total_contributions: totalContributions,

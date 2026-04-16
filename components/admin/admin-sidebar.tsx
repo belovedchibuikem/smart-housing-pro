@@ -49,7 +49,7 @@ import { useState, useEffect } from "react"
 import { getFilteredNavItems, type UserRole } from "@/lib/roles"
 import {
   getPermissionFilteredNavItems,
-  isTenantSuperAdminRole,
+  isTenantSuperAdminContext,
 } from "@/lib/admin/nav-permissions"
 import { getAdminPendingBadges, getCurrentSubscription, type AdminPendingBadgeCounts } from "@/lib/api/client"
 
@@ -438,11 +438,15 @@ export function AdminSidebar({
   }
 
   // Permission-based nav matches /api/admin/* checks; super_admin sees all. If there are no permission strings yet, keep legacy role-based filtering.
-  const superAdmin =
-    isTenantSuperAdminRole(roleNames) || isTenantSuperAdminRole([String(userRole)])
+  const superAdmin = isTenantSuperAdminContext(roleNames, String(userRole))
   const usePermissionNav = superAdmin || permissions.length > 0
   const roleFilteredItems = usePermissionNav
-    ? getPermissionFilteredNavItems(permissions, roleNames.length ? roleNames : [String(userRole)], navItems)
+    ? getPermissionFilteredNavItems(
+        permissions,
+        roleNames.length ? roleNames : [],
+        navItems,
+        String(userRole),
+      )
     : getFilteredNavItems(userRole, navItems)
   const filteredNavItems = filterBySubscription(roleFilteredItems)
 
