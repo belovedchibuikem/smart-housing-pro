@@ -47,6 +47,10 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useState, useEffect } from "react"
 import { getFilteredNavItems, type UserRole } from "@/lib/roles"
+import {
+  getPermissionFilteredNavItems,
+  isTenantSuperAdminRole,
+} from "@/lib/admin/nav-permissions"
 import { getAdminPendingBadges, getCurrentSubscription, type AdminPendingBadgeCounts } from "@/lib/api/client"
 
 const ADMIN_BADGE_BY_HREF: Partial<Record<string, keyof AdminPendingBadgeCounts>> = {
@@ -271,9 +275,19 @@ interface AdminSidebarProps {
   mobileMenuOpen: boolean
   setMobileMenuOpen: (open: boolean) => void
   userRole?: UserRole
+  /** Spatie permission names from login /me (flat strings). */
+  permissions?: string[]
+  /** Spatie role names (e.g. super_admin). */
+  roleNames?: string[]
 }
 
-export function AdminSidebar({ mobileMenuOpen, setMobileMenuOpen, userRole = "super_admin" }: AdminSidebarProps) {
+export function AdminSidebar({
+  mobileMenuOpen,
+  setMobileMenuOpen,
+  userRole = "super_admin",
+  permissions = [],
+  roleNames = [],
+}: AdminSidebarProps) {
   const pathname = usePathname()
   const [openMenus, setOpenMenus] = useState<string[]>([])
   const [hasActiveSubscription, setHasActiveSubscription] = useState<boolean | null>(null)
@@ -423,8 +437,13 @@ export function AdminSidebar({ mobileMenuOpen, setMobileMenuOpen, userRole = "su
     )
   }
 
-  // First filter by role, then filter by subscription status
-  const roleFilteredItems = getFilteredNavItems(userRole, navItems)
+  // Permission-based nav matches /api/admin/* checks; super_admin sees all. If there are no permission strings yet, keep legacy role-based filtering.
+  const superAdmin =
+    isTenantSuperAdminRole(roleNames) || isTenantSuperAdminRole([String(userRole)])
+  const usePermissionNav = superAdmin || permissions.length > 0
+  const roleFilteredItems = usePermissionNav
+    ? getPermissionFilteredNavItems(permissions, roleNames.length ? roleNames : [String(userRole)], navItems)
+    : getFilteredNavItems(userRole, navItems)
   const filteredNavItems = filterBySubscription(roleFilteredItems)
 
   return (

@@ -18,6 +18,8 @@ export default function AdminLayout({
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [userRole, setUserRole] = useState<UserRole>("admin")
+  const [permissions, setPermissions] = useState<string[]>([])
+  const [roleNames, setRoleNames] = useState<string[]>([])
 
   // Check tenant subscription status and handle redirects
   const { isLoading } = useSubscriptionGuard(true)
@@ -27,6 +29,8 @@ export default function AdminLayout({
     if (userData) {
       const role = (userData.role || (userData.roles && userData.roles[0]) || "admin") as UserRole
       setUserRole(role)
+      setPermissions(Array.isArray(userData.permissions) ? userData.permissions : [])
+      setRoleNames(Array.isArray(userData.roles) ? (userData.roles as string[]) : [])
     }
   }, [])
 
@@ -47,7 +51,13 @@ export default function AdminLayout({
       <div className="min-h-screen bg-background">
         <AdminHeader mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
         <div className="flex">
-          <AdminSidebar mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} userRole={userRole} />
+          <AdminSidebar
+            mobileMenuOpen={mobileMenuOpen}
+            setMobileMenuOpen={setMobileMenuOpen}
+            userRole={userRole}
+            permissions={permissions}
+            roleNames={roleNames}
+          />
           <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-full overflow-x-hidden">
             <AdminLoadingProvider>
               {children}
