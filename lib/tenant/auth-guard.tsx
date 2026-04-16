@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { getAuthToken, setAuthToken } from "@/lib/api/client"
 import { useRouter } from "next/navigation"
 import { hasTenantStaffDashboardAccess } from "@/lib/auth/staff-access"
+import { getEffectiveRoleNames } from "@/lib/auth/user-roles"
 
 interface AuthGuardProps {
 	children: React.ReactNode
@@ -62,7 +63,7 @@ export function AuthGuard({
 
 				// Check role if required (legacy / specific screens)
 				if (requiredRole) {
-					const userRoles = userData.roles || (userData.role ? [userData.role] : [])
+					const userRoles = getEffectiveRoleNames(userData)
 					const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole]
 					
 					// Normalize roles for comparison (handle both hyphen and underscore)

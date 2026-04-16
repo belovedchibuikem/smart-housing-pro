@@ -1,5 +1,6 @@
 import type { AuthUser } from "./types"
 import { hasTenantStaffDashboardAccess } from "./staff-access"
+import { getEffectiveRoleNames } from "./user-roles"
 
 /**
  * Determines the appropriate dashboard route based on user roles
@@ -13,9 +14,8 @@ export function getDashboardRoute(user: AuthUser | null | undefined): string {
     return "/admin"
   }
 
-  // Normalize roles - handle both singular 'role' and plural 'roles'
-  const userRoles = user.roles || (user.role ? [user.role] : [])
-  
+  const userRoles = getEffectiveRoleNames(user)
+
   // Also handle case where roles might be objects with 'name' property
   const roleNames = userRoles.map((role: any) => {
     if (typeof role === 'string') return role.toLowerCase()
