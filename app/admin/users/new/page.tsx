@@ -249,7 +249,7 @@ export default function AdminUserCreatePage() {
                     <Label>Roles</Label>
                     <Select value="" onValueChange={addPromoteRole}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select roles (Admin or Super Admin required)" />
+                        <SelectValue placeholder="Select staff roles (permissions apply)" />
                       </SelectTrigger>
                       <SelectContent>
                         {sortedRoles.map((role) => (
@@ -260,7 +260,8 @@ export default function AdminUserCreatePage() {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground mt-1">
-                      Include <strong>Admin</strong> or <strong>Super Admin</strong> so they can open this dashboard.
+                      Each role carries its own permissions; <strong>Super Admin</strong> has full access. Staff roles need the{" "}
+                      <code className="text-xs">access_admin_panel</code> permission (added automatically for seeded roles).
                       Selected roles replace their current roles—add <strong>Member</strong> too if they should keep member-portal access.
                     </p>
                     {promoteRoles.length > 0 && (

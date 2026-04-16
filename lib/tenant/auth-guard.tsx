@@ -4,17 +4,21 @@ import type React from "react"
 import { useEffect, useState } from "react"
 import { getAuthToken, setAuthToken } from "@/lib/api/client"
 import { useRouter } from "next/navigation"
+import { hasTenantStaffDashboardAccess } from "@/lib/auth/staff-access"
 
 interface AuthGuardProps {
 	children: React.ReactNode
 	redirectTo?: string
 	requiredRole?: string | string[]
+	/** When true, allows any tenant staff user (access_admin_panel or staff Spatie role), not only legacy Admin role */
+	requireStaffDashboardAccess?: boolean
 }
 
 export function AuthGuard({ 
 	children, 
 	redirectTo = "/login",
-	requiredRole
+	requiredRole,
+	requireStaffDashboardAccess,
 }: AuthGuardProps) {
 	const router = useRouter()
 	const [checking, setChecking] = useState(true)
@@ -48,9 +52,16 @@ export function AuthGuard({
 					return
 				}
 
-				// Check role if required
+				// Tenant staff dashboard (permission-based; not limited to Admin / Super Admin roles)
+				if (requireStaffDashboardAccess) {
+					if (!hasTenantStaffDashboardAccess(userData)) {
+						if (!cancelled) router.replace(redirectTo)
+						return
+					}
+				}
+
+				// Check role if required (legacy / specific screens)
 				if (requiredRole) {
-					const userRole = userData.role || (userData.roles && userData.roles[0])
 					const userRoles = userData.roles || (userData.role ? [userData.role] : [])
 					const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole]
 					
@@ -87,7 +98,7 @@ export function AuthGuard({
 		return () => {
 			cancelled = true
 		}
-	}, [router, redirectTo, requiredRole])
+	}, [router, redirectTo, requiredRole, requireStaffDashboardAccess])
 
 	if (checking) {
 		return (

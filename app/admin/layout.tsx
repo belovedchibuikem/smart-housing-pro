@@ -23,11 +23,10 @@ export default function AdminLayout({
   const { isLoading } = useSubscriptionGuard(true)
 
   useEffect(() => {
-    // Get user role from localStorage
     const userData = getUserData()
     if (userData) {
-      const role = userData.role || (userData.roles && userData.roles[0]) || "admin"
-      setUserRole(role as UserRole)
+      const role = (userData.role || (userData.roles && userData.roles[0]) || "admin") as UserRole
+      setUserRole(role)
     }
   }, [])
 
@@ -44,7 +43,7 @@ export default function AdminLayout({
   }
 
   return (
-    <AuthGuard requiredRole={["admin", "super-admin", "super_admin"]}>
+    <AuthGuard requireStaffDashboardAccess>
       <div className="min-h-screen bg-background">
         <AdminHeader mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
         <div className="flex">

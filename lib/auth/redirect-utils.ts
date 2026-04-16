@@ -1,4 +1,5 @@
 import type { AuthUser } from "./types"
+import { hasTenantStaffDashboardAccess } from "./staff-access"
 
 /**
  * Determines the appropriate dashboard route based on user roles
@@ -6,6 +7,10 @@ import type { AuthUser } from "./types"
 export function getDashboardRoute(user: AuthUser | null | undefined): string {
   if (!user) {
     return "/dashboard" // Default to member dashboard
+  }
+
+  if (user.permissions?.includes("access_admin_panel")) {
+    return "/admin"
   }
 
   // Normalize roles - handle both singular 'role' and plural 'roles'
@@ -61,32 +66,22 @@ export function getDashboardRoute(user: AuthUser | null | undefined): string {
  * Checks if user has access to a specific route based on their roles
  */
 export function hasRouteAccess(user: AuthUser | null | undefined, route: string): boolean {
-  if (!user?.roles || user.roles.length === 0) {
-    return route === "/dashboard" // Only allow member dashboard for users without roles
+  if (!user) {
+    return route === "/dashboard"
   }
 
-  // Super admin has access to everything
-  if (user.roles.includes("super-admin")) {
-    return true
+  if (route.startsWith("/admin")) {
+    return hasTenantStaffDashboardAccess({
+      permissions: user.permissions,
+      roles: user.roles?.length ? user.roles : user.role ? [user.role] : [],
+      role: user.role,
+    })
   }
 
-  // Admin roles have access to admin routes
-  const adminRoles = [
-    "admin",           // Main admin role
-    "tenant-admin",
-    "finance_manager", 
-    "loan_officer",
-    "property_manager",
-    "member_manager",
-    "document_manager",
-    "system_admin",
-    "investment_manager"
-  ]
-
-  if (user.roles.some(role => adminRoles.includes(role))) {
-    return route.startsWith("/admin") || route === "/dashboard"
+  if (route.startsWith("/super-admin")) {
+    const roles = user.roles?.length ? user.roles : user.role ? [user.role] : []
+    return roles.some((r) => r === "super-admin" || r === "super_admin")
   }
 
-  // Regular members only have access to dashboard
-  return route === "/dashboard"
+  return route === "/dashboard" || route.startsWith("/dashboard")
 }

@@ -3446,8 +3446,13 @@ export async function uploadPaymentEvidence(file: File): Promise<string> {
 		const userData = localStorage.getItem('user_data')
 		if (userData) {
 			const parsed = JSON.parse(userData)
-			const role = parsed.role || (parsed.roles && parsed.roles[0])
-			isAdmin = role === 'admin' || role === 'super_admin' || role === 'super-admin'
+			const perms = parsed.permissions || []
+			if (Array.isArray(perms) && perms.includes("access_admin_panel")) {
+				isAdmin = true
+			} else {
+				const role = (parsed.role || (parsed.roles && parsed.roles[0]) || "").toString().toLowerCase().replace(/-/g, "_")
+				isAdmin = ["admin", "super_admin", "finance_manager", "loan_officer", "property_manager", "member_manager", "document_manager", "system_admin", "investment_manager", "staff"].includes(role)
+			}
 		}
 	} catch {
 		// If we can't parse user data, default to user endpoint
