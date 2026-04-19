@@ -53,6 +53,13 @@ export interface Member {
     balance: number
     currency: string
   }
+  /** Ledger-backed contribution wallet (tenant) */
+  contribution_wallet?: {
+    balance: number
+    total_contributed: number
+    total_refunded: number
+    currency?: string
+  } | null
   loans?: Loan[]
   investments?: Investment[]
   contributions?: Contribution[]
@@ -116,6 +123,7 @@ export interface Contribution {
   rejected_by?: string
   total_paid: number
   remaining_amount: number
+  payments?: Array<{ amount?: number | string; status?: string }>
   created_at: string
   updated_at: string
 }
@@ -148,6 +156,8 @@ export interface Document {
 
 export interface MemberStats {
   total_contributions: number
+  /** Contribution wallet balance (ledger) when available */
+  contribution_balance: number
   monthly_contribution: number
   last_payment_date?: string
   active_loans: number
@@ -155,6 +165,23 @@ export interface MemberStats {
   outstanding_balance: number
   total_investments: number
   investment_returns: number
+}
+
+/** Prefer ledger totals from contribution_wallet when the API returned them on the member. */
+export function mergeContributionWalletIntoStats(
+  stats: MemberStats,
+  wallet: Member["contribution_wallet"] | null | undefined,
+): MemberStats {
+  if (!wallet) {
+    return stats
+  }
+  const totalFromLedger = Number(wallet.total_contributed) || 0
+  const balance = Number(wallet.balance) || 0
+  return {
+    ...stats,
+    contribution_balance: balance,
+    total_contributions: totalFromLedger > 0 ? totalFromLedger : stats.total_contributions,
+  }
 }
 
 export class MemberService {
@@ -221,7 +248,7 @@ export class MemberService {
     }
   }
 
-  // Get member financial stats
+  // Get member financial stats (admin APIs: same records as cooperative ledger; includes status "completed")
   static async getMemberFinancialStats(memberId: string): Promise<MemberStats> {
     try {
       const q = new URLSearchParams({
@@ -229,26 +256,18 @@ export class MemberService {
         per_page: "1000",
       })
       const [loansResponse, contributionsResponse] = await Promise.allSettled([
-        apiFetch<{ loans: Loan[] | { data: Loan[] } }>(`/financial/loans?${q.toString()}`),
-        apiFetch<{ contributions: Contribution[] | { data: Contribution[] } }>(
-          `/financial/contributions?${q.toString()}`,
-        ),
+        apiFetch<{ success?: boolean; data?: Loan[] }>(`/admin/loans?${q.toString()}`),
+        apiFetch<{ success?: boolean; data?: Contribution[] }>(`/admin/contributions?${q.toString()}`),
       ])
 
-      const unwrapList = <T>(payload: T[] | { data: T[] } | undefined): T[] => {
-        if (!payload) return []
-        if (Array.isArray(payload)) return payload
-        const inner = (payload as { data?: T[] }).data
-        return Array.isArray(inner) ? inner : []
+      const unwrapAdminData = <T>(settled: PromiseSettledResult<{ data?: T[] }>): T[] => {
+        if (settled.status !== "fulfilled") return []
+        const d = settled.value.data
+        return Array.isArray(d) ? d : []
       }
 
-      const loansRaw =
-        loansResponse.status === "fulfilled" ? loansResponse.value.loans : undefined
-      const contributionsRaw =
-        contributionsResponse.status === "fulfilled" ? contributionsResponse.value.contributions : undefined
-
-      const loans = unwrapList<Loan>(loansRaw)
-      const contributions = unwrapList<Contribution>(contributionsRaw)
+      const loans = unwrapAdminData<Loan>(loansResponse)
+      const contributions = unwrapAdminData<Contribution>(contributionsResponse)
 
       const toNumber = (value: unknown) => {
         if (typeof value === "number") return value
@@ -259,31 +278,48 @@ export class MemberService {
         return 0
       }
 
-      const isApprovedContribution = (c: Contribution) => c.status === "approved"
+      const paidFromPayments = (c: Contribution) => {
+        if (!Array.isArray(c.payments)) return 0
+        return c.payments.reduce((s, p) => s + toNumber(p.amount), 0)
+      }
 
-      const totalPaidSum = contributions
-        .filter(isApprovedContribution)
-        .reduce((sum, c) => sum + toNumber(c.total_paid), 0)
+      const isCountableContribution = (c: Contribution) => {
+        const s = String(c.status ?? "").toLowerCase()
+        return s === "approved" || s === "completed"
+      }
 
-      const totalAmountApproved = contributions
-        .filter(isApprovedContribution)
-        .reduce((sum, c) => sum + toNumber(c.amount), 0)
+      const lineTotal = (c: Contribution) => {
+        const fromPayments = paidFromPayments(c)
+        const fromAttr = toNumber(c.total_paid)
+        const paid = Math.max(fromPayments, fromAttr)
+        if (paid > 0) return paid
+        return toNumber(c.amount)
+      }
 
-      const totalContributions = totalPaidSum > 0 ? totalPaidSum : totalAmountApproved
+      const totalContributions = contributions
+        .filter(isCountableContribution)
+        .reduce((sum, c) => sum + lineTotal(c), 0)
 
       const monthlyContribution = contributions
-        .filter((c) => isApprovedContribution(c) && c.frequency === "monthly")
+        .filter((c) => {
+          if (!isCountableContribution(c)) return false
+          const f = String(c.frequency ?? "").toLowerCase()
+          const t = String(c.type ?? "").toLowerCase()
+          return f === "monthly" || t === "monthly"
+        })
         .reduce((sum, c) => sum + toNumber(c.amount), 0)
 
       const lastPayment = contributions
-        .filter(isApprovedContribution)
+        .filter(isCountableContribution)
         .sort(
           (a, b) =>
             new Date(b.contribution_date).getTime() - new Date(a.contribution_date).getTime(),
         )[0]
 
-      const loanIsActive = (l: Loan) =>
-        l.status === "approved" || l.status === "active" || l.status === "disbursed"
+      const loanIsActive = (l: Loan) => {
+        const s = String(l.status ?? "").toLowerCase()
+        return s === "approved" || s === "active" || s === "disbursed"
+      }
 
       const activeLoans = loans.filter(loanIsActive).length
       const totalBorrowed = loans
@@ -304,19 +340,20 @@ export class MemberService {
 
       return {
         total_contributions: totalContributions,
+        contribution_balance: 0,
         monthly_contribution: monthlyContribution,
         last_payment_date: lastPayment?.contribution_date,
         active_loans: activeLoans,
         total_borrowed: totalBorrowed,
         outstanding_balance: Math.max(0, outstandingBalance),
-        total_investments: 0, // Would need investment data
-        investment_returns: 0 // Would need investment data
+        total_investments: 0,
+        investment_returns: 0,
       }
     } catch (error) {
       console.warn('Error fetching financial stats, returning default values:', error)
-      // Return default values if financial endpoints are not available
       return {
         total_contributions: 0,
+        contribution_balance: 0,
         monthly_contribution: 0,
         last_payment_date: undefined,
         active_loans: 0,

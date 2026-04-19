@@ -20,7 +20,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
-import { MemberService, Member, Document, MemberStats } from "@/lib/api/member-service"
+import {
+  MemberService,
+  Member,
+  Document,
+  MemberStats,
+  mergeContributionWalletIntoStats,
+} from "@/lib/api/member-service"
 import { Skeleton } from "@/components/ui/skeleton"
 
 const currencyFormatter = new Intl.NumberFormat("en-NG", {
@@ -70,43 +76,51 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
     try {
       setLoading(true)
       
-      // Load member data first (this is the most critical)
+      let loadedMember: Member | null = null
       try {
         const memberResponse = await MemberService.getMember(id)
+        loadedMember = memberResponse.member
         setMember(memberResponse.member)
       } catch (error) {
         console.error("Error loading member:", error)
         toast.error("Failed to load member data")
         return
       }
-      
-      // Load documents and financial data in parallel (these are optional)
+
       const [documentsResponse, financialResponse] = await Promise.allSettled([
         MemberService.getMemberDocuments(id),
-        MemberService.getMemberFinancialStats(id)
+        MemberService.getMemberFinancialStats(id),
       ])
-      
-      if (documentsResponse.status === 'fulfilled') {
+
+      if (documentsResponse.status === "fulfilled") {
         setDocuments(documentsResponse.value.documents)
       } else {
         console.warn("Error loading documents:", documentsResponse.reason)
         setDocuments([])
       }
-      
-      if (financialResponse.status === 'fulfilled') {
-        setFinancialStats(financialResponse.value)
+
+      if (financialResponse.status === "fulfilled") {
+        setFinancialStats(
+          mergeContributionWalletIntoStats(financialResponse.value, loadedMember?.contribution_wallet),
+        )
       } else {
         console.warn("Error loading financial stats:", financialResponse.reason)
-        setFinancialStats({
-          total_contributions: 0,
-          monthly_contribution: 0,
-          last_payment_date: undefined,
-          active_loans: 0,
-          total_borrowed: 0,
-          outstanding_balance: 0,
-          total_investments: 0,
-          investment_returns: 0
-        })
+        setFinancialStats(
+          mergeContributionWalletIntoStats(
+            {
+              total_contributions: 0,
+              contribution_balance: 0,
+              monthly_contribution: 0,
+              last_payment_date: undefined,
+              active_loans: 0,
+              total_borrowed: 0,
+              outstanding_balance: 0,
+              total_investments: 0,
+              investment_returns: 0,
+            },
+            loadedMember?.contribution_wallet,
+          ),
+        )
       }
     } catch (error) {
       console.error("Error loading member data:", error)
@@ -725,6 +739,12 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                   <div>
                     <label className="text-sm text-muted-foreground">Total Contributions</label>
                     <p className="text-2xl font-bold">{formatCurrency(financialStats?.total_contributions)}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground">Contribution Balance</label>
+                    <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
+                      {formatCurrency(financialStats?.contribution_balance)}
+                    </p>
                   </div>
                   <div>
                     <label className="text-sm text-muted-foreground">Monthly Contribution</label>
