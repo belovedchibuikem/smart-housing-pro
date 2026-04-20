@@ -13,6 +13,7 @@ import { AlertCircle } from "lucide-react"
 import { getMemberSubscriptionPackages, getSubscriptionPackages } from "@/lib/api/client"
 import { usePageLoading } from "@/hooks/use-loading"
 import { getUserData } from "@/lib/auth/auth-utils"
+import { hasTenantStaffDashboardAccess } from "@/lib/auth/staff-access"
 
 function formatDuration(days: number): string {
   if (days === 7) return "7 days"
@@ -46,9 +47,7 @@ export default function SubscriptionPage() {
   useEffect(() => {
     const userData = getUserData()
     if (userData) {
-      const role = userData.role || (userData.roles && userData.roles[0]) || ""
-      // Check if user has admin role (tenant admin, not super admin)
-      setIsAdmin(role === "admin" || role === "super-admin" || role === "super_admin")
+      setIsAdmin(hasTenantStaffDashboardAccess(userData))
     }
   }, [])
 

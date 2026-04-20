@@ -1,6 +1,7 @@
 "use client"
 
 import type { AuthUser } from "@/lib/auth/types"
+import { clearAuthCookies } from "@/lib/auth/auth-cookies"
 
 // Lightweight API client for browser-side requests
 
@@ -31,6 +32,7 @@ export function setAuthToken(token: string | null) {
 			window.localStorage.setItem(AUTH_TOKEN_KEY, token)
 		} else {
 			window.localStorage.removeItem(AUTH_TOKEN_KEY)
+			clearAuthCookies()
 		}
 	} catch {
 		// no-op
@@ -3450,8 +3452,25 @@ export async function uploadPaymentEvidence(file: File): Promise<string> {
 			if (Array.isArray(perms) && perms.includes("access_admin_panel")) {
 				isAdmin = true
 			} else {
-				const role = (parsed.role || (parsed.roles && parsed.roles[0]) || "").toString().toLowerCase().replace(/-/g, "_")
-				isAdmin = ["admin", "super_admin", "finance_manager", "loan_officer", "property_manager", "member_manager", "document_manager", "system_admin", "investment_manager", "staff"].includes(role)
+				const rawRole =
+					typeof parsed.role === "object" && parsed.role && "slug" in parsed.role
+						? (parsed.role as { slug?: string }).slug
+						: parsed.role || (parsed.roles && parsed.roles[0]) || ""
+				const role = rawRole.toString().toLowerCase().replace(/-/g, "_")
+				isAdmin = [
+					"admin",
+					"super_admin",
+					"finance_manager",
+					"accountant",
+					"loan_officer",
+					"property_manager",
+					"manager",
+					"member_manager",
+					"document_manager",
+					"system_admin",
+					"investment_manager",
+					"staff",
+				].includes(role)
 			}
 		}
 	} catch {

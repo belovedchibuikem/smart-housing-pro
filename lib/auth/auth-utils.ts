@@ -1,4 +1,5 @@
 import { logoutRequest, setAuthToken } from "@/lib/api/client"
+import { clearAuthCookies } from "@/lib/auth/auth-cookies"
 import { useRouter } from "next/navigation"
 
 /**
@@ -16,6 +17,7 @@ export async function handleLogout(): Promise<void> {
 		localStorage.removeItem("auth_token")
 		localStorage.removeItem("user_data")
 		setAuthToken(null)
+		clearAuthCookies()
 		
 		// Redirect to login page
 		window.location.href = "/login"

@@ -1,3 +1,5 @@
+import { getEffectiveRoleNames } from "./user-roles"
+
 /**
  * Tenant staff / cooperative admin area: backend enforces access_admin_panel + route permissions.
  * This mirrors that for client-side navigation and guards.
@@ -5,7 +7,7 @@
 export function hasTenantStaffDashboardAccess(userData: {
   permissions?: string[]
   roles?: string[]
-  role?: string
+  role?: string | { slug?: string }
 } | null): boolean {
   if (!userData) return false
 
@@ -14,7 +16,7 @@ export function hasTenantStaffDashboardAccess(userData: {
     return true
   }
 
-  const roles = userData.roles?.length ? userData.roles : userData.role ? [userData.role] : []
+  const roles = getEffectiveRoleNames(userData)
   const norm = (r: string) => r?.toLowerCase().replace(/-/g, "_") ?? ""
 
   if (roles.some((r) => norm(r) === "super_admin")) {
@@ -24,8 +26,10 @@ export function hasTenantStaffDashboardAccess(userData: {
   const staffRoles = new Set([
     "admin",
     "finance_manager",
+    "accountant",
     "loan_officer",
     "property_manager",
+    "manager",
     "member_manager",
     "document_manager",
     "system_admin",

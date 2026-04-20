@@ -11,6 +11,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Eye, EyeOff } from "lucide-react"
 import { loginRequest, setAuthToken } from "@/lib/api/client"
+import { persistAuthSession } from "@/lib/auth/auth-cookies"
 import { getDashboardRoute } from "@/lib/auth/redirect-utils"
 import { Recaptcha, RecaptchaRef } from "@/components/auth/recaptcha"
 import { useI18n } from "@/lib/i18n/i18n-provider"
@@ -62,6 +63,7 @@ export function LoginForm({ allowRegistration = true }: LoginFormProps) {
       // Store user data in localStorage for ALL users (super-admin and cooperative orgs)
       // This allows AuthGuard to validate without calling /auth/me
       localStorage.setItem('user_data', JSON.stringify(user))
+      persistAuthSession(user, result.token)
 
       // Role-based redirection using utility function
       const dashboardRoute = getDashboardRoute(user)

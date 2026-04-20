@@ -11,6 +11,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ChevronLeft, ChevronRight, Eye, EyeOff } from "lucide-react"
 import { meRequest, registerRequest, setAuthToken } from "@/lib/api/client"
+import { persistAuthSession } from "@/lib/auth/auth-cookies"
+import type { AuthUser } from "@/lib/auth/types"
 import { OtpVerificationDialog } from "@/components/auth/otp-verification-dialog"
 import { Recaptcha, RecaptchaRef } from "@/components/auth/recaptcha"
 import { useI18n } from "@/lib/i18n/i18n-provider"
@@ -242,6 +244,7 @@ export function RegisterForm() {
       // Store user data
       if (user) {
         localStorage.setItem('user_data', JSON.stringify(user))
+        persistAuthSession(user as AuthUser, token)
       }
       setShowOtpDialog(false)
       // Redirect to dashboard

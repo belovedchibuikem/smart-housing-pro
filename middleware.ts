@@ -1,6 +1,31 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { getTenantSlugFromHost, isCustomDomain } from "@/lib/tenant/tenant-utils"
+import { AUTH_COOKIE } from "@/lib/auth/auth-cookies"
+import { userHasPermissionForAdminHref } from "@/lib/admin/nav-permissions"
+
+function parsePermCookie(raw: string | undefined | null): string[] {
+  if (!raw) return []
+  try {
+    return decodeURIComponent(raw)
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
+function adminPathAllowed(pathname: string, perms: string[], roleSlug: string): boolean {
+  const slug = roleSlug.toLowerCase().replace(/-/g, "_")
+  if (slug === "super_admin") return true
+  if (perms.length > 0) return userHasPermissionForAdminHref(pathname, perms)
+  return (
+    pathname === "/admin" ||
+    pathname === "/admin/subscriptions" ||
+    pathname.startsWith("/admin/subscriptions/")
+  )
+}
 
 export async function middleware(request: NextRequest) {
   const hostname = request.headers.get("host") || ""
@@ -20,6 +45,21 @@ export async function middleware(request: NextRequest) {
     pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js)$/)
   ) {
     return NextResponse.next()
+  }
+
+  // Cooperative staff /admin — requires mirrored auth cookies (see persistAuthSession in login flow)
+  if (pathname.startsWith("/admin")) {
+    const token = request.cookies.get(AUTH_COOKIE.TOKEN)?.value
+    if (!token) {
+      const loginUrl = new URL("/login", request.url)
+      loginUrl.searchParams.set("redirect", pathname)
+      return NextResponse.redirect(loginUrl)
+    }
+    const perms = parsePermCookie(request.cookies.get(AUTH_COOKIE.PERMISSIONS)?.value)
+    const roleSlug = request.cookies.get(AUTH_COOKIE.ROLE_SLUG)?.value ?? ""
+    if (!adminPathAllowed(pathname, perms, roleSlug)) {
+      return NextResponse.redirect(new URL("/unauthorized", request.url))
+    }
   }
 
   // Development mode: Use query parameter or header for tenant
@@ -106,6 +146,12 @@ export async function middleware(request: NextRequest) {
     if (tenantSlug || isCustomDomainRequest) {
       console.log("[v0] Middleware - Redirecting /super-admin to / because tenant or custom domain detected")
       return NextResponse.redirect(new URL("/", request.url))
+    }
+    const token = request.cookies.get(AUTH_COOKIE.TOKEN)?.value
+    if (!token) {
+      const loginUrl = new URL("/login", request.url)
+      loginUrl.searchParams.set("redirect", pathname)
+      return NextResponse.redirect(loginUrl)
     }
     return NextResponse.next()
   }

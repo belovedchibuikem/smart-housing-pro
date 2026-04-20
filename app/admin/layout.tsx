@@ -9,6 +9,9 @@ import { AdminRoutePermissionGate } from "@/components/admin/admin-route-permiss
 import { AuthGuard } from "@/lib/tenant/auth-guard"
 import type { UserRole } from "@/lib/roles"
 import { getUserData } from "@/lib/auth/auth-utils"
+import type { AuthUser } from "@/lib/auth/types"
+import { persistAuthSessionFromStorage } from "@/lib/auth/auth-cookies"
+import { getRoleSlug } from "@/lib/auth/user-roles"
 import { useSubscriptionGuard } from "@/lib/hooks/use-subscription"
 import { Loader2 } from "lucide-react"
 
@@ -18,7 +21,7 @@ export default function AdminLayout({
   children: React.ReactNode
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [userRole, setUserRole] = useState<UserRole>("admin")
+  const [userRole, setUserRole] = useState<UserRole>("member")
   const [permissions, setPermissions] = useState<string[]>([])
   const [roleNames, setRoleNames] = useState<string[]>([])
 
@@ -26,10 +29,11 @@ export default function AdminLayout({
   const { isLoading } = useSubscriptionGuard(true)
 
   useEffect(() => {
+    persistAuthSessionFromStorage()
     const userData = getUserData()
     if (userData) {
-      const role = (userData.role || (userData.roles && userData.roles[0]) || "admin") as UserRole
-      setUserRole(role)
+      const slug = getRoleSlug(userData as AuthUser)
+      setUserRole((slug || "member") as UserRole)
       setPermissions(Array.isArray(userData.permissions) ? userData.permissions : [])
       setRoleNames(Array.isArray(userData.roles) ? (userData.roles as string[]) : [])
     }

@@ -5,16 +5,14 @@ import { useLayoutEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { getUserData } from "@/lib/auth/auth-utils"
-import {
-  isTenantSuperAdminContext,
-  userHasPermissionForAdminHref,
-} from "@/lib/admin/nav-permissions"
+import { isTenantSuperAdminContext, userHasPermissionForAdminHref } from "@/lib/admin/nav-permissions"
+import { getRoleSlug } from "@/lib/auth/user-roles"
+import type { AuthUser } from "@/lib/auth/types"
 
 /**
- * When the user has a Spatie permission list from login, block direct URL access to
- * admin routes they are not allowed to use (sidebar already hides those links).
- * Backend still enforces /api/admin/* — this improves UX and avoids confusing empty pages.
- * If permissions are missing (legacy session), we do not block (role-based sidebar still applies).
+ * Blocks direct URL access to admin routes when the user lacks matching Spatie permissions.
+ * Backend still enforces /api/admin/*. Super admins bypass. Legacy sessions with no permission
+ * list may only open /admin and /admin/subscriptions.
  */
 export function AdminRoutePermissionGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -24,7 +22,7 @@ export function AdminRoutePermissionGate({ children }: { children: React.ReactNo
 
   useLayoutEffect(() => {
     setReady(false)
-    const user = getUserData()
+    const user = getUserData() as AuthUser | null
     if (!user) {
       setAllowed(true)
       setReady(true)
@@ -33,7 +31,7 @@ export function AdminRoutePermissionGate({ children }: { children: React.ReactNo
 
     const perms = Array.isArray(user.permissions) ? user.permissions : []
     const roles = Array.isArray(user.roles) ? (user.roles as string[]) : []
-    const legacyRole = typeof user.role === "string" ? user.role : undefined
+    const legacyRole = getRoleSlug(user)
 
     if (isTenantSuperAdminContext(roles, legacyRole)) {
       setAllowed(true)
@@ -41,15 +39,24 @@ export function AdminRoutePermissionGate({ children }: { children: React.ReactNo
       return
     }
 
+    const raw = pathname || "/admin"
+    const normalized = raw.length > 1 && raw.endsWith("/") ? raw.slice(0, -1) : raw
+
     if (perms.length === 0) {
+      const fallbackOk =
+        normalized === "/admin" ||
+        normalized === "/admin/subscriptions" ||
+        normalized.startsWith("/admin/subscriptions/")
+      if (!fallbackOk) {
+        setAllowed(false)
+        setReady(true)
+        router.replace("/unauthorized")
+        return
+      }
       setAllowed(true)
       setReady(true)
       return
     }
-
-    const raw = pathname || "/admin"
-    const normalized =
-      raw.length > 1 && raw.endsWith("/") ? raw.slice(0, -1) : raw
 
     if (userHasPermissionForAdminHref(normalized, perms)) {
       setAllowed(true)
@@ -59,7 +66,7 @@ export function AdminRoutePermissionGate({ children }: { children: React.ReactNo
 
     setAllowed(false)
     setReady(true)
-    router.replace("/admin")
+    router.replace("/unauthorized")
   }, [pathname, router])
 
   if (!ready) {

@@ -46,12 +46,15 @@ import {
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useState, useEffect } from "react"
-import { getFilteredNavItems, type UserRole } from "@/lib/roles"
+import type { UserRole } from "@/lib/roles"
 import {
   getPermissionFilteredNavItems,
   isTenantSuperAdminContext,
 } from "@/lib/admin/nav-permissions"
 import { getAdminPendingBadges, getCurrentSubscription, type AdminPendingBadgeCounts } from "@/lib/api/client"
+
+/** When the API returns no permission slugs (legacy session), only the dashboard is shown. */
+const MINIMAL_STAFF_NAV: NavItem[] = [{ href: "/admin", label: "Dashboard", icon: LayoutDashboard }]
 
 const ADMIN_BADGE_BY_HREF: Partial<Record<string, keyof AdminPendingBadgeCounts>> = {
   "/admin/payment-approvals": "payment_approvals_pending",
@@ -284,7 +287,7 @@ interface AdminSidebarProps {
 export function AdminSidebar({
   mobileMenuOpen,
   setMobileMenuOpen,
-  userRole = "super_admin",
+  userRole = "member",
   permissions = [],
   roleNames = [],
 }: AdminSidebarProps) {
@@ -437,17 +440,20 @@ export function AdminSidebar({
     )
   }
 
-  // Permission-based nav matches /api/admin/* checks; super_admin sees all. If there are no permission strings yet, keep legacy role-based filtering.
-  const superAdmin = isTenantSuperAdminContext(roleNames, String(userRole))
-  const usePermissionNav = superAdmin || permissions.length > 0
-  const roleFilteredItems = usePermissionNav
-    ? getPermissionFilteredNavItems(
-        permissions,
-        roleNames.length ? roleNames : [],
-        navItems,
-        String(userRole),
-      )
-    : getFilteredNavItems(userRole, navItems)
+  const roleSlug = String(userRole || "member").toLowerCase().replace(/-/g, "_")
+
+  // Permission-based nav matches /api/admin/* checks; super_admin sees all. Otherwise require Spatie permission slugs (no legacy route-only fallback).
+  const superAdmin = isTenantSuperAdminContext(roleNames, roleSlug)
+  const roleFilteredItems = superAdmin
+    ? navItems
+    : permissions.length > 0
+      ? getPermissionFilteredNavItems(
+          permissions,
+          roleNames.length ? roleNames : [],
+          navItems,
+          roleSlug,
+        )
+      : MINIMAL_STAFF_NAV
   const filteredNavItems = filterBySubscription(roleFilteredItems)
 
   return (

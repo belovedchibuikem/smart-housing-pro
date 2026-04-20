@@ -15,6 +15,10 @@ import { getLoanReport } from "@/lib/api/client"
 import { exportReport } from "@/lib/utils/export"
 import { toast } from "sonner"
 
+/** Principal-bearing loan statuses (aligned with API Loan::COUNTABLE_PRINCIPAL_STATUSES) */
+const isLoanOnBook = (status: string) =>
+  ["approved", "active", "disbursed", "completed", "overdue", "defaulted"].includes(status)
+
 const formatDate = (date: Date, formatStr = "PPP") => {
   if (formatStr === "PPP") {
     return date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
@@ -255,7 +259,7 @@ export default function LoanReportPage() {
                           <div className="flex items-center gap-2">
                             <span className="font-semibold">{loan.reference}</span>
                             <Badge variant="outline">{loan.type}</Badge>
-                            <Badge variant={loan.status === "approved" ? "default" : "secondary"}>{loan.status}</Badge>
+                            <Badge variant={isLoanOnBook(loan.status) ? "default" : "secondary"}>{loan.status}</Badge>
                           </div>
                           {loan.due_date && (
                             <p className="text-sm text-muted-foreground mt-1">

@@ -1,6 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import type { AuthUser } from "@/lib/auth/types"
+import { getStaffDashboardHeading } from "@/lib/auth/dashboard-title"
+import { getUserData } from "@/lib/auth/auth-utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Users, Wallet, TrendingUp, Home, CheckCircle, Clock, DollarSign, PiggyBank, RotateCcw } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -125,6 +128,12 @@ function normalizeAdminDashboardPayload(raw: unknown): DashboardData {
 export default function AdminDashboardPage() {
   const { isLoading, loadData } = usePageLoading()
   const [data, setData] = useState<DashboardData | null>(null)
+  const [heading, setHeading] = useState("Dashboard")
+
+  useEffect(() => {
+    const u = getUserData() as AuthUser | null
+    setHeading(getStaffDashboardHeading(u))
+  }, [])
 
   useEffect(() => {
     loadData(async () => {
@@ -203,7 +212,7 @@ export default function AdminDashboardPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
       <div>
-        <h1 className="text-2xl md:text-3xl font-bold">Admin Dashboard</h1>
+        <h1 className="text-2xl md:text-3xl font-bold">{heading}</h1>
         <p className="text-muted-foreground mt-1">Overview of {data?.tenant?.name || 'Housing Management'} System</p>
       </div>
 

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react"
 import { getAuthToken, setAuthToken } from "@/lib/api/client"
 import { useRouter } from "next/navigation"
 import { hasTenantStaffDashboardAccess } from "@/lib/auth/staff-access"
+import { persistAuthSessionFromStorage } from "@/lib/auth/auth-cookies"
 import { getEffectiveRoleNames } from "@/lib/auth/user-roles"
 
 interface AuthGuardProps {
@@ -84,7 +85,10 @@ export function AuthGuard({
 				}
 
 				// Both token and user data exist, and role matches (if required)
-				if (!cancelled) setAuthorized(true)
+				if (!cancelled) {
+					persistAuthSessionFromStorage()
+					setAuthorized(true)
+				}
 			} catch (error) {
 				// Any error, clear everything and redirect
 				console.error("Auth validation failed:", error)

@@ -3,12 +3,15 @@ export type UserRole =
   | "super_admin"
   | "super-admin"
   | "finance_manager"
+  | "accountant"
   | "loan_officer"
   | "property_manager"
+  | "manager"
   | "member_manager"
   | "document_manager"
   | "system_admin"
   | "investment_manager"
+  | "member"
 
 export interface RolePermissions {
   role: UserRole
@@ -18,6 +21,12 @@ export interface RolePermissions {
 }
 
 export const rolePermissions: Record<UserRole, RolePermissions> = {
+  member: {
+    role: "member",
+    label: "Member",
+    description: "Member self-service portal",
+    allowedRoutes: ["/dashboard"],
+  },
   admin: {
     role: "admin",
     label: "Admin",
@@ -35,6 +44,28 @@ export const rolePermissions: Record<UserRole, RolePermissions> = {
     label: "Super Admin",
     description: "Full access to all system features",
     allowedRoutes: ["*"], // Access to everything
+  },
+  accountant: {
+    role: "accountant",
+    label: "Accountant",
+    description: "Financial records, contributions, and reporting",
+    allowedRoutes: [
+      "/admin",
+      "/admin/contributions",
+      "/admin/post-contribution",
+      "/admin/bulk-upload/contributions",
+      "/admin/investments",
+      "/admin/wallets",
+      "/admin/wallets/transactions",
+      "/admin/wallets/pending",
+      "/admin/financial-reports",
+      "/admin/reports/financial",
+      "/admin/reports/contributions",
+      "/admin/statutory-charges",
+      "/admin/statutory-charges/types",
+      "/admin/statutory-charges/payments",
+      "/admin/statutory-charges/departments",
+    ],
   },
   finance_manager: {
     role: "finance_manager",
@@ -70,6 +101,22 @@ export const rolePermissions: Record<UserRole, RolePermissions> = {
       "/admin/loans/settings",
       "/admin/mortgages",
       "/admin/reports/loans",
+    ],
+  },
+  manager: {
+    role: "manager",
+    label: "Manager",
+    description: "Operational oversight for properties and estates",
+    allowedRoutes: [
+      "/admin",
+      "/admin/properties",
+      "/admin/eoi-forms",
+      "/admin/property-management/estates",
+      "/admin/property-management/allottees",
+      "/admin/property-management/maintenance",
+      "/admin/property-management/reports",
+      "/admin/reports/properties",
+      "/admin/blockchain",
     ],
   },
   property_manager: {

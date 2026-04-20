@@ -1,6 +1,6 @@
 import type { AuthUser } from "./types"
 import { hasTenantStaffDashboardAccess } from "./staff-access"
-import { getEffectiveRoleNames } from "./user-roles"
+import { getEffectiveRoleNames, getRoleSlug } from "./user-roles"
 
 /**
  * Determines the appropriate dashboard route based on user roles
@@ -40,10 +40,12 @@ export function getDashboardRoute(user: AuthUser | null | undefined): string {
     "tenant_admin",
     "finance_manager", 
     "finance-manager",
+    "accountant",
     "loan_officer",
     "loan-officer",
     "property_manager",
     "property-manager",
+    "manager",
     "member_manager",
     "member-manager",
     "document_manager",
@@ -73,14 +75,14 @@ export function hasRouteAccess(user: AuthUser | null | undefined, route: string)
   if (route.startsWith("/admin")) {
     return hasTenantStaffDashboardAccess({
       permissions: user.permissions,
-      roles: user.roles?.length ? user.roles : user.role ? [user.role] : [],
-      role: user.role,
+      roles: getEffectiveRoleNames(user),
+      role: typeof user.role === "object" ? user.role?.slug : user.role,
     })
   }
 
   if (route.startsWith("/super-admin")) {
-    const roles = user.roles?.length ? user.roles : user.role ? [user.role] : []
-    return roles.some((r) => r === "super-admin" || r === "super_admin")
+    const roles = getEffectiveRoleNames(user)
+    return roles.some((r) => r === "super-admin" || r === "super_admin") || getRoleSlug(user) === "super_admin"
   }
 
   return route === "/dashboard" || route.startsWith("/dashboard")

@@ -14,6 +14,10 @@ import { getContributionReport } from "@/lib/api/client"
 import { exportReport } from "@/lib/utils/export"
 import { toast } from "sonner"
 
+/** Matches API Contribution::COUNTED_FINANCIAL_STATUSES */
+const isContributionFinanciallyCounted = (status: string) =>
+  status === "approved" || status === "completed"
+
 const formatDate = (date: Date, formatStr = "PPP") => {
   if (formatStr === "PPP") {
     return date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })
@@ -283,8 +287,8 @@ export default function ContributionReportPage() {
                           <td className="py-3 px-4">{contribution.type}</td>
                           <td className="py-3 px-4 text-right font-semibold">₦{contribution.amount.toLocaleString()}</td>
                           <td className="py-3 px-4">
-                            <Badge variant={contribution.status === "approved" ? "default" : "secondary"}>
-                              {contribution.status === "approved" ? "Completed" : contribution.status}
+                            <Badge variant={isContributionFinanciallyCounted(contribution.status) ? "default" : "secondary"}>
+                              {isContributionFinanciallyCounted(contribution.status) ? "Completed" : contribution.status}
                             </Badge>
                           </td>
                         </tr>
