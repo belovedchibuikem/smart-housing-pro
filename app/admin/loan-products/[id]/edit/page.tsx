@@ -88,8 +88,8 @@ export default function EditLoanProductPage({ params }: { params: Promise<{ id: 
 					interest_type: form.interest_type,
 					processing_fee_percentage: form.processing_fee_percentage
 						? parseInt(form.processing_fee_percentage, 10)
-						: null,
-					late_payment_fee: form.late_payment_fee ? parseFloat(form.late_payment_fee) : null,
+						: 0,
+					late_payment_fee: form.late_payment_fee ? parseFloat(form.late_payment_fee) : 0,
 					eligibility_criteria: [],
 					required_documents: [],
 					is_active: isActive,

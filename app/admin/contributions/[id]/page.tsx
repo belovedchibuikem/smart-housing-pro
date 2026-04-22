@@ -16,10 +16,11 @@ import {
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { toast as sonnerToast } from "sonner"
-import { apiFetch } from "@/lib/api/client"
+import { apiFetch, getAdminRefundMemberSummary, type AdminRefundMemberSummary } from "@/lib/api/client"
+import { MemberFinancialSummaryGrid } from "@/components/admin/member-financial-summary-grid"
 
 interface Payment {
-  id: string
+  id?: string
   amount: number
   payment_date: string
   payment_method?: string
@@ -66,9 +67,15 @@ export default function ContributionDetailPage({ params }: { params: Promise<{ i
   const [showApproveDialog, setShowApproveDialog] = useState(false)
   const [showRejectDialog, setShowRejectDialog] = useState(false)
   const [rejectionReason, setRejectionReason] = useState("")
+  const [memberSummary, setMemberSummary] = useState<AdminRefundMemberSummary["summary"] | null>(null)
+  const [memberSummaryLoading, setMemberSummaryLoading] = useState(false)
 
   useEffect(() => {
     fetchContribution()
+  }, [id])
+
+  useEffect(() => {
+    setMemberSummary(null)
   }, [id])
 
   const fetchContribution = async () => {
@@ -90,6 +97,40 @@ export default function ContributionDetailPage({ params }: { params: Promise<{ i
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!contribution || contribution.id !== id) {
+      return
+    }
+    const memberId = contribution.member?.id
+    if (!memberId) {
+      setMemberSummary(null)
+      return
+    }
+    let cancelled = false
+    setMemberSummaryLoading(true)
+    getAdminRefundMemberSummary(memberId)
+      .then((res) => {
+        if (!cancelled && res?.success && res.summary) {
+          setMemberSummary(res.summary)
+        }
+      })
+      .catch((error: any) => {
+        if (!cancelled) {
+          console.error("Failed to load member financial summary", error)
+          setMemberSummary(null)
+          sonnerToast.error("Could not load member balances", {
+            description: error?.message || "Refund summary unavailable",
+          })
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setMemberSummaryLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [id, contribution?.id, contribution?.member?.id])
 
   const handleApprove = async () => {
     try {
@@ -247,6 +288,21 @@ export default function ContributionDetailPage({ params }: { params: Promise<{ i
         </Card>
       )}
 
+      {contribution.member?.id && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Member balance with the cooperative</CardTitle>
+            <CardDescription>
+              Wallet, contribution totals (including refunded amounts), investment profit, and equity — use this with the payment line below
+              to see what this staff has with the cooperative.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <MemberFinancialSummaryGrid summary={memberSummary} loading={memberSummaryLoading} />
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <Card>
@@ -254,51 +310,84 @@ export default function ContributionDetailPage({ params }: { params: Promise<{ i
               <CardTitle>Payment Information</CardTitle>
               <CardDescription>Contribution and payment details</CardDescription>
             </CardHeader>
-            <CardContent className="grid md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm text-muted-foreground">Amount</label>
-                  <p className="text-3xl font-bold">{formatCurrency(contribution.amount)}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground">Contribution Type</label>
-                  <p className="font-medium">{contribution.type || contribution.frequency || '-'}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-muted-foreground">Payment Method</label>
-                  <p className="font-medium flex items-center gap-2">
-                    <CreditCard className="h-4 w-4" />
-                    {contribution.payment_method || contribution.payments?.[0]?.payment_method || '-'}
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm text-muted-foreground">Contribution Date</label>
-                  <p className="font-medium flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    {formatDate(contribution.contribution_date || contribution.created_at)}
-                  </p>
-                </div>
-                {(contribution.payments && contribution.payments.length > 0 && contribution.payments[0]?.metadata?.notes) && (
+            <CardContent className="space-y-6">
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-4">
                   <div>
-                    <label className="text-sm text-muted-foreground">Description</label>
-                    <p className="font-medium">{contribution.payments[0].metadata.notes}</p>
+                    <label className="text-sm text-muted-foreground">Amount</label>
+                    <p className="text-3xl font-bold">{formatCurrency(contribution.amount)}</p>
                   </div>
-                )}
-                {contribution.approved_at && (
-                <div>
-                    <label className="text-sm text-muted-foreground">Approved Date</label>
-                    <p className="font-medium">{formatDate(contribution.approved_at)}</p>
+                  <div>
+                    <label className="text-sm text-muted-foreground">Contribution Type</label>
+                    <p className="font-medium">{contribution.type || contribution.frequency || '-'}</p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground">Payment Method</label>
+                    <p className="font-medium flex items-center gap-2">
+                      <CreditCard className="h-4 w-4" />
+                      {contribution.payment_method || contribution.payments?.[0]?.payment_method || '-'}
+                    </p>
+                  </div>
                 </div>
-                )}
-                {contribution.rejected_at && (
-                <div>
-                    <label className="text-sm text-muted-foreground">Rejected Date</label>
-                    <p className="font-medium">{formatDate(contribution.rejected_at)}</p>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-sm text-muted-foreground">Contribution Date</label>
+                    <p className="font-medium flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      {formatDate(contribution.contribution_date || contribution.created_at)}
+                    </p>
+                  </div>
+                  {contribution.payments && contribution.payments.length > 0 && contribution.payments[0]?.metadata?.notes && (
+                    <div>
+                      <label className="text-sm text-muted-foreground">Description</label>
+                      <p className="font-medium">{contribution.payments[0].metadata.notes}</p>
+                    </div>
+                  )}
+                  {contribution.approved_at && (
+                    <div>
+                      <label className="text-sm text-muted-foreground">Approved Date</label>
+                      <p className="font-medium">{formatDate(contribution.approved_at)}</p>
+                    </div>
+                  )}
+                  {contribution.rejected_at && (
+                    <div>
+                      <label className="text-sm text-muted-foreground">Rejected Date</label>
+                      <p className="font-medium">{formatDate(contribution.rejected_at)}</p>
+                    </div>
+                  )}
                 </div>
-                )}
               </div>
+
+              {contribution.payments && contribution.payments.length > 0 && (
+                <div className="space-y-2 pt-2 border-t">
+                  <label className="text-sm font-medium text-foreground">Payment records</label>
+                  <p className="text-xs text-muted-foreground">Line items recorded for this contribution (amount, method, and status).</p>
+                  <div className="rounded-md border overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/50 text-muted-foreground">
+                        <tr className="text-left">
+                          <th className="p-2 font-medium">Date</th>
+                          <th className="p-2 font-medium text-right">Amount</th>
+                          <th className="p-2 font-medium">Method</th>
+                          <th className="p-2 font-medium">Status</th>
+                          <th className="p-2 font-medium">Reference</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {contribution.payments.map((p, idx) => (
+                          <tr key={p.id ?? `payment-${idx}`} className="hover:bg-muted/30">
+                            <td className="p-2 whitespace-nowrap">{formatDate(p.payment_date)}</td>
+                            <td className="p-2 text-right font-medium tabular-nums">{formatCurrency(p.amount)}</td>
+                            <td className="p-2 capitalize">{p.payment_method?.replace(/_/g, " ") || "—"}</td>
+                            <td className="p-2 capitalize">{p.status || "—"}</td>
+                            <td className="p-2 font-mono text-xs">{p.reference || "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 

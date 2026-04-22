@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
+import { resolveStorageUrl } from "@/lib/api/config"
 
 interface PropertyImage {
   id?: string
@@ -287,9 +288,15 @@ export default function EditPropertyPage() {
           <div key={`${image.url}-${index}`} className="group relative flex flex-col overflow-hidden rounded-lg border">
             {image.preview || image.url ? (
               <img
-                src={image.preview || image.url || "/placeholder.svg"}
+                src={
+                  image.preview ||
+                  (image.url ? resolveStorageUrl(image.url) : "") ||
+                  "/placeholder.svg"
+                }
                 alt={image.name || `Property image ${index + 1}`}
                 className="h-32 w-full object-cover"
+                loading="lazy"
+                decoding="async"
               />
             ) : (
               <div className="flex h-32 w-full items-center justify-center bg-muted/40 text-muted-foreground">

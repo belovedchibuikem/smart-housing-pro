@@ -51,8 +51,10 @@ export default function NewLoanProductPage() {
             interest_rate: parseFloat(formData.interest_rate),
             min_tenure_months: parseInt(formData.min_tenure_months),
             max_tenure_months: parseInt(formData.max_tenure_months),
-            processing_fee_percentage: formData.processing_fee_percentage ? parseInt(formData.processing_fee_percentage) : null,
-            late_payment_fee: formData.late_payment_fee ? parseFloat(formData.late_payment_fee) : null,
+            processing_fee_percentage: formData.processing_fee_percentage
+              ? parseInt(formData.processing_fee_percentage, 10)
+              : 0,
+            late_payment_fee: formData.late_payment_fee ? parseFloat(formData.late_payment_fee) : 0,
             is_active: isActive,
           }
         }

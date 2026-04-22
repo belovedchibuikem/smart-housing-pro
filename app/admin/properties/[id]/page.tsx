@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import Image from "next/image"
 import { useParams, useRouter } from "next/navigation"
 import {
   ArrowLeft,
@@ -25,6 +24,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
+import { resolveStorageUrl } from "@/lib/api/config"
 import { PropertyDocuments } from "@/components/properties/property-documents"
 
 interface PropertyAllocation {
@@ -168,6 +168,9 @@ export default function PropertyDetailPage() {
 
   const currentImage = imageList[activeIndex]
 
+  const imageSrc = (u: string | undefined) =>
+    (u && resolveStorageUrl(u)) || "/placeholder.svg"
+
   const showPrev = () => {
     if (imageList.length === 0) return
     setActiveIndex((prev) => (prev - 1 + imageList.length) % imageList.length)
@@ -217,13 +220,13 @@ export default function PropertyDetailPage() {
             <CardContent className="p-0">
               <div className="relative group rounded-t-lg overflow-hidden">
                 {currentImage ? (
-                  <Image
-                    src={currentImage.url || "/placeholder.svg"}
+                  <img
+                    src={imageSrc(currentImage.url)}
                     alt={property.title || "Property image"}
-                    width={1280}
-                    height={720}
                     className="w-full h-96 object-cover transition-transform duration-500 group-hover:scale-105 cursor-zoom-in"
                     onClick={() => setIsViewerOpen(true)}
+                    loading="eager"
+                    decoding="async"
                   />
                 ) : (
                   <div className="flex h-96 w-full items-center justify-center bg-muted text-muted-foreground">
@@ -273,12 +276,12 @@ export default function PropertyDetailPage() {
                       onClick={() => setActiveIndex(index)}
                       className={`overflow-hidden rounded border ${index === activeIndex ? "border-primary" : "border-transparent"}`}
                     >
-                      <Image
-                        src={image.url || "/placeholder.svg"}
+                      <img
+                        src={imageSrc(image.url)}
                         alt=""
-                        width={400}
-                        height={300}
                         className="h-24 w-full object-cover transition hover:opacity-80"
+                        loading="lazy"
+                        decoding="async"
                       />
                     </button>
                   ))}
@@ -492,12 +495,11 @@ export default function PropertyDetailPage() {
           <DialogContent className="max-w-4xl bg-background/95">
             <div className="relative flex flex-col items-center gap-4">
               <div className="relative w-full overflow-hidden rounded-lg bg-black">
-                <Image
-                  src={currentImage.url || "/placeholder.svg"}
+                <img
+                  src={imageSrc(currentImage.url)}
                   alt={property.title || "Property image"}
-                  width={1600}
-                  height={900}
                   className="h-[70vh] w-full object-contain"
+                  decoding="async"
                 />
                 {imageList.length > 1 && (
                   <>
@@ -529,12 +531,12 @@ export default function PropertyDetailPage() {
                       onClick={() => setActiveIndex(index)}
                       className={`overflow-hidden rounded border ${index === activeIndex ? "border-primary" : "border-transparent"}`}
                     >
-                      <Image
-                        src={image.url || "/placeholder.svg"}
+                      <img
+                        src={imageSrc(image.url)}
                         alt=""
-                        width={300}
-                        height={200}
                         className="h-20 w-full object-cover"
+                        loading="lazy"
+                        decoding="async"
                       />
                     </button>
                   ))}

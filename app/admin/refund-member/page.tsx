@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Search, DollarSign, Wallet, TrendingUp, CreditCard, Loader2, AlertCircle, PiggyBank, Coins, X } from "lucide-react"
+import { Search, DollarSign, Loader2, AlertCircle, Coins, X } from "lucide-react"
+import { MemberFinancialSummaryGrid } from "@/components/admin/member-financial-summary-grid"
 import {
   apiFetch,
   getAdminRefundMemberSummary,
@@ -355,62 +356,9 @@ export default function RefundMemberPage() {
                 <Label className="text-sm text-muted-foreground">Member ID</Label>
                 <p className="font-medium">{selectedMember.member_id}</p>
               </div>
-              {summaryLoading && (
-                <div className="flex items-center justify-center py-6">
-                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                </div>
-              )}
-              {!summaryLoading && summary && (
-                <div className="space-y-3 pt-4 border-t">
-                  <div className="grid grid-cols-2 gap-4">
-                    <Card className="bg-blue-50 border-blue-200">
-                      <CardContent className="p-4 space-y-2">
-                        <div className="flex items-center gap-2 text-blue-600">
-                          <Wallet className="h-4 w-4" />
-                          <span className="text-xs uppercase font-semibold">Wallet</span>
-                        </div>
-                        <p className="text-lg font-bold text-blue-900">{formatCurrency(summary.wallet.balance)}</p>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-green-50 border-green-200">
-                      <CardContent className="p-4 space-y-2">
-                        <div className="flex items-center gap-2 text-green-600">
-                          <CreditCard className="h-4 w-4" />
-                          <span className="text-xs uppercase font-semibold">Contributions</span>
-                        </div>
-                        <p className="text-lg font-bold text-green-900">{formatCurrency(summary.contribution.available)}</p>
-                        <p className="text-xs text-green-700">
-                          Total: {formatCurrency(summary.contribution.total)} • Refunded: {formatCurrency(summary.contribution.refunded)}
-                        </p>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-purple-50 border-purple-200">
-                      <CardContent className="p-4 space-y-2">
-                        <div className="flex items-center gap-2 text-purple-600">
-                          <TrendingUp className="h-4 w-4" />
-                          <span className="text-xs uppercase font-semibold">Investment Profit</span>
-                        </div>
-                        <p className="text-lg font-bold text-purple-900">{formatCurrency(summary.investment_returns.available)}</p>
-                        <p className="text-xs text-purple-700">
-                          Total: {formatCurrency(summary.investment_returns.total)} • Refunded: {formatCurrency(summary.investment_returns.refunded)}
-                        </p>
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-amber-50 border-amber-200">
-                      <CardContent className="p-4 space-y-2">
-                        <div className="flex items-center gap-2 text-amber-600">
-                          <PiggyBank className="h-4 w-4" />
-                          <span className="text-xs uppercase font-semibold">Equity Wallet</span>
-                        </div>
-                        <p className="text-lg font-bold text-amber-900">{formatCurrency(summary.equity_wallet.available ?? summary.equity_wallet.balance)}</p>
-                        <p className="text-xs text-amber-700">
-                          Total: {formatCurrency(summary.equity_wallet.total)} • Refunded: {formatCurrency(summary.equity_wallet.refunded)}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  </div>
-                </div>
-              )}
+              <div className="space-y-3 pt-4 border-t">
+                <MemberFinancialSummaryGrid summary={summary} loading={summaryLoading} />
+              </div>
               {!summaryLoading && !summary && (
                 <Alert variant="default">
                   <AlertTitle>Balances unavailable</AlertTitle>

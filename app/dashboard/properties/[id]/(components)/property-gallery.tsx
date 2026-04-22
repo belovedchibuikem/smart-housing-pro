@@ -1,11 +1,11 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import Image from "next/image"
 import { ChevronLeft, ChevronRight, Image as ImageIcon } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import type { PropertyImage } from "@/lib/api/client"
+import { resolveStorageUrl } from "@/lib/api/config"
 
 type PropertyGalleryProps = {
   images?: PropertyImage[]
@@ -20,6 +20,8 @@ export function PropertyGallery({ images }: PropertyGalleryProps) {
   const [viewerOpen, setViewerOpen] = useState(false)
 
   const currentImage = imageList[activeIndex]
+
+  const imageSrc = (u: string | undefined) => (u && resolveStorageUrl(u)) || "/placeholder.svg"
 
   const hasImages = imageList.length > 0
 
@@ -39,13 +41,12 @@ export function PropertyGallery({ images }: PropertyGalleryProps) {
         <CardContent className="p-0">
           <div className="relative group rounded-t-lg overflow-hidden">
             {currentImage ? (
-              <Image
-                src={currentImage.url || "/placeholder.svg"}
+              <img
+                src={imageSrc(currentImage.url)}
                 alt={currentImage.caption ?? "Property image"}
-                width={1280}
-                height={720}
                 className="h-96 w-full cursor-zoom-in object-cover transition-transform duration-500 group-hover:scale-105"
                 onClick={() => setViewerOpen(true)}
+                decoding="async"
               />
             ) : (
               <div className="flex h-96 w-full items-center justify-center bg-muted text-muted-foreground">
@@ -95,12 +96,12 @@ export function PropertyGallery({ images }: PropertyGalleryProps) {
                   onClick={() => setActiveIndex(index)}
                   className={`overflow-hidden rounded border ${index === activeIndex ? "border-primary" : "border-transparent"}`}
                 >
-                  <Image
-                    src={image.url || "/placeholder.svg"}
+                  <img
+                    src={imageSrc(image.url)}
                     alt={image.caption ?? ""}
-                    width={400}
-                    height={300}
                     className="h-24 w-full object-cover transition hover:opacity-80"
+                    loading="lazy"
+                    decoding="async"
                   />
                 </button>
               ))}
@@ -115,12 +116,11 @@ export function PropertyGallery({ images }: PropertyGalleryProps) {
             <DialogTitle className="sr-only">Property image preview</DialogTitle>
             <div className="relative flex flex-col items-center gap-4">
               <div className="relative w-full overflow-hidden rounded-lg bg-black">
-                <Image
-                  src={currentImage.url || "/placeholder.svg"}
+                <img
+                  src={imageSrc(currentImage.url)}
                   alt={currentImage.caption ?? "Property image"}
-                  width={1600}
-                  height={900}
                   className="h-[70vh] w-full object-contain"
+                  decoding="async"
                 />
                 {imageList.length > 1 && (
                   <>
@@ -153,12 +153,12 @@ export function PropertyGallery({ images }: PropertyGalleryProps) {
                       onClick={() => setActiveIndex(index)}
                       className={`overflow-hidden rounded border ${index === activeIndex ? "border-primary" : "border-transparent"}`}
                     >
-                      <Image
-                        src={image.url || "/placeholder.svg"}
+                      <img
+                        src={imageSrc(image.url)}
                         alt={image.caption ?? ""}
-                        width={300}
-                        height={200}
                         className="h-20 w-full object-cover"
+                        loading="lazy"
+                        decoding="async"
                       />
                     </button>
                   ))}

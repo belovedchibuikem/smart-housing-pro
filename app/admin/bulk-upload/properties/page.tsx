@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
-import { apiFetch } from "@/lib/api/client"
+import { apiFetch, apiFetchBlob } from "@/lib/api/client"
+import { PROPERTY_BULK_UPLOAD_CSV } from "@/lib/bulk-upload/property-csv-template"
 import { parseFile } from "@/lib/utils/file-parser"
 
 export default function BulkUploadPropertiesPage() {
@@ -54,6 +55,12 @@ export default function BulkUploadPropertiesPage() {
             || '',
           bedrooms: row['Bedrooms'] || row['bedrooms'] || '',
           bathrooms: row['Bathrooms'] || row['bathrooms'] || '',
+          totalSlots:
+            row['Total Slots'] ??
+            row['total_slots'] ??
+            row['Total slots'] ??
+            row['TotalSlots'] ??
+            '',
           status: row['Status (available/reserved/sold)'] 
             || row['status_available_reserved_sold']
             || row['Status'] 
@@ -87,33 +94,73 @@ export default function BulkUploadPropertiesPage() {
     }
   }
 
+  const triggerCsvDownload = (content: string, filename: string) => {
+    const blob = new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8" })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    a.click()
+    window.URL.revokeObjectURL(url)
+  }
+
   const downloadTemplate = async () => {
     try {
-      const response = await apiFetch<{ success: boolean; template: string; filename: string }>(
-        '/admin/bulk/properties/template'
-      )
-
-      if (!response.success) {
-        throw new Error('Failed to download template')
+      const blob = await apiFetchBlob("/admin/bulk/properties/template?format=file")
+      if (!blob || blob.size === 0) {
+        throw new Error("Empty template from server")
       }
-
-      const blob = new Blob([response.template], { type: 'text/csv' })
-      const url = window.URL.createObjectURL(blob)
+      const asText = await blob.text()
+      if (asText.trimStart().startsWith("{")) {
+        const parsed = JSON.parse(asText) as { success?: boolean; template?: string; filename?: string }
+        if (parsed?.success && typeof parsed.template === "string" && parsed.template.trim() !== "") {
+          triggerCsvDownload(
+            parsed.template,
+            parsed.filename || "properties_upload_template.csv"
+          )
+          toast({
+            title: "Template downloaded",
+            description: "CSV template has been saved.",
+          })
+          return
+        }
+        throw new Error("No template in API response")
+      }
+      const csvBlob = new Blob([asText], { type: "text/csv;charset=utf-8" })
+      const url = window.URL.createObjectURL(csvBlob)
       const a = document.createElement("a")
       a.href = url
-      a.download = response.filename || "properties_upload_template.csv"
+      a.download = "properties_upload_template.csv"
       a.click()
       window.URL.revokeObjectURL(url)
-      
       toast({
-        title: "Template Downloaded",
-        description: "CSV template has been downloaded successfully.",
+        title: "Template downloaded",
+        description: "CSV template has been saved.",
       })
     } catch (error) {
+      try {
+        const response = await apiFetch<{ success: boolean; template: string; filename: string }>(
+          "/admin/bulk/properties/template"
+        )
+        if (response?.success && typeof response.template === "string" && response.template.trim() !== "") {
+          triggerCsvDownload(
+            response.template,
+            response.filename || "properties_upload_template.csv"
+          )
+          toast({
+            title: "Template downloaded",
+            description: "CSV template has been saved.",
+          })
+          return
+        }
+      } catch {
+        // fall through to embedded template
+      }
+      triggerCsvDownload(PROPERTY_BULK_UPLOAD_CSV, "properties_upload_template.csv")
       toast({
-        title: "Download Failed",
-        description: "Failed to download template. Please try again.",
-        variant: "destructive",
+        title: "Template downloaded (offline copy)",
+        description:
+          (error instanceof Error && error.message) || "The server could not return the file; a standard property CSV was saved.",
       })
     }
   }
@@ -271,7 +318,8 @@ export default function BulkUploadPropertiesPage() {
           <div className="space-y-2">
             <h3 className="font-medium">Step 2: Fill in Property Data</h3>
             <p className="text-sm text-muted-foreground">
-              Open the template and fill in the property details
+              Open the template and fill in the property details. Use <span className="font-medium">Total Slots</span> for
+              the number of allottee slots; leave blank if the cooperative does not use slots on this import.
             </p>
           </div>
 
@@ -326,6 +374,7 @@ export default function BulkUploadPropertiesPage() {
                     <TableHead>Address</TableHead>
                     <TableHead>Price</TableHead>
                     <TableHead>Type</TableHead>
+                    <TableHead>Total slots</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -336,6 +385,11 @@ export default function BulkUploadPropertiesPage() {
                       <TableCell>{property.address}</TableCell>
                       <TableCell>₦{parseFloat(property.price || 0).toLocaleString()}</TableCell>
                       <TableCell>{property.propertyType}</TableCell>
+                      <TableCell>
+                        {property.totalSlots === '' || property.totalSlots == null
+                          ? "—"
+                          : String(property.totalSlots)}
+                      </TableCell>
                       <TableCell>{property.status}</TableCell>
                     </TableRow>
                   ))}

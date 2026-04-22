@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch, getPropertySubscriptions, generatePropertySubscriptionCertificate } from "@/lib/api/client"
+import { resolveStorageUrl } from "@/lib/api/config"
 
 interface Property {
   id: string
@@ -369,7 +370,11 @@ export default function AdminPropertiesPage() {
                 {properties.map((property) => (
                   <Card key={property.id} className="overflow-hidden">
                     <img
-                        src={property.images?.[0]?.url || "/placeholder.svg"}
+                        src={
+                          property.images?.[0]?.url
+                            ? resolveStorageUrl(property.images[0].url) || "/placeholder.svg"
+                            : "/placeholder.svg"
+                        }
                         alt={property.title || "Property"}
                       className="w-full h-48 object-cover"
                     />
