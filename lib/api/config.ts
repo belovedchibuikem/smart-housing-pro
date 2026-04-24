@@ -60,6 +60,11 @@ export function resolveStorageUrl(href: string | null | undefined): string {
 		return ""
 	}
 	if (/^https?:\/\//i.test(s)) {
+		// When APP_URL includes /public, Laravel can emit .../public/storage/...; the real path on the
+		// server is /storage/... (document root is already the public/ folder) — the extra /public/ often 403s.
+		if (s.includes("/public/storage/")) {
+			return s.replace(/\/public\/storage\//g, "/storage/")
+		}
 		return s
 	}
 	// protocol-relative: use current page's protocol in the browser
