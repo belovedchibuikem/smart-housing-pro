@@ -9,6 +9,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch, approveEoiForm, rejectEoiForm, getApiBaseUrl, getAuthToken, getTenantSlug } from "@/lib/api/client"
+import { resolveStorageUrl } from "@/lib/api/config"
 
 interface EoiFormDetail {
   id: string
@@ -456,7 +457,7 @@ export default function EoiFormDetailPage({ params }: { params: Promise<{ id: st
           </CardHeader>
           <CardContent>
             <img
-              src={eoiForm.signature_url}
+              src={resolveStorageUrl(eoiForm.signature_url)}
               alt="Signature"
               className="h-32 max-w-xs border rounded-md object-contain bg-muted p-2"
             />

@@ -8,6 +8,7 @@ import Image from "next/image"
 import { useWhiteLabel } from "@/lib/hooks/use-white-label"
 import { useTenantSettings } from "@/lib/context/tenant-settings-context"
 import { MaintenanceMode } from "@/components/auth/maintenance-mode"
+import { resolveStorageUrl } from "@/lib/api/config"
 
 export default function LoginPage() {
   const { t } = useI18n()
@@ -31,7 +32,7 @@ export default function LoginPage() {
       <div 
         className="hidden lg:flex flex-col justify-between p-12 bg-primary text-primary-foreground relative"
         style={loginBgUrl ? {
-          backgroundImage: `url(${loginBgUrl})`,
+          backgroundImage: `url(${resolveStorageUrl(loginBgUrl)})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
         } : {}}
@@ -43,7 +44,7 @@ export default function LoginPage() {
           <Link href="/" className="flex items-center gap-2">
             {logoUrl ? (
               <Image
-                src={logoUrl}
+                src={resolveStorageUrl(logoUrl)}
                 alt={siteName}
                 width={32}
                 height={32}
@@ -72,7 +73,7 @@ export default function LoginPage() {
             <Link href="/" className="lg:hidden flex items-center justify-center gap-2 mb-8">
               {logoUrl ? (
                 <Image
-                  src={logoUrl}
+                  src={resolveStorageUrl(logoUrl)}
                   alt={siteName}
                   width={32}
                   height={32}

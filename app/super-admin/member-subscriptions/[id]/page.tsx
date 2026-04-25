@@ -7,6 +7,7 @@ import { ArrowLeft, Edit, Users, DollarSign, Calendar, CheckCircle, XCircle, Pac
 import Link from "next/link"
 import { useEffect, use, useState } from "react"
 import { apiFetch, approveMemberSubscription, rejectMemberSubscription } from "@/lib/api/client"
+import { resolveStorageUrl } from "@/lib/api/config"
 import { usePageLoading } from "@/hooks/use-loading"
 import {
   Dialog,
@@ -333,16 +334,18 @@ export default function MemberSubscriptionDetailPage({ params }: { params: Promi
                     Payment Evidence ({subscriptionData.payment_evidence.length} {subscriptionData.payment_evidence.length === 1 ? 'file' : 'files'})
                   </label>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {subscriptionData.payment_evidence.map((evidence, index) => (
+                    {subscriptionData.payment_evidence.map((evidence, index) => {
+                      const evidenceUrl = resolveStorageUrl(evidence)
+                      return (
                       <div key={index} className="relative group">
                         <a
-                          href={evidence}
+                          href={evidenceUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="block aspect-video bg-gray-100 rounded-lg overflow-hidden border-2 border-gray-200 hover:border-primary transition-colors"
                         >
                           <img
-                            src={evidence}
+                            src={evidenceUrl}
                             alt={`Payment evidence ${index + 1}`}
                             className="w-full h-full object-cover"
                             onError={(e) => {
@@ -360,14 +363,15 @@ export default function MemberSubscriptionDetailPage({ params }: { params: Promi
                           </div>
                         </a>
                         <a
-                          href={evidence}
+                          href={evidenceUrl}
                           download
                           className="absolute top-2 right-2 bg-white rounded-full p-2 shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-50"
                         >
                           <Download className="h-4 w-4 text-gray-600" />
                         </a>
                       </div>
-                    ))}
+                    )
+                    })}
                   </div>
                 </div>
               )}

@@ -25,6 +25,7 @@ import {
 	type PropertyMortgage,
 } from "@/lib/api/client"
 import { useWhiteLabelSettings } from "@/lib/hooks/use-white-label"
+import { resolveStorageUrl } from "@/lib/api/config"
 
 interface ExpressionOfInterestFormProps {
   propertyId: string
@@ -670,7 +671,7 @@ useEffect(() => {
 					<div className="mb-4 flex items-center justify-between">
 						<div className="flex h-24 w-24 items-center justify-center rounded border-2 border-gray-300">
 							{getLogo() ? (
-								<img src={getLogo() ?? ""} alt="Institution Logo" className="h-20 w-20 object-contain" />
+								<img src={resolveStorageUrl(getLogo())} alt="Institution Logo" className="h-20 w-20 object-contain" />
 							) : (
 								<div className="flex h-20 w-20 items-center justify-center text-xs text-muted-foreground">
 									Cooperative Logo

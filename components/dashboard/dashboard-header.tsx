@@ -15,6 +15,7 @@ import { handleLogout } from "@/lib/auth/auth-utils"
 import { useWhiteLabelSettings } from "@/lib/hooks/use-white-label"
 import { UserNotificationBell } from "./user-notification-bell"
 import { SubscriptionAlertBanner } from "./subscription-alert-banner"
+import { resolveStorageUrl } from "@/lib/api/config"
 
 interface DashboardHeaderProps {
   mobileMenuOpen: boolean
@@ -38,7 +39,7 @@ export function DashboardHeader({ mobileMenuOpen, setMobileMenuOpen }: Dashboard
           </Button>
           <Link href="/dashboard" className="flex items-center gap-2">
             {logoUrl ? (
-              <img src={logoUrl ?? ""} alt="Dashboard Logo" className="h-8 w-8 object-contain" />
+              <img src={resolveStorageUrl(logoUrl)} alt="Dashboard Logo" className="h-8 w-8 object-contain" />
             ) : (
               <div className="flex h-8 w-8 items-center justify-center rounded bg-primary/10 text-xs font-semibold text-primary">
                 HMS

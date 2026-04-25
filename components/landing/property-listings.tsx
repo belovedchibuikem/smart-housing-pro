@@ -5,6 +5,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { MapPin, Home, Maximize } from "lucide-react"
+import { resolveStorageUrl } from "@/lib/api/config"
 
 interface Property {
   id: string
@@ -61,7 +62,7 @@ export function PropertyListings({ properties = [], config }: PropertyListingsPr
             <Card key={property.id} className="overflow-hidden hover:shadow-xl transition-shadow group">
               <div className="relative h-48 overflow-hidden">
                 <Image
-                  src={property.image || "/placeholder.svg"}
+                  src={(property.image && resolveStorageUrl(property.image)) || "/placeholder.svg"}
                   alt={property.name}
                   fill
                   className="object-cover group-hover:scale-110 transition-transform duration-300"

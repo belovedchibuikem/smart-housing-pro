@@ -9,6 +9,7 @@ import { Building2, MessageCircle, ThumbsUp, Eye, ArrowLeft } from "lucide-react
 import { SaaSHeader } from "@/components/saas/saas-header"
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api/client"
+import { resolveStorageUrl } from "@/lib/api/config"
 
 interface Discussion {
   id: string
@@ -107,7 +108,9 @@ export default function CommunityPage() {
               <Card key={discussion.id} className="p-6">
                 <div className="flex items-start gap-4 mb-4">
                   <Avatar>
-                    <AvatarImage src={discussion.author.avatar || undefined} />
+                    <AvatarImage
+                      src={discussion.author.avatar ? resolveStorageUrl(discussion.author.avatar) : undefined}
+                    />
                     <AvatarFallback>{discussion.author.name.charAt(0)}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1">

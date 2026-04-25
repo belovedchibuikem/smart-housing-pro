@@ -7,6 +7,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { AvailableProperty } from "@/lib/api/client"
+import { resolveStorageUrl } from "@/lib/api/config"
 
 type PropertyListingsProps = {
 	properties: AvailableProperty[]
@@ -56,8 +57,9 @@ export function PropertyListings({ properties, loading }: PropertyListingsProps)
 		return (
 			<div className="grid gap-6 md:grid-cols-2">
 				{properties.map((property) => {
-					const primaryImage =
-						property.images?.find((image) => image.is_primary)?.url || property.images?.[0]?.url || "/placeholder.svg"
+					const raw =
+						property.images?.find((image) => image.is_primary)?.url || property.images?.[0]?.url
+					const primaryImage = (raw && resolveStorageUrl(raw)) || "/placeholder.svg"
 
   return (
         <Card key={property.id} className="overflow-hidden">

@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { MapPin, Calendar, Home, Clock, CheckCircle2, TrendingUp, MapPinned } from "lucide-react"
 import type { MemberHouse } from "@/lib/api/client"
+import { resolveStorageUrl } from "@/lib/api/config"
 import { useToast } from "@/hooks/use-toast"
 
 type MyPropertiesProps = {
@@ -98,8 +99,9 @@ export function MyProperties({ properties, loading, propertyType = "house" }: My
 		return (
 			<div className="space-y-6">
 				{properties.map((property) => {
-					const primaryImage =
-						property.images?.find((image) => image.is_primary)?.url || property.images?.[0]?.url || "/placeholder.svg"
+					const raw =
+						property.images?.find((image) => image.is_primary)?.url || property.images?.[0]?.url
+					const primaryImage = (raw && resolveStorageUrl(raw)) || "/placeholder.svg"
 
 					const progress = Math.min(100, Math.max(0, property.progress ?? 0))
 					const progressLabel = `${progress.toFixed(0)}% paid`

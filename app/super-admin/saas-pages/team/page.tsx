@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Plus, Edit, Trash2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api/client"
+import { resolveStorageUrl } from "@/lib/api/config"
 import { usePageLoading } from "@/hooks/use-loading"
 import {
   Dialog,
@@ -159,7 +160,7 @@ export default function TeamPage() {
               <div className="text-center mb-4">
                 {member.avatar_url && (
                   <img
-                    src={member.avatar_url}
+                    src={resolveStorageUrl(member.avatar_url)}
                     alt={member.name}
                     className="w-20 h-20 rounded-full mx-auto mb-3"
                   />

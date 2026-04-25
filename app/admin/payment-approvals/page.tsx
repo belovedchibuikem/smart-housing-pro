@@ -34,6 +34,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { toast as sonnerToast } from "sonner"
 import { apiFetch } from "@/lib/api/client"
+import { resolveStorageUrl } from "@/lib/api/config"
 
 const paymentMethodOptions = [
   { label: "All Methods", value: "all" },
@@ -906,13 +907,15 @@ export default function TenantPaymentApprovalsPage() {
                                         Payment Evidence ({selectedPayment.payment_evidence.length} {selectedPayment.payment_evidence.length === 1 ? 'file' : 'files'})
                                       </Label>
                                       <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                                        {selectedPayment.payment_evidence.map((evidence, index) => (
+                                        {selectedPayment.payment_evidence.map((evidence, index) => {
+                                          const evidenceUrl = resolveStorageUrl(evidence)
+                                          return (
                                           <div
                                             key={index}
                                             className="group relative aspect-video overflow-hidden rounded border-2 border-gray-200 bg-white transition-colors hover:border-primary"
                                           >
                                             <img
-                                              src={evidence}
+                                              src={evidenceUrl}
                                               alt={`Payment evidence ${index + 1}`}
                                               className="h-full w-full object-cover"
                                               onError={(event) => {
@@ -921,7 +924,7 @@ export default function TenantPaymentApprovalsPage() {
                                               }}
                                             />
                                             <a
-                                              href={evidence}
+                                              href={evidenceUrl}
                                               target="_blank"
                                               rel="noopener noreferrer"
                                               className="absolute inset-0"
@@ -930,7 +933,7 @@ export default function TenantPaymentApprovalsPage() {
                                               <span className="sr-only">Open evidence</span>
                                             </a>
                                             <a
-                                              href={evidence}
+                                              href={evidenceUrl}
                                               download
                                               className="absolute right-2 top-2 rounded-full bg-white p-2 opacity-0 shadow-md transition-opacity hover:bg-gray-50 group-hover:opacity-100"
                                               aria-label="Download evidence"
@@ -938,7 +941,8 @@ export default function TenantPaymentApprovalsPage() {
                                               <Download className="h-4 w-4 text-gray-600" />
                                             </a>
                                           </div>
-                                        ))}
+                                          )
+                                        })}
                                       </div>
                                     </div>
                                   )}

@@ -8,6 +8,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { toast as sonnerToast } from "sonner"
 import { apiFetch } from "@/lib/api/client"
+import { resolveStorageUrl } from "@/lib/api/config"
 
 export default function LandingPageTemplatesPage() {
   const router = useRouter()
@@ -501,7 +502,7 @@ export default function LandingPageTemplatesPage() {
               
               <div className="relative">
                 <img
-                  src={template.thumbnail || "/placeholder.svg"}
+                  src={resolveStorageUrl(template.thumbnail || "") || "/placeholder.svg"}
                   alt={template.name}
                   className="w-full h-48 object-cover"
                 />

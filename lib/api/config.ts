@@ -29,15 +29,20 @@ export function getApiUrl(): string {
 /**
  * Get storage URL (for file access)
  * Supports NEXT_PUBLIC_STORAGE_URL environment variable for explicit storage URL
- * Falls back to API URL + /storage if not set
+ * Falls back to API URL + optional NEXT_PUBLIC_PUBLIC_PATH_PREFIX + /storage
  */
 export function getStorageUrl(): string {
 	// Check for explicit storage URL first
 	if (process.env.NEXT_PUBLIC_STORAGE_URL) {
 		return process.env.NEXT_PUBLIC_STORAGE_URL.replace(/\/$/, "")
 	}
-	// Fallback to API URL + /storage
-	return `${getApiUrl()}/storage`
+	const base = getApiUrl()
+	const prefix = (process.env.NEXT_PUBLIC_PUBLIC_PATH_PREFIX || "")
+		.replace(/^\/+|\/+$/g, "")
+	if (prefix) {
+		return `${base}/${prefix}/storage`
+	}
+	return `${base}/storage`
 }
 
 // Export constants for convenience
@@ -46,10 +51,12 @@ export const API_URL = getApiUrl()
 export const STORAGE_URL = getStorageUrl()
 
 /**
- * Resolves a media URL from the API for use in <img src>.
- * Database values are often `/storage/...` relative to the API origin; the admin UI runs
- * on a different host (e.g. Next), so a bare path would load the wrong site and show broken images.
- * Absolute http(s) URLs are returned unchanged.
+ * Resolves a media URL from the API for use in <img src> or next/image.
+ * - Relative public-disk paths (e.g. `property-images/x.png`) → getStorageUrl()/path
+ * - `/storage/...` and `/public/storage/...` → configured storage base (supports PUBLIC_PATH_PREFIX)
+ * - Full URLs on the same origin as getApiUrl() with `/storage/` or `/public/storage/` are rebuilt
+ *   so legacy links without `/public` still work when the app uses `/public/storage/`
+ * - Other root-relative paths (e.g. `/placeholder.svg`) are left as-is (Next public assets)
  */
 export function resolveStorageUrl(href: string | null | undefined): string {
 	if (href == null || typeof href !== "string") {
@@ -59,11 +66,26 @@ export function resolveStorageUrl(href: string | null | undefined): string {
 	if (!s) {
 		return ""
 	}
+	if (s.startsWith("blob:") || s.startsWith("data:")) {
+		return s
+	}
 	if (/^https?:\/\//i.test(s)) {
-		// When APP_URL includes /public, Laravel can emit .../public/storage/...; the real path on the
-		// server is /storage/... (document root is already the public/ folder) — the extra /public/ often 403s.
-		if (s.includes("/public/storage/")) {
-			return s.replace(/\/public\/storage\//g, "/storage/")
+		try {
+			const parsed = new URL(s)
+			const apiBase = new URL(getApiUrl())
+			if (parsed.origin === apiBase.origin) {
+				const path = parsed.pathname
+				if (path.startsWith("/public/storage/") || path === "/public/storage") {
+					const rest = path === "/public/storage" ? "" : path.slice("/public/storage/".length)
+					return rest ? `${getStorageUrl()}/${rest}` : getStorageUrl()
+				}
+				if (path.startsWith("/storage/") || path === "/storage") {
+					const rest = path === "/storage" ? "" : path.slice("/storage/".length)
+					return rest ? `${getStorageUrl()}/${rest}` : getStorageUrl()
+				}
+			}
+		} catch {
+			// ignore parse errors
 		}
 		return s
 	}
@@ -74,11 +96,17 @@ export function resolveStorageUrl(href: string | null | undefined): string {
 		}
 		return `https:${s}`
 	}
-	const base = getApiUrl()
-	if (s.startsWith("/")) {
-		return `${base}${s}`
+	if (s === "/public/storage" || s.startsWith("/public/storage/")) {
+		const rest = s === "/public/storage" ? "" : s.slice("/public/storage/".length)
+		return rest ? `${getStorageUrl()}/${rest}` : getStorageUrl()
 	}
-	// e.g. "property-images/abc.jpg" from some uploads
+	if (s === "/storage" || s.startsWith("/storage/")) {
+		const rest = s === "/storage" ? "" : s.slice("/storage/".length)
+		return `${getStorageUrl()}${rest}`
+	}
+	if (s.startsWith("/")) {
+		return s
+	}
 	return `${getStorageUrl()}/${s.replace(/^\/+/, "")}`
 }
 

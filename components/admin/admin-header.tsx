@@ -17,6 +17,7 @@ import { useTenantSettings } from "@/lib/context/tenant-settings-context"
 import { AdminNotificationBell } from "./admin-notification-bell"
 import { handleLogout } from "@/lib/auth/auth-utils"
 import { AdminSubscriptionAlertBanner } from "./subscription-alert-banner"
+import { resolveStorageUrl } from "@/lib/api/config"
 
 interface AdminHeaderProps {
   mobileMenuOpen: boolean
@@ -42,7 +43,7 @@ export function AdminHeader({ mobileMenuOpen, setMobileMenuOpen }: AdminHeaderPr
           <Link href="/admin" className="flex items-center gap-2">
             {logoUrl ? (
               <Image
-                src={logoUrl}
+                src={resolveStorageUrl(logoUrl)}
                 alt={siteName}
                 width={32}
                 height={32}

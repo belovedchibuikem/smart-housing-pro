@@ -15,6 +15,7 @@ import { Palette, Type, ImageIcon, Mail, FileText, Save, Upload, X, Code, LinkIc
 import { toast as sonnerToast } from "sonner"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { apiFetch } from "@/lib/api/client"
+import { resolveStorageUrl } from "@/lib/api/config"
 
 interface WhiteLabelSettings {
   id?: string
@@ -404,7 +405,7 @@ export default function WhiteLabelPage() {
                 {settings.logo_url && (
                   <div className="mt-2 p-4 border rounded-lg bg-muted">
                     <img
-                      src={settings.logo_url || "/placeholder.svg"}
+                      src={resolveStorageUrl(settings.logo_url) || "/placeholder.svg"}
                       alt="Logo preview"
                       className="h-12 object-contain"
                     />

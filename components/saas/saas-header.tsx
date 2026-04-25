@@ -7,6 +7,7 @@ import { Building2, Menu, Home, Sparkles, CreditCard, Users, Info, LogIn } from 
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { apiFetch } from "@/lib/api/client"
+import { resolveStorageUrl } from "@/lib/api/config"
 
 export function SaaSHeader() {
   const [isOpen, setIsOpen] = useState(false)
@@ -75,7 +76,7 @@ export function SaaSHeader() {
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/saas" className="flex items-center gap-2 font-bold text-xl">
           {headerData?.logo_url ? (
-            <img src={headerData.logo_url} alt="Logo" className="h-8 w-8 rounded-lg object-contain" />
+            <img src={resolveStorageUrl(headerData.logo_url)} alt="Logo" className="h-8 w-8 rounded-lg object-contain" />
           ) : (
             <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
               <Building2 className="h-5 w-5" />

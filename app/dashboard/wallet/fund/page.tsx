@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { getWalletPaymentMethods, initializeWalletFunding, uploadPaymentEvidence } from "@/lib/api/client"
 import { usePageLoading } from "@/hooks/use-loading"
 import { useToast } from "@/hooks/use-toast"
+import { resolveStorageUrl } from "@/lib/api/config"
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-NG', {
@@ -433,7 +434,7 @@ export default function WalletFundPage() {
                         {evidenceUrls.map((url, index) => (
                           <div key={index} className="relative group">
                             <img
-                              src={url}
+                              src={resolveStorageUrl(url)}
                               alt={`Evidence ${index + 1}`}
                               className="w-full h-24 object-cover rounded border"
                             />

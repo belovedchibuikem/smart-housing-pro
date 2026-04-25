@@ -7,6 +7,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { TrendingUp, Calendar, DollarSign, MapPin, Home, Coins } from "lucide-react"
+import { resolveStorageUrl } from "@/lib/api/config"
 
 interface InvestmentPlan {
   id: string
@@ -21,6 +22,7 @@ interface InvestmentPlan {
   return_type: string
   risk_level: string
   features?: string[]
+  image?: string | null
 }
 
 interface InvestmentOpportunitiesProps {
@@ -49,6 +51,7 @@ export function InvestmentOpportunities({ plans = [], config }: InvestmentOpport
     riskLevel: plan.risk_level,
     features: plan.features || [],
     icon: Coins,
+    image: plan.image ?? null,
   }))
 
   const filteredInvestments = mappedPlans.filter((investment) => {
@@ -149,7 +152,7 @@ export function InvestmentOpportunities({ plans = [], config }: InvestmentOpport
                 {investment.image ? (
                   <div className="relative h-48 overflow-hidden">
                     <Image
-                      src={investment.image || "/placeholder.svg"}
+                      src={resolveStorageUrl(investment.image) || "/placeholder.svg"}
                       alt={investment.name}
                       fill
                       className="object-cover group-hover:scale-110 transition-transform duration-300"

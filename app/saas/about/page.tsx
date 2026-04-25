@@ -7,6 +7,7 @@ import { SaaSHeader } from "@/components/saas/saas-header"
 import { Target, Users, Award, ArrowLeft, CheckCircle2 } from "lucide-react"
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api/client"
+import { resolveStorageUrl } from "@/lib/api/config"
 
 interface Value {
   id: string
@@ -185,7 +186,7 @@ export default function AboutPage() {
                 <Card key={member.id} className="p-6 text-center">
                   {member.avatar_url ? (
                     <img
-                      src={member.avatar_url}
+                      src={resolveStorageUrl(member.avatar_url)}
                       alt={member.name}
                       className="h-24 w-24 rounded-full mx-auto mb-4 object-cover"
                     />

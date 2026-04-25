@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Building2, Menu, X } from "lucide-react"
 import { useWhiteLabel } from "@/lib/hooks/use-white-label"
 import Image from "next/image"
+import { resolveStorageUrl } from "@/lib/api/config"
 
 interface LandingHeaderProps {
   isTenantPage?: boolean
@@ -22,7 +23,7 @@ export function LandingHeader({ isTenantPage = true }: LandingHeaderProps) {
           <div className="flex items-center gap-2">
             {settings?.logo_url ? (
               <Image
-                src={settings.logo_url || "/placeholder.svg"}
+                src={resolveStorageUrl(settings.logo_url) || "/placeholder.svg"}
                 alt={settings.company_name || "Logo"}
                 width={32}
                 height={32}
