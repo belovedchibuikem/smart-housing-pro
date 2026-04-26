@@ -23,6 +23,8 @@ interface Package {
   trial_days: number
   is_active: boolean
   is_featured: boolean
+  custom_pricing?: boolean
+  display_features?: string[]
   limits: Record<string, any>
   modules?: Array<{
     id: string
@@ -30,6 +32,10 @@ interface Package {
     slug: string
     limits?: any
   }>
+}
+
+function isCustomPackage(pkg: Package): boolean {
+  return Boolean(pkg.custom_pricing || pkg.limits?.custom_pricing)
 }
 
 export default function OnboardingPage() {
@@ -100,9 +106,11 @@ export default function OnboardingPage() {
         const response = await apiFetch<{ success: boolean; packages: Package[] }>("/onboarding/packages")
         if (response.success && response.packages) {
           setPackages(response.packages)
-          // Auto-select first package if available
-          if (response.packages.length > 0 && !formData.selectedPackage) {
-            setFormData((prev) => ({ ...prev, selectedPackage: response.packages[0].id }))
+          const firstSelfServe = response.packages.find((p) => !isCustomPackage(p))
+          if (firstSelfServe) {
+            setFormData((prev) =>
+              prev.selectedPackage ? prev : { ...prev, selectedPackage: firstSelfServe.id },
+            )
           }
         }
       } catch (err) {
@@ -175,7 +183,12 @@ export default function OnboardingPage() {
       }
     } else if (step === 3) {
       if (!formData.selectedPackage) {
-        setError("Please select a package")
+        setError("Please select a package (or use Contact us for custom solutions)")
+        return
+      }
+      const selected = packages.find((p) => p.id === formData.selectedPackage)
+      if (selected && isCustomPackage(selected)) {
+        setError("Custom plans are not available for online setup. Please use the Contact us action on the Enterprise plan.")
         return
       }
     }
@@ -198,6 +211,9 @@ export default function OnboardingPage() {
       const selectedPkg = packages.find((p) => p.id === formData.selectedPackage)
       if (!selectedPkg) {
         throw new Error("Please select a package")
+      }
+      if (isCustomPackage(selectedPkg)) {
+        throw new Error("This plan uses custom pricing. Please contact sales from the pricing page to continue.")
       }
 
       const payload = {
@@ -272,6 +288,12 @@ export default function OnboardingPage() {
   }
 
   const getPackageFeatures = (pkg: Package): string[] => {
+    if (Array.isArray(pkg.display_features) && pkg.display_features.length) {
+      return pkg.display_features
+    }
+    if (Array.isArray(pkg.limits?.display_features) && pkg.limits.display_features.length) {
+      return pkg.limits.display_features as string[]
+    }
     const features: string[] = []
     if (pkg.limits) {
       if (pkg.limits.max_members) {
@@ -537,9 +559,46 @@ export default function OnboardingPage() {
                   </div>
                 ) : (
                   <>
-                    <div className="grid gap-4 md:grid-cols-3">
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                       {packages.map((pkg) => {
                         const features = getPackageFeatures(pkg)
+                        const custom = isCustomPackage(pkg)
+                        if (custom) {
+                          return (
+                            <div
+                              key={pkg.id}
+                              className="relative p-6 border-2 border-dashed rounded-lg border-muted-foreground/40 flex flex-col"
+                            >
+                              {pkg.is_featured && (
+                                <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs font-medium">
+                                  Popular
+                                </div>
+                              )}
+                              <div className="text-center mb-4 flex-1">
+                                <h3 className="text-xl font-bold mb-1">{pkg.name}</h3>
+                                <p className="text-sm text-muted-foreground mb-3">
+                                  {pkg.description || "Contact us to scope your deployment."}
+                                </p>
+                                <p className="text-2xl font-bold">Custom pricing</p>
+                                <p className="text-xs text-muted-foreground mt-1">Quote &amp; contract</p>
+                              </div>
+                              <ul className="space-y-2 text-left flex-1 mb-4 max-h-48 overflow-y-auto">
+                                {features.slice(0, 6).map((feature, idx) => (
+                                  <li key={idx} className="flex items-start gap-2 text-sm">
+                                    <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
+                                    <span>{feature}</span>
+                                  </li>
+                                ))}
+                                {features.length > 6 && (
+                                  <li className="text-xs text-muted-foreground pl-6">+ more on quote</li>
+                                )}
+                              </ul>
+                              <Button variant="outline" className="w-full" asChild>
+                                <Link href="/saas/contact">Contact us</Link>
+                              </Button>
+                            </div>
+                          )
+                        }
                         return (
                           <div
                             key={pkg.id}
@@ -581,7 +640,10 @@ export default function OnboardingPage() {
                       })}
                     </div>
 
-                    {formData.selectedPackage && (
+                    {(() => {
+                      const p = packages.find((x) => x.id === formData.selectedPackage)
+                      return p && !isCustomPackage(p)
+                    })() && (
                       <div className="space-y-4">
                         <div className="space-y-2">
                           <Label htmlFor="paymentMethod">Payment Method</Label>
@@ -604,11 +666,17 @@ export default function OnboardingPage() {
                       </div>
                     )}
 
-                    <div className="bg-muted/50 p-4 rounded-lg">
-                      <p className="text-sm text-muted-foreground">
-                        <strong>{packages.find((p) => p.id === formData.selectedPackage)?.trial_days || 14}-day free trial</strong> • No credit card required • Cancel anytime
-                      </p>
-                    </div>
+                    {(() => {
+                      const s = packages.find((p) => p.id === formData.selectedPackage)
+                      return s && !isCustomPackage(s)
+                    })() && (
+                      <div className="bg-muted/50 p-4 rounded-lg">
+                        <p className="text-sm text-muted-foreground">
+                          <strong>{packages.find((p) => p.id === formData.selectedPackage)?.trial_days || 14}-day free trial</strong>{" "}
+                          • No credit card required • Cancel anytime
+                        </p>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -667,10 +735,17 @@ export default function OnboardingPage() {
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Price:</span>
                         <span className="font-medium">
-                          {formData.selectedPackage
-                            ? formatPrice(packages.find((p) => p.id === formData.selectedPackage)?.price || 0)
-                            : "N/A"}
-                          /{packages.find((p) => p.id === formData.selectedPackage)?.billing_cycle === "yearly" ? "year" : "month"}
+                          {(() => {
+                            const p = packages.find((x) => x.id === formData.selectedPackage)
+                            if (!p) return "N/A"
+                            if (isCustomPackage(p)) return "Custom pricing"
+                            return (
+                              <>
+                                {formatPrice(p.price)}/
+                                {p.billing_cycle === "yearly" ? "year" : "month"}
+                              </>
+                            )
+                          })()}
                         </span>
                       </div>
                       <div className="flex justify-between">

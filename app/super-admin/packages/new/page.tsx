@@ -22,10 +22,15 @@ export default function NewPackagePage() {
     slug: "",
     description: "",
     price: "",
-    billing_cycle: "monthly",
+    billing_cycle: "yearly",
     trial_days: "14",
     is_active: true,
     is_featured: false,
+    custom_pricing: false,
+    tagline: "",
+    usd_hint: "",
+    sort_order: "",
+    display_features_text: "",
     limits: {
       max_members: "",
       max_properties: "",
@@ -44,21 +49,37 @@ export default function NewPackagePage() {
     setIsSubmitting(true)
     
     try {
+      const display_features = formData.display_features_text
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean)
+      const sortOrderRaw = formData.sort_order.trim()
+      const sort_order = sortOrderRaw ? parseInt(sortOrderRaw, 10) : undefined
       const packageData = {
-        ...formData,
-        price: parseFloat(formData.price),
-        trial_days: parseInt(formData.trial_days),
+        name: formData.name,
+        slug: formData.slug,
+        description: formData.description || null,
+        price: formData.custom_pricing ? 0 : parseFloat(formData.price),
+        billing_cycle: formData.billing_cycle,
+        trial_days: formData.custom_pricing ? 0 : parseInt(formData.trial_days, 10),
+        is_active: formData.is_active,
+        is_featured: formData.is_featured,
         limits: {
           ...formData.limits,
-          max_members: parseInt(formData.limits.max_members),
-          max_properties: parseInt(formData.limits.max_properties),
-          max_loan_products: parseInt(formData.limits.max_loan_products),
-          max_contribution_plans: parseInt(formData.limits.max_contribution_plans),
-          max_investment_plans: parseInt(formData.limits.max_investment_plans),
-          max_mortgage_plans: parseInt(formData.limits.max_mortgage_plans),
-          storage_gb: parseInt(formData.limits.storage_gb),
-          max_admins: parseInt(formData.limits.max_admins),
-        }
+          max_members: parseInt(formData.limits.max_members, 10),
+          max_properties: parseInt(formData.limits.max_properties, 10),
+          max_loan_products: parseInt(formData.limits.max_loan_products, 10),
+          max_contribution_plans: parseInt(formData.limits.max_contribution_plans, 10),
+          max_investment_plans: parseInt(formData.limits.max_investment_plans, 10),
+          max_mortgage_plans: parseInt(formData.limits.max_mortgage_plans, 10),
+          storage_gb: parseInt(formData.limits.storage_gb, 10),
+          max_admins: parseInt(formData.limits.max_admins, 10),
+          custom_pricing: formData.custom_pricing,
+          ...(formData.tagline.trim() ? { tagline: formData.tagline.trim() } : {}),
+          ...(formData.usd_hint.trim() ? { usd_hint: formData.usd_hint.trim() } : {}),
+          ...(sort_order !== undefined && !Number.isNaN(sort_order) ? { sort_order } : {}),
+          ...(display_features.length ? { display_features } : {}),
+        },
       }
       
       await apiFetch("/super-admin/packages", {
@@ -145,10 +166,12 @@ export default function NewPackagePage() {
                     id="price"
                     type="number"
                     step="0.01"
-                    placeholder="29.99"
-                    value={formData.price}
+                    min="0"
+                    placeholder="120000"
+                    value={formData.custom_pricing ? "0" : formData.price}
                     onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    required
+                    disabled={formData.custom_pricing}
+                    required={!formData.custom_pricing}
                   />
                 </div>
                 <div className="space-y-2">
@@ -173,11 +196,28 @@ export default function NewPackagePage() {
                     id="trial_days"
                     type="number"
                     placeholder="14"
-                    value={formData.trial_days}
+                    value={formData.custom_pricing ? "0" : formData.trial_days}
                     onChange={(e) => setFormData({ ...formData, trial_days: e.target.value })}
-                    required
+                    disabled={formData.custom_pricing}
+                    required={!formData.custom_pricing}
                   />
                 </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-4 border-t">
+                <div className="space-y-0.5">
+                  <Label htmlFor="custom_pricing">Custom pricing (contact sales)</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Hides self-serve checkout; use for enterprise or custom plans. Price and trial are set to 0.
+                  </p>
+                </div>
+                <Switch
+                  id="custom_pricing"
+                  checked={formData.custom_pricing}
+                  onCheckedChange={(checked) =>
+                    setFormData((prev) => ({ ...prev, custom_pricing: checked }))
+                  }
+                />
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t">
@@ -201,6 +241,57 @@ export default function NewPackagePage() {
                   id="is_featured"
                   checked={formData.is_featured}
                   onCheckedChange={(checked) => setFormData({ ...formData, is_featured: checked })}
+                />
+              </div>
+            </div>
+          </Card>
+
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Marketing (SaaS &amp; subscription pages)</h2>
+            <p className="text-sm text-muted-foreground mb-4">
+              Shown on the public <code className="text-xs">/saas</code> page and business subscription UIs. One feature per
+              line.
+            </p>
+            <div className="space-y-4 max-w-2xl">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="tagline">Tagline</Label>
+                  <Input
+                    id="tagline"
+                    placeholder='e.g. "For Beginners" or "Most Popular"'
+                    value={formData.tagline}
+                    onChange={(e) => setFormData({ ...formData, tagline: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="usd_hint">USD hint (display only)</Label>
+                  <Input
+                    id="usd_hint"
+                    placeholder='e.g. ~$200'
+                    value={formData.usd_hint}
+                    onChange={(e) => setFormData({ ...formData, usd_hint: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2 max-w-xs">
+                <Label htmlFor="sort_order">Display order (optional)</Label>
+                <Input
+                  id="sort_order"
+                  type="number"
+                  min={0}
+                  placeholder="1–4 for ordering tiers"
+                  value={formData.sort_order}
+                  onChange={(e) => setFormData({ ...formData, sort_order: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="display_features_text">Display features (one per line)</Label>
+                <Textarea
+                  id="display_features_text"
+                  rows={8}
+                  placeholder="Access to SmartHousing Web App&#10;Basic Vendor Profile"
+                  value={formData.display_features_text}
+                  onChange={(e) => setFormData({ ...formData, display_features_text: e.target.value })}
                 />
               </div>
             </div>

@@ -2897,6 +2897,10 @@ export async function getSubscriptionPackages() {
 			duration_days: number
 			trial_days: number
 			features: any[]
+			display_features?: string[]
+			tagline?: string | null
+			usd_hint?: string | null
+			custom_pricing?: boolean
 			is_popular: boolean
 			is_active: boolean
 		}>

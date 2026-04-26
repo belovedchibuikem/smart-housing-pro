@@ -33,6 +33,7 @@ export default function EditPackagePage({ params }: { params: Promise<{ id: stri
 	const router = useRouter()
 	const [loading, setLoading] = useState(true)
 	const [isSubmitting, setIsSubmitting] = useState(false)
+	const [rawLimits, setRawLimits] = useState<Record<string, unknown> | null>(null)
 	const [formData, setFormData] = useState({
 		name: "",
 		slug: "",
@@ -42,6 +43,11 @@ export default function EditPackagePage({ params }: { params: Promise<{ id: stri
 		trial_days: "14",
 		is_active: true,
 		is_featured: false,
+		custom_pricing: false,
+		tagline: "",
+		usd_hint: "",
+		sort_order: "",
+		display_features_text: "",
 		limits: {
 			max_members: "",
 			max_properties: "",
@@ -62,8 +68,14 @@ export default function EditPackagePage({ params }: { params: Promise<{ id: stri
 			const res = await apiFetch<{ package: PackageApi }>(`/super-admin/packages/${id}`)
 			const pkg = res.package
 			if (!pkg) return
-			const L = pkg.limits ?? {}
-			const num = (k: string) => (L[k] != null ? String(L[k]) : "")
+			const L: Record<string, unknown> = (pkg.limits as Record<string, unknown>) ?? {}
+			setRawLimits({ ...L })
+			const num = (k: string) => (L[k] != null && L[k] !== "" ? String(L[k]) : "")
+			const displayFeatures = L["display_features"]
+			const displayText = Array.isArray(displayFeatures)
+				? (displayFeatures as string[]).filter((s) => typeof s === "string").join("\n")
+				: ""
+			const sortVal = L["sort_order"]
 			setFormData({
 				name: pkg.name,
 				slug: pkg.slug,
@@ -77,6 +89,11 @@ export default function EditPackagePage({ params }: { params: Promise<{ id: stri
 				trial_days: String(pkg.trial_days),
 				is_active: !!pkg.is_active,
 				is_featured: !!pkg.is_featured,
+				custom_pricing: Boolean(L["custom_pricing"]),
+				tagline: L["tagline"] != null ? String(L["tagline"]) : "",
+				usd_hint: L["usd_hint"] != null ? String(L["usd_hint"]) : "",
+				sort_order: sortVal != null && sortVal !== "" ? String(sortVal) : "",
+				display_features_text: displayText,
 				limits: {
 					max_members: num("max_members"),
 					max_properties: num("max_properties"),
@@ -114,26 +131,39 @@ export default function EditPackagePage({ params }: { params: Promise<{ id: stri
 		e.preventDefault()
 		setIsSubmitting(true)
 		try {
+			const display_features = formData.display_features_text
+				.split("\n")
+				.map((s) => s.trim())
+				.filter(Boolean)
+			const sortOrderRaw = formData.sort_order.trim()
+			const sort_order = sortOrderRaw ? parseInt(sortOrderRaw, 10) : undefined
+			const mergedLimits: Record<string, unknown> = {
+				...(rawLimits ?? {}),
+				max_members: parseInt(formData.limits.max_members, 10),
+				max_properties: parseInt(formData.limits.max_properties, 10),
+				max_loan_products: parseInt(formData.limits.max_loan_products, 10),
+				max_contribution_plans: parseInt(formData.limits.max_contribution_plans, 10),
+				max_investment_plans: parseInt(formData.limits.max_investment_plans, 10),
+				max_mortgage_plans: parseInt(formData.limits.max_mortgage_plans, 10),
+				storage_gb: parseInt(formData.limits.storage_gb, 10),
+				max_admins: parseInt(formData.limits.max_admins, 10),
+				has_role_management: formData.limits.has_role_management,
+				custom_pricing: formData.custom_pricing,
+				display_features,
+				...(formData.tagline.trim() ? { tagline: formData.tagline.trim() } : { tagline: null }),
+				...(formData.usd_hint.trim() ? { usd_hint: formData.usd_hint.trim() } : { usd_hint: null }),
+				...(sort_order !== undefined && !Number.isNaN(sort_order) ? { sort_order } : { sort_order: null }),
+			}
 			const body = {
 				name: formData.name,
 				slug: formData.slug,
 				description: formData.description || null,
-				price: parseFloat(formData.price),
+				price: formData.custom_pricing ? 0 : parseFloat(formData.price),
 				billing_cycle: formData.billing_cycle,
-				trial_days: parseInt(formData.trial_days, 10),
+				trial_days: formData.custom_pricing ? 0 : parseInt(formData.trial_days, 10),
 				is_active: formData.is_active,
 				is_featured: formData.is_featured,
-				limits: {
-					max_members: parseInt(formData.limits.max_members, 10),
-					max_properties: parseInt(formData.limits.max_properties, 10),
-					max_loan_products: parseInt(formData.limits.max_loan_products, 10),
-					max_contribution_plans: parseInt(formData.limits.max_contribution_plans, 10),
-					max_investment_plans: parseInt(formData.limits.max_investment_plans, 10),
-					max_mortgage_plans: parseInt(formData.limits.max_mortgage_plans, 10),
-					storage_gb: parseInt(formData.limits.storage_gb, 10),
-					max_admins: parseInt(formData.limits.max_admins, 10),
-					has_role_management: formData.limits.has_role_management,
-				},
+				limits: mergedLimits,
 				...(formData.moduleIds.length ? { modules: formData.moduleIds } : {}),
 			}
 			await apiFetch(`/super-admin/packages/${id}`, { method: "PUT", body })
@@ -210,9 +240,11 @@ export default function EditPackagePage({ params }: { params: Promise<{ id: stri
 										id="price"
 										type="number"
 										step="0.01"
-										value={formData.price}
+										min="0"
+										value={formData.custom_pricing ? "0" : formData.price}
 										onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-										required
+										disabled={formData.custom_pricing}
+										required={!formData.custom_pricing}
 									/>
 								</div>
 								<div className="space-y-2">
@@ -236,11 +268,25 @@ export default function EditPackagePage({ params }: { params: Promise<{ id: stri
 									<Input
 										id="trial_days"
 										type="number"
-										value={formData.trial_days}
+										value={formData.custom_pricing ? "0" : formData.trial_days}
 										onChange={(e) => setFormData({ ...formData, trial_days: e.target.value })}
-										required
+										disabled={formData.custom_pricing}
+										required={!formData.custom_pricing}
 									/>
 								</div>
+							</div>
+							<div className="flex items-center justify-between pt-4 border-t">
+								<div className="space-y-0.5">
+									<Label htmlFor="custom_pricing">Custom pricing (contact sales)</Label>
+									<p className="text-sm text-muted-foreground">
+										Disables self-serve checkout. Price and trial are saved as 0.
+									</p>
+								</div>
+								<Switch
+									id="custom_pricing"
+									checked={formData.custom_pricing}
+									onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, custom_pricing: checked }))}
+								/>
 							</div>
 							<div className="flex items-center justify-between pt-4 border-t">
 								<Label htmlFor="is_active">Active Package</Label>
@@ -256,6 +302,53 @@ export default function EditPackagePage({ params }: { params: Promise<{ id: stri
 									id="is_featured"
 									checked={formData.is_featured}
 									onCheckedChange={(checked) => setFormData({ ...formData, is_featured: checked })}
+								/>
+							</div>
+						</div>
+					</Card>
+
+					<Card className="p-6">
+						<h2 className="text-xl font-semibold mb-4">Marketing (SaaS &amp; subscription pages)</h2>
+						<p className="text-sm text-muted-foreground mb-4">One feature per line.</p>
+						<div className="space-y-4 max-w-2xl">
+							<div className="grid gap-4 md:grid-cols-2">
+								<div className="space-y-2">
+									<Label htmlFor="tagline">Tagline</Label>
+									<Input
+										id="tagline"
+										placeholder="e.g. For Beginners"
+										value={formData.tagline}
+										onChange={(e) => setFormData((prev) => ({ ...prev, tagline: e.target.value }))}
+									/>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="usd_hint">USD hint (display only)</Label>
+									<Input
+										id="usd_hint"
+										placeholder="e.g. ~$200"
+										value={formData.usd_hint}
+										onChange={(e) => setFormData((prev) => ({ ...prev, usd_hint: e.target.value }))}
+									/>
+								</div>
+							</div>
+							<div className="space-y-2 max-w-xs">
+								<Label htmlFor="sort_order">Display order (optional)</Label>
+								<Input
+									id="sort_order"
+									type="number"
+									min={0}
+									placeholder="Order on pricing pages"
+									value={formData.sort_order}
+									onChange={(e) => setFormData((prev) => ({ ...prev, sort_order: e.target.value }))}
+								/>
+							</div>
+							<div className="space-y-2">
+								<Label htmlFor="display_features_text">Display features (one per line)</Label>
+								<Textarea
+									id="display_features_text"
+									rows={8}
+									value={formData.display_features_text}
+									onChange={(e) => setFormData((prev) => ({ ...prev, display_features_text: e.target.value }))}
 								/>
 							</div>
 						</div>

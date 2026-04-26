@@ -1,10 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { usePathname } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Check, Loader2 } from "lucide-react"
+import { Check } from "lucide-react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -24,22 +23,57 @@ function formatDuration(days: number): string {
   return `${days} days`
 }
 
+function billingLine(pkg: {
+  billing_cycle: string
+  duration_days: number
+  custom_pricing?: boolean
+}): string {
+  if (pkg.custom_pricing) {
+    return "Custom pricing — contact for a quote"
+  }
+  if (pkg.billing_cycle === "yearly") {
+    return `Per year · ${formatDuration(pkg.duration_days)}`
+  }
+  if (pkg.billing_cycle === "monthly") {
+    return `Per month · ${formatDuration(pkg.duration_days)}`
+  }
+  if (pkg.billing_cycle === "quarterly") {
+    return `Per quarter · ${formatDuration(pkg.duration_days)}`
+  }
+  if (pkg.billing_cycle === "weekly") {
+    return `Per week · ${formatDuration(pkg.duration_days)}`
+  }
+  return `${pkg.billing_cycle} · ${formatDuration(pkg.duration_days)}`
+}
+
+function saasContactHref(): string {
+  const d = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN
+  if (!d) return "/saas/contact"
+  return `https://${d.replace(/^https?:\/\//, "")}/saas/contact`
+}
+
 export default function SubscriptionPage() {
   const { isLoading, loadData } = usePageLoading()
-  const [packages, setPackages] = useState<Array<{
-    id: string
-    name: string
-    slug: string
-    description?: string
-    price: number
-    billing_cycle: string
-    duration: number
-    duration_days: number
-    trial_days: number
-    features: any[]
-    is_popular: boolean
-    is_active: boolean
-  }>>([])
+  const [packages, setPackages] = useState<
+    Array<{
+      id: string
+      name: string
+      slug: string
+      description?: string
+      price: number
+      billing_cycle: string
+      duration: number
+      duration_days: number
+      trial_days: number
+      features: any[]
+      display_features?: string[]
+      tagline?: string | null
+      usd_hint?: string | null
+      custom_pricing?: boolean
+      is_popular: boolean
+      is_active: boolean
+    }>
+  >([])
   const [error, setError] = useState<string | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
   
@@ -84,15 +118,17 @@ export default function SubscriptionPage() {
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
       <div className="container mx-auto px-4 py-16">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-4">Choose Your Subscription Plan</h1>
+          <h1 className="text-4xl font-bold mb-4">Choose your subscription plan</h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Select a plan that works best for you and get instant access to the Housing Management System
+            {isAdmin
+              ? "Business plans for your organization (same as our public SmartHousing pricing)."
+              : "Select a plan that works best for you and get instant access to the Housing Management System."}
           </p>
         </div>
 
         {isLoading && packages.length === 0 ? (
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 max-w-7xl mx-auto">
-            {[1, 2, 3].map((i) => (
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4 max-w-7xl mx-auto">
+            {[1, 2, 3, 4].map((i) => (
               <Card key={i}>
                 <CardHeader>
                   <Skeleton className="h-6 w-24 mb-2" />
@@ -118,56 +154,99 @@ export default function SubscriptionPage() {
             <p className="text-muted-foreground">No subscription packages available at the moment.</p>
           </div>
         ) : (
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3 max-w-7xl mx-auto">
-          {packages.map((pkg) => (
-              <Card key={pkg.id} className={pkg.is_popular ? "border-primary shadow-lg scale-105" : ""}>
-              <CardHeader>
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4 max-w-7xl mx-auto">
+          {packages.map((pkg) => {
+            const custom = Boolean(pkg.custom_pricing)
+            const list =
+              Array.isArray(pkg.display_features) && pkg.display_features.length
+                ? pkg.display_features
+                : pkg.features
+            const hasItems = Array.isArray(list)
+              ? list.length > 0
+              : list && typeof list === "object" && Object.keys(list as object).length > 0
+
+            return (
+              <Card
+                key={pkg.id}
+                className={
+                  pkg.is_popular ? "border-primary shadow-lg scale-105 flex flex-col" : "flex flex-col"
+                }
+              >
+                <CardHeader>
                   {pkg.is_popular && <Badge className="w-fit mb-2">Most Popular</Badge>}
-                <CardTitle className="text-2xl">{pkg.name}</CardTitle>
-                  <CardDescription>{formatDuration(pkg.duration_days)}</CardDescription>
-                <div className="mt-4">
-                    <span className="text-4xl font-bold">₦{Number(pkg.price).toLocaleString()}</span>
-                </div>
+                  <CardTitle className="text-2xl">
+                    {pkg.name}
+                    {pkg.tagline && pkg.tagline !== "Most Popular" ? ` (${pkg.tagline})` : ""}
+                  </CardTitle>
+                  <CardDescription>{billingLine(pkg)}</CardDescription>
+                  <div className="mt-4">
+                    {custom ? (
+                      <span className="text-3xl font-bold">Custom pricing</span>
+                    ) : (
+                      <div className="flex flex-col gap-1">
+                        <span className="text-4xl font-bold">₦{Number(pkg.price).toLocaleString()}</span>
+                        {pkg.usd_hint && (
+                          <span className="text-xs text-muted-foreground">{pkg.usd_hint}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   {pkg.description && (
                     <p className="text-sm text-muted-foreground mt-2">{pkg.description}</p>
                   )}
-              </CardHeader>
-              <CardContent>
-                  {pkg.features && pkg.features.length > 0 ? (
-                <ul className="space-y-3">
-                      {Array.isArray(pkg.features) ? (
-                        pkg.features.map((feature, index) => (
+                </CardHeader>
+                <CardContent className="flex-1">
+                  {hasItems ? (
+                    <ul className="space-y-3">
+                      {Array.isArray(list) ? (
+                        list.map((feature, index) => (
                           <li key={index} className="flex items-start gap-2">
                             <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                            <span className="text-sm">{typeof feature === 'string' ? feature : JSON.stringify(feature)}</span>
+                            <span className="text-sm">
+                              {typeof feature === "string" ? feature : JSON.stringify(feature)}
+                            </span>
                           </li>
                         ))
                       ) : (
-                        Object.entries(pkg.features).map(([key, value], index) => (
-                    <li key={index} className="flex items-start gap-2">
-                      <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                        Object.entries(list as Record<string, unknown>).map(([key, value], index) => (
+                          <li key={index} className="flex items-start gap-2">
+                            <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                             <span className="text-sm">
                               <strong>{key}:</strong> {String(value)}
                             </span>
-                    </li>
+                          </li>
                         ))
                       )}
-                </ul>
+                    </ul>
                   ) : (
                     <p className="text-sm text-muted-foreground">All standard features included</p>
                   )}
-              </CardContent>
-              <CardFooter>
-                  <Link href={isAdmin 
-                    ? `/subscription/checkout?package=${pkg.id}` 
-                    : `/dashboard/subscriptions/checkout?package=${pkg.id}`} className="w-full">
-                    <Button className="w-full" variant={pkg.is_popular ? "default" : "outline"}>
-                    Subscribe Now
-                  </Button>
-                </Link>
-              </CardFooter>
-            </Card>
-          ))}
+                </CardContent>
+                <CardFooter>
+                  {custom && isAdmin ? (
+                    <a href={saasContactHref()} className="w-full" target="_blank" rel="noopener noreferrer">
+                      <Button className="w-full" variant="outline">
+                        Contact for quote
+                      </Button>
+                    </a>
+                  ) : (
+                    <Link
+                      href={
+                        isAdmin
+                          ? `/subscription/checkout?package=${pkg.id}`
+                          : `/dashboard/subscriptions/checkout?package=${pkg.id}`
+                      }
+                      className="w-full"
+                    >
+                      <Button className="w-full" variant={pkg.is_popular ? "default" : "outline"}>
+                        Subscribe now
+                      </Button>
+                    </Link>
+                  )}
+                </CardFooter>
+              </Card>
+            )
+          })}
         </div>
         )}
 
