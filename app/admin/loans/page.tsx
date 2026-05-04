@@ -6,13 +6,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, MoreVertical, CheckCircle, XCircle, Eye, FileText, Loader2 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast as sonnerToast } from "sonner"
-import { apiFetch } from "@/lib/api/client"
+import { apiFetch, fetchAdminLoanDashboardMetrics } from "@/lib/api/client"
 
 interface Loan {
   id: string
@@ -53,11 +55,39 @@ export default function AdminLoansPage() {
     active: 0,
     totalDisbursed: 0,
   })
+  const [dash, setDash] = useState<{
+    total_principal_disbursed: number
+    total_outstanding_exposure: number
+    total_repaid: number
+    open_loan_count: number
+  } | null>(null)
+  const [dashStatus, setDashStatus] = useState("all")
+  const [dashFrom, setDashFrom] = useState("")
+  const [dashTo, setDashTo] = useState("")
+  const [dashMember, setDashMember] = useState("")
 
   useEffect(() => {
     fetchLoans()
     fetchStats()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, activeTab])
+
+  useEffect(() => {
+    const loadDash = async () => {
+      try {
+        const params: { status?: string; from_date?: string; to_date?: string; member_id?: string } = {}
+        if (dashStatus && dashStatus !== "all") params.status = dashStatus
+        if (dashFrom.trim()) params.from_date = dashFrom.trim()
+        if (dashTo.trim()) params.to_date = dashTo.trim()
+        if (dashMember.trim()) params.member_id = dashMember.trim()
+        const res = await fetchAdminLoanDashboardMetrics(params)
+        if (res.success && res.data) setDash(res.data)
+      } catch {
+        setDash(null)
+      }
+    }
+    loadDash()
+  }, [dashStatus, dashFrom, dashTo, dashMember])
 
   useEffect(() => {
     const debounceTimer = setTimeout(() => {
@@ -251,6 +281,9 @@ export default function AdminLoansPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" asChild>
+            <Link href="/admin/bulk-upload/loans">Bulk upload loans</Link>
+          </Button>
+          <Button variant="outline" asChild>
             <Link href="/admin/bulk-upload/loan-repayments">Bulk Upload Repayments</Link>
           </Button>
           <Button variant="outline" asChild>
@@ -258,6 +291,70 @@ export default function AdminLoansPage() {
         </Button>
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Tenant loan dashboard</CardTitle>
+          <CardDescription>Totals from live loan book — refine by filters</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Select value={dashStatus} onValueChange={setDashStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="pending">pending</SelectItem>
+                  <SelectItem value="active">active</SelectItem>
+                  <SelectItem value="approved">approved</SelectItem>
+                  <SelectItem value="completed">completed</SelectItem>
+                  <SelectItem value="defaulted">defaulted</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dash-member">Member id</Label>
+              <Input
+                id="dash-member"
+                placeholder="UUID or member_number"
+                value={dashMember}
+                onChange={(e) => setDashMember(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dash-from">From (YYYY-MM-DD)</Label>
+              <Input id="dash-from" type="date" value={dashFrom} onChange={(e) => setDashFrom(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="dash-to">To (YYYY-MM-DD)</Label>
+              <Input id="dash-to" type="date" value={dashTo} onChange={(e) => setDashTo(e.target.value)} />
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-lg border p-4">
+              <div className="text-sm text-muted-foreground">Principal disbursed</div>
+              <div className="text-xl font-semibold">{formatCurrency(dash?.total_principal_disbursed ?? 0)}</div>
+            </div>
+            <div className="rounded-lg border p-4">
+              <div className="text-sm text-muted-foreground">Total outstanding</div>
+              <div className="text-xl font-semibold text-orange-600">
+                {formatCurrency(dash?.total_outstanding_exposure ?? 0)}
+              </div>
+            </div>
+            <div className="rounded-lg border p-4">
+              <div className="text-sm text-muted-foreground">Total repaid</div>
+              <div className="text-xl font-semibold text-green-700">{formatCurrency(dash?.total_repaid ?? 0)}</div>
+            </div>
+            <div className="rounded-lg border p-4">
+              <div className="text-sm text-muted-foreground">Open loans</div>
+              <div className="text-xl font-semibold">{dash?.open_loan_count ?? 0}</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid sm:grid-cols-3 gap-6">
         <Card>

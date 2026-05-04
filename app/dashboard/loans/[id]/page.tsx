@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { fetchLoanApplicationStatus, fetchLoanDetails } from "@/lib/api/loans"
 import type { LoanResource, LoanRepayment } from "@/lib/api/loans"
 import { useMemberDocuments } from "@/lib/hooks/use-member-documents"
@@ -42,8 +43,13 @@ const formatDate = (value?: string | null) => {
 
 const computeMetrics = (loan: LoanResource): LoanViewModel => {
 	const repayments = loan.repayments ?? []
-	const totalRepaid = repayments.reduce((sum, repayment) => sum + (repayment.amount ?? 0), 0)
-	const outstandingBalance = Math.max((loan.total_amount ?? loan.amount ?? 0) - totalRepaid, 0)
+	const summed = repayments.reduce((sum, repayment) => sum + (repayment.amount ?? 0), 0)
+	const totalRepaid =
+		loan.total_repaid !== undefined && loan.total_repaid !== null ? loan.total_repaid : summed
+	const outstandingBalance =
+		loan.outstanding_balance_total !== undefined && loan.outstanding_balance_total !== null
+			? loan.outstanding_balance_total
+			: Math.max((loan.total_amount ?? loan.amount ?? 0) - totalRepaid, 0)
 	const progressPercent = loan.total_amount ? Math.min(100, (totalRepaid / loan.total_amount) * 100) : 0
 	const nextRepayment =
 		repayments.find((repayment) => repayment.status !== "paid" && repayment.status !== "completed") ?? null
@@ -124,6 +130,8 @@ export default function LoanDetailsPage() {
 				return "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
 			case "completed":
 				return "bg-emerald-100 text-emerald-700 hover:bg-emerald-100"
+			case "defaulted":
+				return "bg-red-100 text-red-800 hover:bg-red-100"
 			case "pending":
 				return "bg-amber-100 text-amber-700 hover:bg-amber-100"
 			case "rejected":
@@ -207,7 +215,9 @@ export default function LoanDetailsPage() {
 						<h1 className="text-3xl font-bold">
 							{isLoading ? "Loading loan..." : loan?.product?.name ?? loan?.type ?? "Loan Details"}
 						</h1>
-						<p className="mt-1 text-sm text-muted-foreground">Loan ID: {loanId}</p>
+						<p className="mt-1 text-sm text-muted-foreground">
+							Loan ID: <span className="font-mono">{loan?.loan_number || loanId}</span>
+						</p>
           </div>
 					{loan ? <Badge className={headerBadgeVariant}>{loan.status ?? "Status Unknown"}</Badge> : null}
         </div>
@@ -228,13 +238,22 @@ export default function LoanDetailsPage() {
 
 			{!isLoading && loan ? (
 				<>
-					<div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+					<div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Loan Amount</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Principal Amount</CardTitle>
           </CardHeader>
           <CardContent>
 								<div className="text-2xl font-bold">{currency.format(loan.amount ?? 0)}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Amount Due</CardTitle>
+          </CardHeader>
+          <CardContent>
+								<div className="text-2xl font-bold">{currency.format(loan.total_amount ?? loan.amount ?? 0)}</div>
+								<p className="mt-1 text-xs text-muted-foreground">Including interest portion</p>
           </CardContent>
         </Card>
         <Card>
@@ -316,6 +335,51 @@ export default function LoanDetailsPage() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Repayment history</CardTitle>
+          <CardDescription>Recorded repayments (including bulk imports)</CardDescription>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          {!loan.repayments?.length ? (
+            <p className="text-sm text-muted-foreground">No repayment rows yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Due</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="text-right">Principal</TableHead>
+                  <TableHead className="text-right">Interest</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Paid on</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loan.repayments.map((r) => (
+                  <TableRow key={r.id}>
+                    <TableCell>{formatDate(r.due_date)}</TableCell>
+                    <TableCell className="text-right font-medium">{currency.format(r.amount ?? 0)}</TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {r.principal_paid != null ? currency.format(r.principal_paid) : "—"}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {r.interest_paid != null ? currency.format(r.interest_paid) : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="capitalize">
+                        {r.status ?? "—"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{formatDate(r.paid_at)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
 					<div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -344,9 +408,25 @@ export default function LoanDetailsPage() {
 										{loan.purpose ?? "Not provided"}
 									</span>
             </div>
-            <div className="flex justify-between py-2">
+								<div className="flex justify-between border-b py-2">
+									<span className="text-muted-foreground">Repayment schedule</span>
+									<span className="font-medium capitalize">{loan.repayment_schedule ?? "—"}</span>
+            </div>
+								<div className="flex justify-between border-b py-2">
+									<span className="text-muted-foreground">Due date</span>
+									<span className="font-medium">{formatDate(loan.due_date)}</span>
+            </div>
+								<div className="flex justify-between border-b py-2">
+									<span className="text-muted-foreground">Collateral</span>
+									<span className="max-w-[220px] text-right font-medium">{loan.collateral ?? "—"}</span>
+            </div>
+								<div className="flex justify-between py-2">
+									<span className="text-muted-foreground">Disbursed</span>
+									<span className="font-medium">{formatDate(loan.disbursed_at)}</span>
+            </div>
+            <div className="flex justify-between pt-2">
 									<span className="text-muted-foreground">Tenure</span>
-									<span className="font-medium">{loan.duration_months} months</span>
+									<span className="font-medium">{loan.duration_months} months @ {loan.interest_rate ?? 0}% p.a.</span>
             </div>
           </CardContent>
         </Card>

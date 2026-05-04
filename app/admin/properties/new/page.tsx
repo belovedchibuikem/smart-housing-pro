@@ -218,8 +218,17 @@ export default function NewPropertyPage() {
             Back to Properties
           </Button>
         </Link>
-        <h1 className="text-3xl font-bold">Add New Property</h1>
-        <p className="text-muted-foreground mt-1">Create a new property listing</p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Upload House / Building</h1>
+            <p className="text-muted-foreground mt-1">Create a residential or commercial structure listing.</p>
+          </div>
+          <Link href="/admin/lands/new">
+            <Button type="button" variant="outline" className="w-full sm:w-auto whitespace-nowrap">
+              Upload Land (separate module)
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit}>
@@ -261,9 +270,6 @@ export default function NewPropertyPage() {
                     <SelectItem value="apartment">Apartment</SelectItem>
                   <SelectItem value="house">House</SelectItem>
                     <SelectItem value="duplex">Duplex</SelectItem>
-                    <SelectItem value="bungalow">Bungalow</SelectItem>
-                  <SelectItem value="land">Land</SelectItem>
-                    <SelectItem value="commercial">Commercial</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -373,55 +379,38 @@ export default function NewPropertyPage() {
               </p>
             </div>
 
-            {propertyType !== "land" && (
-              <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="bedrooms">Bedrooms</Label>
-                  <Input
-                    id="bedrooms"
-                    type="number"
-                    placeholder="e.g., 3"
-                    value={formData.bedrooms}
-                    onChange={(e) => setFormData({ ...formData, bedrooms: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="bathrooms">Bathrooms</Label>
-                  <Input
-                    id="bathrooms"
-                    type="number"
-                    placeholder="e.g., 2"
-                    value={formData.bathrooms}
-                    onChange={(e) => setFormData({ ...formData, bathrooms: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                <Label htmlFor="size">Size (sqm)</Label>
-                  <Input
-                    id="size"
-                    type="number"
-                    placeholder="e.g., 150"
-                    value={formData.size}
-                    onChange={(e) => setFormData({ ...formData, size: e.target.value })}
-                  />
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="bedrooms">Bedrooms</Label>
+                <Input
+                  id="bedrooms"
+                  type="number"
+                  placeholder="e.g., 3"
+                  value={formData.bedrooms}
+                  onChange={(e) => setFormData({ ...formData, bedrooms: e.target.value })}
+                />
               </div>
-            </div>
-          )}
-
-          {propertyType === "land" && (
-            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="bathrooms">Bathrooms</Label>
+                <Input
+                  id="bathrooms"
+                  type="number"
+                  placeholder="e.g., 2"
+                  value={formData.bathrooms}
+                  onChange={(e) => setFormData({ ...formData, bathrooms: e.target.value })}
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="size">Size (sqm)</Label>
-                  <Input
-                    id="size"
-                    type="number"
-                    placeholder="e.g., 500"
-                    value={formData.size}
-                    onChange={(e) => setFormData({ ...formData, size: e.target.value })}
-                  />
+                <Input
+                  id="size"
+                  type="number"
+                  placeholder="e.g., 150"
+                  value={formData.size}
+                  onChange={(e) => setFormData({ ...formData, size: e.target.value })}
+                />
               </div>
             </div>
-          )}
 
           <div className="space-y-2">
             <Label>Property Images</Label>

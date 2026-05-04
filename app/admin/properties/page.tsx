@@ -6,14 +6,23 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Plus, Search, Home, MapPin, DollarSign, Users, Eye, Edit, Trash2, CheckCircle, XCircle, Loader2 } from "lucide-react"
+import { Plus, Search, Home, MapPin, DollarSign, Users, Eye, Edit, Trash2, CheckCircle, XCircle, Loader2, Building2, MapPinned, Layers } from "lucide-react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { apiFetch, getPropertySubscriptions, generatePropertySubscriptionCertificate } from "@/lib/api/client"
+import {
+  apiFetch,
+  getPropertySubscriptions,
+  generatePropertySubscriptionCertificate,
+  fetchAdminPropertyStatistics,
+  recalculateAdminPropertyStatistics,
+  type AdminPropertyStatistics,
+} from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
+import { getUserData } from "@/lib/auth/auth-utils"
+import type { AuthUser } from "@/lib/auth/types"
 
 interface Property {
   id: string
@@ -22,11 +31,22 @@ interface Property {
   address?: string
   city?: string
   state?: string
+  type?: string
   property_type?: string
   price?: number
   status?: string
   images?: Array<{ url: string }>
-  allocations?: Array<{ member: any }>
+  allocations?: Array<{ member: unknown }>
+}
+
+interface LandParcel {
+  id: string
+  land_code?: string | null
+  land_title?: string | null
+  land_size?: string | null
+  cost?: number | string | null
+  location?: string | null
+  status?: string | null
 }
 
 export default function AdminPropertiesPage() {
@@ -41,11 +61,26 @@ export default function AdminPropertiesPage() {
   const [pendingPayments, setPendingPayments] = useState<any[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [paymentFilter, setPaymentFilter] = useState("all")
+  const [listingSegment, setListingSegment] = useState<"houses" | "land">("houses")
+  const [landParcels, setLandParcels] = useState<LandParcel[]>([])
+  const [propertyStats, setPropertyStats] = useState<AdminPropertyStatistics | null>(null)
+  const [housePaginationTotal, setHousePaginationTotal] = useState(0)
+  const [landPaginationTotal, setLandPaginationTotal] = useState(0)
+  const [recalculating, setRecalculating] = useState(false)
+  const [canRecalculateStats, setCanRecalculateStats] = useState(false)
 
   useEffect(() => {
-    fetchProperties()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery])
+    const u = getUserData() as AuthUser | null
+    setCanRecalculateStats(Boolean(u?.permissions?.includes("property-statistics")))
+  }, [])
+
+  useEffect(() => {
+    fetchAdminPropertyStatistics()
+      .then((r) => {
+        if (r.success && r.data) setPropertyStats(r.data)
+      })
+      .catch(() => setPropertyStats(null))
+  }, [])
 
   useEffect(() => {
     fetchSubscriptions()
@@ -79,16 +114,54 @@ export default function AdminPropertiesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [flash, searchParamsString])
 
+  useEffect(() => {
+    if (listingSegment === "houses") {
+      void fetchProperties()
+    } else {
+      void fetchLandParcels()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, listingSegment])
+
+  const fetchLandParcels = async () => {
+    try {
+      setLoading(true)
+      const params = new URLSearchParams()
+      if (searchQuery) params.append("search", searchQuery)
+      params.append("per_page", "100")
+      const response = await apiFetch<{
+        success: boolean
+        data: LandParcel[]
+        pagination?: { total?: number }
+      }>(`/admin/lands?${params.toString()}`)
+      if (response.success && Array.isArray(response.data)) {
+        setLandParcels(response.data)
+        setLandPaginationTotal(response.pagination?.total ?? response.data.length)
+      }
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to fetch land parcels",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const fetchProperties = async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams()
       if (searchQuery) params.append('search', searchQuery)
-      const response = await apiFetch<{ success: boolean; data: Property[] }>(
-        `/admin/properties?${params.toString()}`
-      )
+      const response = await apiFetch<{
+        success: boolean
+        data: Property[]
+        pagination?: { total: number }
+      }>(`/admin/properties?${params.toString()}`)
       if (response.success) {
         setProperties(response.data)
+        setHousePaginationTotal(response.pagination?.total ?? response.data.length)
       }
     } catch (error) {
       toast({
@@ -229,7 +302,7 @@ export default function AdminPropertiesPage() {
     }
   }
 
-  const handleVerifyPayment = async (payment: any, action: "approve" | "reject") => {
+  const handleVerifyPayment = async (payment: { id: string }, action: "approve" | "reject") => {
     try {
       if (action === "approve") {
         await apiFetch(`/admin/wallets/withdrawals/${payment.id}/approve`, { method: "POST" })
@@ -250,51 +323,146 @@ export default function AdminPropertiesPage() {
     }
   }
 
-  const stats = {
-    totalProperties: properties.length,
-    activeSubscriptions: subscriptions.filter(s => s.status === 'In Progress').length,
-    totalValue: properties.reduce((sum, p) => {
-      const price = typeof p.price === 'number' ? p.price : parseFloat(String(p.price || 0))
-      return sum + (isNaN(price) ? 0 : price)
-    }, 0),
-    completed: subscriptions.filter(s => s.status === 'Completed').length,
+  const handleRecalculateStats = async () => {
+    if (!canRecalculateStats) return
+    try {
+      setRecalculating(true)
+      const res = await recalculateAdminPropertyStatistics()
+      if (res.success && res.data) setPropertyStats(res.data)
+      toast({ title: "Statistics updated", description: res.message ?? "Totals refreshed from database." })
+    } catch {
+      toast({ title: "Error", variant: "destructive", description: "Could not recalculate." })
+    } finally {
+      setRecalculating(false)
+    }
+  }
+
+  const subscriptionStats = {
+    activeSubscriptions: subscriptions.filter((s) => s.status === "In Progress").length,
+    completed: subscriptions.filter((s) => s.status === "Completed").length,
+  }
+
+  const formatCurrencyApprox = (n: number | undefined) => {
+    if (n === undefined || n === null || !Number.isFinite(n)) return "₦0"
+    if (Math.abs(n) >= 1_000_000) return `₦${(n / 1_000_000).toFixed(1)}M`
+    return new Intl.NumberFormat("en-NG", { maximumFractionDigits: 0 }).format(n)
   }
 
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Property Management</h1>
-          <p className="text-muted-foreground mt-1">Manage properties and subscriptions</p>
+          <h1 className="text-3xl font-bold">Property management</h1>
+          <p className="text-muted-foreground mt-1">
+            Houses/buildings vs land parcels — upload entry points split by type
+          </p>
         </div>
-        <Link href="/admin/properties/new">
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Property
+        <div className="flex flex-wrap gap-2">
+          {canRecalculateStats ? (
+            <Button variant="outline" disabled={recalculating} onClick={handleRecalculateStats}>
+              {recalculating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Syncing…
+                </>
+              ) : (
+                "Recalculate totals"
+              )}
+            </Button>
+          ) : null}
+          <Button variant="outline" asChild>
+            <Link href="/admin/bulk-upload/properties">Bulk houses</Link>
           </Button>
-        </Link>
+          <Button variant="outline" asChild>
+            <Link href="/admin/bulk-upload/lands">Bulk land</Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/admin/lands/new">Upload land</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/admin/properties/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Upload house/building
+            </Link>
+          </Button>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Stats — separated house vs land totals (authoritative snapshots from `/admin/property-statistics`) */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <Card>
           <CardContent className="p-6">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-sm text-muted-foreground">Total Properties</div>
-                <div className="text-2xl font-bold">{stats.totalProperties}</div>
+                <div className="text-sm text-muted-foreground">Total houses</div>
+                <div className="text-2xl font-bold">{propertyStats?.total_houses ?? housePaginationTotal}</div>
+                <div className="text-xs text-muted-foreground mt-1">Listed (house module)</div>
               </div>
-              <Home className="h-8 w-8 text-muted-foreground" />
+              <Building2 className="h-8 w-8 shrink-0 text-indigo-500" />
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm text-muted-foreground">Total units</div>
+                <div className="text-2xl font-bold">{propertyStats?.total_house_units ?? 0}</div>
+                <div className="text-xs text-muted-foreground mt-1">Across house/building uploads</div>
+              </div>
+              <Home className="h-8 w-8 shrink-0 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm text-muted-foreground">Land parcels</div>
+                <div className="text-2xl font-bold">{propertyStats?.total_land_parcels ?? landPaginationTotal}</div>
+                <div className="text-xs text-muted-foreground mt-1">Dedicated land catalog</div>
+              </div>
+              <MapPinned className="h-8 w-8 shrink-0 text-emerald-600" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm text-muted-foreground">Combined listings</div>
+                <div className="text-2xl font-bold">{propertyStats?.combined_listing_count ?? 0}</div>
+                <div className="text-xs text-muted-foreground mt-1">Houses + land + legacy rows</div>
+              </div>
+              <Layers className="h-8 w-8 shrink-0 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm text-muted-foreground">Portfolio costs</div>
+                <div className="text-lg font-bold whitespace-nowrap md:whitespace-normal">
+                  Houses {formatCurrencyApprox(propertyStats?.total_house_cost)} · Land{" "}
+                  {formatCurrencyApprox(propertyStats?.total_land_cost)}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">DB sums (exc. legacy land rows counted separately)</div>
+              </div>
+              <DollarSign className="h-8 w-8 shrink-0 text-muted-foreground" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <Card>
+          <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-muted-foreground">Active Subscriptions</div>
-                <div className="text-2xl font-bold">{stats.activeSubscriptions}</div>
+                <div className="text-sm text-muted-foreground">Active subscriptions</div>
+                <div className="text-2xl font-bold">{subscriptionStats.activeSubscriptions}</div>
               </div>
               <Users className="h-8 w-8 text-muted-foreground" />
             </div>
@@ -304,15 +472,10 @@ export default function AdminPropertiesPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-muted-foreground">Total Value</div>
-                <div className="text-2xl font-bold">
-                  {stats.totalValue > 0 
-                    ? `₦${(stats.totalValue / 1000000).toFixed(0)}M`
-                    : '₦0'
-                  }
-                </div>
+                <div className="text-sm text-muted-foreground">Completed</div>
+                <div className="text-2xl font-bold">{subscriptionStats.completed}</div>
               </div>
-              <DollarSign className="h-8 w-8 text-muted-foreground" />
+              <CheckCircle className="h-8 w-8 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
@@ -320,10 +483,10 @@ export default function AdminPropertiesPage() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-sm text-muted-foreground">Completed</div>
-                <div className="text-2xl font-bold">{stats.completed}</div>
+                <div className="text-sm text-muted-foreground">Legacy land as property rows</div>
+                <div className="text-2xl font-bold">{propertyStats?.legacy_land_as_property_count ?? 0}</div>
               </div>
-              <Home className="h-8 w-8 text-muted-foreground" />
+              <MapPin className="h-8 w-8 text-muted-foreground" />
             </div>
           </CardContent>
         </Card>
@@ -339,93 +502,166 @@ export default function AdminPropertiesPage() {
         <TabsContent value="properties" className="space-y-4">
           <Card>
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>All Properties</CardTitle>
-                  <CardDescription>Manage your property listings</CardDescription>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search properties..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9 w-[300px]"
-                    />
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={listingSegment === "houses" ? "default" : "outline"}
+                      className={listingSegment === "houses" ? "" : "bg-transparent"}
+                      onClick={() => setListingSegment("houses")}
+                    >
+                      🏡 Houses / Buildings
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={listingSegment === "land" ? "default" : "outline"}
+                      className={listingSegment === "land" ? "" : "bg-transparent"}
+                      onClick={() => setListingSegment("land")}
+                    >
+                      🌍 Land parcels
+                    </Button>
                   </div>
+                  <CardTitle>
+                    {listingSegment === "houses" ? "House & building listings" : "Land parcels (module)"}
+                  </CardTitle>
+                  <CardDescription>
+                    {listingSegment === "houses"
+                      ? "New uploads exclude land-type rows — use the Land tab or Land menu for parcels."
+                      : "Managed under Land — IDs are stable for subscriptions and payments."}
+                  </CardDescription>
+                </div>
+                <div className="relative w-full min-w-[200px] max-w-xs lg:max-w-sm">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
+                  <Input
+                    placeholder={listingSegment === "houses" ? "Search houses…" : "Search land…"}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9"
+                  />
                 </div>
               </div>
             </CardHeader>
             <CardContent>
               {loading ? (
-                <div className="text-center py-8">
-                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2" />
-                  <p className="text-muted-foreground">Loading properties...</p>
+                <div className="py-8 text-center">
+                  <Loader2 className="mx-auto mb-2 h-8 w-8 animate-spin" />
+                  <p className="text-muted-foreground">
+                    Loading {listingSegment === "houses" ? "houses…" : "land parcels…"}
+                  </p>
                 </div>
-              ) : properties.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">No properties found</div>
+              ) : listingSegment === "houses" ? (
+                properties.length === 0 ? (
+                  <div className="py-8 text-center text-muted-foreground">No house listings found.</div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {properties.map((property) => (
+                      <Card key={property.id} className="overflow-hidden">
+                        <img
+                          src={
+                            property.images?.[0]?.url
+                              ? resolveStorageUrl(property.images[0].url) || "/placeholder.svg"
+                              : "/placeholder.svg"
+                          }
+                          alt={property.title || "Property"}
+                          className="h-48 w-full object-cover"
+                        />
+                        <CardContent className="space-y-3 p-4">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant="outline" className="font-normal">
+                              🏡 House / Building
+                            </Badge>
+                            {property.type ? (
+                              <span className="text-xs capitalize text-muted-foreground">{property.type}</span>
+                            ) : null}
+                          </div>
+                          <div>
+                            <div className="font-semibold">{property.title || "Untitled property"}</div>
+                            <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+                              <MapPin className="h-3 w-3" />
+                              {property.address || property.city || property.state || "No location"}
+                            </div>
+                          </div>
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-lg font-bold text-primary">
+                              ₦{((property.price || 0) / 1000000).toFixed(1)}M
+                            </div>
+                            <Badge variant={property.status === "available" ? "default" : "secondary"}>
+                              {property.status || "N/A"}
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-muted-foreground">{property.allocations?.length ?? 0} subscriber(s)</div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 bg-transparent"
+                              onClick={() => handleViewProperty(property.id)}
+                            >
+                              <Eye className="mr-1 h-4 w-4" />
+                              View
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 bg-transparent"
+                              onClick={() => handleEditProperty(property.id)}
+                            >
+                              <Edit className="mr-1 h-4 w-4" />
+                              Edit
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => handleDeleteProperty(property.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )
+              ) : landParcels.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground">
+                  No land parcels yet.{" "}
+                  <Link href="/admin/lands/new" className="underline">
+                    Upload land
+                  </Link>
+                </div>
               ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {properties.map((property) => (
-                  <Card key={property.id} className="overflow-hidden">
-                    <img
-                        src={
-                          property.images?.[0]?.url
-                            ? resolveStorageUrl(property.images[0].url) || "/placeholder.svg"
-                            : "/placeholder.svg"
-                        }
-                        alt={property.title || "Property"}
-                      className="w-full h-48 object-cover"
-                    />
-                    <CardContent className="p-4 space-y-3">
-                      <div>
-                          <div className="font-semibold">{property.title || "Untitled Property"}</div>
-                        <div className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                          <MapPin className="h-3 w-3" />
-                            {property.address || property.city || property.state || "No location"}
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                          <div className="text-lg font-bold text-primary">₦{((property.price || 0) / 1000000).toFixed(1)}M</div>
-                          <Badge variant={property.status === "available" ? "default" : "secondary"}>
-                            {property.status || "N/A"}
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {landParcels.map((land) => (
+                    <Card key={land.id} className="overflow-hidden">
+                      <div className="flex items-center gap-2 border-b bg-muted/40 px-4 py-3">
+                        <Badge variant="secondary" className="font-normal">
+                          🌍 Land
                         </Badge>
+                        <span className="ml-auto font-mono text-xs text-muted-foreground">{land.land_code || "—"}</span>
                       </div>
-                        <div className="text-sm text-muted-foreground">
-                          {property.allocations?.length || 0} subscriber(s)
+                      <CardContent className="space-y-3 p-4">
+                        <div className="font-semibold leading-snug">{land.land_title || "Untitled"}</div>
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <MapPin className="h-3 w-3" />
+                          {land.location || "—"}
                         </div>
-                      <div className="flex gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="flex-1 bg-transparent"
-                            onClick={() => handleViewProperty(property.id)}
-                          >
-                          <Eye className="h-4 w-4 mr-1" />
-                          View
+                        {land.land_size ? (
+                          <Badge variant="outline" className="font-normal">
+                            {land.land_size}
+                          </Badge>
+                        ) : null}
+                        <div className="text-lg font-bold text-primary">
+                          ₦{((Number(land.cost || 0) || 0) / 1000000).toFixed(1)}M
+                        </div>
+                        <Button variant="outline" size="sm" className="w-full bg-transparent" asChild>
+                          <Link href={`/admin/lands/${land.id}`}>
+                            <Eye className="mr-2 h-4 w-4" />
+                            View
+                          </Link>
                         </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            className="flex-1 bg-transparent"
-                            onClick={() => handleEditProperty(property.id)}
-                          >
-                          <Edit className="h-4 w-4 mr-1" />
-                          Edit
-                        </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => handleDeleteProperty(property.id)}
-                          >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>

@@ -448,6 +448,16 @@ export interface AvailableProperty {
 	total_slots?: number | null
 	slots_used?: number | null
 	slots_available?: number | null
+	/** Unified catalog: house | land_parcel | land_legacy */
+	listing_kind?: string
+	land_code?: string | null
+	land_size_label?: string | null
+	cost_includes_infrastructure?: boolean
+	infrastructure_plan?: string[] | null
+	features?: string[] | null
+	address?: string | null
+	city?: string | null
+	state?: string | null
 }
 
 export interface MemberHouse {
@@ -808,6 +818,76 @@ export async function getMemberProperties(type?: string) {
 		summary: MemberPropertiesSummary
 		properties: MemberHouse[]
 	}>(`/properties/my${params}`, { method: "GET" })
+}
+
+export interface MemberLandSubscriptionRow {
+	subscription_id: string
+	land_id: string
+	land_code?: string | null
+	land_title?: string | null
+	land_size?: string | null
+	total_cost: number
+	amount_paid: number
+	outstanding_balance: number
+	cost_includes_infrastructure?: boolean | null
+	payments?: Array<{ id: string; amount: number; paid_on?: string | null; description?: string | null }>
+}
+
+export async function getMemberLandPortfolio() {
+	return apiFetch<{ success: boolean; data: MemberLandSubscriptionRow[] }>(`/my-lands`, { method: "GET" })
+}
+
+export async function getMemberLandSubscriptionDetail(subscriptionId: string) {
+	return apiFetch<{ success: boolean; data: Record<string, unknown> }>(`/my-lands/${subscriptionId}`, {
+		method: "GET",
+	})
+}
+
+export interface AdminPropertyStatistics {
+	total_houses: number
+	total_house_units: number
+	total_house_cost: number
+	legacy_land_as_property_count: number
+	total_land_parcels: number
+	land_module_parcels: number
+	total_land_cost: number
+	combined_listing_count: number
+}
+
+export async function fetchAdminPropertyStatistics() {
+	return apiFetch<{ success: boolean; data: AdminPropertyStatistics }>(`/admin/property-statistics`, {
+		method: "GET",
+	})
+}
+
+export async function recalculateAdminPropertyStatistics() {
+	return apiFetch<{ success: boolean; data: AdminPropertyStatistics; message?: string }>(
+		`/admin/property-statistics/recalculate`,
+		{ method: "POST" },
+	)
+}
+
+export async function fetchAdminLoanDashboardMetrics(params?: {
+	status?: string
+	member_id?: string
+	from_date?: string
+	to_date?: string
+}) {
+	const q = new URLSearchParams()
+	if (params?.status) q.set("status", params.status)
+	if (params?.member_id) q.set("member_id", params.member_id)
+	if (params?.from_date) q.set("from_date", params.from_date)
+	if (params?.to_date) q.set("to_date", params.to_date)
+	const qs = q.toString()
+	return apiFetch<{
+		success: boolean
+		data: {
+			total_principal_disbursed: number
+			total_outstanding_exposure: number
+			total_repaid: number
+			open_loan_count: number
+		}
+	}>(`/admin/loans/dashboard-metrics${qs ? `?${qs}` : ""}`, { method: "GET" })
 }
 
 export async function getPropertyMortgage(propertyId: string) {

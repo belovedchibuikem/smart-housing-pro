@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
-import { apiFetch } from "@/lib/api/client"
+import { apiFetch, apiFetchBlob } from "@/lib/api/client"
 import { parseFile } from "@/lib/utils/file-parser"
 
 export default function BulkUploadLoansPage() {
@@ -31,52 +31,39 @@ export default function BulkUploadLoansPage() {
       
       try {
         const result = await parseFile(selectedFile)
-        
-        // Map parsed data to loan format
-        const mappedData = result.data.map((row: any) => ({
-          memberId: row['Member ID (UUID, Staff ID, IPPIS, or FRSC PIN)']
-            || row['Member ID (UUID, Staff ID, or IPPIS)']
-            || row['Member ID (UUID or Staff ID)']
-            || row['member_id_uuid_staff_id_ippis_or_frsc_pin']
-            || row['member_id_uuid_staff_id_or_ippis']
-            || row['member_id_uuid_or_staff_id']
-            || row['Member ID']
-            || row['memberId']
-            || row['member_id']
-            || row['Member Number']
-            || row['member_number']
-            || row['Staff ID']
-            || row['staff_id']
-            || row['IPPIS Number']
-            || row['ippis_number']
-            || row['IPPIS']
-            || row['FRSC PIN']
-            || row['frsc_pin']
-            || row['PIN']
-            || row['pin']
-            || '',
-          loanAmount: row['Loan Amount'] || row['loanAmount'] || row['loan_amount'] || '',
-          interestRate: row['Interest Rate'] || row['interestRate'] || row['interest_rate'] || '',
-          duration: row['Duration'] || row['duration'] || '',
-          type: row['Type'] || row['type'] || '',
-          purpose: row['Purpose'] || row['purpose'] || '',
-          applicationDate: row['Application Date'] || row['applicationDate'] || row['application_date'] || '',
+
+        const cell = (row: Record<string, unknown>, keys: string[]) => {
+          for (const key of keys) {
+            const v = row[key]
+            if (v !== undefined && v !== null && String(v).trim() !== "") return String(v).trim()
+          }
+          return ""
+        }
+
+        const mappedData = result.data.map((row: Record<string, unknown>) => ({
+          member_id: cell(row, ["member_id", "Member ID", "member number", "member_number"]),
+          loan_amount: cell(row, ["loan_amount", "Loan Amount", "principal"]),
+          interest_rate: cell(row, ["interest_rate", "Interest Rate", "rate"]),
+          loan_tenure: cell(row, ["loan_tenure", "loan tenure", "tenure", "duration months", "Duration"]),
+          disbursement_date: cell(row, ["disbursement_date", "disbursement date", "Disbursement Date"]),
+          due_date: cell(row, ["due_date", "due date", "Due Date"]),
+          repayment_schedule: cell(row, ["repayment_schedule", "schedule", "Repayment Schedule"]),
+          amount_repaid: cell(row, ["amount_repaid", "amount repaid", "Amount Repaid"]),
+          loan_purpose: cell(row, ["loan_purpose", "purpose", "loan purpose", "Loan Purpose"]),
+          loan_status: cell(row, ["loan_status", "status", "Loan Status"]),
+          collateral: cell(row, ["collateral", "Collateral"]),
         }))
-        
-        // Validate required fields
+
         const validationErrors: string[] = []
         mappedData.forEach((loan, index) => {
-          if (!loan.memberId) validationErrors.push(`Row ${index + 2}: Member ID is required`)
-          if (!loan.loanAmount) validationErrors.push(`Row ${index + 2}: Loan Amount is required`)
-          if (isNaN(parseFloat(loan.loanAmount))) validationErrors.push(`Row ${index + 2}: Loan Amount must be a valid number`)
-          if (!loan.interestRate) validationErrors.push(`Row ${index + 2}: Interest Rate is required`)
-          if (isNaN(parseFloat(loan.interestRate))) validationErrors.push(`Row ${index + 2}: Interest Rate must be a valid number`)
-          if (!loan.duration) validationErrors.push(`Row ${index + 2}: Duration is required`)
-          if (!loan.type) validationErrors.push(`Row ${index + 2}: Type is required`)
+          if (!loan.member_id) validationErrors.push(`Row ${index + 2}: member_id is required`)
+          if (!loan.loan_amount) validationErrors.push(`Row ${index + 2}: loan_amount is required`)
+          if (loan.loan_amount && Number.isNaN(Number(loan.loan_amount.replace(/,/g, ""))))
+            validationErrors.push(`Row ${index + 2}: loan_amount must be numeric`)
         })
-        
+
         setPreviewData(mappedData)
-        setErrors([...result.errors, ...validationErrors])
+        setErrors([...(result.errors ?? []), ...validationErrors])
       } catch (error) {
         setErrors([`Error parsing file: ${error instanceof Error ? error.message : 'Unknown error'}`])
       } finally {
@@ -86,33 +73,61 @@ export default function BulkUploadLoansPage() {
   }
 
   const downloadTemplate = async () => {
-    try {
-      const response = await apiFetch<{ success: boolean; template: string; filename: string }>(
-        '/admin/bulk/loans/template'
-      )
-
-      if (!response.success) {
-        throw new Error('Failed to download template')
-      }
-
-      const blob = new Blob([response.template], { type: 'text/csv' })
+    const triggerCsvDownload = (content: string, filename: string) => {
+      const blob = new Blob(["\uFEFF" + content], { type: "text/csv;charset=utf-8" })
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement("a")
       a.href = url
-      a.download = response.filename || "loans_upload_template.csv"
+      a.download = filename
       a.click()
       window.URL.revokeObjectURL(url)
-      
+    }
+
+    try {
+      const blob = await apiFetchBlob("/admin/bulk/loans/template?format=file")
+      const text = await blob.text()
+      if (text.trimStart().startsWith("{")) {
+        const parsed = JSON.parse(text) as { success?: boolean; template?: string; filename?: string }
+        if (parsed?.template) {
+          triggerCsvDownload(parsed.template, parsed.filename || "loans_upload_template.csv")
+        }
+      } else {
+        triggerCsvDownload(text, "loans_upload_template.csv")
+      }
+
       toast({
         title: "Template Downloaded",
         description: "CSV template has been downloaded successfully.",
       })
     } catch (error) {
-      toast({
-        title: "Download Failed",
-        description: "Failed to download template. Please try again.",
-        variant: "destructive",
-      })
+      try {
+        const response = await apiFetch<{ success: boolean; template: string; filename: string }>(
+          "/admin/bulk/loans/template",
+        )
+
+        if (!response.success) {
+          throw new Error("Failed to download template")
+        }
+
+        const blob = new Blob([response.template], { type: "text/csv" })
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement("a")
+        a.href = url
+        a.download = response.filename || "loans_upload_template.csv"
+        a.click()
+        window.URL.revokeObjectURL(url)
+
+        toast({
+          title: "Template Downloaded",
+          description: "CSV template has been downloaded successfully.",
+        })
+      } catch {
+        toast({
+          title: "Download Failed",
+          description: error instanceof Error ? error.message : "Failed to download template. Please try again.",
+          variant: "destructive",
+        })
+      }
     }
   }
 
@@ -312,30 +327,34 @@ export default function BulkUploadLoansPage() {
       {previewData.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Preview Data ({previewData.length} loans)</CardTitle>
+            <CardTitle>Preview Data ({previewData.length} rows)</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="border rounded-lg overflow-auto max-h-96">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Member ID</TableHead>
-                    <TableHead>Loan Amount</TableHead>
-                    <TableHead>Interest Rate</TableHead>
-                    <TableHead>Duration (Months)</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Purpose</TableHead>
+                    <TableHead>member_id</TableHead>
+                    <TableHead>loan_amount</TableHead>
+                    <TableHead>interest_rate</TableHead>
+                    <TableHead>loan_tenure</TableHead>
+                    <TableHead>disbursement</TableHead>
+                    <TableHead>due</TableHead>
+                    <TableHead>schedule</TableHead>
+                    <TableHead>status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {previewData.map((loan, index) => (
                     <TableRow key={index}>
-                      <TableCell>{loan.memberId}</TableCell>
-                      <TableCell>₦{parseFloat(loan.loanAmount || 0).toLocaleString()}</TableCell>
-                      <TableCell>{loan.interestRate}%</TableCell>
-                      <TableCell>{loan.duration}</TableCell>
-                      <TableCell>{loan.type}</TableCell>
-                      <TableCell>{loan.purpose || '—'}</TableCell>
+                      <TableCell>{loan.member_id}</TableCell>
+                      <TableCell>{loan.loan_amount}</TableCell>
+                      <TableCell>{loan.interest_rate}</TableCell>
+                      <TableCell>{loan.loan_tenure}</TableCell>
+                      <TableCell>{loan.disbursement_date}</TableCell>
+                      <TableCell>{loan.due_date}</TableCell>
+                      <TableCell>{loan.repayment_schedule}</TableCell>
+                      <TableCell>{loan.loan_status}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -346,7 +365,7 @@ export default function BulkUploadLoansPage() {
               <Button variant="outline" onClick={() => { setFile(null); setPreviewData([]); setErrors([]) }}>
                 Cancel
               </Button>
-              <Button onClick={handleUpload} disabled={uploading || errors.length > 0 || parsing}>
+              <Button onClick={handleUpload} disabled={uploading || parsing}>
                 <Upload className="h-4 w-4 mr-2" />
                 {uploading ? "Uploading..." : `Upload ${previewData.length} Loans`}
               </Button>

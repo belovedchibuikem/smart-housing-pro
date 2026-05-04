@@ -5,7 +5,7 @@ import type { AuthUser } from "@/lib/auth/types"
 import { getStaffDashboardHeading } from "@/lib/auth/dashboard-title"
 import { getUserData } from "@/lib/auth/auth-utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, Wallet, TrendingUp, Home, CheckCircle, Clock, DollarSign, PiggyBank, RotateCcw } from "lucide-react"
+import { Users, Wallet, TrendingUp, Home, CheckCircle, Clock, DollarSign, PiggyBank, RotateCcw, Building2, MapPinned } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { usePageLoading } from "@/hooks/use-loading"
 import { apiFetch } from "@/lib/api/client"
@@ -31,6 +31,11 @@ interface DashboardData {
     total_investments: number
     total_properties: number
     active_properties: number
+    total_houses?: number
+    total_land_parcels?: number
+    total_house_units?: number
+    total_house_portfolio_value?: number
+    total_land_portfolio_value?: number
     monthly_revenue: number
     revenue_growth: number
     member_growth: number
@@ -73,6 +78,11 @@ function emptyDashboardPayload(): DashboardData {
       total_investments: 0,
       total_properties: 0,
       active_properties: 0,
+      total_houses: 0,
+      total_land_parcels: 0,
+      total_house_units: 0,
+      total_house_portfolio_value: 0,
+      total_land_portfolio_value: 0,
       monthly_revenue: 0,
       revenue_growth: 0,
       member_growth: 0,
@@ -100,6 +110,11 @@ function normalizeAdminDashboardPayload(raw: unknown): DashboardData {
       total_investments: Number(stats.total_investments) || 0,
       total_properties: Number(stats.total_properties) || 0,
       active_properties: Number(stats.active_properties) || 0,
+      total_houses: Number(stats.total_houses) || 0,
+      total_land_parcels: Number(stats.total_land_parcels ?? stats.total_land) || 0,
+      total_house_units: Number(stats.total_house_units) || 0,
+      total_house_portfolio_value: Number(stats.total_house_portfolio_value) || 0,
+      total_land_portfolio_value: Number(stats.total_land_portfolio_value) || 0,
       monthly_revenue: Number(stats.monthly_revenue) || 0,
       revenue_growth: Number(stats.revenue_growth) || 0,
       member_growth: Number(stats.member_growth) || 0,
@@ -183,13 +198,46 @@ export default function AdminDashboardPage() {
       color: "text-orange-600",
     },
     {
-      title: "Properties",
+      title: "Listings (combined)",
       value: formatNumber(data.stats?.total_properties ?? 0),
-      change: `${data.stats?.active_properties ?? 0} active`,
+      change: `${data.stats?.active_properties ?? 0} active houses`,
       icon: Home,
       color: "text-purple-600",
     },
   ] : []
+
+  const propertyBreakdown = data
+    ? [
+        {
+          title: "Total Houses",
+          value: formatNumber(data.stats?.total_houses ?? 0),
+          sub: `${formatNumber(data.stats?.total_house_units ?? 0)} units`,
+          icon: Building2,
+          color: "text-indigo-600",
+        },
+        {
+          title: "Total Land Parcels",
+          value: formatNumber(data.stats?.total_land_parcels ?? 0),
+          sub: "Dedicated land module + legacy",
+          icon: MapPinned,
+          color: "text-emerald-600",
+        },
+        {
+          title: "House portfolio value",
+          value: formatCurrency(data.stats?.total_house_portfolio_value ?? 0),
+          sub: "Sum of house prices",
+          icon: DollarSign,
+          color: "text-slate-600",
+        },
+        {
+          title: "Land portfolio value",
+          value: formatCurrency(data.stats?.total_land_portfolio_value ?? 0),
+          sub: "Sum of land costs",
+          icon: MapPinned,
+          color: "text-teal-600",
+        },
+      ]
+    : []
 
   const pendingApprovals = data ? [
     { type: "KYC", count: data.pending_approvals?.kyc ?? 0, icon: Users, color: "bg-blue-100 text-blue-700" },
@@ -234,6 +282,32 @@ export default function AdminDashboardPage() {
           )
         })}
       </div>
+
+      {propertyBreakdown.length > 0 && (
+        <>
+          <div>
+            <h2 className="text-lg font-semibold">Properties &amp; land</h2>
+            <p className="text-sm text-muted-foreground">Separate totals for houses/buildings and land parcels</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+            {propertyBreakdown.map((row) => {
+              const Icon = row.icon
+              return (
+                <Card key={row.title}>
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">{row.title}</CardTitle>
+                    <Icon className={`h-5 w-5 ${row.color}`} />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{row.value}</div>
+                    <p className="text-xs text-muted-foreground mt-1">{row.sub}</p>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        </>
+      )}
 
       {/* Tenant-wide contributions & refunds */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">

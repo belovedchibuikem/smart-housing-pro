@@ -15,6 +15,9 @@ export const TENANT_ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
   "bulk.mortgages": "view_loans|create_loans|edit_loans|approve_loans|manage_loan_repayments",
   "bulk.properties": "view_properties|create_properties|edit_properties|delete_properties|manage_property_estates",
   "bulk.property-subscribers": "view_properties|manage_property_allottees|approve_allotments",
+  "bulk.lands": "view_properties|create_properties|edit_properties|manage_property_estates",
+  "bulk.land-subscriptions": "view_properties|manage_property_allottees|approve_allotments",
+  "bulk.land-payments": "view_properties|manage_property_allottees|manage_payments",
   "bulk.contributions": "view_contributions|create_contributions|edit_contributions|delete_contributions",
   "bulk.equity-contributions":
     "view_equity_contributions|bulk_upload_equity_contributions|approve_equity_contributions|create_equity_contributions",
@@ -53,6 +56,9 @@ export const TENANT_ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
   "loan-repayments": "manage_loan_repayments|view_loans|create_loans",
   properties:
     "view_properties|create_properties|edit_properties|delete_properties|manage_property_estates|manage_property_allottees",
+  lands: "view_properties|create_properties|edit_properties|delete_properties|manage_property_estates",
+  "property-statistics":
+    "view_properties|manage_property_estates|create_properties|manage_settings",
   "property-payment-plans": "view_properties|create_properties|edit_properties|manage_property_allottees",
   "property-subscriptions": "view_properties|manage_property_allottees|approve_allotments",
   "internal-mortgages": "view_loans|manage_loan_repayments|approve_loans",

@@ -42,6 +42,7 @@ import {
   Plus,
   Calculator,
   Bell,
+  MapPinned,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -177,11 +178,16 @@ const navItems: NavItem[] = [
     label: "Properties",
     icon: Home,
     subItems: [
-      { href: "/admin/properties", label: "All Properties", icon: Home },
-      { href: "/admin/properties/new", label: "Create Property", icon: Plus },
+      { href: "/admin/properties", label: "All Houses / Buildings", icon: Home },
+      { href: "/admin/properties/new", label: "Upload House/Building", icon: Plus },
+      { href: "/admin/lands", label: "Land Parcels", icon: MapPinned },
+      { href: "/admin/lands/new", label: "Upload Land", icon: Plus },
       { href: "/admin/eoi-forms", label: "EOI Forms", icon: ClipboardList },
       { href: "/admin/property-payment-plans", label: "Payment Plans", icon: CreditCard },
-      { href: "/admin/bulk-upload/properties", label: "Bulk Upload", icon: Upload },
+      { href: "/admin/bulk-upload/properties", label: "Bulk Houses (CSV)", icon: Upload },
+      { href: "/admin/bulk-upload/lands", label: "Bulk Land (CSV)", icon: Upload },
+      { href: "/admin/bulk-upload/land-subscriptions", label: "Bulk Land Subscriptions", icon: Upload },
+      { href: "/admin/bulk-upload/land-payments", label: "Bulk Land Payments", icon: Upload },
       { href: "/admin/bulk-upload/property-subscribers", label: "Bulk Property Subscribers", icon: Upload },
     ],
   },

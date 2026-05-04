@@ -35,6 +35,8 @@ export interface LoanProductSummary {
 export interface LoanRepayment {
 	id: string
 	amount: number
+	principal_paid?: number | null
+	interest_paid?: number | null
 	due_date?: string | null
 	status?: string | null
 	paid_at?: string | null
@@ -57,6 +59,7 @@ export interface LoanMemberSummary {
 
 export interface LoanResource {
 	id: string
+	loan_number?: string | null
 	member_id: string
 	product_id?: string | null
 	amount: number
@@ -64,6 +67,13 @@ export interface LoanResource {
 	duration_months: number
 	type: string
 	purpose?: string | null
+	due_date?: string | null
+	repayment_schedule?: string | null
+	collateral?: string | null
+	disbursed_at?: string | null
+	total_repaid?: number | null
+	outstanding_balance_total?: number | null
+	remaining_principal?: number | null
 	status: string
 	application_date?: string | null
 	approved_at?: string | null
@@ -238,6 +248,8 @@ const deserializeProduct = (raw: any): LoanProduct => ({
 const deserializeRepayment = (raw: any): LoanRepayment => ({
 	id: raw?.id ?? "",
 	amount: toNumber(raw?.amount),
+	principal_paid: raw?.principal_paid !== undefined ? toNumber(raw.principal_paid) : null,
+	interest_paid: raw?.interest_paid !== undefined ? toNumber(raw.interest_paid) : null,
 	due_date: raw?.due_date ?? null,
 	status: raw?.status ?? null,
 	paid_at: raw?.paid_at ?? null,
@@ -249,6 +261,7 @@ const deserializeRepayment = (raw: any): LoanRepayment => ({
 
 const deserializeLoan = (raw: any): LoanResource => ({
 	id: raw?.id ?? "",
+	loan_number: raw?.loan_number ?? null,
 	member_id: raw?.member_id ?? "",
 	product_id: raw?.product_id ?? null,
 	amount: toNumber(raw?.amount),
@@ -256,6 +269,14 @@ const deserializeLoan = (raw: any): LoanResource => ({
 	duration_months: Number(raw?.duration_months ?? 0),
 	type: raw?.type ?? "",
 	purpose: raw?.purpose ?? null,
+	due_date: raw?.due_date ?? null,
+	repayment_schedule: raw?.repayment_schedule ?? null,
+	collateral: raw?.collateral ?? null,
+	disbursed_at: raw?.disbursed_at ?? null,
+	total_repaid: raw?.total_repaid !== undefined ? toNumber(raw.total_repaid) : null,
+	outstanding_balance_total:
+		raw?.outstanding_balance_total !== undefined ? toNumber(raw.outstanding_balance_total) : null,
+	remaining_principal: raw?.remaining_principal !== undefined ? toNumber(raw.remaining_principal) : null,
 	status: raw?.status ?? "",
 	application_date: raw?.application_date ?? null,
 	approved_at: raw?.approved_at ?? null,

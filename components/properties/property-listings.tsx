@@ -18,6 +18,20 @@ function formatCurrency(amount: number) {
 	return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 }).format(amount)
 }
 
+function kindLabel(property: AvailableProperty) {
+	if (property.listing_kind === "land_parcel" || property.listing_kind === "land_legacy") {
+		return "🌍 Land"
+	}
+	return "🏡 House / Building"
+}
+
+function detailHref(property: AvailableProperty) {
+	if (property.listing_kind === "land_parcel") {
+		return `/dashboard/lands/${property.id}`
+	}
+	return `/dashboard/properties/${property.id}`
+}
+
 export function PropertyListings({ properties, loading }: PropertyListingsProps) {
 	const hasData = properties.length > 0
 
@@ -71,6 +85,16 @@ export function PropertyListings({ properties, loading }: PropertyListingsProps)
 									height={360}
 									className="h-48 w-full object-cover"
 								/>
+								<div className="absolute left-3 top-3 flex flex-col items-start gap-1">
+									<Badge variant="outline" className="bg-background/90 text-foreground">
+										{kindLabel(property)}
+									</Badge>
+									{property.land_code ? (
+										<Badge variant="secondary" className="text-xs font-mono">
+											{property.land_code}
+										</Badge>
+									) : null}
+								</div>
 								<div className="absolute right-3 top-3 flex flex-col items-end gap-1">
 									<Badge className="capitalize">{property.status.replace("_", " ")}</Badge>
 									{property.total_slots != null && property.slots_available != null && (
@@ -90,6 +114,12 @@ export function PropertyListings({ properties, loading }: PropertyListingsProps)
             </div>
 
 								<div className="flex flex-wrap items-center gap-4 text-sm">
+									{property.land_size_label ? (
+										<div className="flex items-center gap-1 text-muted-foreground">
+											<Square className="h-4 w-4" />
+											<span>{property.land_size_label}</span>
+										</div>
+									) : null}
 									{property.bedrooms ? (
               <div className="flex items-center gap-1">
                 <Bed className="h-4 w-4 text-muted-foreground" />
@@ -115,7 +145,7 @@ export function PropertyListings({ properties, loading }: PropertyListingsProps)
 									<p className="text-2xl font-semibold text-primary">{formatCurrency(property.price)}</p>
             </div>
 
-            <Link href={`/dashboard/properties/${property.id}`}>
+            <Link href={detailHref(property)}>
 									<Button className="w-full">View Details &amp; Show Interest</Button>
             </Link>
           </div>

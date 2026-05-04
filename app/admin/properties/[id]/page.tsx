@@ -135,6 +135,8 @@ export default function PropertyDetailPage() {
     return Array.isArray(property?.features) ? property.features : []
   }, [property?.features])
 
+  const isLandLegacy = property?.type === "land"
+
   const allocations = useMemo(() => {
     return Array.isArray(property?.allocations) ? property.allocations : []
   }, [property?.allocations])
@@ -208,6 +210,13 @@ export default function PropertyDetailPage() {
             {property.address || property.location || property.city || property.state || "No location provided"}
           </p>
         </div>
+        {isLandLegacy ? (
+          <Badge variant="secondary">🌍 Land (legacy property row)</Badge>
+        ) : (
+          <Badge variant="outline" className="font-normal">
+            🏡 House / Building
+          </Badge>
+        )}
         {property.status && <Badge className="capitalize">{property.status}</Badge>}
         <Link href={`/admin/properties/${property.id}/edit`}>
           <Button>Edit Property</Button>
@@ -301,9 +310,27 @@ export default function PropertyDetailPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Property Details</CardTitle>
-                  <CardDescription>Complete property information</CardDescription>
+                  <CardDescription>
+                    {isLandLegacy
+                      ? "Legacy land stored on the properties table. New parcels belong in Land module."
+                      : "Complete building / unit information"}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                  {isLandLegacy ? (
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="rounded-lg border p-4">
+                        <div className="text-sm text-muted-foreground">Plot size</div>
+                        <div className="text-2xl font-bold">{property.size != null ? String(property.size) : "—"}</div>
+                      </div>
+                      <div className="rounded-lg border p-4">
+                        <div className="text-sm text-muted-foreground">Listed value</div>
+                        <div className="text-2xl font-bold text-primary">
+                          ₦{(Number(property.price || 0) / 1000000).toFixed(1)}M
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
                   <div className="grid md:grid-cols-3 gap-4">
                     <div className="flex items-center gap-3 rounded-lg border p-4">
                       <Bed className="h-8 w-8 text-primary" />
@@ -327,6 +354,7 @@ export default function PropertyDetailPage() {
                       </div>
                     </div>
                   </div>
+                  )}
 
                   {property.description && (
                   <div>
