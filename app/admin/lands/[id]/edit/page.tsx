@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { ArrowLeft, ImageIcon, Loader2, Upload, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -22,10 +22,14 @@ function splitToArray(raw: string): string[] {
     .filter(Boolean)
 }
 
-export default function NewLandPage() {
+export default function EditLandPage() {
+  const params = useParams<{ id: string }>()
+  const id = params?.id ?? ""
   const router = useRouter()
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
+
+  const [fetching, setFetching] = useState(true)
   const [loading, setLoading] = useState(false)
   const [images, setImages] = useState<Array<{ url: string; preview?: string; name?: string }>>([])
   const [uploadingImages, setUploadingImages] = useState(false)
@@ -49,18 +53,64 @@ export default function NewLandPage() {
   })
 
   useEffect(() => {
+    if (!id) return
+    let mounted = true
+    ;(async () => {
+      try {
+        const res = await apiFetch<{ success: boolean; data: any }>(`/admin/lands/${id}`)
+        if (!mounted || !res.success || !res.data) return
+        const land = res.data
+        setForm({
+          land_title: land.land_title ?? "",
+          land_description: land.land_description ?? "",
+          land_size: land.land_size ?? "",
+          cost: land.cost?.toString() ?? "",
+          suitable_for: land.suitable_for ?? "",
+          infrastructure_plan: Array.isArray(land.infrastructure_plan) ? land.infrastructure_plan.join(", ") : "",
+          land_features: Array.isArray(land.land_features) ? land.land_features.join(", ") : "",
+          title_documents: Array.isArray(land.title_documents) ? land.title_documents.join(", ") : "",
+          location: land.location ?? "",
+          address: land.address ?? "",
+          city: land.city ?? "",
+          state: land.state ?? "",
+          status: land.status ?? "available",
+          total_slots:
+            land.total_slots !== null && land.total_slots !== undefined ? String(land.total_slots) : "",
+          cost_includes_infrastructure: land.cost_includes_infrastructure === true,
+        })
+        if (Array.isArray(land.images)) {
+          setImages(
+            land.images.map((url: string, idx: number) => ({
+              url,
+              name: url.split("/").pop() || `Image ${idx + 1}`,
+            })),
+          )
+        }
+      } catch (err: unknown) {
+        toast({
+          title: "Error",
+          description: err instanceof Error ? err.message : "Failed to load land parcel",
+          variant: "destructive",
+        })
+        router.push("/admin/lands")
+      } finally {
+        if (mounted) setFetching(false)
+      }
+    })()
+
     return () => {
-      images.forEach((image) => {
-        if (image.preview) URL.revokeObjectURL(image.preview)
+      mounted = false
+      images.forEach((img) => {
+        if (img.preview) URL.revokeObjectURL(img.preview)
       })
     }
-  }, [images])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
 
   const handleFilesUpload = async (files: FileList | null) => {
     if (!files?.length) return
     setUploadError(null)
     setUploadingImages(true)
-
     for (const file of Array.from(files)) {
       if (!file.type.startsWith("image/")) {
         setUploadError("Unsupported file type. Please upload image files only.")
@@ -85,7 +135,6 @@ export default function NewLandPage() {
         setUploadError(err instanceof Error ? err.message : "Failed to upload image.")
       }
     }
-
     setUploadingImages(false)
   }
 
@@ -111,7 +160,7 @@ export default function NewLandPage() {
 
     const costNum = Number(form.cost)
     if (!Number.isFinite(costNum) || costNum < 0) {
-      toast({ title: "Validation", description: "Cost must be a valid number.", variant: "destructive" })
+      toast({ title: "Validation", description: "Land cost must be a valid number.", variant: "destructive" })
       return
     }
 
@@ -141,22 +190,19 @@ export default function NewLandPage() {
         images: images.map((image) => image.url),
       }
 
-      const res = await apiFetch<{ success: boolean; data?: { land_code?: string }; message?: string }>(
-        "/admin/lands",
-        { method: "POST", body },
-      )
+      const res = await apiFetch<{ success: boolean; message?: string }>(`/admin/lands/${id}`, {
+        method: "PUT",
+        body,
+      })
 
       if (res.success) {
-        toast({
-          title: "Land created",
-          description: res.data?.land_code ? `Land ID: ${res.data.land_code}` : "Saved successfully.",
-        })
-        router.push("/admin/lands")
+        toast({ title: "Land updated", description: res.message || "Saved successfully." })
+        router.push(`/admin/lands/${id}`)
       }
     } catch (err: unknown) {
       toast({
         title: "Error",
-        description: err instanceof Error ? err.message : "Could not save land parcel",
+        description: err instanceof Error ? err.message : "Could not update land parcel",
         variant: "destructive",
       })
     } finally {
@@ -164,18 +210,24 @@ export default function NewLandPage() {
     }
   }
 
+  if (fetching) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-muted-foreground">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    )
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
-      <Link href="/admin/lands" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+      <Link href={`/admin/lands/${id}`} className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to land list
+        Back to land details
       </Link>
 
       <div>
-        <h1 className="text-3xl font-bold">Upload land parcel</h1>
-        <p className="text-muted-foreground mt-1">
-          A unique Land ID (e.g. <span className="font-mono">LND-2026-00001</span>) is generated automatically after save.
-        </p>
+        <h1 className="text-3xl font-bold">Edit land parcel</h1>
+        <p className="text-muted-foreground mt-1">Update details, slots, and images for this land record.</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -187,59 +239,25 @@ export default function NewLandPage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="land_title">Land title *</Label>
-              <Input
-                id="land_title"
-                value={form.land_title}
-                onChange={(e) => setForm((s) => ({ ...s, land_title: e.target.value }))}
-                placeholder="e.g. Orozo Land"
-                required
-              />
+              <Input id="land_title" value={form.land_title} onChange={(e) => setForm((s) => ({ ...s, land_title: e.target.value }))} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="land_description">Description</Label>
-              <Textarea
-                id="land_description"
-                rows={4}
-                value={form.land_description}
-                onChange={(e) => setForm((s) => ({ ...s, land_description: e.target.value }))}
-              />
+              <Textarea id="land_description" rows={4} value={form.land_description} onChange={(e) => setForm((s) => ({ ...s, land_description: e.target.value }))} />
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="land_size">Land size</Label>
-                <Input
-                  id="land_size"
-                  value={form.land_size}
-                  onChange={(e) => setForm((s) => ({ ...s, land_size: e.target.value }))}
-                  placeholder="e.g. 2 hectares"
-                />
+                <Input id="land_size" value={form.land_size} onChange={(e) => setForm((s) => ({ ...s, land_size: e.target.value }))} />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="cost">Land cost (NGN) *</Label>
-                <Input
-                  id="cost"
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={form.cost}
-                  onChange={(e) => setForm((s) => ({ ...s, cost: e.target.value }))}
-                  required
-                />
+                <Input id="cost" type="number" min={0} step="0.01" value={form.cost} onChange={(e) => setForm((s) => ({ ...s, cost: e.target.value }))} required />
               </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="total_slots">Total slots (optional)</Label>
-              <Input
-                id="total_slots"
-                type="number"
-                min={1}
-                value={form.total_slots}
-                onChange={(e) => setForm((s) => ({ ...s, total_slots: e.target.value }))}
-                placeholder="Leave empty for unlimited"
-              />
-              <p className="text-xs text-muted-foreground">
-                Each approved allocation/subscription consumes one slot.
-              </p>
+              <Input id="total_slots" type="number" min={1} value={form.total_slots} onChange={(e) => setForm((s) => ({ ...s, total_slots: e.target.value }))} />
             </div>
             <div className="space-y-2">
               <Label>Status</Label>
@@ -258,60 +276,60 @@ export default function NewLandPage() {
               <Checkbox
                 id="infra_incl"
                 checked={form.cost_includes_infrastructure}
-                onCheckedChange={(v) =>
-                  setForm((s) => ({ ...s, cost_includes_infrastructure: v === true }))
-                }
+                onCheckedChange={(v) => setForm((s) => ({ ...s, cost_includes_infrastructure: v === true }))}
               />
-              <Label htmlFor="infra_incl" className="text-sm font-normal leading-snug">
-                Cost is inclusive of infrastructure
-              </Label>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="suitable_for">Suitable for</Label>
-              <Input
-                id="suitable_for"
-                value={form.suitable_for}
-                onChange={(e) => setForm((s) => ({ ...s, suitable_for: e.target.value }))}
-                placeholder="e.g. Two bedroom bungalow"
-              />
+              <Label htmlFor="infra_incl" className="text-sm font-normal leading-snug">Cost is inclusive of infrastructure</Label>
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Land images</CardTitle>
-            <CardDescription>Use the same upload flow as house/building listings</CardDescription>
-          </CardHeader>
+          <CardHeader><CardTitle>Plans &amp; documents</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="infrastructure_plan">Infrastructure plan</Label>
+              <Textarea id="infrastructure_plan" rows={2} value={form.infrastructure_plan} onChange={(e) => setForm((s) => ({ ...s, infrastructure_plan: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="land_features">Land features</Label>
+              <Textarea id="land_features" rows={2} value={form.land_features} onChange={(e) => setForm((s) => ({ ...s, land_features: e.target.value }))} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="title_documents">Title documents</Label>
+              <Input id="title_documents" value={form.title_documents} onChange={(e) => setForm((s) => ({ ...s, title_documents: e.target.value }))} />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Location</CardTitle></CardHeader>
+          <CardContent className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="location">Location label</Label>
+              <Input id="location" value={form.location} onChange={(e) => setForm((s) => ({ ...s, location: e.target.value }))} />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="address">Address</Label>
+              <Textarea id="address" rows={2} value={form.address} onChange={(e) => setForm((s) => ({ ...s, address: e.target.value }))} />
+            </div>
+            <div className="space-y-2"><Label htmlFor="city">City</Label><Input id="city" value={form.city} onChange={(e) => setForm((s) => ({ ...s, city: e.target.value }))} /></div>
+            <div className="space-y-2"><Label htmlFor="state">State</Label><Input id="state" value={form.state} onChange={(e) => setForm((s) => ({ ...s, state: e.target.value }))} /></div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Land images</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <div
               className="group relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-muted-foreground/40 p-8 text-center transition hover:border-primary"
               onClick={() => fileInputRef.current?.click()}
-              onDragOver={(event) => {
-                event.preventDefault()
-                event.dataTransfer.dropEffect = "copy"
-              }}
-              onDrop={(event) => {
-                event.preventDefault()
-                void handleFilesUpload(event.dataTransfer.files)
-              }}
+              onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "copy" }}
+              onDrop={(event) => { event.preventDefault(); void handleFilesUpload(event.dataTransfer.files) }}
             >
               <Upload className="h-10 w-10 text-muted-foreground transition-colors group-hover:text-primary" />
               <p className="text-sm font-medium text-muted-foreground">Click to upload or drag and drop</p>
-              <p className="text-xs text-muted-foreground">PNG, JPG up to 10MB each. Upload multiple images.</p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={(event) => void handleFilesUpload(event.target.files)}
-              />
-              {uploadingImages ? (
-                <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/80 text-xs text-muted-foreground">
-                  Uploading images...
-                </div>
-              ) : null}
+              <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={(event) => void handleFilesUpload(event.target.files)} />
+              {uploadingImages ? <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-background/80 text-xs text-muted-foreground">Uploading images...</div> : null}
             </div>
             {uploadError ? <p className="text-sm text-destructive">{uploadError}</p> : null}
             {images.length > 0 ? (
@@ -319,24 +337,13 @@ export default function NewLandPage() {
                 {images.map((image, index) => (
                   <div key={`${image.url}-${index}`} className="group relative overflow-hidden rounded-lg border">
                     {image.preview || image.url ? (
-                      <img
-                        src={image.preview || resolveStorageUrl(image.url)}
-                        alt={image.name || `Land image ${index + 1}`}
-                        className="h-32 w-full object-cover"
-                        loading="lazy"
-                      />
+                      <img src={image.preview || resolveStorageUrl(image.url)} alt={image.name || `Land image ${index + 1}`} className="h-32 w-full object-cover" loading="lazy" />
                     ) : (
-                      <div className="flex h-32 items-center justify-center bg-muted/40 text-muted-foreground">
-                        <ImageIcon className="h-8 w-8" />
-                      </div>
+                      <div className="flex h-32 items-center justify-center bg-muted/40 text-muted-foreground"><ImageIcon className="h-8 w-8" /></div>
                     )}
                     <div className="flex items-center justify-between border-t bg-background px-3 py-2 text-xs">
                       <span className="truncate">{image.name || `Image ${index + 1}`}</span>
-                      <button
-                        type="button"
-                        className="rounded-full bg-destructive p-1 text-destructive-foreground opacity-0 transition group-hover:opacity-100"
-                        onClick={() => removeImage(index)}
-                      >
+                      <button type="button" className="rounded-full bg-destructive p-1 text-destructive-foreground opacity-0 transition group-hover:opacity-100" onClick={() => removeImage(index)}>
                         <X className="h-3 w-3" />
                       </button>
                     </div>
@@ -347,82 +354,17 @@ export default function NewLandPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Plans &amp; documents</CardTitle>
-            <CardDescription>Use commas or pipes to separate multiple values</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="infrastructure_plan">Infrastructure plan</Label>
-              <Textarea
-                id="infrastructure_plan"
-                rows={2}
-                value={form.infrastructure_plan}
-                onChange={(e) => setForm((s) => ({ ...s, infrastructure_plan: e.target.value }))}
-                placeholder="drainages, roads, water, electricity"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="land_features">Land features</Label>
-              <Textarea
-                id="land_features"
-                rows={2}
-                value={form.land_features}
-                onChange={(e) => setForm((s) => ({ ...s, land_features: e.target.value }))}
-                placeholder="green area, fence, schools, ..."
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="title_documents">Title documents (types)</Label>
-              <Input
-                id="title_documents"
-                value={form.title_documents}
-                onChange={(e) => setForm((s) => ({ ...s, title_documents: e.target.value }))}
-                placeholder="C of O, Survey Plan"
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Location</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="location">Location label</Label>
-              <Input
-                id="location"
-                value={form.location}
-                onChange={(e) => setForm((s) => ({ ...s, location: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="address">Address</Label>
-              <Textarea id="address" rows={2} value={form.address} onChange={(e) => setForm((s) => ({ ...s, address: e.target.value }))} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="city">City</Label>
-              <Input id="city" value={form.city} onChange={(e) => setForm((s) => ({ ...s, city: e.target.value }))} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="state">State</Label>
-              <Input id="state" value={form.state} onChange={(e) => setForm((s) => ({ ...s, state: e.target.value }))} />
-            </div>
-          </CardContent>
-        </Card>
-
         <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
           <Button type="button" variant="outline" asChild disabled={loading}>
-            <Link href="/admin/lands">Cancel</Link>
+            <Link href={`/admin/lands/${id}`}>Cancel</Link>
           </Button>
           <Button type="submit" disabled={loading}>
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Save land parcel
+            Save changes
           </Button>
         </div>
       </form>
     </div>
   )
 }
+

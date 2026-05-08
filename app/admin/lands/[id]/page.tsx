@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { ArrowLeft, Loader2, MapPinned } from "lucide-react"
+import { ArrowLeft, Loader2, MapPinned, Pencil } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { LandDocuments } from "@/components/properties/land-documents"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
+import { resolveStorageUrl } from "@/lib/api/config"
 
 interface LandDetail {
   id: string
@@ -22,12 +24,17 @@ interface LandDetail {
   infrastructure_plan?: string[] | null
   land_features?: string[] | null
   title_documents?: string[] | null
+  images?: string[] | null
   location?: string | null
   address?: string | null
   city?: string | null
   state?: string | null
   status?: string | null
   subscriptions_count?: number
+  total_slots?: number | null
+  slots_used?: number
+  slots_available?: number | null
+  images?: string[] | null
 }
 
 export default function AdminLandDetailPage() {
@@ -110,7 +117,7 @@ export default function AdminLandDetailPage() {
           </p>
         </div>
         <div className="text-left sm:text-right">
-          <div className="text-sm text-muted-foreground">Parcel cost</div>
+          <div className="text-sm text-muted-foreground">Land cost</div>
           <div className="text-2xl font-bold text-primary">{money(land.cost)}</div>
           {land.cost_includes_infrastructure ? (
             <Badge className="mt-2 bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Incl. infrastructure</Badge>
@@ -120,6 +127,14 @@ export default function AdminLandDetailPage() {
             </Badge>
           )}
         </div>
+      </div>
+      <div className="flex justify-end">
+        <Button variant="outline" asChild>
+          <Link href={`/admin/lands/${land.id}/edit`}>
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit land
+          </Link>
+        </Button>
       </div>
 
       <Card>
@@ -140,6 +155,12 @@ export default function AdminLandDetailPage() {
             <Row label="Land size" value={land.land_size || "—"} />
             <Row label="Suitable for" value={land.suitable_for || "—"} />
             <Row label="Subscriptions" value={String(land.subscriptions_count ?? "—")} />
+            <Row label="Total slots" value={land.total_slots == null ? "Unlimited" : String(land.total_slots)} />
+            <Row label="Slots used" value={String(land.slots_used ?? land.subscriptions_count ?? 0)} />
+            <Row
+              label="Slots available"
+              value={land.total_slots == null ? "Unlimited" : String(land.slots_available ?? 0)}
+            />
             <Row label="Status" value={land.status || "—"} />
           </CardContent>
         </Card>
@@ -155,6 +176,19 @@ export default function AdminLandDetailPage() {
         </Card>
       </div>
 
+      {Array.isArray(land.images) && land.images.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Land images</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+            {land.images.map((url, index) => (
+              <img key={`${url}-${index}`} src={resolveStorageUrl(url)} alt={`Land image ${index + 1}`} className="h-36 w-full rounded-md border object-cover" />
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
       {land.address ? (
         <Card>
           <CardHeader>
@@ -167,6 +201,8 @@ export default function AdminLandDetailPage() {
       <Button variant="outline" asChild>
         <Link href="/admin/bulk-upload/land-subscriptions">Bulk subscribe members</Link>
       </Button>
+
+      <LandDocuments landId={land.id} />
     </div>
   )
 }

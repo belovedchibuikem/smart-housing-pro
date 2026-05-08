@@ -46,8 +46,15 @@ export default function BulkUploadLandsPage() {
       rows.forEach((row, idx) => {
         const title = row.land_title ?? row["Land Title"]
         const cost = row.cost ?? row.Cost
+        const slots = row.total_slots ?? row["Total Slots"] ?? row.slots
         if (!title && idx < 500) localErrs.push(`Row ${idx + 2}: land_title missing`)
         if ((cost === undefined || String(cost).trim() === "") && idx < 500) localErrs.push(`Row ${idx + 2}: cost missing`)
+        if (slots !== undefined && String(slots).trim() !== "") {
+          const n = Number(slots)
+          if ((!Number.isFinite(n) || n < 1 || !Number.isInteger(n)) && idx < 500) {
+            localErrs.push(`Row ${idx + 2}: total_slots must be a positive integer`)
+          }
+        }
       })
       setErrors(localErrs)
     } catch (err) {
@@ -197,7 +204,8 @@ export default function BulkUploadLandsPage() {
                   <TableRow>
                     <TableHead>Land title</TableHead>
                     <TableHead>Size</TableHead>
-                    <TableHead>Cost</TableHead>
+                    <TableHead>Land cost</TableHead>
+                    <TableHead>Slots</TableHead>
                     <TableHead>Location</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -207,6 +215,7 @@ export default function BulkUploadLandsPage() {
                       <TableCell>{row.land_title ?? row["Land Title"] ?? ""}</TableCell>
                       <TableCell>{row.land_size ?? ""}</TableCell>
                       <TableCell>{row.cost ?? ""}</TableCell>
+                      <TableCell>{row.total_slots ?? row["Total Slots"] ?? row.slots ?? ""}</TableCell>
                       <TableCell>{row.location ?? ""}</TableCell>
                     </TableRow>
                   ))}

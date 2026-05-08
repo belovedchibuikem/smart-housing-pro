@@ -47,6 +47,10 @@ interface LandParcel {
   cost?: number | string | null
   location?: string | null
   status?: string | null
+  images?: string[] | null
+  documents_count?: number
+  total_slots?: number | null
+  slots_available?: number | null
 }
 
 export default function AdminPropertiesPage() {
@@ -248,6 +252,25 @@ export default function AdminPropertiesPage() {
       toast({
         title: "Error",
         description: "Failed to delete property",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteLand = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this land parcel?")) return
+
+    try {
+      await apiFetch(`/admin/lands/${id}`, { method: "DELETE" })
+      toast({
+        title: "Success",
+        description: "Land parcel deleted successfully",
+      })
+      fetchLandParcels()
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to delete land parcel",
         variant: "destructive",
       })
     }
@@ -632,32 +655,65 @@ export default function AdminPropertiesPage() {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                   {landParcels.map((land) => (
                     <Card key={land.id} className="overflow-hidden">
-                      <div className="flex items-center gap-2 border-b bg-muted/40 px-4 py-3">
-                        <Badge variant="secondary" className="font-normal">
-                          🌍 Land
-                        </Badge>
-                        <span className="ml-auto font-mono text-xs text-muted-foreground">{land.land_code || "—"}</span>
-                      </div>
+                      <img
+                        src={
+                          Array.isArray(land.images) && land.images.length > 0
+                            ? resolveStorageUrl(land.images[0]) || "/placeholder.svg"
+                            : "/placeholder.svg"
+                        }
+                        alt={land.land_title || "Land"}
+                        className="h-48 w-full object-cover"
+                      />
                       <CardContent className="space-y-3 p-4">
-                        <div className="font-semibold leading-snug">{land.land_title || "Untitled"}</div>
-                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                          <MapPin className="h-3 w-3" />
-                          {land.location || "—"}
-                        </div>
-                        {land.land_size ? (
+                        <div className="flex flex-wrap items-center gap-2">
                           <Badge variant="outline" className="font-normal">
-                            {land.land_size}
+                            🌍 Land Parcel
                           </Badge>
-                        ) : null}
-                        <div className="text-lg font-bold text-primary">
-                          ₦{((Number(land.cost || 0) || 0) / 1000000).toFixed(1)}M
+                          {land.land_size ? (
+                            <span className="text-xs text-muted-foreground">{land.land_size}</span>
+                          ) : null}
+                          <span className="ml-auto font-mono text-xs text-muted-foreground">{land.land_code || "—"}</span>
                         </div>
-                        <Button variant="outline" size="sm" className="w-full bg-transparent" asChild>
-                          <Link href={`/admin/lands/${land.id}`}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            View
-                          </Link>
-                        </Button>
+                        <div>
+                          <div className="font-semibold leading-snug">{land.land_title || "Untitled land"}</div>
+                          <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
+                            <MapPin className="h-3 w-3" />
+                            {land.location || "No location"}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-lg font-bold text-primary">
+                            ₦{((Number(land.cost || 0) || 0) / 1000000).toFixed(1)}M
+                          </div>
+                          <Badge variant={land.status === "available" ? "default" : "secondary"}>
+                            {land.status || "N/A"}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                          <span>{land.documents_count ?? 0} document(s)</span>
+                          {land.total_slots != null ? (
+                            <span>{land.slots_available ?? 0}/{land.total_slots} slots free</span>
+                          ) : (
+                            <span>Unlimited slots</span>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button variant="outline" size="sm" className="flex-1 bg-transparent" asChild>
+                            <Link href={`/admin/lands/${land.id}`}>
+                              <Eye className="mr-1 h-4 w-4" />
+                              View
+                            </Link>
+                          </Button>
+                          <Button variant="outline" size="sm" className="flex-1 bg-transparent" asChild>
+                            <Link href={`/admin/lands/${land.id}/edit`}>
+                              <Edit className="mr-1 h-4 w-4" />
+                              Edit
+                            </Link>
+                          </Button>
+                          <Button variant="outline" size="sm" onClick={() => handleDeleteLand(land.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                   ))}

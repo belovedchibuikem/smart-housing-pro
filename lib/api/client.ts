@@ -624,6 +624,25 @@ export interface PropertyDocument {
 	metadata?: Record<string, unknown> | null
 }
 
+export interface LandDocument {
+	id: string
+	land_id: string
+	member_id?: string | null
+	uploaded_by: string
+	uploaded_by_role: "member" | "admin" | "system"
+	title: string
+	description?: string | null
+	document_type?: string | null
+	file_path: string
+	file_url?: string | null
+	file_name: string
+	mime_type?: string | null
+	file_size?: number | null
+	created_at: string
+	updated_at: string
+	metadata?: Record<string, unknown> | null
+}
+
 export type PropertyFundingOption = "equity_wallet" | "cash" | "loan" | "mix" | "mortgage" | "cooperative"
 
 export type MixFundingAllocationMap = Partial<Record<PropertyFundingOption, number>>
@@ -928,6 +947,32 @@ export async function uploadPropertyDocument(body: FormData) {
 
 export async function deletePropertyDocument(documentId: string) {
 	return apiFetch<{ success: boolean; message: string }>(`/properties/documents/${documentId}`, {
+		method: "DELETE",
+	})
+}
+
+export async function getLandDocuments(landId: string, params?: { page?: number; per_page?: number }) {
+	const query = new URLSearchParams()
+	if (params?.page) query.set("page", String(params.page))
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+
+	return apiFetch<{
+		success: boolean
+		data: LandDocument[]
+		pagination: { current_page: number; last_page: number; per_page: number; total: number }
+	}>(`/lands/${landId}/documents?${query.toString()}`, { method: "GET" })
+}
+
+export async function uploadLandDocument(body: FormData) {
+	return apiFetch<{ success: boolean; message: string; data: LandDocument }>(`/lands/documents`, {
+		method: "POST",
+		body,
+		headers: {},
+	})
+}
+
+export async function deleteLandDocument(documentId: string) {
+	return apiFetch<{ success: boolean; message: string }>(`/lands/documents/${documentId}`, {
 		method: "DELETE",
 	})
 }

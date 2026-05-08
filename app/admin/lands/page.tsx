@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { MapPinned, Plus, Search, Loader2, Eye } from "lucide-react"
+import { MapPinned, Plus, Search, Loader2, Eye, Pencil } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -133,12 +133,20 @@ export default function AdminLandsListPage() {
                       <Badge variant="outline">{land.status || "—"}</Badge>
                     </div>
                     <div className="text-lg font-bold text-primary">{formatMoney(land.cost)}</div>
-                    <Button variant="outline" size="sm" className="w-full bg-transparent" asChild>
-                      <Link href={`/admin/lands/${land.id}`}>
-                        <Eye className="mr-2 h-4 w-4" />
-                        View details
-                      </Link>
-                    </Button>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button variant="outline" size="sm" className="w-full bg-transparent" asChild>
+                        <Link href={`/admin/lands/${land.id}`}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          View
+                        </Link>
+                      </Button>
+                      <Button variant="outline" size="sm" className="w-full bg-transparent" asChild>
+                        <Link href={`/admin/lands/${land.id}/edit`}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </Link>
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ))}

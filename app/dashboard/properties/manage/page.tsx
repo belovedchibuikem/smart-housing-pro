@@ -88,9 +88,11 @@ export default function MyPropertyPage() {
 
     try {
       setLoadingDetails((prev) => ({ ...prev, [propertyId]: true }))
+      const current = properties.find((p) => p.id === propertyId)
+      const isHouse = current?.type?.toLowerCase() === "house"
       const [paymentSetupResponse, documentsResponse] = await Promise.allSettled([
         getPropertyPaymentSetup(propertyId),
-        getPropertyDocuments(propertyId),
+        isHouse ? getPropertyDocuments(propertyId) : Promise.resolve({ success: true, data: [] }),
       ])
 
       setProperties((prev) =>
@@ -294,7 +296,7 @@ export default function MyPropertyPage() {
 
           {/* Actions */}
           <div className="flex gap-2 pt-4 border-t">
-            <Link href={`/dashboard/properties/${property.id}`}>
+            <Link href={isHouse ? `/dashboard/properties/${property.id}` : `/dashboard/lands/${property.id}`}>
               <Button>
                 <Eye className="h-4 w-4 mr-2" />
                 View Full Details
