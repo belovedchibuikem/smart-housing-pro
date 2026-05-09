@@ -28,6 +28,7 @@ import {
   UserCircle,
   Calendar,
   Heart,
+  Smartphone,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -80,6 +81,7 @@ const navItems: NavItem[] = [
     ]
   },
   { href: "/super-admin/payment-gateways", label: "Payment Gateways", icon: CreditCard },
+  { href: "/super-admin/app-versions", label: "App Versions", icon: Smartphone },
   { href: "/super-admin/payment-approvals", label: "Payment Approvals", icon: CheckCircle },
   { href: "/super-admin/invoices", label: "Invoices", icon: FileText },
   { href: "/super-admin/domain-requests", label: "Domain Requests", icon: Globe },
