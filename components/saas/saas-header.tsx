@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Building2, Menu, Home, Sparkles, CreditCard, Users, Info, LogIn } from "lucide-react"
+import { Building2, Menu, Home, Sparkles, CreditCard, Users, Info, LogIn, Mail } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { apiFetch } from "@/lib/api/client"
@@ -56,6 +56,12 @@ export function SaaSHeader() {
       icon: Info,
       description: "Learn more about us",
     },
+    {
+      href: "/saas/contact",
+      label: "Contact",
+      icon: Mail,
+      description: "Sales, support, and general inquiries",
+    },
   ]
 
   const navLinks = headerData?.navigation_links
@@ -98,6 +104,9 @@ export function SaaSHeader() {
           </Link>
           <Link href="/saas/about" className="text-sm font-medium hover:text-primary transition-colors">
             About
+          </Link>
+          <Link href="/saas/contact" className="text-sm font-medium hover:text-primary transition-colors">
+            Contact
           </Link>
           <Link href="/saas#testimonials" className="text-sm font-medium hover:text-primary transition-colors">
             Testimonials

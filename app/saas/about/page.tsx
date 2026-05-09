@@ -80,6 +80,7 @@ export default function AboutPage() {
             </Link>
           </Button>
           <div className="max-w-3xl mx-auto text-center">
+            <p className="text-sm font-medium text-primary mb-3 tracking-wide uppercase">About us</p>
             <h1 className="text-4xl md:text-6xl font-bold mb-6 text-balance">
               Building the Future of Housing Cooperatives
             </h1>

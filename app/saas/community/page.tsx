@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Building2, MessageCircle, ThumbsUp, Eye, ArrowLeft } from "lucide-react"
+import { MessageCircle, ThumbsUp, Eye, ArrowLeft } from "lucide-react"
 import { SaaSHeader } from "@/components/saas/saas-header"
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api/client"
@@ -82,8 +82,9 @@ export default function CommunityPage() {
             </Link>
           </Button>
           <div className="max-w-3xl mx-auto text-center">
+            <p className="text-sm font-medium text-primary mb-3 tracking-wide uppercase">Community</p>
             <h1 className="text-4xl md:text-6xl font-bold mb-6 text-balance">
-              Community Discussions
+              Community discussions
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground text-balance">
               Join the conversation and learn from other housing cooperative administrators.
@@ -101,7 +102,12 @@ export default function CommunityPage() {
             <Card className="p-12 text-center">
               <MessageCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
               <h3 className="text-xl font-semibold mb-2">No discussions yet</h3>
-              <p className="text-muted-foreground">Check back soon for community discussions.</p>
+              <p className="text-muted-foreground mb-6">
+                Check back soon—or reach out if you&apos;d like to host a conversation for administrators.
+              </p>
+              <Button variant="outline" asChild>
+                <Link href="/saas/contact">Contact us</Link>
+              </Button>
             </Card>
           ) : (
             discussions.map((discussion) => (
