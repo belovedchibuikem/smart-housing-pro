@@ -93,29 +93,28 @@ export default function ContributionReportPage() {
     {
       title: "Total Contributions",
       value: `₦${stats.total_contributions.toLocaleString()}`,
-      change: `${stats.monthly_change >= 0 ? "+" : ""}${stats.monthly_change.toFixed(1)}%`,
-      trend: stats.monthly_change >= 0 ? "up" : "down",
+      subtitle:
+        stats.monthly_change !== 0
+          ? `${stats.monthly_change >= 0 ? "+" : ""}${stats.monthly_change.toFixed(1)}% vs last calendar month`
+          : "No change vs last calendar month",
       icon: DollarSign,
     },
     {
       title: "This Month",
       value: `₦${stats.this_month.toLocaleString()}`,
-      change: `${stats.monthly_change >= 0 ? "+" : ""}${stats.monthly_change.toFixed(1)}%`,
-      trend: stats.monthly_change >= 0 ? "up" : "down",
+      subtitle: "Approved & completed contributions in the current month",
       icon: TrendingUp,
     },
     {
-      title: "Average Monthly",
+      title: "Avg. per active month",
       value: `₦${stats.average_monthly.toLocaleString()}`,
-      change: `${stats.monthly_change >= 0 ? "+" : ""}${stats.monthly_change.toFixed(1)}%`,
-      trend: stats.monthly_change >= 0 ? "up" : "down",
+      subtitle: "Total counted contributions ÷ months with at least one counted payment",
       icon: TrendingDown,
     },
     {
-      title: "Total Payments",
+      title: "Counted payments",
       value: stats.total_payments.toString(),
-      change: `+${stats.total_payments}`,
-      trend: "up",
+      subtitle: "Rows with approved or completed status",
       icon: DollarSign,
     },
   ]
@@ -144,15 +143,7 @@ export default function ContributionReportPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="text-2xl font-bold">{stat.value}</div>
-                    <p
-                      className={cn(
-                        "text-xs flex items-center gap-1 mt-1",
-                        stat.trend === "up" ? "text-green-600" : "text-red-600",
-                      )}
-                    >
-                      {stat.trend === "up" ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                      {stat.change} from last period
-                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground leading-snug">{stat.subtitle}</p>
                   </CardContent>
                 </Card>
               )
@@ -218,7 +209,8 @@ export default function ContributionReportPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="approved">Completed</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="completed">Completed</SelectItem>
                       <SelectItem value="pending">Pending</SelectItem>
                       <SelectItem value="rejected">Failed</SelectItem>
                     </SelectContent>
@@ -274,7 +266,7 @@ export default function ContributionReportPage() {
                       <tr className="border-b">
                         <th className="text-left py-3 px-4 font-medium">Date</th>
                         <th className="text-left py-3 px-4 font-medium">Reference</th>
-                        <th className="text-left py-3 px-4 font-medium">Type</th>
+                        <th className="text-left py-3 px-4 font-medium">Plan</th>
                         <th className="text-right py-3 px-4 font-medium">Amount</th>
                         <th className="text-left py-3 px-4 font-medium">Status</th>
                       </tr>
@@ -284,6 +276,7 @@ export default function ContributionReportPage() {
                         <tr key={contribution.id} className="border-b hover:bg-muted/50">
                           <td className="py-3 px-4">{contribution.date ? formatDate(new Date(contribution.date), "short") : "N/A"}</td>
                           <td className="py-3 px-4 font-mono text-sm">{contribution.reference}</td>
+                          <td className="py-3 px-4">{contribution.plan ?? "—"}</td>
                           <td className="py-3 px-4">{contribution.type}</td>
                           <td className="py-3 px-4 text-right font-semibold">₦{contribution.amount.toLocaleString()}</td>
                           <td className="py-3 px-4">

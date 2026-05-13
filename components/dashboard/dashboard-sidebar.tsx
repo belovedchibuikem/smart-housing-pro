@@ -41,6 +41,7 @@ import {
   Wrench,
   Users,
   FileText,
+  Banknote,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState, useEffect } from "react"
@@ -172,10 +173,12 @@ const navItems: NavItem[] = [
     displayKey: "nav.report",
     icon: FileBarChart,
     subItems: [
+      { href: "/dashboard/reports", label: "All Reports", icon: FileBarChart },
       { href: "/dashboard/reports/contributions", label: "Contribution Report", icon: CreditCard },
       { href: "/dashboard/reports/equity-contributions", label: "Equity Contribution Report", icon: HandCoins },
       { href: "/dashboard/reports/investments", label: "Investment Report", icon: TrendingUp },
       { href: "/dashboard/reports/loans", label: "Loan Report", icon: HandCoins },
+      { href: "/dashboard/reports/mortgages", label: "Mortgage Report", icon: Banknote },
       { href: "/dashboard/reports/properties", label: "Property Report", icon: Home },
       { href: "/dashboard/reports/financial-summary", label: "Financial Summary", icon: PieChart },
     ],

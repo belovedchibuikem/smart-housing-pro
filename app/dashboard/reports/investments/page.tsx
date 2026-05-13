@@ -275,7 +275,12 @@ export default function InvestmentReportPage() {
                           </td>
                           <td className="py-3 px-4 text-right">₦{investment.amount.toLocaleString()}</td>
                           <td className="py-3 px-4 text-right font-semibold">₦{investment.current_value.toLocaleString()}</td>
-                          <td className="py-3 px-4 text-right text-green-600 font-semibold">+{investment.roi.toFixed(2)}%</td>
+                          <td
+                            className={`py-3 px-4 text-right font-semibold ${investment.roi >= 0 ? "text-green-600" : "text-red-600"}`}
+                          >
+                            {investment.roi >= 0 ? "+" : ""}
+                            {investment.roi.toFixed(2)}%
+                          </td>
                           <td className="py-3 px-4">
                             <Badge variant={investment.status === "active" ? "default" : "secondary"}>
                               {investment.status}

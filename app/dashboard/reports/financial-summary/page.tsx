@@ -17,6 +17,7 @@ import {
   Calendar,
   PiggyBank,
   Loader2,
+  HandCoins,
 } from "lucide-react"
 import { getFinancialSummaryReport } from "@/lib/api/client"
 import { exportReport } from "@/lib/utils/export"
@@ -28,11 +29,13 @@ export default function FinancialSummaryPage() {
   const [loading, setLoading] = useState(true)
   const [financialData, setFinancialData] = useState({
     total_contributions: 0,
+    total_equity_contributions: 0,
     total_investments: 0,
     total_loans: 0,
     total_properties: 0,
     wallet_balance: 0,
     loan_balance: 0,
+    mortgage_balance: 0,
     investment_returns: 0,
     property_equity: 0,
   })
@@ -50,7 +53,19 @@ export default function FinancialSummaryPage() {
 
       const response = await getFinancialSummaryReport(params)
       if (response.success) {
-        setFinancialData(response.financial_data)
+        const fd = response.financial_data
+        setFinancialData({
+          total_contributions: fd.total_contributions ?? 0,
+          total_equity_contributions: fd.total_equity_contributions ?? 0,
+          total_investments: fd.total_investments ?? 0,
+          total_loans: fd.total_loans ?? 0,
+          total_properties: fd.total_properties ?? 0,
+          wallet_balance: fd.wallet_balance ?? 0,
+          loan_balance: fd.loan_balance ?? 0,
+          mortgage_balance: fd.mortgage_balance ?? 0,
+          investment_returns: fd.investment_returns ?? 0,
+          property_equity: fd.property_equity ?? 0,
+        })
         setNetWorth(response.net_worth)
         setTotalAssets(response.total_assets)
         setTotalLiabilities(response.total_liabilities)
@@ -83,6 +98,9 @@ export default function FinancialSummaryPage() {
   const totalIncome = monthlyData.reduce((sum, m) => sum + m.income, 0)
   const totalExpenses = monthlyData.reduce((sum, m) => sum + m.expenses, 0)
   const netIncome = totalIncome - totalExpenses
+  const monthlyBandMax =
+    monthlyData.reduce((acc, d) => Math.max(acc, d.income, d.expenses), 0) || 1
+  const compositionDenom = totalAssets + totalLiabilities
 
   return (
     <div className="space-y-6">
@@ -150,21 +168,27 @@ export default function FinancialSummaryPage() {
                       <span className="text-muted-foreground">Total Assets</span>
                       <span className="font-medium text-green-600">₦{totalAssets.toLocaleString()}</span>
                     </div>
-                    <Progress value={100} className="h-2 bg-green-100" />
+                    <Progress
+                      value={compositionDenom > 0 ? (totalAssets / compositionDenom) * 100 : 0}
+                      className="h-2 bg-muted [&>div]:bg-green-600"
+                    />
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-muted-foreground">Total Liabilities</span>
                       <span className="font-medium text-red-600">₦{totalLiabilities.toLocaleString()}</span>
                     </div>
-                    <Progress value={totalAssets > 0 ? (totalLiabilities / totalAssets) * 100 : 0} className="h-2 bg-red-100" />
+                    <Progress
+                      value={compositionDenom > 0 ? (totalLiabilities / compositionDenom) * 100 : 0}
+                      className="h-2 bg-muted [&>div]:bg-red-600"
+                    />
                   </div>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Contributions</CardTitle>
@@ -173,8 +197,20 @@ export default function FinancialSummaryPage() {
               <CardContent>
                 <div className="text-2xl font-bold">₦{financialData.total_contributions.toLocaleString()}</div>
                 <p className="text-xs text-muted-foreground">
-                  {totalAssets > 0 ? ((financialData.total_contributions / totalAssets) * 100).toFixed(1) : 0}% of total assets
+                  {totalAssets > 0 ? ((financialData.total_contributions / totalAssets) * 100).toFixed(1) : "0"}
+                  % of assets — counted cooperative contributions
                 </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Equity Contributions</CardTitle>
+                <HandCoins className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">₦{financialData.total_equity_contributions.toLocaleString()}</div>
+                <p className="text-xs text-muted-foreground">Approved equity ledger total</p>
               </CardContent>
             </Card>
 
@@ -185,18 +221,20 @@ export default function FinancialSummaryPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">₦{financialData.total_investments.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">+₦{financialData.investment_returns.toLocaleString()} returns</p>
+                <p className="text-xs text-muted-foreground">+₦{financialData.investment_returns.toLocaleString()} credited returns</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Property Equity</CardTitle>
+                <CardTitle className="text-sm font-medium">Property payments</CardTitle>
                 <Building2 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">₦{financialData.property_equity.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">of ₦{financialData.total_properties.toLocaleString()} total value</p>
+                <p className="text-xs text-muted-foreground">
+                  Paid toward holdings — aggregate list price ₦{financialData.total_properties.toLocaleString()}
+                </p>
               </CardContent>
             </Card>
 
@@ -207,7 +245,7 @@ export default function FinancialSummaryPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">₦{financialData.wallet_balance.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">Available funds</p>
+                <p className="text-xs text-muted-foreground">Available wallet balance</p>
               </CardContent>
             </Card>
           </div>
@@ -215,7 +253,7 @@ export default function FinancialSummaryPage() {
           <Card>
             <CardHeader>
               <CardTitle>Income vs Expenses</CardTitle>
-              <CardDescription>6-month financial flow analysis</CardDescription>
+              <CardDescription>Last six calendar months — contributions vs loan repayments</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-6">
@@ -259,8 +297,14 @@ export default function FinancialSummaryPage() {
                           </div>
                         </div>
                         <div className="flex gap-2">
-                          <Progress value={(data.income / 300000) * 100} className="h-2 flex-1 bg-green-100" />
-                          <Progress value={(data.expenses / 300000) * 100} className="h-2 flex-1 bg-red-100" />
+                          <Progress
+                            value={monthlyBandMax > 0 ? (data.income / monthlyBandMax) * 100 : 0}
+                            className="h-2 flex-1 bg-muted [&>div]:bg-green-600"
+                          />
+                          <Progress
+                            value={monthlyBandMax > 0 ? (data.expenses / monthlyBandMax) * 100 : 0}
+                            className="h-2 flex-1 bg-muted [&>div]:bg-red-600"
+                          />
                         </div>
                         <div className="text-xs text-muted-foreground text-right">Savings rate: {savingsRate.toFixed(1)}%</div>
                       </div>
@@ -280,26 +324,55 @@ export default function FinancialSummaryPage() {
               <CardDescription>Outstanding debts and obligations</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <div className="font-medium">Active Loans</div>
-                    <div className="text-sm text-muted-foreground">Original amount: ₦{financialData.total_loans.toLocaleString()}</div>
+              <div className="space-y-6">
+                <div className="rounded-lg border bg-muted/40 p-4 text-sm text-muted-foreground">
+                  Cooperative loans reflect principal you have drawn. Mortgage balance is outstanding principal on external
+                  and internal mortgages. Together they match total liabilities above.
+                </div>
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="font-medium">Cooperative loans</div>
+                      <div className="text-sm text-muted-foreground">
+                        Original principal (filtered period where applicable): ₦{financialData.total_loans.toLocaleString()}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-red-600">₦{financialData.loan_balance.toLocaleString()}</div>
+                      <div className="text-sm text-muted-foreground">Outstanding balance</div>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-red-600">₦{financialData.loan_balance.toLocaleString()}</div>
-                    <div className="text-sm text-muted-foreground">Outstanding</div>
+                  <Progress
+                    value={
+                      financialData.total_loans > 0
+                        ? ((financialData.total_loans - financialData.loan_balance) / financialData.total_loans) * 100
+                        : 0
+                    }
+                    className="h-2"
+                  />
+                  <div className="text-sm text-muted-foreground">
+                    {financialData.total_loans > 0
+                      ? (((financialData.total_loans - financialData.loan_balance) / financialData.total_loans) * 100).toFixed(
+                          1,
+                        )
+                      : "0"}
+                    % principal repaid on cooperative loans
                   </div>
                 </div>
-                <Progress
-                  value={financialData.total_loans > 0 ? ((financialData.total_loans - financialData.loan_balance) / financialData.total_loans) * 100 : 0}
-                  className="h-2"
-                />
-                <div className="text-sm text-muted-foreground">
-                  {financialData.total_loans > 0
-                    ? (((financialData.total_loans - financialData.loan_balance) / financialData.total_loans) * 100).toFixed(1)
-                    : 0}
-                  % repaid
+
+                <div className="space-y-4 border-t pt-6">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="font-medium">Mortgages</div>
+                      <div className="text-sm text-muted-foreground">External providers and internal mortgage plans</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold text-red-600">
+                        ₦{financialData.mortgage_balance.toLocaleString()}
+                      </div>
+                      <div className="text-sm text-muted-foreground">Outstanding principal</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>

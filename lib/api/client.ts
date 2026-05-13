@@ -4357,11 +4357,16 @@ export interface FinancialSummaryReport {
 	success: boolean
 	financial_data: {
 		total_contributions: number
+		/** Approved equity contributions total (same period filter as other fields when dates set) */
+		total_equity_contributions?: number
 		total_investments: number
 		total_loans: number
+		/** Sum of list prices for properties you hold an approved interest in */
 		total_properties: number
 		wallet_balance: number
 		loan_balance: number
+		/** Outstanding principal on mortgages (external + internal) */
+		mortgage_balance?: number
 		investment_returns: number
 		property_equity: number
 	}

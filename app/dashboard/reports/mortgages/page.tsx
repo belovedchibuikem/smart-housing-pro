@@ -235,7 +235,7 @@ export default function MortgageReportPage() {
               ) : (
                 <div className="space-y-4">
                   {mortgages.map((mortgage) => (
-                    <div key={mortgage.id} className="border rounded-lg p-4 space-y-3">
+                    <div key={`${mortgage.type}-${mortgage.id}`} className="border rounded-lg p-4 space-y-3">
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                         <div>
                           <div className="flex items-center gap-2">

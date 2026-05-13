@@ -227,6 +227,7 @@ export default function EquityContributionReportPage() {
                       <tr className="border-b">
                         <th className="text-left py-3 px-4 font-medium">Date</th>
                         <th className="text-left py-3 px-4 font-medium">Reference</th>
+                        <th className="text-left py-3 px-4 font-medium">Plan</th>
                         <th className="text-right py-3 px-4 font-medium">Amount</th>
                         <th className="text-left py-3 px-4 font-medium">Status</th>
                       </tr>
@@ -236,6 +237,7 @@ export default function EquityContributionReportPage() {
                         <tr key={contribution.id} className="border-b hover:bg-muted/50">
                           <td className="py-3 px-4">{contribution.date ? formatDate(new Date(contribution.date), "short") : "N/A"}</td>
                           <td className="py-3 px-4 font-mono text-sm">{contribution.reference}</td>
+                          <td className="py-3 px-4">{contribution.plan ?? "—"}</td>
                           <td className="py-3 px-4 text-right font-semibold">₦{contribution.amount.toLocaleString()}</td>
                           <td className="py-3 px-4">
                             <Badge variant={contribution.status === "approved" ? "default" : "secondary"}>
