@@ -43,6 +43,7 @@ import {
   Calculator,
   Bell,
   MapPinned,
+  RotateCcw,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -248,10 +249,12 @@ const navItems: NavItem[] = [
       { href: "/admin/reports/members", label: "Member Reports", icon: Users },
       { href: "/admin/reports/financial", label: "Financial Reports", icon: DollarSign },
       { href: "/admin/reports/contributions", label: "Contribution Reports", icon: CreditCard },
+      { href: "/admin/reports/refunds", label: "Refund Reports", icon: RotateCcw },
       { href: "/admin/reports/equity-contributions", label: "Equity Contribution Reports", icon: HandCoins },
       { href: "/admin/reports/investments", label: "Investment Reports", icon: TrendingUp },
       { href: "/admin/reports/loans", label: "Loan Reports", icon: HandCoins },
-      { href: "/admin/reports/properties", label: "Property Reports", icon: Home },
+      { href: "/admin/reports/properties", label: "Building Reports", icon: Home },
+      { href: "/admin/reports/land", label: "Land Reports", icon: MapPinned },
       { href: "/admin/reports/mail-service", label: "Mail Service Reports", icon: Mail },
       { href: "/admin/reports/audit", label: "Audit Reports", icon: FileBarChart },
     ],

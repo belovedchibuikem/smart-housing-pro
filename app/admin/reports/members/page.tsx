@@ -16,7 +16,7 @@ export default function MemberReportsPage() {
   const { toast } = useToast()
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [dateRange, setDateRange] = useState("this-month")
+  const [dateRange, setDateRange] = useState("all-time")
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
     total_members: 0,
@@ -35,7 +35,8 @@ export default function MemberReportsPage() {
     try {
       setLoading(true)
       const response = await getMemberReports({
-        date_range: dateRange,
+        date_range: dateRange === "all-time" ? undefined : dateRange,
+        joined_in_period: dateRange !== "all-time",
         search: searchQuery || undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
         per_page: 50,
@@ -58,7 +59,12 @@ export default function MemberReportsPage() {
 
   const handleExport = async () => {
     try {
-      await exportReport('members', { date_range: dateRange, search: searchQuery, status: statusFilter })
+      await exportReport('members', {
+        date_range: dateRange === "all-time" ? "all-time" : dateRange,
+        search: searchQuery,
+        status: statusFilter,
+        ...(dateRange !== "all-time" ? { joined_in_period: "1" } : {}),
+      })
       toast({
         title: "Export completed",
         description: "Your report has been downloaded.",
@@ -113,8 +119,8 @@ export default function MemberReportsPage() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Filter Members</CardTitle>
-          <CardDescription>Search and filter member data</CardDescription>
+          <CardTitle>Filter members</CardTitle>
+          <CardDescription>Optional: limit the list to members registered in a period. Summary cards always reflect all members.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col sm:flex-row gap-4">
@@ -141,15 +147,15 @@ export default function MemberReportsPage() {
               </SelectContent>
             </Select>
             <Select value={dateRange} onValueChange={setDateRange}>
-              <SelectTrigger className="w-full sm:w-40">
-                <SelectValue placeholder="Date Range" />
+              <SelectTrigger className="w-full sm:w-48">
+                <SelectValue placeholder="Registration period" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="this-month">This Month</SelectItem>
-                <SelectItem value="last-month">Last Month</SelectItem>
-                <SelectItem value="this-quarter">This Quarter</SelectItem>
-                <SelectItem value="this-year">This Year</SelectItem>
-                <SelectItem value="all-time">All Time</SelectItem>
+                <SelectItem value="all-time">All registrations</SelectItem>
+                <SelectItem value="this-month">Registered this month</SelectItem>
+                <SelectItem value="last-month">Registered last month</SelectItem>
+                <SelectItem value="this-quarter">Registered this quarter</SelectItem>
+                <SelectItem value="this-year">Registered this year</SelectItem>
               </SelectContent>
             </Select>
           </div>

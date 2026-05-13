@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Download, TrendingUp, Users, Wallet, Home, Mail, FileText, CreditCard, HandCoins, Activity } from "lucide-react"
+import { Download, TrendingUp, Users, Wallet, Home, Mail, FileText, CreditCard, HandCoins, Activity, MapPinned, RotateCcw } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import Link from "next/link"
 
@@ -67,16 +67,29 @@ export default function AdminReportsPage() {
       ],
     },
     {
-      title: "Property Reports",
-      description: "Property and investment analytics",
+      title: "Building portfolio reports",
+      description: "Houses & structured inventory (excludes bare land parcels)",
       icon: Home,
       link: "/admin/reports/properties",
       reports: [
-        "Property Portfolio Report",
-        "Investment Performance Report",
-        "Property Allocation Report",
-        "ROI Analysis Report",
+        "Portfolio roll-up",
+        "Allocation coverage",
+        "Unit mix snapshots",
       ],
+    },
+    {
+      title: "Land reports",
+      description: "Parcels flagged as land",
+      icon: MapPinned,
+      link: "/admin/reports/land",
+      reports: ["Land inventory CSV", "Plot valuation summary", "Estate placeholders"],
+    },
+    {
+      title: "Refund reports",
+      description: "Member refunds and disbursement pipeline",
+      icon: RotateCcw,
+      link: "/admin/reports/refunds",
+      reports: ["Refund volume & status mix", "Member lookup export", "Period comparisons"],
     },
     {
       title: "Mail Service Reports",
@@ -122,6 +135,7 @@ export default function AdminReportsPage() {
                 <SelectItem value="last-month">Last Month</SelectItem>
                 <SelectItem value="this-quarter">This Quarter</SelectItem>
                 <SelectItem value="this-year">This Year</SelectItem>
+                <SelectItem value="all-time">All Time</SelectItem>
               </SelectContent>
             </Select>
           </div>

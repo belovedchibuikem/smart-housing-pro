@@ -2438,9 +2438,10 @@ export async function getUsers(params?: { search?: string; status?: string; role
 }
 
 // Reports API
-export async function getMemberReports(params?: { date_range?: string; search?: string; status?: string; page?: number; per_page?: number }) {
+export async function getMemberReports(params?: { date_range?: string; search?: string; status?: string; page?: number; per_page?: number; joined_in_period?: boolean }) {
 	const query = new URLSearchParams()
 	if (params?.date_range) query.set("date_range", params.date_range)
+	if (params?.joined_in_period) query.set("joined_in_period", "1")
 	if (params?.search) query.set("search", params.search)
 	if (params?.status) query.set("status", params.status)
 	if (params?.page) query.set("page", String(params.page))
@@ -2484,7 +2485,32 @@ export async function getPropertyReports(params?: { date_range?: string; page?: 
 	if (params?.date_range) query.set("date_range", params.date_range)
 	if (params?.page) query.set("page", String(params.page))
 	if (params?.per_page) query.set("per_page", String(params.per_page))
-	return apiFetch<{ success: boolean; data: { stats: any; properties: any[]; pagination?: any } }>(`/admin/reports/properties?${query.toString()}`, { method: "GET" })
+	return apiFetch<{ success: boolean; data: { stats: any; properties: any[]; pagination?: any } }>(
+		query.toString() ? `/admin/reports/properties?${query.toString()}` : "/admin/reports/properties",
+		{ method: "GET" }
+	)
+}
+
+export async function getLandReports(params?: { page?: number; per_page?: number }) {
+	const query = new URLSearchParams()
+	if (params?.page) query.set("page", String(params.page))
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+	return apiFetch<{ success: boolean; data: { stats: any; parcels: any[]; pagination?: any } }>(
+		query.toString() ? `/admin/reports/land?${query.toString()}` : "/admin/reports/land",
+		{ method: "GET" }
+	)
+}
+
+export async function getRefundReports(params?: { date_range?: string; search?: string; page?: number; per_page?: number }) {
+	const query = new URLSearchParams()
+	if (params?.date_range) query.set("date_range", params.date_range)
+	if (params?.search) query.set("search", params.search)
+	if (params?.page) query.set("page", String(params.page))
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+	return apiFetch<{ success: boolean; data: { stats: any; refunds: any[]; pagination?: any } }>(
+		`/admin/reports/refunds?${query.toString()}`,
+		{ method: "GET" }
+	)
 }
 
 export async function getMailServiceReports(params?: { date_range?: string; page?: number; per_page?: number }) {

@@ -1,30 +1,29 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Download, CreditCard, CheckCircle, Clock, XCircle } from "lucide-react"
+import { Download, RotateCcw, ClipboardList, Clock, XCircle } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
-import { getContributionReports, exportReport } from "@/lib/api/client"
+import { getRefundReports, exportReport } from "@/lib/api/client"
 import { useToast } from "@/hooks/use-toast"
-import Link from "next/link"
 
-export default function ContributionReportsPage() {
+export default function RefundReportsPage() {
   const { toast } = useToast()
   const [dateRange, setDateRange] = useState("this-month")
   const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
-    total_contributions: "₦0",
-    paid: "₦0",
-    pending: "₦0",
-    overdue: "₦0",
+    total_requests: 0,
+    total_completed_processing_amount: "₦0",
+    pending_amount: "₦0",
+    rejected_amount: "₦0",
   })
-  const [contributions, setContributions] = useState<any[]>([])
+  const [rows, setRows] = useState<any[]>([])
 
   useEffect(() => {
     fetchData()
@@ -33,19 +32,19 @@ export default function ContributionReportsPage() {
   const fetchData = async () => {
     try {
       setLoading(true)
-      const response = await getContributionReports({
+      const response = await getRefundReports({
         date_range: dateRange,
         search: searchQuery || undefined,
         per_page: 50,
       })
       if (response.success) {
         setStats(response.data.stats)
-        setContributions(response.data.contributions || [])
+        setRows(response.data.refunds || [])
       }
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to load contribution reports",
+        description: error.message || "Failed to load refund reports",
         variant: "destructive",
       })
     } finally {
@@ -55,10 +54,10 @@ export default function ContributionReportsPage() {
 
   const handleExport = async () => {
     try {
-      await exportReport('contributions', { date_range: dateRange, search: searchQuery })
+      await exportReport("refunds", { date_range: dateRange, search: searchQuery })
       toast({
         title: "Export completed",
-        description: "Your report has been downloaded.",
+        description: "Your refund report has been downloaded.",
       })
     } catch (error: any) {
       toast({
@@ -70,30 +69,30 @@ export default function ContributionReportsPage() {
   }
 
   const statsCards = [
-    { label: "Total Contributions", value: stats.total_contributions, icon: CreditCard, color: "text-blue-600" },
-    { label: "Paid", value: stats.paid, icon: CheckCircle, color: "text-green-600" },
-    { label: "Pending", value: stats.pending, icon: Clock, color: "text-orange-600" },
-    { label: "Overdue", value: stats.overdue, icon: XCircle, color: "text-red-600" },
+    { label: "Requests in period", value: stats.total_requests.toLocaleString(), icon: ClipboardList, color: "text-blue-600" },
+    { label: "Completed / processing", value: stats.total_completed_processing_amount, icon: RotateCcw, color: "text-green-600" },
+    { label: "Pending amount", value: stats.pending_amount, icon: Clock, color: "text-orange-600" },
+    { label: "Rejected amount", value: stats.rejected_amount, icon: XCircle, color: "text-red-600" },
   ]
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Contribution Reports</h1>
-          <p className="text-muted-foreground mt-1">Track member contributions and payment status</p>
+          <h1 className="text-2xl md:text-3xl font-bold">Refund reports</h1>
+          <p className="text-muted-foreground mt-1">Track payouts, statuses, and member refund traffic.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap justify-end">
           <Select value={dateRange} onValueChange={setDateRange}>
             <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="this-month">This Month</SelectItem>
-              <SelectItem value="last-month">Last Month</SelectItem>
-              <SelectItem value="this-quarter">This Quarter</SelectItem>
-              <SelectItem value="this-year">This Year</SelectItem>
-              <SelectItem value="all-time">All Time</SelectItem>
+              <SelectItem value="this-month">This month</SelectItem>
+              <SelectItem value="last-month">Last month</SelectItem>
+              <SelectItem value="this-quarter">This quarter</SelectItem>
+              <SelectItem value="this-year">This year</SelectItem>
+              <SelectItem value="all-time">All time</SelectItem>
             </SelectContent>
           </Select>
           <Button onClick={handleExport}>
@@ -103,7 +102,6 @@ export default function ContributionReportsPage() {
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {statsCards.map((stat) => {
           const Icon = stat.icon
@@ -114,24 +112,23 @@ export default function ContributionReportsPage() {
                 <Icon className={`h-5 w-5 ${stat.color}`} />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
+                <div className="text-xl font-bold">{stat.value}</div>
               </CardContent>
             </Card>
           )
         })}
       </div>
 
-      {/* Search Filter */}
       <Card>
         <CardHeader>
-          <CardTitle>Search Contributions</CardTitle>
-          <CardDescription>Filter by member name or ID</CardDescription>
+          <CardTitle>Search refunds</CardTitle>
+          <CardDescription>Filter by ticket number, reference, member name or ID.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="relative">
+          <div className="relative max-w-xl">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by member name or ID..."
+              placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
@@ -140,57 +137,55 @@ export default function ContributionReportsPage() {
         </CardContent>
       </Card>
 
-      {/* Contributions Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Contribution Details</CardTitle>
-          <CardDescription>Detailed contribution records and payment status</CardDescription>
+          <CardTitle>Refund details</CardTitle>
+          <CardDescription>Individual refund requests recorded in this period.</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="text-center py-8">Loading...</div>
-          ) : contributions.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">No contributions found</div>
+          ) : rows.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">No refunds found for this selection.</div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Contribution ID</TableHead>
+                    <TableHead>Ticket</TableHead>
                     <TableHead>Member</TableHead>
-                    <TableHead>Member ID</TableHead>
+                    <TableHead>Type</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Due Date</TableHead>
-                    <TableHead>Paid Date</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Requested</TableHead>
+                    <TableHead>Completed</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {contributions.map((contribution) => (
-                    <TableRow key={contribution.id}>
-                      <TableCell className="font-medium">
-                        <Link href={`/admin/contributions/${contribution.id}`} className="hover:underline">
-                          {contribution.id}
-                        </Link>
+                  {rows.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell className="font-medium whitespace-nowrap">{row.ticket_number}</TableCell>
+                      <TableCell>
+                        <div>{row.member}</div>
+                        <span className="text-xs text-muted-foreground">{row.member_id}</span>
                       </TableCell>
-                      <TableCell>{contribution.member}</TableCell>
-                      <TableCell>{contribution.member_id}</TableCell>
-                      <TableCell className="text-right font-semibold">{contribution.amount}</TableCell>
-                      <TableCell>{contribution.due_date}</TableCell>
-                      <TableCell>{contribution.paid_date || "-"}</TableCell>
+                      <TableCell className="capitalize">{row.request_type}</TableCell>
+                      <TableCell className="text-right font-semibold">{row.amount}</TableCell>
                       <TableCell>
                         <Badge
                           variant={
-                            contribution.status === "Paid"
+                            row.status === "Completed"
                               ? "default"
-                              : contribution.status === "Pending"
-                                ? "secondary"
-                                : "destructive"
+                              : row.status === "Rejected"
+                                ? "destructive"
+                                : "secondary"
                           }
                         >
-                          {contribution.status}
+                          {row.status}
                         </Badge>
                       </TableCell>
+                      <TableCell className="text-sm">{row.requested_at || "—"}</TableCell>
+                      <TableCell className="text-sm">{row.completed_at || "—"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

@@ -96,6 +96,7 @@ export default function EquityContributionReportsPage() {
               <SelectItem value="last-month">Last Month</SelectItem>
               <SelectItem value="this-quarter">This Quarter</SelectItem>
               <SelectItem value="this-year">This Year</SelectItem>
+              <SelectItem value="all-time">All Time</SelectItem>
             </SelectContent>
           </Select>
           <Button onClick={handleExport}>
