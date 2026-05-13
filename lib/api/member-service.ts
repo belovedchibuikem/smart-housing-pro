@@ -158,7 +158,11 @@ export interface MemberStats {
   total_contributions: number
   /** Contribution wallet balance (ledger) when available */
   contribution_balance: number
-  monthly_contribution: number
+  /**
+   * Average counted contribution amount per calendar month that has at least one counted payment.
+   * This is informational only — use member.monthly_contribution_amount for the plan obligation.
+   */
+  average_monthly_contributed: number
   last_payment_date?: string
   active_loans: number
   total_borrowed: number
@@ -300,14 +304,15 @@ export class MemberService {
         .filter(isCountableContribution)
         .reduce((sum, c) => sum + lineTotal(c), 0)
 
-      const monthlyContribution = contributions
-        .filter((c) => {
-          if (!isCountableContribution(c)) return false
-          const f = String(c.frequency ?? "").toLowerCase()
-          const t = String(c.type ?? "").toLowerCase()
-          return f === "monthly" || t === "monthly"
-        })
-        .reduce((sum, c) => sum + toNumber(c.amount), 0)
+      const countedWithDates = contributions.filter(isCountableContribution)
+      const distinctMonths = new Set(
+        countedWithDates.map((c) => {
+          const d = new Date(c.contribution_date)
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`
+        }),
+      )
+      const averageMonthlyContributed =
+        distinctMonths.size > 0 ? Math.round((totalContributions / distinctMonths.size) * 100) / 100 : 0
 
       const lastPayment = contributions
         .filter(isCountableContribution)
@@ -341,7 +346,7 @@ export class MemberService {
       return {
         total_contributions: totalContributions,
         contribution_balance: 0,
-        monthly_contribution: monthlyContribution,
+        average_monthly_contributed: averageMonthlyContributed,
         last_payment_date: lastPayment?.contribution_date,
         active_loans: activeLoans,
         total_borrowed: totalBorrowed,
@@ -354,7 +359,7 @@ export class MemberService {
       return {
         total_contributions: 0,
         contribution_balance: 0,
-        monthly_contribution: 0,
+        average_monthly_contributed: 0,
         last_payment_date: undefined,
         active_loans: 0,
         total_borrowed: 0,

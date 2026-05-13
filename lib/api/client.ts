@@ -1334,6 +1334,8 @@ export interface AdminRefundMemberSummary {
 		staff_id?: string | null
 	}
 	summary: {
+		total_refunds?: number
+		total_contribution_refunded?: number
 		wallet: {
 			balance: number
 		}

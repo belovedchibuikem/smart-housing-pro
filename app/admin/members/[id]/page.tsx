@@ -27,6 +27,7 @@ import {
   MemberStats,
   mergeContributionWalletIntoStats,
 } from "@/lib/api/member-service"
+import { getAdminRefundMemberSummary } from "@/lib/api/client"
 import { Skeleton } from "@/components/ui/skeleton"
 
 const currencyFormatter = new Intl.NumberFormat("en-NG", {
@@ -45,6 +46,10 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   const [member, setMember] = useState<Member | null>(null)
   const [documents, setDocuments] = useState<Document[]>([])
   const [financialStats, setFinancialStats] = useState<MemberStats | null>(null)
+  const [refundTotals, setRefundTotals] = useState<{
+    total_refunds: number
+    total_contribution_refunded: number
+  } | null>(null)
   const [loading, setLoading] = useState(true)
   const [documentsLoading, setDocumentsLoading] = useState(false)
   const [financialLoading, setFinancialLoading] = useState(false)
@@ -87,9 +92,10 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
         return
       }
 
-      const [documentsResponse, financialResponse] = await Promise.allSettled([
+      const [documentsResponse, financialResponse, refundSummaryResponse] = await Promise.allSettled([
         MemberService.getMemberDocuments(id),
         MemberService.getMemberFinancialStats(id),
+        getAdminRefundMemberSummary(id),
       ])
 
       if (documentsResponse.status === "fulfilled") {
@@ -97,6 +103,18 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
       } else {
         console.warn("Error loading documents:", documentsResponse.reason)
         setDocuments([])
+      }
+
+      if (refundSummaryResponse.status === "fulfilled" && refundSummaryResponse.value.success) {
+        const s = refundSummaryResponse.value.summary
+        setRefundTotals({
+          total_refunds: Number(s.total_refunds ?? 0),
+          total_contribution_refunded: Number(
+            s.total_contribution_refunded ?? s.contribution?.refunded ?? 0,
+          ),
+        })
+      } else {
+        setRefundTotals(null)
       }
 
       if (financialResponse.status === "fulfilled") {
@@ -110,7 +128,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
             {
               total_contributions: 0,
               contribution_balance: 0,
-              monthly_contribution: 0,
+              average_monthly_contributed: 0,
               last_payment_date: undefined,
               active_loans: 0,
               total_borrowed: 0,
@@ -747,13 +765,47 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                     </p>
                   </div>
                   <div>
-                    <label className="text-sm text-muted-foreground">Monthly Contribution</label>
+                    <label className="text-sm text-muted-foreground">Plan monthly amount</label>
                     <p className="text-lg font-semibold">
+                      {member?.monthly_contribution_amount != null &&
+                      Number(member.monthly_contribution_amount) > 0 ? (
+                        formatCurrency(Number(member.monthly_contribution_amount))
+                      ) : (
+                        <span className="text-muted-foreground font-normal">Not set on profile</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      From the member&apos;s contribution plan / profile — not the same as lifetime totals.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground">Avg. per active month</label>
+                    <p className="text-lg font-semibold">{formatCurrency(financialStats?.average_monthly_contributed)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Average counted contributions over calendar months that have at least one counted payment.
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground">Total refunds</label>
+                    <p className="text-lg font-semibold text-amber-800 dark:text-amber-400">
+                      {formatCurrency(refundTotals?.total_refunds ?? 0)}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Sum of refund requests in <strong>completed</strong> or <strong>processing</strong> status (all
+                      sources).
+                    </p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground">Refunded from contribution savings</label>
+                    <p className="text-lg font-semibold text-amber-800 dark:text-amber-400">
                       {formatCurrency(
-                        financialStats?.monthly_contribution ||
-                          member?.monthly_contribution_amount ||
+                        refundTotals?.total_contribution_refunded ??
+                          member?.contribution_wallet?.total_refunded ??
                           0,
                       )}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Ledger total debited from the cooperative contribution wallet (aligned with contribution refunds).
                     </p>
                   </div>
                   <div>
