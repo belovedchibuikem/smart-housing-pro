@@ -18,6 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Can, useTenantPermissions } from "@/components/admin/can-permission"
 
 interface Member {
 	id: string
@@ -49,6 +50,7 @@ interface MembersResponse {
 }
 
 export default function AdminMembersPage() {
+	const { can } = useTenantPermissions()
 	const { isLoading, loadData } = usePageLoading()
 	const [members, setMembers] = useState<Member[]>([])
 	const [error, setError] = useState<string | null>(null)
@@ -126,14 +128,18 @@ export default function AdminMembersPage() {
 					<p className="text-muted-foreground mt-1">Manage cooperative members and their information</p>
 				</div>
 				<div className="flex gap-2">
-					<Button variant="outline" onClick={() => window.location.href = '/admin/bulk-upload/members'}>
-						<Upload className="h-4 w-4 mr-2" />
-						Bulk Upload
-					</Button>
-					<Button onClick={() => window.location.href = '/admin/members/new'}>
-						<UserPlus className="h-4 w-4 mr-2" />
-						Add Member
-					</Button>
+					<Can permission="bulk_upload_members|create_members">
+						<Button variant="outline" onClick={() => window.location.href = '/admin/bulk-upload/members'}>
+							<Upload className="h-4 w-4 mr-2" />
+							Bulk Upload
+						</Button>
+					</Can>
+					<Can permission="create_members">
+						<Button onClick={() => window.location.href = '/admin/members/new'}>
+							<UserPlus className="h-4 w-4 mr-2" />
+							Add Member
+						</Button>
+					</Can>
 				</div>
 			</div>
 
@@ -356,10 +362,12 @@ export default function AdminMembersPage() {
 																<Eye className="h-4 w-4 mr-2" />
 																View Details
 															</DropdownMenuItem>
-															<DropdownMenuItem onClick={() => window.location.href = `/admin/members/${member.id}/edit`}>
-																<Edit className="h-4 w-4 mr-2" />
-																Edit Member
-															</DropdownMenuItem>
+															{can("edit_members") && (
+																<DropdownMenuItem onClick={() => window.location.href = `/admin/members/${member.id}/edit`}>
+																	<Edit className="h-4 w-4 mr-2" />
+																	Edit Member
+																</DropdownMenuItem>
+															)}
 														</DropdownMenuContent>
 													</DropdownMenu>
 												</TableCell>

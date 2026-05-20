@@ -101,10 +101,12 @@ export function adminHrefToPermissionKey(href: string): string | null {
   }
 
   const prefixOverrides: Array<{ prefix: string; key: string }> = [
+    { prefix: "property-management", key: "property-management" },
     { prefix: "blockchain/wallets", key: "blockchain-wallets" },
     { prefix: "blockchain/setup", key: "blockchain-setup" },
     { prefix: "tools/mortgage-calculators", key: "mortgages" },
     { prefix: "post-contribution", key: "contributions" },
+    { prefix: "financial-reports", key: "reports" },
   ]
   for (const { prefix, key } of prefixOverrides) {
     if (rest === prefix || rest.startsWith(`${prefix}/`)) {

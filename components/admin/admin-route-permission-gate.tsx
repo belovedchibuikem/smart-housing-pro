@@ -24,8 +24,9 @@ export function AdminRoutePermissionGate({ children }: { children: React.ReactNo
     setReady(false)
     const user = getUserData() as AuthUser | null
     if (!user) {
-      setAllowed(true)
+      setAllowed(false)
       setReady(true)
+      router.replace("/login")
       return
     }
 

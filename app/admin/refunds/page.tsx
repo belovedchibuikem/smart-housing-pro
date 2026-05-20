@@ -40,8 +40,10 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
 import Link from "next/link"
+import { useTenantPermissions } from "@/components/admin/can-permission"
 
 export default function AdminRefundsPage() {
+  const { can } = useTenantPermissions()
   const { isLoading, loadData } = usePageLoading()
   const [refunds, setRefunds] = useState<RefundRequest[]>([])
   const [stats, setStats] = useState<RefundStats | null>(null)
@@ -338,8 +340,7 @@ export default function AdminRefundsPage() {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            {refund.status === "pending" && (
-                              <>
+                            {refund.status === "pending" && can("manage_payments") && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -351,6 +352,8 @@ export default function AdminRefundsPage() {
                                 >
                                   <CheckCircle2 className="h-4 w-4" />
                                 </Button>
+                            )}
+                            {refund.status === "pending" && can("manage_payments") && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -362,7 +365,6 @@ export default function AdminRefundsPage() {
                                 >
                                   <XCircle className="h-4 w-4" />
                                 </Button>
-                              </>
                             )}
                           </div>
                         </TableCell>

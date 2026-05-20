@@ -16,6 +16,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, Calendar, CheckCircle, Loader2, TrendingUp, User, XCircle } from "lucide-react"
 import { toast as sonnerToast } from "sonner"
+import { useTenantPermissions } from "@/components/admin/can-permission"
 import {
   getFinancialInvestment,
   approveFinancialInvestment,
@@ -52,6 +53,7 @@ function formatTypeLabel(type: string | undefined): string {
 
 export default function AdminInvestmentDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const { can } = useTenantPermissions()
   const [investment, setInvestment] = useState<FinancialInvestment | null>(null)
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
@@ -197,17 +199,23 @@ export default function AdminInvestmentDetailPage({ params }: { params: Promise<
                 <p className="text-sm text-muted-foreground">Approve, reject, or delete this application</p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button onClick={() => setShowApproveDialog(true)} disabled={processing}>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Approve
-                </Button>
-                <Button variant="destructive" onClick={() => setShowRejectDialog(true)} disabled={processing}>
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Reject
-                </Button>
-                <Button variant="outline" onClick={handleDelete} disabled={processing}>
-                  Delete
-                </Button>
+                {can("approve_investments") && (
+                  <Button onClick={() => setShowApproveDialog(true)} disabled={processing}>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Approve
+                  </Button>
+                )}
+                {can("approve_investments|edit_investments") && (
+                  <Button variant="destructive" onClick={() => setShowRejectDialog(true)} disabled={processing}>
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Reject
+                  </Button>
+                )}
+                {can("delete_investment_plans|edit_investments|approve_investments") && (
+                  <Button variant="outline" onClick={handleDelete} disabled={processing}>
+                    Delete
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>

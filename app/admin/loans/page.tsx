@@ -15,6 +15,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast as sonnerToast } from "sonner"
 import { apiFetch, fetchAdminLoanDashboardMetrics } from "@/lib/api/client"
+import { Can, useTenantPermissions } from "@/components/admin/can-permission"
 
 interface Loan {
   id: string
@@ -44,6 +45,7 @@ interface Pagination {
 
 export default function AdminLoansPage() {
   const router = useRouter()
+  const { can } = useTenantPermissions()
   const [loans, setLoans] = useState<Loan[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -280,15 +282,21 @@ export default function AdminLoansPage() {
           <p className="text-muted-foreground mt-1">Review and manage loan applications</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link href="/admin/bulk-upload/loans">Bulk upload loans</Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/admin/bulk-upload/loan-repayments">Bulk Upload Repayments</Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/admin/loan-products">Loan Products</Link>
-        </Button>
+          <Can permission="view_loans|create_loans">
+            <Button variant="outline" asChild>
+              <Link href="/admin/bulk-upload/loans">Bulk upload loans</Link>
+            </Button>
+          </Can>
+          <Can permission="manage_loan_repayments|view_loans">
+            <Button variant="outline" asChild>
+              <Link href="/admin/bulk-upload/loan-repayments">Bulk Upload Repayments</Link>
+            </Button>
+          </Can>
+          <Can permission="create_loan_plans|edit_loan_plans|view_loans">
+            <Button variant="outline" asChild>
+              <Link href="/admin/loan-products">Loan Products</Link>
+            </Button>
+          </Can>
         </div>
       </div>
 
@@ -482,32 +490,32 @@ export default function AdminLoansPage() {
                                 <Eye className="h-4 w-4 mr-2" />
                                 View Details
                               </DropdownMenuItem>
-                                {loan.status === 'pending' && (
-                                  <>
-                                    <DropdownMenuItem
-                                      className="text-green-600"
-                                      onClick={() => handleApprove(loan.id)}
-                                    >
-                                <CheckCircle className="h-4 w-4 mr-2" />
-                                Approve Loan
-                              </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      className="text-destructive"
-                                      onClick={() => handleReject(loan.id)}
-                                    >
-                                <XCircle className="h-4 w-4 mr-2" />
-                                Reject Loan
-                              </DropdownMenuItem>
-                                  </>
+                                {loan.status === 'pending' && can("approve_loans") && (
+                                  <DropdownMenuItem
+                                    className="text-green-600"
+                                    onClick={() => handleApprove(loan.id)}
+                                  >
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    Approve Loan
+                                  </DropdownMenuItem>
                                 )}
-                                {loan.status === 'approved' && (
+                                {loan.status === 'pending' && can("reject_loans") && (
+                                  <DropdownMenuItem
+                                    className="text-destructive"
+                                    onClick={() => handleReject(loan.id)}
+                                  >
+                                    <XCircle className="h-4 w-4 mr-2" />
+                                    Reject Loan
+                                  </DropdownMenuItem>
+                                )}
+                                {loan.status === 'approved' && can("disburse_loans|approve_loans") && (
                                   <DropdownMenuItem
                                     className="text-green-600"
                                     onClick={() => handleDisburse(loan.id)}
                                   >
-                                <CheckCircle className="h-4 w-4 mr-2" />
-                                Disburse Loan
-                              </DropdownMenuItem>
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    Disburse Loan
+                                  </DropdownMenuItem>
                                 )}
                                 {loan.status === 'active' && (
                                   <DropdownMenuItem onClick={() => router.push(`/admin/loans/${loan.id}`)}>

@@ -32,8 +32,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal, CheckCircle, XCircle } from "lucide-react"
+import { Can, useTenantPermissions } from "@/components/admin/can-permission"
 
 export default function AdminDocumentsPage() {
+  const { can } = useTenantPermissions()
   const { toast } = useToast()
   const [searchQuery, setSearchQuery] = useState("")
   const [typeFilter, setTypeFilter] = useState("all")
@@ -296,13 +298,14 @@ export default function AdminDocumentsPage() {
           <h1 className="text-3xl font-bold">Document Management</h1>
           <p className="text-muted-foreground mt-1">View and manage all system documents</p>
         </div>
-        <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Document
-            </Button>
-          </DialogTrigger>
+        <Can permission="upload_documents|create_documents">
+          <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Document
+              </Button>
+            </DialogTrigger>
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>Upload Document</DialogTitle>
@@ -449,6 +452,7 @@ export default function AdminDocumentsPage() {
             </form>
           </DialogContent>
         </Dialog>
+        </Can>
       </div>
 
       {/* Stats Cards */}
@@ -602,7 +606,7 @@ export default function AdminDocumentsPage() {
                           >
                             <Download className="h-4 w-4" />
                           </Button>
-                          {doc.status === 'pending' && (
+                          {doc.status === 'pending' && (can("approve_documents") || can("reject_documents") || can("delete_documents")) && (
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon">
@@ -610,18 +614,26 @@ export default function AdminDocumentsPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => handleApprove(doc.id)}>
-                                  <CheckCircle className="h-4 w-4 mr-2" />
-                                  Approve
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleReject(doc.id)}>
-                                  <XCircle className="h-4 w-4 mr-2" />
-                                  Reject
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => handleDelete(doc.id)} className="text-destructive">
-                                  Delete
-                                </DropdownMenuItem>
+                                {can("approve_documents") && (
+                                  <DropdownMenuItem onClick={() => handleApprove(doc.id)}>
+                                    <CheckCircle className="h-4 w-4 mr-2" />
+                                    Approve
+                                  </DropdownMenuItem>
+                                )}
+                                {can("reject_documents") && (
+                                  <DropdownMenuItem onClick={() => handleReject(doc.id)}>
+                                    <XCircle className="h-4 w-4 mr-2" />
+                                    Reject
+                                  </DropdownMenuItem>
+                                )}
+                                {can("delete_documents") && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => handleDelete(doc.id)} className="text-destructive">
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           )}

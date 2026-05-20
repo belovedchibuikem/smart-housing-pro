@@ -10,7 +10,8 @@ import { AuthGuard } from "@/lib/tenant/auth-guard"
 import type { UserRole } from "@/lib/roles"
 import { getUserData } from "@/lib/auth/auth-utils"
 import type { AuthUser } from "@/lib/auth/types"
-import { persistAuthSessionFromStorage } from "@/lib/auth/auth-cookies"
+import { persistAuthSession, persistAuthSessionFromStorage } from "@/lib/auth/auth-cookies"
+import { getMe } from "@/lib/api/client"
 import { getRoleSlug } from "@/lib/auth/user-roles"
 import { useSubscriptionGuard } from "@/lib/hooks/use-subscription"
 import { Loader2 } from "lucide-react"
@@ -29,13 +30,40 @@ export default function AdminLayout({
   const { isLoading } = useSubscriptionGuard(true)
 
   useEffect(() => {
-    persistAuthSessionFromStorage()
-    const userData = getUserData()
-    if (userData) {
-      const slug = getRoleSlug(userData as AuthUser)
-      setUserRole((slug || "member") as UserRole)
-      setPermissions(Array.isArray(userData.permissions) ? userData.permissions : [])
-      setRoleNames(Array.isArray(userData.roles) ? (userData.roles as string[]) : [])
+    let cancelled = false
+
+    async function syncSession() {
+      persistAuthSessionFromStorage()
+      const cached = getUserData()
+      if (cached) {
+        const slug = getRoleSlug(cached as AuthUser)
+        if (!cancelled) {
+          setUserRole((slug || "member") as UserRole)
+          setPermissions(Array.isArray(cached.permissions) ? cached.permissions : [])
+          setRoleNames(Array.isArray(cached.roles) ? (cached.roles as string[]) : [])
+        }
+      }
+
+      try {
+        const me = await getMe()
+        const fresh = me?.user as AuthUser | undefined
+        if (fresh && !cancelled) {
+          localStorage.setItem("user_data", JSON.stringify(fresh))
+          persistAuthSession(fresh)
+          window.dispatchEvent(new Event("sh-auth-updated"))
+          const slug = getRoleSlug(fresh)
+          setUserRole((slug || "member") as UserRole)
+          setPermissions(Array.isArray(fresh.permissions) ? fresh.permissions : [])
+          setRoleNames(Array.isArray(fresh.roles) ? (fresh.roles as string[]) : [])
+        }
+      } catch {
+        // AuthGuard handles expired sessions
+      }
+    }
+
+    syncSession()
+    return () => {
+      cancelled = true
     }
   }, [])
 

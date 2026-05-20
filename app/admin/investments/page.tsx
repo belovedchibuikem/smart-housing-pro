@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Search, Download, Eye, CheckCircle, XCircle, Loader2, Trash2 } from "lucide-react"
 import { toast as sonnerToast } from "sonner"
+import { useTenantPermissions } from "@/components/admin/can-permission"
 import {
   getFinancialInvestments,
   approveFinancialInvestment,
@@ -74,6 +75,7 @@ interface Pagination {
 }
 
 export default function AdminInvestmentsPage() {
+  const { can } = useTenantPermissions()
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
@@ -391,8 +393,7 @@ export default function AdminInvestmentsPage() {
                               >
                                 <Eye className="h-4 w-4" />
                               </Button>
-                              {inv.status === "pending" && (
-                                <>
+                              {inv.status === "pending" && can("approve_investments") && (
                                   <Button
                                     variant="ghost"
                                     size="icon"
@@ -407,6 +408,8 @@ export default function AdminInvestmentsPage() {
                                       <CheckCircle className="h-4 w-4" />
                                     )}
                                   </Button>
+                              )}
+                              {inv.status === "pending" && can("approve_investments|edit_investments") && (
                                   <Button
                                     variant="ghost"
                                     size="icon"
@@ -417,6 +420,8 @@ export default function AdminInvestmentsPage() {
                                   >
                                     <XCircle className="h-4 w-4" />
                                   </Button>
+                              )}
+                              {inv.status === "pending" && can("delete_investment_plans|edit_investments|approve_investments") && (
                                   <Button
                                     variant="ghost"
                                     size="icon"
@@ -427,7 +432,6 @@ export default function AdminInvestmentsPage() {
                                   >
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
-                                </>
                               )}
                             </div>
                           </TableCell>

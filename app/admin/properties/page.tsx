@@ -21,8 +21,7 @@ import {
   type AdminPropertyStatistics,
 } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
-import { getUserData } from "@/lib/auth/auth-utils"
-import type { AuthUser } from "@/lib/auth/types"
+import { Can, useTenantPermissions } from "@/components/admin/can-permission"
 
 interface Property {
   id: string
@@ -54,6 +53,7 @@ interface LandParcel {
 }
 
 export default function AdminPropertiesPage() {
+  const { can } = useTenantPermissions()
   const router = useRouter()
   const searchParams = useSearchParams()
   const flash = searchParams.get("flash")
@@ -71,12 +71,7 @@ export default function AdminPropertiesPage() {
   const [housePaginationTotal, setHousePaginationTotal] = useState(0)
   const [landPaginationTotal, setLandPaginationTotal] = useState(0)
   const [recalculating, setRecalculating] = useState(false)
-  const [canRecalculateStats, setCanRecalculateStats] = useState(false)
-
-  useEffect(() => {
-    const u = getUserData() as AuthUser | null
-    setCanRecalculateStats(Boolean(u?.permissions?.includes("property-statistics")))
-  }, [])
+  const canRecalculateStats = can("manage_property_estates|create_properties|edit_properties")
 
   useEffect(() => {
     fetchAdminPropertyStatistics()
@@ -394,21 +389,29 @@ export default function AdminPropertiesPage() {
               )}
             </Button>
           ) : null}
-          <Button variant="outline" asChild>
-            <Link href="/admin/bulk-upload/properties">Bulk houses</Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/admin/bulk-upload/lands">Bulk land</Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/admin/lands/new">Upload land</Link>
-          </Button>
-          <Button asChild>
-            <Link href="/admin/properties/new">
-              <Plus className="mr-2 h-4 w-4" />
-              Upload house/building
-            </Link>
-          </Button>
+          <Can permission="bulk_upload_properties|create_properties">
+            <Button variant="outline" asChild>
+              <Link href="/admin/bulk-upload/properties">Bulk houses</Link>
+            </Button>
+          </Can>
+          <Can permission="bulk_upload_properties|create_properties">
+            <Button variant="outline" asChild>
+              <Link href="/admin/bulk-upload/lands">Bulk land</Link>
+            </Button>
+          </Can>
+          <Can permission="create_properties">
+            <Button variant="outline" asChild>
+              <Link href="/admin/lands/new">Upload land</Link>
+            </Button>
+          </Can>
+          <Can permission="create_properties">
+            <Button asChild>
+              <Link href="/admin/properties/new">
+                <Plus className="mr-2 h-4 w-4" />
+                Upload house/building
+              </Link>
+            </Button>
+          </Can>
         </div>
       </div>
 
@@ -626,18 +629,22 @@ export default function AdminPropertiesPage() {
                               <Eye className="mr-1 h-4 w-4" />
                               View
                             </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="flex-1 bg-transparent"
-                              onClick={() => handleEditProperty(property.id)}
-                            >
-                              <Edit className="mr-1 h-4 w-4" />
-                              Edit
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => handleDeleteProperty(property.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            {can("edit_properties") && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="flex-1 bg-transparent"
+                                onClick={() => handleEditProperty(property.id)}
+                              >
+                                <Edit className="mr-1 h-4 w-4" />
+                                Edit
+                              </Button>
+                            )}
+                            {can("delete_properties") && (
+                              <Button variant="outline" size="sm" onClick={() => handleDeleteProperty(property.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
@@ -704,15 +711,19 @@ export default function AdminPropertiesPage() {
                               View
                             </Link>
                           </Button>
-                          <Button variant="outline" size="sm" className="flex-1 bg-transparent" asChild>
-                            <Link href={`/admin/lands/${land.id}/edit`}>
-                              <Edit className="mr-1 h-4 w-4" />
-                              Edit
-                            </Link>
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => handleDeleteLand(land.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {can("edit_properties") && (
+                            <Button variant="outline" size="sm" className="flex-1 bg-transparent" asChild>
+                              <Link href={`/admin/lands/${land.id}/edit`}>
+                                <Edit className="mr-1 h-4 w-4" />
+                                Edit
+                              </Link>
+                            </Button>
+                          )}
+                          {can("delete_properties") && (
+                            <Button variant="outline" size="sm" onClick={() => handleDeleteLand(land.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -859,7 +870,7 @@ export default function AdminPropertiesPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {payment.status === "Pending" && (
+                            {payment.status === "Pending" && can("manage_payments") && (
                               <div className="flex gap-2">
                                 <Button
                                   size="sm"

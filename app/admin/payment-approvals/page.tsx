@@ -34,6 +34,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { toast as sonnerToast } from "sonner"
 import { apiFetch } from "@/lib/api/client"
+import { useTenantPermissions } from "@/components/admin/can-permission"
 import { resolveStorageUrl } from "@/lib/api/config"
 
 const paymentMethodOptions = [
@@ -159,6 +160,7 @@ interface ReconciliationData {
 }
 
 export default function TenantPaymentApprovalsPage() {
+  const { can } = useTenantPermissions()
   const { toast } = useToast()
   const [payments, setPayments] = useState<PaymentTransaction[]>([])
   const [loading, setLoading] = useState(true)
@@ -960,28 +962,30 @@ export default function TenantPaymentApprovalsPage() {
                                     rows={2}
                                   />
                                 </div>
-                                <div className="flex space-x-2">
-                                  <Button 
-                                    onClick={() => approvePayment(selectedPayment.id)}
-                                    className="flex-1"
-                                    disabled={isProcessing}
-                                  >
-                                    <CheckCircle className="h-4 w-4 mr-2" />
-                                    {isProcessing ? "Approving..." : "Approve Payment"}
-                                  </Button>
-                                  <Button 
-                                    variant="outline"
-                                    onClick={() => {
-                                      setShowRejectDialog(true)
-                                      setShowApproveDialog(false)
-                                    }}
-                                    className="flex-1"
-                                    disabled={isProcessing}
-                                  >
-                                    <XCircle className="h-4 w-4 mr-2" />
-                                    Reject Payment
-                                  </Button>
-                                </div>
+                                {can("manage_payments") && (
+                                  <div className="flex space-x-2">
+                                    <Button 
+                                      onClick={() => approvePayment(selectedPayment.id)}
+                                      className="flex-1"
+                                      disabled={isProcessing}
+                                    >
+                                      <CheckCircle className="h-4 w-4 mr-2" />
+                                      {isProcessing ? "Approving..." : "Approve Payment"}
+                                    </Button>
+                                    <Button 
+                                      variant="outline"
+                                      onClick={() => {
+                                        setShowRejectDialog(true)
+                                        setShowApproveDialog(false)
+                                      }}
+                                      className="flex-1"
+                                      disabled={isProcessing}
+                                    >
+                                      <XCircle className="h-4 w-4 mr-2" />
+                                      Reject Payment
+                                    </Button>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           )}

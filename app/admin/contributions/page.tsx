@@ -12,6 +12,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast as sonnerToast } from "sonner"
 import { apiFetch, exportReport } from "@/lib/api/client"
+import { Can, useTenantPermissions } from "@/components/admin/can-permission"
 
 interface Contribution {
   id: string
@@ -59,6 +60,7 @@ export default function AdminContributionsPage() {
     totalAllTime: 0,
   })
   const router = useRouter()
+  const { can } = useTenantPermissions()
 
   const fetchContributions = async () => {
     try {
@@ -247,13 +249,17 @@ export default function AdminContributionsPage() {
           <p className="text-muted-foreground mt-1">View and manage member contributions</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link href="/admin/bulk-upload/contributions">Bulk Upload</Link>
-          </Button>
-          <Button variant="outline" onClick={handleExport}>
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
+          <Can permission="view_contributions|create_contributions">
+            <Button variant="outline" asChild>
+              <Link href="/admin/bulk-upload/contributions">Bulk Upload</Link>
+            </Button>
+          </Can>
+          <Can permission="export_reports|view_contributions">
+            <Button variant="outline" onClick={handleExport}>
+              <Download className="h-4 w-4 mr-2" />
+              Export
+            </Button>
+          </Can>
         </div>
       </div>
 
@@ -392,8 +398,7 @@ export default function AdminContributionsPage() {
                               >
                           <Eye className="h-4 w-4" />
                         </Button>
-                              {(contribution.status === "pending") && (
-                          <>
+                              {contribution.status === "pending" && can("approve_contributions") && (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -407,6 +412,8 @@ export default function AdminContributionsPage() {
                               <CheckCircle className="h-4 w-4" />
                                     )}
                             </Button>
+                              )}
+                              {contribution.status === "pending" && can("reject_contributions") && (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -420,8 +427,7 @@ export default function AdminContributionsPage() {
                               <XCircle className="h-4 w-4" />
                                     )}
                             </Button>
-                          </>
-                        )}
+                              )}
                       </div>
                     </TableCell>
                   </TableRow>

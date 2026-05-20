@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Search, Eye, CheckCircle, XCircle, Loader2, Download } from "lucide-react"
 import Link from "next/link"
+import { Can, useTenantPermissions } from "@/components/admin/can-permission"
 import { useRouter } from "next/navigation"
 import { toast as sonnerToast } from "sonner"
 import { apiFetch } from "@/lib/api/client"
@@ -53,6 +54,7 @@ interface Pagination {
 }
 
 export default function AdminEquityContributionsPage() {
+  const { can } = useTenantPermissions()
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [paymentMethodFilter, setPaymentMethodFilter] = useState("all")
@@ -241,12 +243,14 @@ export default function AdminEquityContributionsPage() {
           <h1 className="text-3xl font-bold">Equity Contributions</h1>
           <p className="text-muted-foreground mt-1">Manage equity contributions for property deposits</p>
         </div>
-        <Link href="/admin/bulk-upload/equity-contributions">
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" />
-            Bulk Upload
-          </Button>
-        </Link>
+        <Can permission="bulk_upload_equity_contributions|create_equity_contributions">
+          <Link href="/admin/bulk-upload/equity-contributions">
+            <Button variant="outline">
+              <Download className="h-4 w-4 mr-2" />
+              Bulk Upload
+            </Button>
+          </Link>
+        </Can>
       </div>
 
       {/* Stats Cards */}
@@ -379,8 +383,7 @@ export default function AdminEquityContributionsPage() {
                             <Eye className="h-4 w-4" />
                           </Button>
                         </Link>
-                        {contribution.status === 'pending' && (
-                          <>
+                        {contribution.status === 'pending' && can("approve_equity_contributions") && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -393,6 +396,8 @@ export default function AdminEquityContributionsPage() {
                                 <CheckCircle className="h-4 w-4 text-green-600" />
                               )}
                             </Button>
+                        )}
+                        {contribution.status === 'pending' && can("reject_equity_contributions") && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -404,7 +409,6 @@ export default function AdminEquityContributionsPage() {
                             >
                               <XCircle className="h-4 w-4 text-destructive" />
                             </Button>
-                          </>
                         )}
                       </div>
                     </TableCell>

@@ -29,6 +29,7 @@ import {
 } from "@/lib/api/member-service"
 import { getAdminRefundMemberSummary } from "@/lib/api/client"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useTenantPermissions } from "@/components/admin/can-permission"
 
 const currencyFormatter = new Intl.NumberFormat("en-NG", {
   style: "currency",
@@ -41,6 +42,7 @@ const formatCurrency = (value?: number) => currencyFormatter.format(value ?? 0)
 
 export default function MemberDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const { can } = useTenantPermissions()
   
   // State management
   const [member, setMember] = useState<Member | null>(null)
@@ -364,11 +366,13 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button onClick={() => setShowApproveDialog(true)}>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Approve KYC
-                </Button>
-                {(member.kyc_status || "").toLowerCase() === "submitted" && (
+                {can("approve_kyc|manage_member_kyc") && (
+                  <Button onClick={() => setShowApproveDialog(true)}>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Approve KYC
+                  </Button>
+                )}
+                {(member.kyc_status || "").toLowerCase() === "submitted" && can("reject_kyc|manage_member_kyc") && (
                   <Button variant="destructive" onClick={() => setShowRejectDialog(true)}>
                     <XCircle className="h-4 w-4 mr-2" />
                     Reject KYC
@@ -392,10 +396,12 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                   {member.kyc_submitted_at ? "submitted" : "pending"} review.
                 </p>
               </div>
-              <Button variant="outline" className="border-emerald-300 bg-white" onClick={() => setShowReverseDialog(true)}>
-                <Undo2 className="h-4 w-4 mr-2" />
-                Reverse approval
-              </Button>
+              {can("approve_kyc|manage_member_kyc") && (
+                <Button variant="outline" className="border-emerald-300 bg-white" onClick={() => setShowReverseDialog(true)}>
+                  <Undo2 className="h-4 w-4 mr-2" />
+                  Reverse approval
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -627,10 +633,12 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                   <CardTitle>Uploaded Documents</CardTitle>
                   <CardDescription>KYC and verification documents</CardDescription>
                 </div>
-                <Button onClick={() => setShowDocumentUploadDialog(true)}>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Document
-                </Button>
+                {can("upload_documents|edit_members|manage_member_kyc") && (
+                  <Button onClick={() => setShowDocumentUploadDialog(true)}>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Document
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -679,8 +687,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                         )}
                       </div>
                       <div className="flex items-center gap-2">
-                        {doc.status === "pending" && (
-                          <>
+                        {doc.status === "pending" && can("approve_documents|manage_member_kyc") && (
                             <Button 
                               size="sm" 
                               variant="outline"
@@ -689,6 +696,8 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                               <CheckCircle className="h-3 w-3 mr-1" />
                               Approve
                             </Button>
+                        )}
+                        {doc.status === "pending" && can("reject_documents|manage_member_kyc") && (
                             <Button 
                               size="sm" 
                               variant="destructive"
@@ -700,7 +709,6 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                               <XCircle className="h-3 w-3 mr-1" />
                               Reject
                             </Button>
-                          </>
                         )}
                         <Button 
                           size="sm" 

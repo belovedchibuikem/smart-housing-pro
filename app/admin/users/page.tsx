@@ -30,8 +30,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Loader2 } from "lucide-react"
+import { Can, useTenantPermissions } from "@/components/admin/can-permission"
 
 export default function UsersPage() {
+  const { can } = useTenantPermissions()
   const [searchQuery, setSearchQuery] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -127,10 +129,12 @@ export default function UsersPage() {
           <h1 className="text-3xl font-bold text-foreground">Admin Users</h1>
           <p className="text-muted-foreground mt-1">Manage admin users and assign roles across the system</p>
         </div>
-        <Button onClick={() => setShowAddModal(true)}>
+        <Can permission="create_users">
+          <Button onClick={() => setShowAddModal(true)}>
             <UserPlus className="h-4 w-4 mr-2" />
             Add User
           </Button>
+        </Can>
       </div>
 
       {/* Stats Cards */}
@@ -330,27 +334,33 @@ export default function UsersPage() {
                       </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => {
-                              setSelectedUser(user)
-                              setShowEditModal(true)
-                            }}>
-                              <Edit className="h-4 w-4 mr-2" />
-                              Edit
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleToggleStatus(user.id)}
-                              disabled={toggleLoading}
-                            >
-                              <Shield className="h-4 w-4 mr-2" />
-                              {user.status === 'active' ? 'Deactivate' : 'Activate'}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => setDeleteUserId(user.id)}
-                              className="text-red-600"
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
+                            {can("edit_users") && (
+                              <DropdownMenuItem onClick={() => {
+                                setSelectedUser(user)
+                                setShowEditModal(true)
+                              }}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                            )}
+                            {can("edit_users") && (
+                              <DropdownMenuItem 
+                                onClick={() => handleToggleStatus(user.id)}
+                                disabled={toggleLoading}
+                              >
+                                <Shield className="h-4 w-4 mr-2" />
+                                {user.status === 'active' ? 'Deactivate' : 'Activate'}
+                              </DropdownMenuItem>
+                            )}
+                            {can("delete_users") && (
+                              <DropdownMenuItem 
+                                onClick={() => setDeleteUserId(user.id)}
+                                className="text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                   </TableCell>
