@@ -1326,6 +1326,27 @@ export async function submitPropertyInterest(propertyId: string, payload: Submit
 	})
 }
 
+export async function submitLandInterest(landId: string, payload: SubmitPropertyInterestPayload) {
+	return apiFetch<PropertyInterestResponse>(`/lands/${landId}/express-interest`, {
+		method: "POST",
+		body: payload,
+	})
+}
+
+export async function getLandDetail(landId: string) {
+	return apiFetch<{
+		success: boolean
+		land: Record<string, unknown> & {
+			member_context?: {
+				interest_status?: string | null
+				interest_id?: string | null
+				subscription_id?: string | null
+				has_subscription?: boolean
+			}
+		}
+	}>(`/lands/${landId}`, { method: "GET" })
+}
+
 export interface AdminRefundMemberSummary {
 	member: {
 		id: string

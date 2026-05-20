@@ -16,7 +16,9 @@ import { useToast } from "@/hooks/use-toast"
 import { fetchUserProfile } from "@/lib/api/user-profile"
 import {
 	getAvailableProperties,
+	getLandDetail,
 	submitPropertyInterest,
+	submitLandInterest,
 	getPropertyMortgage,
 	type AvailableProperty,
 	type PropertyFundingOption,
@@ -28,7 +30,8 @@ import { useWhiteLabelSettings } from "@/lib/hooks/use-white-label"
 import { resolveStorageUrl } from "@/lib/api/config"
 
 interface ExpressionOfInterestFormProps {
-  propertyId: string
+  propertyId?: string
+  landId?: string
 }
 
 type LoanState = {
@@ -123,7 +126,12 @@ const formatCurrency = (value?: number | null) => {
 
 const sanitizeNumber = (value: string) => Number(String(value).replace(/[^0-9.-]/g, ""))
 
-export function ExpressionOfInterestForm({ propertyId }: ExpressionOfInterestFormProps) {
+export function ExpressionOfInterestForm({ propertyId, landId }: ExpressionOfInterestFormProps) {
+	const isLand = Boolean(landId)
+	const targetId = landId ?? propertyId ?? ""
+	const mixFundingOptionsForForm = isLand
+		? MIX_FUNDING_OPTIONS.filter((o) => o.value !== "mortgage")
+		: MIX_FUNDING_OPTIONS
 	const router = useRouter()
 	const { toast } = useToast()
 
@@ -314,35 +322,74 @@ useEffect(() => {
 	const loadFormDetails = useCallback(async () => {
 		try {
 			setLoading(true)
-			const [profileResponse, availableResponse] = await Promise.all([
-				fetchUserProfile(),
-				getAvailableProperties(),
-			])
+			const profileResponse = await fetchUserProfile()
 
-			const propertyMatch = availableResponse.properties.find((item) => item.id === propertyId) ?? null
+			let propertyMatch: AvailableProperty | null = null
 
-			if (!propertyMatch) {
-				toast({
-					title: "Property not found",
-					description: "The selected property could not be found. Please select another property.",
-					variant: "destructive",
-				})
-				router.replace("/dashboard/properties")
-				return
+			if (isLand && landId) {
+				const landRes = await getLandDetail(landId)
+				const land = landRes.land
+				if (!landRes.success || !land) {
+					toast({
+						title: "Land not found",
+						description: "The selected land parcel could not be found.",
+						variant: "destructive",
+					})
+					router.replace("/dashboard/properties?listing=land")
+					return
+				}
+				const landRecord = land as Record<string, unknown>
+				propertyMatch = {
+					id: String(landRecord.id ?? landId),
+					title: String(landRecord.land_title ?? "Land parcel"),
+					description: landRecord.land_description ? String(landRecord.land_description) : null,
+					type: "land",
+					location: String(landRecord.location ?? ""),
+					price: Number(landRecord.cost ?? 0),
+					size: null,
+					status: String(landRecord.status ?? "available"),
+					images: [],
+					listing_kind: "land_parcel",
+				}
+				setMortgageTerms(null)
+			} else {
+				const availableResponse = await getAvailableProperties()
+				propertyMatch = availableResponse.properties.find((item) => item.id === propertyId) ?? null
+				if (!propertyMatch) {
+					toast({
+						title: "Property not found",
+						description: "The selected property could not be found. Please select another property.",
+						variant: "destructive",
+					})
+					router.replace("/dashboard/properties")
+					return
+				}
+				try {
+					const mortgageResponse = await getPropertyMortgage(propertyMatch.id)
+					if (mortgageResponse.success) {
+						setMortgageTerms(mortgageResponse.mortgage ?? null)
+					} else {
+						setMortgageTerms(null)
+					}
+				} catch (mortgageError) {
+					console.warn("Unable to load mortgage details for property", mortgageError)
+					setMortgageTerms(null)
+				}
 			}
+
+			if (!propertyMatch) return
 
 			setProperty(propertyMatch)
 
 			const user = profileResponse.user
 			const member = user.member
-
 			const name = [user.first_name, user.last_name].filter(Boolean).join(" ")
 
 			setFormData((prev) => ({
 				...prev,
 				applicantName: name,
 				rank: member?.rank ?? "",
-				pin: member?.frsc_pin ?? member?.member_number ?? "",
+				pin: (member as { frsc_pin?: string } | undefined)?.frsc_pin ?? member?.member_number ?? "",
 				ippis: member?.ippis_number ?? "",
 				command: member?.command_state ?? member?.department ?? "",
 				phone: user.phone ?? "",
@@ -372,18 +419,6 @@ useEffect(() => {
 					setYearsOfService(differenceInYears(new Date(), start))
 				}
 			}
-
-			try {
-				const mortgageResponse = await getPropertyMortgage(propertyMatch.id)
-				if (mortgageResponse.success) {
-					setMortgageTerms(mortgageResponse.mortgage ?? null)
-				} else {
-					setMortgageTerms(null)
-				}
-			} catch (mortgageError) {
-				console.warn("Unable to load mortgage details for property", mortgageError)
-				setMortgageTerms(null)
-			}
 		} catch (error) {
 			console.error(error)
 			toast({
@@ -391,11 +426,11 @@ useEffect(() => {
 				description: "We could not load your profile details. Please try again later.",
 				variant: "destructive",
 			})
-			router.replace("/dashboard/properties")
+			router.replace(isLand ? "/dashboard/properties?listing=land" : "/dashboard/properties")
 		} finally {
 			setLoading(false)
 		}
-	}, [propertyId, router, toast])
+	}, [propertyId, landId, isLand, router, toast])
 
 	useEffect(() => {
 		void loadFormDetails()
@@ -465,8 +500,17 @@ useEffect(() => {
 
 		if (!property) {
 			toast({
-				title: "Property not found",
-				description: "Unable to submit because property details are missing.",
+				title: isLand ? "Land not found" : "Property not found",
+				description: "Unable to submit because listing details are missing.",
+				variant: "destructive",
+			})
+			return
+		}
+
+		if (isLand && (fundingOption === "mortgage" || mixFundingMethods.includes("mortgage"))) {
+			toast({
+				title: "Mortgage not available",
+				description: "Mortgage funding is not offered for land parcels. Choose another option.",
 				variant: "destructive",
 			})
 			return
@@ -622,7 +666,10 @@ useEffect(() => {
 			}
 
 			setSubmitting(true)
-			const response = await submitPropertyInterest(property.id, payload)
+			const response =
+				isLand && landId
+					? await submitLandInterest(landId, payload)
+					: await submitPropertyInterest(property.id, payload)
 
 			if (!response.success) {
 				toast({
@@ -639,7 +686,7 @@ useEffect(() => {
 				variant: "default",
 			})
 
-			router.push(`/dashboard/properties/${property.id}`)
+			router.push(isLand && landId ? `/dashboard/lands/${landId}` : `/dashboard/properties/${property.id}`)
 		} catch (error: any) {
 			toast({
 				title: "Submission failed",
@@ -973,7 +1020,9 @@ useEffect(() => {
 							<label className="flex items-center space-x-2 rounded-lg border p-3">
 								<RadioGroupItem value="mix" id="fund-mix" />
 								<span className="font-normal">
-									Mix Funding (Equity / Loan / Mortgage / Cooperative Deduction)
+									{isLand
+										? "Mix Funding (Equity / Loan / Cooperative Deduction)"
+										: "Mix Funding (Equity / Loan / Mortgage / Cooperative Deduction)"}
 								</span>
 							</label>
 						</RadioGroup>
@@ -998,7 +1047,7 @@ useEffect(() => {
 										the actual payment plan once your expression of interest is approved.
 									</p>
 									<div className="mt-4 grid gap-3 md:grid-cols-2">
-										{MIX_FUNDING_OPTIONS.map((option) => {
+										{mixFundingOptionsForForm.map((option) => {
 											const checked = mixFundingMethods.includes(option.value)
 											const disableSelection = !checked && mixSelectionCount >= MAX_MIX_METHODS
 
