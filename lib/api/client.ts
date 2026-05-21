@@ -1319,6 +1319,19 @@ export async function rejectEoiForm(id: string, reason: string) {
 	})
 }
 
+export async function approveLandEoiForm(id: string) {
+	return apiFetch<{ success: boolean; message: string; data: any }>(`/admin/land-eoi-forms/${id}/approve`, {
+		method: "POST",
+	})
+}
+
+export async function rejectLandEoiForm(id: string, reason: string) {
+	return apiFetch<{ success: boolean; message: string; data: any }>(`/admin/land-eoi-forms/${id}/reject`, {
+		method: "POST",
+		body: { reason },
+	})
+}
+
 export async function submitPropertyInterest(propertyId: string, payload: SubmitPropertyInterestPayload) {
 	return apiFetch<PropertyInterestResponse>(`/properties/${propertyId}/express-interest`, {
 		method: "POST",

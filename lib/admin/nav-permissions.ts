@@ -63,6 +63,7 @@ export const TENANT_ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
   "property-subscriptions": "view_properties|manage_property_allottees|approve_allotments",
   "internal-mortgages": "view_loans|manage_loan_repayments|approve_loans",
   "eoi-forms": "view_properties|approve_allotments|reject_allotments|view_members",
+  "land-eoi-forms": "view_properties|approve_allotments|reject_allotments|view_members",
   "investment-plans":
     "create_investment_plans|edit_investment_plans|delete_investment_plans|view_investments|approve_investments",
   "contribution-plans": "view_contributions|create_contributions|edit_contributions|delete_contributions",
