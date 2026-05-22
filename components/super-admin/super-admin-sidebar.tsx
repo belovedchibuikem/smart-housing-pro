@@ -23,6 +23,7 @@ import {
   Palette,
   CheckCircle,
   FileEdit,
+  ImageIcon,
   MessageSquare,
   Star,
   UserCircle,
@@ -103,6 +104,7 @@ const navItems: NavItem[] = [
     icon: FileEdit,
     subItems: [
       { href: "/super-admin/saas-pages", label: "Page Sections", icon: FileEdit },
+      { href: "/super-admin/saas-pages/branding", label: "Logo & Branding", icon: ImageIcon },
       { href: "/super-admin/saas-pages/community", label: "Community", icon: MessageSquare },
       { href: "/super-admin/saas-pages/testimonials", label: "Testimonials", icon: Star },
       { href: "/super-admin/saas-pages/team", label: "Team", icon: UserCircle },

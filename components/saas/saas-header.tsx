@@ -1,36 +1,18 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Building2, Menu, Home, Sparkles, CreditCard, Users, Info, LogIn, Mail } from "lucide-react"
+import { Menu, Home, Sparkles, CreditCard, Users, Info, LogIn, Mail } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
-import { apiFetch } from "@/lib/api/client"
-import { resolveStorageUrl } from "@/lib/api/config"
+import { useSaasBranding } from "@/hooks/use-saas-branding"
+import { SaasBrandMark } from "@/components/saas/saas-brand-mark"
 
 export function SaaSHeader() {
   const [isOpen, setIsOpen] = useState(false)
-  const [headerData, setHeaderData] = useState<{
-    logo_url?: string
-    navigation_links?: Array<{ href: string; label: string }>
-    cta_button_text?: string
-  } | null>(null)
+  const { branding } = useSaasBranding()
 
-  useEffect(() => {
-    // Fetch header configuration from API
-    apiFetch<{ success: boolean; header: any }>("/public/saas/header")
-      .then((response) => {
-        if (response.success && response.header) {
-          setHeaderData(response.header)
-        }
-      })
-      .catch(() => {
-        // Fallback to default if API fails
-      })
-  }, [])
-
-  // Default navigation links (fallback)
   const defaultNavLinks = [
     {
       href: "/saas#features",
@@ -64,34 +46,21 @@ export function SaaSHeader() {
     },
   ]
 
-  const navLinks = headerData?.navigation_links
-    ? headerData.navigation_links.map((link) => {
-        const defaultLink = defaultNavLinks.find((d) => d.href === link.href) || defaultNavLinks[0]
-        return {
-          ...defaultLink,
-          href: link.href,
-          label: link.label,
-        }
-      })
-    : defaultNavLinks
+  const navLinks =
+    branding.navigation_links.length > 0
+      ? branding.navigation_links.map((link) => {
+          const defaultLink = defaultNavLinks.find((d) => d.href === link.href) || defaultNavLinks[0]
+          return { ...defaultLink, href: link.href, label: link.label }
+        })
+      : defaultNavLinks
 
-  const ctaText = headerData?.cta_button_text || "Start Free Trial"
+  const ctaText = branding.cta_button_text || "Start Free Trial"
 
   return (
     <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <Link href="/saas" className="flex items-center gap-2 font-bold text-xl">
-          {headerData?.logo_url ? (
-            <img src={resolveStorageUrl(headerData.logo_url)} alt="Logo" className="h-8 w-8 rounded-lg object-contain" />
-          ) : (
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
-              <Building2 className="h-5 w-5" />
-            </div>
-          )}
-          <span>CoopHub</span>
-        </Link>
+        <SaasBrandMark branding={branding} variant="navbar" />
 
-        {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-6">
           <Link href="/saas#features" className="text-sm font-medium hover:text-primary transition-colors">
             Features
@@ -116,12 +85,10 @@ export function SaaSHeader() {
           </Link>
         </nav>
 
-        {/* Desktop CTA Button */}
         <Button asChild className="hidden md:flex">
           <Link href="/onboard">{ctaText}</Link>
         </Button>
 
-        {/* Mobile Menu */}
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger asChild className="md:hidden">
             <Button variant="ghost" size="icon">
@@ -131,21 +98,10 @@ export function SaaSHeader() {
           </SheetTrigger>
           <SheetContent side="right" className="w-[320px] sm:w-[380px] p-0">
             <div className="flex flex-col h-full">
-              {/* Mobile Menu Header */}
               <div className="flex items-center justify-between p-6 border-b">
-                <Link
-                  href="/saas"
-                  className="flex items-center gap-2 font-bold text-xl"
-                  onClick={() => setIsOpen(false)}
-                >
-                  <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
-                    <Building2 className="h-5 w-5" />
-                  </div>
-                  <span>CoopHub</span>
-                </Link>
+                <SaasBrandMark branding={branding} variant="navbar" onNavigate={() => setIsOpen(false)} />
               </div>
 
-              {/* Navigation Links */}
               <nav className="flex-1 overflow-y-auto p-6">
                 <div className="space-y-1">
                   {navLinks.map((link) => {
@@ -173,7 +129,6 @@ export function SaaSHeader() {
 
                 <Separator className="my-6" />
 
-                {/* Additional Links */}
                 <div className="space-y-1">
                   <Link
                     href="/saas#testimonials"
@@ -194,7 +149,6 @@ export function SaaSHeader() {
                 </div>
               </nav>
 
-              {/* Mobile Menu Footer with CTA */}
               <div className="p-6 border-t bg-muted/30">
                 <Button asChild className="w-full h-12 text-base font-semibold" size="lg">
                   <Link href="/onboard" onClick={() => setIsOpen(false)}>
