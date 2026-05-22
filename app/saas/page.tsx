@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Building2, Users, Wallet, TrendingUp, Shield, Zap, BarChart3, Check, ArrowRight, Star, Sparkles } from "lucide-react"
 import { SaaSHeader } from "@/components/saas/saas-header"
+import { PricingPlanCard, type PricingPlanDisplay } from "@/components/saas/pricing-plan-card"
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api/client"
 
@@ -17,21 +18,13 @@ interface OnboardingPackage {
   description: string | null
   price: string | number
   billing_cycle: string
+  trial_days?: number
   is_featured: boolean
   display_features?: string[]
   tagline?: string | null
   usd_hint?: string | null
   custom_pricing?: boolean
   limits?: Record<string, any>
-}
-
-function billingPeriodSuffix(cycle: string | undefined): string {
-  if (!cycle) return "/ Year"
-  if (cycle === "yearly" || cycle === "year") return "/ Year"
-  if (cycle === "monthly") return "/ month"
-  if (cycle === "quarterly") return "/ quarter"
-  if (cycle === "weekly") return "/ week"
-  return ` / ${cycle}`
 }
 
 function planFeaturesFromApi(pkg: OnboardingPackage): string[] {
@@ -43,6 +36,46 @@ function planFeaturesFromApi(pkg: OnboardingPackage): string[] {
     return fromLimits
   }
   return []
+}
+
+function apiPackageToPlan(pkg: OnboardingPackage): PricingPlanDisplay {
+  const isContact = Boolean(pkg.custom_pricing ?? pkg.limits?.custom_pricing)
+  const price = Number(pkg.price)
+  return {
+    id: pkg.id,
+    name: pkg.name,
+    tagline: pkg.tagline ?? pkg.limits?.tagline ?? null,
+    description: pkg.description,
+    priceNgn: Number.isFinite(price) ? price : null,
+    usdHint: pkg.usd_hint ?? pkg.limits?.usd_hint ?? null,
+    billingCycle: pkg.billing_cycle,
+    customPricing: isContact,
+    isFeatured: Boolean(pkg.is_featured),
+    trialDays: pkg.trial_days,
+    features: planFeaturesFromApi(pkg),
+    ctaHref: isContact ? "/saas/contact" : "/onboard",
+    ctaLabel: isContact ? "Contact sales" : "Get started",
+    ctaVariant: pkg.is_featured ? "default" : "outline",
+  }
+}
+
+function fallbackPlanToDisplay(plan: (typeof FALLBACK_PLAN_MARKETING)[number]): PricingPlanDisplay {
+  const price = parseInt(plan.priceLabel.replace(/,/g, ""), 10)
+  return {
+    name: plan.name,
+    tagline: plan.tagline,
+    description: plan.description,
+    priceNgn: plan.customPricing ? null : price,
+    priceLabel: plan.customPricing ? undefined : `₦${plan.priceLabel}`,
+    usdHint: plan.usdHint,
+    billingCycle: "yearly",
+    customPricing: plan.customPricing,
+    isFeatured: plan.is_featured,
+    features: plan.features,
+    ctaHref: plan.customPricing ? "/saas/contact" : "/onboard",
+    ctaLabel: plan.customPricing ? "Contact sales" : "Get started",
+    ctaVariant: plan.is_featured ? "default" : "outline",
+  }
 }
 
 interface PageSection {
@@ -255,6 +288,9 @@ function SaaSLandingContent({
     "SmartHousing offers flexible subscription plans designed to empower real estate developers, realtors, and housing businesses of all sizes to operate efficiently on a powerful multi-vendor platform."
 
   const useApiPlans = businessPackages.length > 0
+  const planCards: PricingPlanDisplay[] = useApiPlans
+    ? businessPackages.map(apiPackageToPlan)
+    : FALLBACK_PLAN_MARKETING.map(fallbackPlanToDisplay)
 
   return (
     <React.Fragment>
@@ -355,141 +391,26 @@ function SaaSLandingContent({
         </section>
       )}
 
-      {/* Plans Section — same central packages as business subscription (packages table) */}
-      <section id="plans" className="bg-muted/30 py-20">
+      {/* Plans Section — central packages from Super Admin → Packages */}
+      <section id="plans" className="bg-gradient-to-b from-muted/50 to-background py-20 md:py-24">
         <div className="container mx-auto px-4">
-          <div className="text-center max-w-3xl mx-auto mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+          <div className="text-center max-w-3xl mx-auto mb-14">
+            <p className="text-sm font-semibold uppercase tracking-wider text-primary mb-3">Pricing</p>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 tracking-tight">
               {plansSection?.title || "SmartHousing Subscription Plans"}
             </h2>
             <p className="text-muted-foreground text-lg">
-              {plansSection?.subtitle || "Flexible Plans for Every Real Estate Business"}
+              {plansSection?.subtitle || "Flexible plans for every real estate business"}
             </p>
             <p className="text-muted-foreground text-base mt-4 leading-relaxed">{plansIntro}</p>
+            <p className="text-xs text-muted-foreground mt-3">
+              Prices in Nigerian Naira (NGN). USD amounts are approximate guides for international buyers.
+            </p>
           </div>
-          <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-6 max-w-7xl mx-auto">
-            {useApiPlans
-              ? businessPackages.map((pkg) => {
-                  const isContact = Boolean(pkg.custom_pricing ?? pkg.limits?.custom_pricing)
-                  const featured = Boolean(pkg.is_featured)
-                  const tagline = String(pkg.tagline || pkg.limits?.tagline || "")
-                  const showTag = tagline && tagline !== "Most Popular"
-                  const usd = pkg.usd_hint || pkg.limits?.usd_hint
-                  const featList = planFeaturesFromApi(pkg)
-                  return (
-                    <Card
-                      key={pkg.id}
-                      className={`p-6 flex flex-col h-full ${
-                        featured ? "border-primary border-2 shadow-lg relative" : ""
-                      }`}
-                    >
-                      {featured && (
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs font-medium">
-                          Most Popular
-                        </div>
-                      )}
-                      <div className="text-center mb-5 min-h-[5.5rem]">
-                        <h3 className="text-xl font-bold">
-                          {pkg.name} Plan{showTag ? ` (${tagline})` : ""}
-                        </h3>
-                        {pkg.description && (
-                          <p className="text-muted-foreground text-sm mt-2 text-left sm:text-center">{pkg.description}</p>
-                        )}
-                        <div className="mt-4 flex flex-col items-center">
-                          {isContact ? (
-                            <span className="text-2xl sm:text-3xl font-bold">Custom pricing</span>
-                          ) : (
-                            <div className="flex items-baseline justify-center gap-1 flex-wrap">
-                              <span className="text-2xl sm:text-3xl font-bold">
-                                ₦{Number(pkg.price).toLocaleString()}
-                              </span>
-                              <span className="text-muted-foreground text-sm">
-                                {billingPeriodSuffix(pkg.billing_cycle)}
-                              </span>
-                            </div>
-                          )}
-                          {usd && !isContact && (
-                            <span className="text-xs text-muted-foreground mt-1">({String(usd)})</span>
-                          )}
-                        </div>
-                      </div>
-                      {featList.length > 0 && (
-                        <ul className="space-y-2.5 mb-6 flex-1 text-left">
-                          {featList.map((f) => (
-                            <li key={f} className="flex items-start gap-2">
-                              <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                              <span className="text-sm leading-snug">{f}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                      {isContact ? (
-                        <Button className="w-full mt-auto" variant="outline" asChild>
-                          <Link href="/saas/contact">Contact us</Link>
-                        </Button>
-                      ) : (
-                        <Button className="w-full mt-auto" variant={featured ? "default" : "outline"} asChild>
-                          <Link href="/onboard">Get started</Link>
-                        </Button>
-                      )}
-                    </Card>
-                  )
-                })
-              : FALLBACK_PLAN_MARKETING.map((plan) => {
-                  const isContact = plan.customPricing
-                  const featured = plan.is_featured
-                  return (
-                    <Card
-                      key={plan.name}
-                      className={`p-6 flex flex-col h-full ${
-                        featured ? "border-primary border-2 shadow-lg relative" : ""
-                      }`}
-                    >
-                      {featured && (
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-3 py-1 rounded-full text-xs font-medium">
-                          Most Popular
-                        </div>
-                      )}
-                      <div className="text-center mb-5 min-h-[5.5rem]">
-                        <h3 className="text-xl font-bold">
-                          {plan.name} Plan {plan.tagline && plan.tagline !== "Most Popular" ? `(${plan.tagline})` : ""}
-                        </h3>
-                        {plan.tagline === "Most Popular" && !featured && null}
-                        <p className="text-muted-foreground text-sm mt-2 text-left sm:text-center">{plan.description}</p>
-                        <div className="mt-4 flex flex-col items-center">
-                          {isContact ? (
-                            <span className="text-2xl sm:text-3xl font-bold">Custom pricing</span>
-                          ) : (
-                            <div className="flex items-baseline justify-center gap-1 flex-wrap">
-                              <span className="text-2xl sm:text-3xl font-bold">₦{plan.priceLabel}</span>
-                              <span className="text-muted-foreground text-sm">{plan.period}</span>
-                            </div>
-                          )}
-                          {plan.usdHint && !isContact && (
-                            <span className="text-xs text-muted-foreground mt-1">({plan.usdHint})</span>
-                          )}
-                        </div>
-                      </div>
-                      <ul className="space-y-2.5 mb-6 flex-1 text-left">
-                        {plan.features.map((f) => (
-                          <li key={f} className="flex items-start gap-2">
-                            <Check className="h-4 w-4 text-green-600 flex-shrink-0 mt-0.5" />
-                            <span className="text-sm leading-snug">{f}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      {isContact ? (
-                        <Button className="w-full mt-auto" variant="outline" asChild>
-                          <Link href="/saas/contact">Contact us</Link>
-                        </Button>
-                      ) : (
-                        <Button className="w-full mt-auto" variant={featured ? "default" : "outline"} asChild>
-                          <Link href="/onboard">Get started</Link>
-                        </Button>
-                      )}
-                    </Card>
-                  )
-                })}
+          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4 max-w-7xl mx-auto items-stretch">
+            {planCards.map((plan) => (
+              <PricingPlanCard key={plan.id ?? plan.name} plan={plan} />
+            ))}
           </div>
 
           <div className="max-w-4xl mx-auto mt-16 text-center">

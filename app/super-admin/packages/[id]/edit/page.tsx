@@ -12,6 +12,7 @@ import { ArrowLeft, Loader2, Save } from "lucide-react"
 import Link from "next/link"
 import { apiFetch } from "@/lib/api/client"
 import { useRouter } from "next/navigation"
+import { buildPackageLimitsPayload } from "@/lib/super-admin/package-form-utils"
 import { toast as sonnerToast } from "sonner"
 
 interface PackageApi {
@@ -24,6 +25,9 @@ interface PackageApi {
 	trial_days: number
 	is_active: boolean
 	is_featured: boolean
+	tagline?: string | null
+	usd_hint?: string | null
+	custom_pricing?: boolean
 	limits: Record<string, unknown> | null
 	modules?: Array<{ id: string }>
 }
@@ -89,9 +93,9 @@ export default function EditPackagePage({ params }: { params: Promise<{ id: stri
 				trial_days: String(pkg.trial_days),
 				is_active: !!pkg.is_active,
 				is_featured: !!pkg.is_featured,
-				custom_pricing: Boolean(L["custom_pricing"]),
-				tagline: L["tagline"] != null ? String(L["tagline"]) : "",
-				usd_hint: L["usd_hint"] != null ? String(L["usd_hint"]) : "",
+				custom_pricing: Boolean(pkg.custom_pricing ?? L["custom_pricing"]),
+				tagline: pkg.tagline ?? (L["tagline"] != null ? String(L["tagline"]) : ""),
+				usd_hint: pkg.usd_hint ?? (L["usd_hint"] != null ? String(L["usd_hint"]) : ""),
 				sort_order: sortVal != null && sortVal !== "" ? String(sortVal) : "",
 				display_features_text: displayText,
 				limits: {
@@ -131,34 +135,34 @@ export default function EditPackagePage({ params }: { params: Promise<{ id: stri
 		e.preventDefault()
 		setIsSubmitting(true)
 		try {
-			const display_features = formData.display_features_text
-				.split("\n")
-				.map((s) => s.trim())
-				.filter(Boolean)
-			const sortOrderRaw = formData.sort_order.trim()
-			const sort_order = sortOrderRaw ? parseInt(sortOrderRaw, 10) : undefined
+			const builtLimits = buildPackageLimitsPayload(formData.limits, {
+				custom_pricing: formData.custom_pricing,
+				tagline: formData.tagline,
+				usd_hint: formData.usd_hint,
+				sort_order: formData.sort_order,
+				display_features_text: formData.display_features_text,
+			})
 			const mergedLimits: Record<string, unknown> = {
 				...(rawLimits ?? {}),
-				max_members: parseInt(formData.limits.max_members, 10),
-				max_properties: parseInt(formData.limits.max_properties, 10),
-				max_loan_products: parseInt(formData.limits.max_loan_products, 10),
-				max_contribution_plans: parseInt(formData.limits.max_contribution_plans, 10),
-				max_investment_plans: parseInt(formData.limits.max_investment_plans, 10),
-				max_mortgage_plans: parseInt(formData.limits.max_mortgage_plans, 10),
-				storage_gb: parseInt(formData.limits.storage_gb, 10),
-				max_admins: parseInt(formData.limits.max_admins, 10),
-				has_role_management: formData.limits.has_role_management,
-				custom_pricing: formData.custom_pricing,
-				display_features,
-				...(formData.tagline.trim() ? { tagline: formData.tagline.trim() } : { tagline: null }),
-				...(formData.usd_hint.trim() ? { usd_hint: formData.usd_hint.trim() } : { usd_hint: null }),
-				...(sort_order !== undefined && !Number.isNaN(sort_order) ? { sort_order } : { sort_order: null }),
+				...builtLimits,
+				tagline: formData.tagline.trim() || null,
+				usd_hint: formData.usd_hint.trim() || null,
+				sort_order:
+					formData.sort_order.trim() && !Number.isNaN(parseInt(formData.sort_order.trim(), 10))
+						? parseInt(formData.sort_order.trim(), 10)
+						: null,
 			}
+
+			const priceRaw = parseFloat(formData.price)
+			if (!formData.custom_pricing && (Number.isNaN(priceRaw) || priceRaw < 0)) {
+				throw new Error("Price must be a valid amount")
+			}
+
 			const body = {
-				name: formData.name,
-				slug: formData.slug,
-				description: formData.description || null,
-				price: formData.custom_pricing ? 0 : parseFloat(formData.price),
+				name: formData.name.trim(),
+				slug: formData.slug.trim(),
+				description: formData.description.trim() || null,
+				price: formData.custom_pricing ? 0 : priceRaw,
 				billing_cycle: formData.billing_cycle,
 				trial_days: formData.custom_pricing ? 0 : parseInt(formData.trial_days, 10),
 				is_active: formData.is_active,

@@ -6,6 +6,7 @@ import { Plus, Edit, Trash2, Check, X } from "lucide-react"
 import Link from "next/link"
 import { useEffect } from "react"
 import { apiFetch } from "@/lib/api/client"
+import { normalizePackagesList } from "@/lib/super-admin/package-form-utils"
 import { usePageLoading } from "@/hooks/use-loading"
 
 interface Package {
@@ -18,16 +19,20 @@ interface Package {
   trial_days: number
   is_active: boolean
   is_featured: boolean
-  limits: {
-    max_members: number
-    max_properties: number
-    max_loan_products: number
-    max_contribution_plans: number
-    max_investment_plans: number
-    storage_gb: number
-    max_admins: number
-  }
-  subscribers: number
+  usd_hint?: string | null
+  tagline?: string | null
+  custom_pricing?: boolean
+  limits?: {
+    max_members?: number
+    max_properties?: number
+    max_loan_products?: number
+    max_contribution_plans?: number
+    max_investment_plans?: number
+    storage_gb?: number
+    max_admins?: number
+    usd_hint?: string
+    custom_pricing?: boolean
+  } | null
   created_at: string
   updated_at: string
 }
@@ -37,15 +42,17 @@ export default function PackagesPage() {
 
   useEffect(() => {
     loadData(async () => {
-      const response = await apiFetch<{ packages: Package[] }>("/super-admin/packages")
-      return response
+      const response = await apiFetch<{ packages: Package[] | { data: Package[] } }>(
+        "/super-admin/packages?per_page=100",
+      )
+      return { packages: normalizePackagesList(response) }
     })
   }, [loadData])
 
   if (error) return <div className="p-6 text-red-600">{error}</div>
   if (isLoading || !data) return null // Let the skeleton loader handle the display
 
-  const packages = data?.packages || []
+  const packages = data?.packages ?? []
 
   return (
     <div className="space-y-8">
@@ -63,7 +70,16 @@ export default function PackagesPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {packages.map((pkg) => (
+        {packages.length === 0 ? (
+          <Card className="col-span-full p-8 text-center text-muted-foreground">
+            No packages yet. Create one to show plans on the SaaS landing page.
+          </Card>
+        ) : null}
+        {packages.map((pkg) => {
+          const limits = pkg.limits ?? {}
+          const usd = pkg.usd_hint ?? limits.usd_hint
+          const isCustom = pkg.custom_pricing ?? limits.custom_pricing
+          return (
           <Card key={pkg.id} className={pkg.is_featured ? "border-primary border-2" : ""}>
             {pkg.is_featured && (
               <div className="bg-primary text-primary-foreground text-center py-2 text-sm font-medium rounded-t-lg">
@@ -90,16 +106,21 @@ export default function PackagesPage() {
               </div>
 
               <div>
-                <div className="flex items-baseline gap-1">
-                  {pkg.price === 0 ? (
+                <div className="flex items-baseline gap-1 flex-wrap">
+                  {isCustom ? (
+                    <span className="text-2xl font-bold">Custom pricing</span>
+                  ) : pkg.price === 0 ? (
                     <span className="text-4xl font-bold">Free</span>
                   ) : (
                     <>
-                      <span className="text-4xl font-bold">₦{pkg.price}</span>
+                      <span className="text-4xl font-bold">₦{Number(pkg.price).toLocaleString()}</span>
                       <span className="text-muted-foreground">/{pkg.billing_cycle}</span>
                     </>
                   )}
                 </div>
+                {usd && !isCustom ? (
+                  <p className="text-sm font-medium text-primary mt-1">{usd}</p>
+                ) : null}
                 <p className="text-sm text-muted-foreground mt-1">
                   {pkg.billing_cycle === "trial" ? `${pkg.trial_days} days trial` : `${pkg.trial_days} days free trial`}
                 </p>
@@ -111,38 +132,35 @@ export default function PackagesPage() {
                   <div className="flex justify-between">
                     <span>Members:</span>
                     <span className="font-medium text-foreground">
-                      {pkg.limits.max_members === -1 ? "Unlimited" : pkg.limits.max_members}
+                      {limits.max_members === -1 ? "Unlimited" : limits.max_members ?? "—"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Properties:</span>
                     <span className="font-medium text-foreground">
-                      {pkg.limits.max_properties === -1 ? "Unlimited" : pkg.limits.max_properties}
+                      {limits.max_properties === -1 ? "Unlimited" : limits.max_properties ?? "—"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Loan Products:</span>
                     <span className="font-medium text-foreground">
-                      {pkg.limits.max_loan_products === -1 ? "Unlimited" : pkg.limits.max_loan_products}
+                      {limits.max_loan_products === -1 ? "Unlimited" : limits.max_loan_products ?? "—"}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Storage:</span>
-                    <span className="font-medium text-foreground">{pkg.limits.storage_gb} GB</span>
+                    <span className="font-medium text-foreground">{limits.storage_gb ?? "—"} GB</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Admins:</span>
                     <span className="font-medium text-foreground">
-                      {pkg.limits.max_admins === -1 ? "Unlimited" : pkg.limits.max_admins}
+                      {limits.max_admins === -1 ? "Unlimited" : limits.max_admins ?? "—"}
                     </span>
                   </div>
                 </div>
               </div>
 
               <div className="pt-4 border-t">
-                <p className="text-sm text-muted-foreground mb-3">
-                  <span className="font-medium text-foreground">{pkg.subscribers}</span> active subscribers
-                </p>
                 <div className="flex gap-2">
                   <Button variant="outline" className="flex-1 bg-transparent" asChild>
                     <Link href={`/super-admin/packages/${pkg.id}/edit`}>
@@ -161,7 +179,7 @@ export default function PackagesPage() {
               </div>
             </div>
           </Card>
-        ))}
+        )})}
       </div>
     </div>
   )

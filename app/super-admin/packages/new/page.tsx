@@ -12,7 +12,9 @@ import { ArrowLeft, Save } from "lucide-react"
 import Link from "next/link"
 import { useState } from "react"
 import { apiFetch } from "@/lib/api/client"
+import { buildPackageLimitsPayload } from "@/lib/super-admin/package-form-utils"
 import { useRouter } from "next/navigation"
+import { toast as sonnerToast } from "sonner"
 
 export default function NewPackagePage() {
   const router = useRouter()
@@ -49,48 +51,46 @@ export default function NewPackagePage() {
     setIsSubmitting(true)
     
     try {
-      const display_features = formData.display_features_text
-        .split("\n")
-        .map((s) => s.trim())
-        .filter(Boolean)
-      const sortOrderRaw = formData.sort_order.trim()
-      const sort_order = sortOrderRaw ? parseInt(sortOrderRaw, 10) : undefined
+      const limits = buildPackageLimitsPayload(formData.limits, {
+        custom_pricing: formData.custom_pricing,
+        tagline: formData.tagline,
+        usd_hint: formData.usd_hint,
+        sort_order: formData.sort_order,
+        display_features_text: formData.display_features_text,
+      })
+
+      const priceRaw = parseFloat(formData.price)
+      if (!formData.custom_pricing && (Number.isNaN(priceRaw) || priceRaw < 0)) {
+        throw new Error("Price must be a valid amount")
+      }
+
+      const trialDays = parseInt(formData.trial_days, 10)
+      if (!formData.custom_pricing && Number.isNaN(trialDays)) {
+        throw new Error("Trial days must be a valid number")
+      }
+
       const packageData = {
-        name: formData.name,
-        slug: formData.slug,
-        description: formData.description || null,
-        price: formData.custom_pricing ? 0 : parseFloat(formData.price),
+        name: formData.name.trim(),
+        slug: formData.slug.trim(),
+        description: formData.description.trim() || null,
+        price: formData.custom_pricing ? 0 : priceRaw,
         billing_cycle: formData.billing_cycle,
-        trial_days: formData.custom_pricing ? 0 : parseInt(formData.trial_days, 10),
+        trial_days: formData.custom_pricing ? 0 : trialDays,
         is_active: formData.is_active,
         is_featured: formData.is_featured,
-        limits: {
-          ...formData.limits,
-          max_members: parseInt(formData.limits.max_members, 10),
-          max_properties: parseInt(formData.limits.max_properties, 10),
-          max_loan_products: parseInt(formData.limits.max_loan_products, 10),
-          max_contribution_plans: parseInt(formData.limits.max_contribution_plans, 10),
-          max_investment_plans: parseInt(formData.limits.max_investment_plans, 10),
-          max_mortgage_plans: parseInt(formData.limits.max_mortgage_plans, 10),
-          storage_gb: parseInt(formData.limits.storage_gb, 10),
-          max_admins: parseInt(formData.limits.max_admins, 10),
-          custom_pricing: formData.custom_pricing,
-          ...(formData.tagline.trim() ? { tagline: formData.tagline.trim() } : {}),
-          ...(formData.usd_hint.trim() ? { usd_hint: formData.usd_hint.trim() } : {}),
-          ...(sort_order !== undefined && !Number.isNaN(sort_order) ? { sort_order } : {}),
-          ...(display_features.length ? { display_features } : {}),
-        },
+        limits,
       }
-      
+
       await apiFetch("/super-admin/packages", {
-        method: 'POST',
-        body: packageData
+        method: "POST",
+        body: packageData,
       })
-      
-      // Redirect back to packages list
+
+      sonnerToast.success("Package created")
       router.push("/super-admin/packages")
     } catch (error) {
-      console.error('Failed to create package:', error)
+      const msg = error instanceof Error ? error.message : "Failed to create package"
+      sonnerToast.error("Could not save package", { description: msg })
     } finally {
       setIsSubmitting(false)
     }
