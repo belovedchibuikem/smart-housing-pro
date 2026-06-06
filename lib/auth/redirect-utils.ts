@@ -10,53 +10,25 @@ export function getDashboardRoute(user: AuthUser | null | undefined): string {
     return "/dashboard" // Default to member dashboard
   }
 
-  if (user.permissions?.includes("access_admin_panel")) {
-    return "/admin"
-  }
-
   const userRoles = getEffectiveRoleNames(user)
-
-  // Also handle case where roles might be objects with 'name' property
   const roleNames = userRoles.map((role: any) => {
-    if (typeof role === 'string') return role.toLowerCase()
+    if (typeof role === "string") return role.toLowerCase()
     if (role?.name) return role.name.toLowerCase()
     if (role?.slug) return role.slug.toLowerCase()
     return String(role).toLowerCase()
   })
 
-  if (roleNames.length === 0) {
-    return "/dashboard" // Default to member dashboard
-  }
-
-  // Super admin gets super admin dashboard
-  if (roleNames.some(role => role === 'super-admin' || role === 'super_admin')) {
+  if (roleNames.some((role) => role === "super-admin" || role === "super_admin")) {
     return "/super-admin"
   }
 
-  // Admin roles get admin dashboard
-  const adminRoles = [
-    "admin",           // Main admin role
-    "tenant-admin",
-    "tenant_admin",
-    "finance_manager", 
-    "finance-manager",
-    "accountant",
-    "loan_officer",
-    "loan-officer",
-    "property_manager",
-    "property-manager",
-    "manager",
-    "member_manager",
-    "member-manager",
-    "document_manager",
-    "document-manager",
-    "system_admin",
-    "system-admin",
-    "investment_manager",
-    "investment-manager"
-  ]
-
-  if (roleNames.some(role => adminRoles.includes(role))) {
+  if (
+    hasTenantStaffDashboardAccess({
+      permissions: user.permissions,
+      roles: userRoles,
+      role: typeof user.role === "object" ? user.role?.slug : user.role,
+    })
+  ) {
     return "/admin"
   }
 

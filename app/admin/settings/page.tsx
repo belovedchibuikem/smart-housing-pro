@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator"
 import { Save, Mail, TestTube, AlertCircle, CheckCircle, Loader2 } from "lucide-react"
 import { toast as sonnerToast } from "sonner"
 import { apiFetch } from "@/lib/api/client"
+import { Can } from "@/components/admin/can-permission"
 
 /** Keys must match api/app/Services/Tenant/BulkMemberFieldRulesService::fieldCatalog */
 const BULK_MEMBER_FIELD_OPTIONS: { key: string; label: string }[] = [
@@ -456,24 +457,26 @@ export default function AdminSettingsPage() {
                       onChange={(e) => setTestEmailAddress(e.target.value)}
                       placeholder="test@example.com"
                     />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleTestEmail}
-                      disabled={testingEmail || !testEmailAddress}
-                    >
-                      {testingEmail ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Sending...
-                        </>
-                      ) : (
-                        <>
-                          <TestTube className="h-4 w-4 mr-2" />
-                          Send Test
-                        </>
-                      )}
-                    </Button>
+                    <Can permission="manage_settings">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleTestEmail}
+                        disabled={testingEmail || !testEmailAddress}
+                      >
+                        {testingEmail ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          <>
+                            <TestTube className="h-4 w-4 mr-2" />
+                            Send Test
+                          </>
+                        )}
+                      </Button>
+                    </Can>
                   </div>
                 </div>
 
@@ -639,19 +642,21 @@ export default function AdminSettingsPage() {
       </Tabs>
 
       <div className="flex justify-end">
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            <>
-              <Save className="h-4 w-4 mr-2" />
-              Save Settings
-            </>
-          )}
-        </Button>
+        <Can permission="manage_settings">
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Save Settings
+              </>
+            )}
+          </Button>
+        </Can>
       </div>
     </div>
   )

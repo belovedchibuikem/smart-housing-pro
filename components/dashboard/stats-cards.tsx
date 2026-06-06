@@ -3,6 +3,7 @@
 import { Card } from "@/components/ui/card"
 import { Wallet, TrendingUp, Home, ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
+import { DASHBOARD_CARD_MODULES } from "@/lib/modules/module-config"
 
 interface DashboardData {
   wallet_balance: number
@@ -20,6 +21,7 @@ interface DashboardData {
 interface StatsCardsProps {
   data: DashboardData | null
   loading?: boolean
+  enabledModules?: string[]
 }
 
 function formatCurrency(amount: number): string {
@@ -40,7 +42,7 @@ function formatCompactCurrency(amount: number): string {
   return formatCurrency(amount)
 }
 
-export function StatsCards({ data, loading }: StatsCardsProps) {
+export function StatsCards({ data, loading, enabledModules }: StatsCardsProps) {
   if (loading && !data) {
     return (
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -97,9 +99,21 @@ export function StatsCards({ data, loading }: StatsCardsProps) {
     },
   ]
 
+  const visibleStats =
+    enabledModules && enabledModules.length > 0
+      ? stats.filter((stat) => {
+          const moduleSlug = DASHBOARD_CARD_MODULES[stat.title]
+          return !moduleSlug || enabledModules.includes(moduleSlug)
+        })
+      : stats
+
+  if (visibleStats.length === 0) {
+    return null
+  }
+
   return (
     <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {stats.map((stat) => {
+      {visibleStats.map((stat) => {
         const Icon = stat.icon
         return (
           <Card key={stat.title} className="p-6">

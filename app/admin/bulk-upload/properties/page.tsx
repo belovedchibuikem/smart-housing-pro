@@ -1,5 +1,6 @@
 "use client"
 
+import { useBulkUploadPermission } from "@/lib/admin/bulk-upload-permissions"
 import type React from "react"
 import { useState } from "react"
 import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle2, X } from "lucide-react"
@@ -13,6 +14,7 @@ import { PROPERTY_BULK_UPLOAD_CSV } from "@/lib/bulk-upload/property-csv-templat
 import { parseFile } from "@/lib/utils/file-parser"
 
 export default function BulkUploadPropertiesPage() {
+	const canUpload = useBulkUploadPermission("properties")
   const [file, setFile] = useState<File | null>(null)
   const [previewData, setPreviewData] = useState<any[]>([])
   const [uploading, setUploading] = useState(false)
@@ -312,7 +314,7 @@ export default function BulkUploadPropertiesPage() {
             <Button variant="outline" onClick={downloadTemplate}>
               <Download className="h-4 w-4 mr-2" />
               Download CSV Template
-            </Button>
+            </Button>)}
           </div>
 
           <div className="space-y-2">
@@ -401,10 +403,10 @@ export default function BulkUploadPropertiesPage() {
               <Button variant="outline" onClick={() => { setFile(null); setPreviewData([]); setErrors([]) }}>
                 Cancel
               </Button>
-              <Button onClick={handleUpload} disabled={uploading || errors.length > 0 || parsing}>
+              {canUpload && <Button onClick={handleUpload} disabled={uploading || errors.length > 0 || parsing}>
                 <Upload className="h-4 w-4 mr-2" />
                 {uploading ? "Uploading..." : `Upload ${previewData.length} Properties`}
-              </Button>
+              </Button>})}
             </div>
           </CardContent>
         </Card>
@@ -449,7 +451,7 @@ export default function BulkUploadPropertiesPage() {
               <Button variant="outline" onClick={() => { setFile(null); setPreviewData([]); setErrors([]); setUploadComplete(false); setUploadResult(null) }}>
                 <X className="h-4 w-4 mr-2" />
                 Start New Upload
-              </Button>
+              </Button>)}
             </div>
           </CardContent>
         </Card>

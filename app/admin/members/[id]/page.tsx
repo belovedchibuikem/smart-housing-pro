@@ -328,12 +328,14 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
           <p className="text-muted-foreground">{member.member_number}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" asChild>
-            <Link href={`/admin/members/${id}/edit`}>
-              <Pencil className="h-4 w-4 mr-2" />
-              Edit
-            </Link>
-          </Button>
+          {can("edit_members|manage_member_kyc") && (
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/admin/members/${id}/edit`}>
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit
+              </Link>
+            </Button>
+          )}
           <Badge
             variant={
               member.kyc_status === "verified" ? "default" : 

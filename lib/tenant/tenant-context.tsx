@@ -38,7 +38,14 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       }
 
       const data = await response.json()
-      setTenant(data.tenant)
+      const tenantData = data.tenant
+        ? {
+            ...data.tenant,
+            enabled_modules: data.enabled_modules ?? [],
+            modules: data.modules ?? [],
+          }
+        : null
+      setTenant(tenantData)
       if (data?.tenant?.slug) {
         setTenantSlug(data.tenant.slug)
       }

@@ -16,6 +16,9 @@ import { UpdateRoleRequest } from "@/lib/types/role"
 import { toast } from "sonner"
 import Link from "next/link"
 import { apiFetch } from "@/lib/api/client"
+import { getUserData } from "@/lib/auth/auth-utils"
+import { refreshAuthSession } from "@/lib/auth/refresh-session"
+import { Can } from "@/components/admin/can-permission"
 
 export default function EditRolePage() {
   const router = useRouter()
@@ -103,6 +106,11 @@ export default function EditRolePage() {
 
     try {
       await updateRole(roleId, formData)
+      const current = getUserData() as { roles?: string[] } | null
+      const roleName = formData.name?.trim()
+      if (roleName && current?.roles?.includes(roleName)) {
+        await refreshAuthSession()
+      }
       toast.success("Role updated successfully!")
       router.push('/admin/roles')
     } catch (error: any) {
@@ -315,11 +323,13 @@ export default function EditRolePage() {
               Cancel
             </Button>
           </Link>
-          <Button type="submit" disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            <Save className="mr-2 h-4 w-4" />
-            Update Role
-          </Button>
+          <Can permission="manage_roles">
+            <Button type="submit" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Save className="mr-2 h-4 w-4" />
+              Update Role
+            </Button>
+          </Can>
         </div>
       </form>
     </div>

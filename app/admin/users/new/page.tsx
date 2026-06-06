@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { apiFetch } from "@/lib/api/client"
 import { useRoles } from "@/lib/hooks/use-roles"
 import { Loader2, Search, UserPlus } from "lucide-react"
+import { Can } from "@/components/admin/can-permission"
 
 type MemberPick = {
   id: string
@@ -298,9 +299,11 @@ export default function AdminUserCreatePage() {
                 </div>
 
                 <div className="flex items-center gap-3 pt-2">
-                  <Button type="submit" disabled={submitting || !selectedMember || promoteRoles.length === 0}>
-                    {submitting ? "Saving…" : "Grant admin access"}
-                  </Button>
+                  <Can permission="create_users">
+                    <Button type="submit" disabled={submitting || !selectedMember || promoteRoles.length === 0}>
+                      {submitting ? "Saving…" : "Grant admin access"}
+                    </Button>
+                  </Can>
                   <Button type="button" variant="secondary" onClick={() => router.push("/admin/users")}>
                     Cancel
                   </Button>
@@ -386,9 +389,11 @@ export default function AdminUserCreatePage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <Button type="submit" disabled={submitting}>
-                    {submitting ? "Creating…" : "Create user"}
-                  </Button>
+                  <Can permission="create_users">
+                    <Button type="submit" disabled={submitting}>
+                      {submitting ? "Creating…" : "Create user"}
+                    </Button>
+                  </Can>
                   <Button type="button" variant="secondary" onClick={() => router.push("/admin/users")}>
                     Cancel
                   </Button>

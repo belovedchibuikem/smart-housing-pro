@@ -21,6 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Can, useTenantPermissions } from "@/components/admin/can-permission"
 
 interface Allottee {
   id: string
@@ -44,6 +45,7 @@ interface Allottee {
 }
 
 export default function ManageAllotteesPage() {
+  const { can } = useTenantPermissions()
   const [allottees, setAllottees] = useState<Allottee[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
@@ -142,10 +144,12 @@ export default function ManageAllotteesPage() {
           <h1 className="text-3xl font-bold">Manage Allottees</h1>
           <p className="text-muted-foreground mt-1">View and manage property allocations</p>
         </div>
-        <Button onClick={() => router.push('/admin/property-management/allottees/new')}>
-          <Users className="h-4 w-4 mr-2" />
-          Add New Allottee
-        </Button>
+        <Can permission="manage_property_allottees|approve_allotments">
+          <Button onClick={() => router.push("/admin/property-management/allottees/new")}>
+            <Users className="h-4 w-4 mr-2" />
+            Add New Allottee
+          </Button>
+        </Can>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -278,12 +282,16 @@ export default function ManageAllotteesPage() {
                         <Button variant="ghost" size="icon" onClick={() => handleViewDetails(allottee)}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => router.push(`/admin/property-management/allottees/${allottee.id}/edit`)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeleteDialog({ open: true, allotteeId: allottee.id })}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {can("manage_property_allottees|approve_allotments") && (
+                          <Button variant="ghost" size="icon" onClick={() => router.push(`/admin/property-management/allottees/${allottee.id}/edit`)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {can("manage_property_allottees") && (
+                          <Button variant="ghost" size="icon" onClick={() => setDeleteDialog({ open: true, allotteeId: allottee.id })}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

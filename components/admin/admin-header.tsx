@@ -18,6 +18,8 @@ import { AdminNotificationBell } from "./admin-notification-bell"
 import { handleLogout } from "@/lib/auth/auth-utils"
 import { AdminSubscriptionAlertBanner } from "./subscription-alert-banner"
 import { resolveStorageUrl } from "@/lib/api/config"
+import { useTenantPermissions } from "@/components/admin/can-permission"
+import { canAccessAdminHref } from "@/lib/admin/tenant-permissions"
 
 interface AdminHeaderProps {
   mobileMenuOpen: boolean
@@ -27,6 +29,9 @@ interface AdminHeaderProps {
 export function AdminHeader({ mobileMenuOpen, setMobileMenuOpen }: AdminHeaderProps) {
   const { getCompanyName, getCompanyTagline, getLogo } = useWhiteLabelSettings()
   const { getSetting } = useTenantSettings()
+  useTenantPermissions()
+  const showSettings = canAccessAdminHref("/admin/settings")
+  const showAuditLogs = canAccessAdminHref("/admin/audit-logs")
   
   const siteName = getCompanyName() || getSetting("site_name", "FRSC HMS Admin")
   const siteTagline = getCompanyTagline() || "System Administration"
@@ -71,12 +76,16 @@ export function AdminHeader({ mobileMenuOpen, setMobileMenuOpen }: AdminHeaderPr
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Admin Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/admin/settings">Settings</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/admin/audit-logs">Audit Logs</Link>
-              </DropdownMenuItem>
+              {showSettings ? (
+                <DropdownMenuItem asChild>
+                  <Link href="/admin/settings">Settings</Link>
+                </DropdownMenuItem>
+              ) : null}
+              {showAuditLogs ? (
+                <DropdownMenuItem asChild>
+                  <Link href="/admin/audit-logs">Audit Logs</Link>
+                </DropdownMenuItem>
+              ) : null}
               <DropdownMenuSeparator />
               <DropdownMenuItem 
                 className="text-destructive cursor-pointer"

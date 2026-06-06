@@ -128,6 +128,7 @@ export default function WithdrawInvestmentPage() {
 			const response = await requestInvestmentWithdrawal(selectedInvestmentId, {
 				withdrawal_type: withdrawalType,
 				amount: withdrawalType === "partial" ? Number(amount) : undefined,
+				reason: reason.trim() || undefined,
 			})
 
 			if (response.success) {

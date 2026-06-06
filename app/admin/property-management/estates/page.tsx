@@ -11,6 +11,7 @@ import { Plus, Search, Building, MapPin, Users, Home, Eye, Loader2 } from "lucid
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { getPropertyEstates, getPropertyEstateStats } from "@/lib/api/client"
+import { Can } from "@/components/admin/can-permission"
 
 interface Estate {
   id: string
@@ -84,10 +85,12 @@ export default function ManageEstatesPage() {
           <h1 className="text-3xl font-bold">Manage Estates</h1>
           <p className="text-muted-foreground mt-1">View and manage all housing estates</p>
         </div>
-        <Button onClick={() => router.push('/admin/property-management/estates/new')}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add New Estate
-        </Button>
+        <Can permission="manage_property_estates|create_properties">
+          <Button onClick={() => router.push("/admin/property-management/estates/new")}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add New Estate
+          </Button>
+        </Can>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

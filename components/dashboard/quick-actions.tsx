@@ -2,8 +2,13 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Plus, Send, FileText, Home } from "lucide-react"
 import Link from "next/link"
+import { resolveMemberHrefModule } from "@/lib/modules/module-config"
 
-export function QuickActions() {
+interface QuickActionsProps {
+  enabledModules?: string[]
+}
+
+export function QuickActions({ enabledModules }: QuickActionsProps) {
   const actions = [
     {
       title: "Make Contribution",
@@ -35,11 +40,23 @@ export function QuickActions() {
     },
   ]
 
+  const visibleActions =
+    enabledModules && enabledModules.length > 0
+      ? actions.filter((action) => {
+          const moduleSlug = resolveMemberHrefModule(action.href)
+          return !moduleSlug || enabledModules.includes(moduleSlug)
+        })
+      : actions
+
+  if (visibleActions.length === 0) {
+    return null
+  }
+
   return (
     <Card className="p-6">
       <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {actions.map((action) => {
+        {visibleActions.map((action) => {
           const Icon = action.icon
           return (
             <Link key={action.title} href={action.href}>

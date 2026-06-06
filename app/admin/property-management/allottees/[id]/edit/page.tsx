@@ -13,6 +13,7 @@ import { useRouter, useParams } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { getPropertyAllottee, updatePropertyAllottee } from "@/lib/api/client"
 import { apiFetch } from "@/lib/api/client"
+import { Can } from "@/components/admin/can-permission"
 import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
 import {
 	SearchableSelect,
@@ -260,10 +261,12 @@ export default function EditAllotteePage() {
                   Cancel
                 </Button>
               </Link>
-              <Button type="submit" disabled={loading}>
-                {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Update Allocation
-              </Button>
+              <Can permission="manage_property_allottees|approve_allotments">
+                <Button type="submit" disabled={loading}>
+                  {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Update Allocation
+                </Button>
+              </Can>
             </div>
           </CardContent>
         </Card>

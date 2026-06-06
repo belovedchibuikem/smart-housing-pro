@@ -14,6 +14,7 @@ import { apiFetch } from "@/lib/api/client"
 import { useRouter } from "next/navigation"
 import { buildPackageLimitsPayload } from "@/lib/super-admin/package-form-utils"
 import { toast as sonnerToast } from "sonner"
+import { ModulePicker } from "@/components/super-admin/module-picker"
 
 interface PackageApi {
 	id: string
@@ -168,7 +169,7 @@ export default function EditPackagePage({ params }: { params: Promise<{ id: stri
 				is_active: formData.is_active,
 				is_featured: formData.is_featured,
 				limits: mergedLimits,
-				...(formData.moduleIds.length ? { modules: formData.moduleIds } : {}),
+				modules: formData.moduleIds,
 			}
 			await apiFetch(`/super-admin/packages/${id}`, { method: "PUT", body })
 			sonnerToast.success("Package updated")
@@ -401,6 +402,11 @@ export default function EditPackagePage({ params }: { params: Promise<{ id: stri
 							/>
 						</div>
 					</Card>
+
+					<ModulePicker
+						selectedIds={formData.moduleIds}
+						onChange={(moduleIds) => setFormData((prev) => ({ ...prev, moduleIds }))}
+					/>
 
 					<div className="flex gap-4">
 						<Button type="submit" disabled={isSubmitting}>

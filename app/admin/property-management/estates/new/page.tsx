@@ -11,6 +11,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { createPropertyEstate } from "@/lib/api/client"
+import { Can } from "@/components/admin/can-permission"
 
 export default function NewEstatePage() {
   const router = useRouter()
@@ -146,10 +147,12 @@ export default function NewEstatePage() {
                   Cancel
                 </Button>
               </Link>
-              <Button type="submit" disabled={loading}>
-                {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Create Estate
-              </Button>
+              <Can permission="manage_property_estates|create_properties">
+                <Button type="submit" disabled={loading}>
+                  {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Create Estate
+                </Button>
+              </Can>
             </div>
           </CardContent>
         </Card>

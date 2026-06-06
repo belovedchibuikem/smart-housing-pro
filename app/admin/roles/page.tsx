@@ -28,8 +28,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import Link from "next/link"
+import { Can, useTenantPermissions } from "@/components/admin/can-permission"
 
 export default function RolesPage() {
+  const { can } = useTenantPermissions()
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [deleteRoleId, setDeleteRoleId] = useState<string | null>(null)
@@ -95,12 +97,14 @@ export default function RolesPage() {
           <h1 className="text-3xl font-bold text-foreground">Role Management</h1>
           <p className="text-muted-foreground mt-1">Manage user roles and permissions</p>
         </div>
-        <Link href="/admin/roles/new">
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Role
-          </Button>
-        </Link>
+        <Can permission="manage_roles">
+          <Link href="/admin/roles/new">
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Role
+            </Button>
+          </Link>
+        </Can>
       </div>
 
       {/* Stats Cards */}
@@ -246,27 +250,33 @@ export default function RolesPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem asChild>
-                              <Link href={`/admin/roles/${role.id}/edit`}>
-                                <Edit className="h-4 w-4 mr-2" />
-                                Edit
-                              </Link>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => handleToggleStatus(role.id)}
-                              disabled={toggleLoading}
-                            >
-                              <Shield className="h-4 w-4 mr-2" />
-                              {role.is_active ? 'Deactivate' : 'Activate'}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem 
-                              onClick={() => setDeleteRoleId(role.id)}
-                              className="text-red-600"
-                              disabled={role.users_count > 0}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Delete
-                            </DropdownMenuItem>
+                            {can("manage_roles") && (
+                              <DropdownMenuItem asChild>
+                                <Link href={`/admin/roles/${role.id}/edit`}>
+                                  <Edit className="h-4 w-4 mr-2" />
+                                  Edit
+                                </Link>
+                              </DropdownMenuItem>
+                            )}
+                            {can("manage_roles") && (
+                              <DropdownMenuItem
+                                onClick={() => handleToggleStatus(role.id)}
+                                disabled={toggleLoading}
+                              >
+                                <Shield className="h-4 w-4 mr-2" />
+                                {role.is_active ? "Deactivate" : "Activate"}
+                              </DropdownMenuItem>
+                            )}
+                            {can("manage_roles") && (
+                              <DropdownMenuItem
+                                onClick={() => setDeleteRoleId(role.id)}
+                                className="text-red-600"
+                                disabled={role.users_count > 0}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>

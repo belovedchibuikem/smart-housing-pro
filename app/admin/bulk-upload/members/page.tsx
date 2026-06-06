@@ -1,5 +1,6 @@
 "use client"
 
+import { useBulkUploadPermission } from "@/lib/admin/bulk-upload-permissions"
 import type React from "react"
 
 import { useEffect, useState } from "react"
@@ -118,6 +119,7 @@ function detectKind(
 }
 
 export default function BulkUploadMembersPage() {
+	const canUpload = useBulkUploadPermission("members")
 	const [file, setFile] = useState<File | null>(null)
 	const [fieldConfig, setFieldConfig] = useState<FieldConfig | null>(null)
 	const [previewKind, setPreviewKind] = useState<PreviewKind | null>(null)
@@ -643,18 +645,20 @@ export default function BulkUploadMembersPage() {
 							<Button variant="outline" type="button" onClick={resetPreview}>
 								Cancel
 							</Button>
-							<Button
-								type="button"
-								onClick={handleUpload}
-								disabled={uploading || errors.length > 0 || parsing}
-							>
-								<Upload className="h-4 w-4 mr-2" />
-								{uploading
-									? "Uploading…"
-									: previewKind === "mandatory"
-										? `Create ${previewRows.length} member(s)`
-										: `Update ${previewRows.length} row(s)`}
-							</Button>
+							{canUpload && (
+								<Button
+									type="button"
+									onClick={handleUpload}
+									disabled={uploading || errors.length > 0 || parsing}
+								>
+									<Upload className="h-4 w-4 mr-2" />
+									{uploading
+										? "Uploading…"
+										: previewKind === "mandatory"
+											? `Create ${previewRows.length} member(s)`
+											: `Update ${previewRows.length} row(s)`}
+								</Button>
+							)}
 						</div>
 					</CardContent>
 				</Card>

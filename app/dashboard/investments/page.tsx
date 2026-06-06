@@ -219,7 +219,7 @@ function InvestmentCard({ investment }: { investment: UserInvestment }) {
 							<Badge variant={getStatusBadgeVariant(investment.status)}>{investment.status}</Badge>
 							<Badge variant="outline">{investment.type}</Badge>
 						</div>
-						<CardTitle>Investment #{investment.id.slice(0, 8)}</CardTitle>
+						<CardTitle>{investment.plan?.name || `Investment #${investment.id.slice(0, 8)}`}</CardTitle>
 						<CardDescription>Started {formatDate(investment.investment_date)}</CardDescription>
 					</div>
 				</div>

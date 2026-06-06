@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Plus, Check, AlertCircle, ExternalLink, Copy } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Can } from "@/components/admin/can-permission"
 
 export default function CustomDomainsPage() {
   const [showAddDomain, setShowAddDomain] = useState(false)
@@ -47,10 +48,12 @@ export default function CustomDomainsPage() {
           <h1 className="text-3xl font-bold">Custom Domains</h1>
           <p className="text-muted-foreground mt-1">Manage custom domains for your landing page</p>
         </div>
-        <Button onClick={() => setShowAddDomain(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Domain
-        </Button>
+        <Can permission="manage_settings|manage_white_label|view_white_label">
+          <Button onClick={() => setShowAddDomain(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Domain
+          </Button>
+        </Can>
       </div>
 
       {/* Default Subdomain */}
@@ -179,9 +182,11 @@ export default function CustomDomainsPage() {
               </Alert>
             </div>
             <div className="flex items-center gap-3 mt-6">
-              <Button className="flex-1" onClick={() => setShowAddDomain(false)}>
-                Add Domain
-              </Button>
+              <Can permission="manage_settings|manage_white_label">
+                <Button className="flex-1" onClick={() => setShowAddDomain(false)}>
+                  Add Domain
+                </Button>
+              </Can>
               <Button variant="outline" className="flex-1 bg-transparent" onClick={() => setShowAddDomain(false)}>
                 Cancel
               </Button>

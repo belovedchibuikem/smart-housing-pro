@@ -17,6 +17,7 @@ import { composeMessage, getMessage, getUsers } from "@/lib/api/client"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { X } from "lucide-react"
+import { Can } from "@/components/admin/can-permission"
 
 export default function AdminComposeMailPage() {
   const router = useRouter()
@@ -474,14 +475,18 @@ export default function AdminComposeMailPage() {
           </div>
 
           <div className="flex items-center gap-3 pt-4 border-t">
-            <Button onClick={handleSend} disabled={isSending || isSaving}>
-              <Send className="h-4 w-4 mr-2" />
-              {isSending ? 'Sending...' : `Send to ${formData.recipients === "all" ? "All Members" : formData.recipients === "active" ? "Active Members" : "Selected Recipients"}`}
-            </Button>
-            <Button type="button" variant="outline" onClick={handleSaveDraft} disabled={isSending || isSaving}>
-              <Save className="h-4 w-4 mr-2" />
-              {isSaving ? 'Saving...' : 'Save Draft'}
-            </Button>
+            <Can permission="compose_mail|bulk_mail">
+              <Button onClick={handleSend} disabled={isSending || isSaving}>
+                <Send className="h-4 w-4 mr-2" />
+                {isSending ? "Sending..." : `Send to ${formData.recipients === "all" ? "All Members" : formData.recipients === "active" ? "Active Members" : "Selected Recipients"}`}
+              </Button>
+            </Can>
+            <Can permission="compose_mail">
+              <Button type="button" variant="outline" onClick={handleSaveDraft} disabled={isSending || isSaving}>
+                <Save className="h-4 w-4 mr-2" />
+                {isSaving ? "Saving..." : "Save Draft"}
+              </Button>
+            </Can>
             <Link href="/admin/mail-service">
               <Button variant="ghost" disabled={isSending || isSaving}>Cancel</Button>
             </Link>

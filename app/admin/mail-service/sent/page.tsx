@@ -10,9 +10,11 @@ import { Mail, Search, ArrowLeft, Trash2, CheckCircle2, Paperclip, Users } from 
 import Link from "next/link"
 import { Checkbox } from "@/components/ui/checkbox"
 import { getSentMessages, bulkMailOperation, deleteMessage } from "@/lib/api/client"
+import { Can, useTenantPermissions } from "@/components/admin/can-permission"
 import { useToast } from "@/hooks/use-toast"
 
 export default function AdminSentPage() {
+  const { can } = useTenantPermissions()
   const { toast } = useToast()
   const [messages, setMessages] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -115,12 +117,14 @@ export default function AdminSentPage() {
           <h1 className="text-3xl font-bold">Sent Messages</h1>
           <p className="text-muted-foreground mt-1">{messages.length} sent messages</p>
         </div>
-        <Link href="/admin/mail-service/compose">
-          <Button>
-            <Mail className="h-4 w-4 mr-2" />
-            Compose
-          </Button>
-        </Link>
+        <Can permission="compose_mail|bulk_mail">
+          <Link href="/admin/mail-service/compose">
+            <Button>
+              <Mail className="h-4 w-4 mr-2" />
+              Compose
+            </Button>
+          </Link>
+        </Can>
       </div>
 
       <Card className="p-6">
@@ -152,10 +156,12 @@ export default function AdminSentPage() {
         {selectedMessages.length > 0 && (
           <div className="flex items-center gap-3 mb-4 p-3 bg-accent rounded-lg">
             <span className="text-sm font-medium">{selectedMessages.length} selected</span>
-            <Button size="sm" variant="outline" onClick={handleBulkDelete}>
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
-            </Button>
+            {can("delete_mail") && (
+              <Button size="sm" variant="outline" onClick={handleBulkDelete}>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
+            )}
             <Button size="sm" variant="ghost" onClick={() => setSelectedMessages([])}>
               Clear Selection
             </Button>
@@ -224,14 +230,16 @@ export default function AdminSentPage() {
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
                         {message.date} {message.time}
                       </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={(e) => handleDelete(message.id, e)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {can("delete_mail") && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={(e) => handleDelete(message.id, e)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>

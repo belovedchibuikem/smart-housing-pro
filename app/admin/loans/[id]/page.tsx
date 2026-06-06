@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast as sonnerToast } from "sonner"
 import { apiFetch } from "@/lib/api/client"
+import { useTenantPermissions } from "@/components/admin/can-permission"
 
 interface Loan {
   id: string
@@ -55,6 +56,7 @@ interface Loan {
 
 export default function LoanDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const { can } = useTenantPermissions()
   const [loan, setLoan] = useState<Loan | null>(null)
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
@@ -279,7 +281,7 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
         </Badge>
       </div>
 
-      {loan.status === "pending" && (
+      {loan.status === "pending" && (can("approve_loans") || can("reject_loans")) && (
         <Card className="border-orange-200 bg-orange-50">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -288,21 +290,25 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
                 <p className="text-sm text-muted-foreground">Review application details and approve or reject</p>
               </div>
               <div className="flex gap-2">
-                <Button onClick={() => setShowApproveDialog(true)} disabled={processing}>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Approve Loan
-                </Button>
-                <Button variant="destructive" onClick={() => setShowRejectDialog(true)} disabled={processing}>
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Reject Loan
-                </Button>
+                {can("approve_loans") && (
+                  <Button onClick={() => setShowApproveDialog(true)} disabled={processing}>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Approve Loan
+                  </Button>
+                )}
+                {can("reject_loans") && (
+                  <Button variant="destructive" onClick={() => setShowRejectDialog(true)} disabled={processing}>
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Reject Loan
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {loan.status === "approved" && (
+      {loan.status === "approved" && can("disburse_loans|approve_loans") && (
         <Card className="border-green-200 bg-green-50">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 import { getTenantSlugFromHost, isCustomDomain } from "@/lib/tenant/tenant-utils"
 import { AUTH_COOKIE } from "@/lib/auth/auth-cookies"
-import { userHasPermissionForAdminHref } from "@/lib/admin/nav-permissions"
+import { isLegacyStaffFallbackPath, userHasPermissionForAdminHref } from "@/lib/admin/nav-permissions"
 
 function parsePermCookie(raw: string | undefined | null): string[] {
   if (!raw) return []
@@ -20,11 +20,7 @@ function adminPathAllowed(pathname: string, perms: string[], roleSlug: string): 
   const slug = roleSlug.toLowerCase().replace(/-/g, "_")
   if (slug === "super_admin") return true
   if (perms.length > 0) return userHasPermissionForAdminHref(pathname, perms)
-  return (
-    pathname === "/admin" ||
-    pathname === "/admin/subscriptions" ||
-    pathname.startsWith("/admin/subscriptions/")
-  )
+  return isLegacyStaffFallbackPath(pathname)
 }
 
 export async function middleware(request: NextRequest) {

@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { createPropertyMaintenance } from "@/lib/api/client"
 import { apiFetch } from "@/lib/api/client"
+import { Can } from "@/components/admin/can-permission"
 import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
 import {
 	SearchableSelect,
@@ -332,10 +333,12 @@ export default function NewMaintenancePage() {
                     Cancel
                   </Button>
                 </Link>
-                <Button type="submit" disabled={loading}>
-                  {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Create Maintenance Request
-                </Button>
+                <Can permission="create_maintenance">
+                  <Button type="submit" disabled={loading}>
+                    {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Create Maintenance Request
+                  </Button>
+                </Can>
               </div>
             </CardContent>
           </Card>

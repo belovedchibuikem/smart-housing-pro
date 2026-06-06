@@ -28,6 +28,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch, repayMortgage, getMortgageRepaymentSchedule, getMortgageNextPayment, type RepaymentSchedule, type RepayMortgagePayload, type NextPaymentDetails } from "@/lib/api/client"
+import { useTenantPermissions } from "@/components/admin/can-permission"
 import { labelForMortgagePropertyTitle } from "@/lib/mortgage-property-titles"
 import { CheckCircle2, Calendar, DollarSign, AlertTriangle } from "lucide-react"
 
@@ -116,6 +117,7 @@ export default function AdminMortgageDetailsPage() {
   const params = useParams<{ id?: string }>()
   const router = useRouter()
   const { toast } = useToast()
+  const { can } = useTenantPermissions()
 
   const mortgageId = params?.id ?? ""
   const [mortgage, setMortgage] = useState<MortgageDetail | null>(null)
@@ -316,38 +318,42 @@ export default function AdminMortgageDetailsPage() {
         </div>
         {mortgage && (
           <div className="flex gap-2">
-            {mortgage.status === "pending" && (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleStatusAction("approve")}
-                  disabled={processing}
-                >
-                  <Check className="mr-2 h-4 w-4" />
-                  Approve
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleStatusAction("reject")}
-                  disabled={processing}
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Reject
-                </Button>
-              </>
+            {mortgage.status === "pending" && can("approve_loans") && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleStatusAction("approve")}
+                disabled={processing}
+              >
+                <Check className="mr-2 h-4 w-4" />
+                Approve
+              </Button>
             )}
-            <Button variant="outline" size="sm" asChild>
-              <Link href={`/admin/mortgages/${mortgage.id}/edit`}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit
-              </Link>
-            </Button>
-            <Button variant="destructive" size="sm" onClick={handleDelete} disabled={processing}>
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </Button>
+            {mortgage.status === "pending" && can("reject_loans") && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleStatusAction("reject")}
+                disabled={processing}
+              >
+                <X className="mr-2 h-4 w-4" />
+                Reject
+              </Button>
+            )}
+            {can("edit_loans") && (
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/admin/mortgages/${mortgage.id}/edit`}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </Link>
+              </Button>
+            )}
+            {can("delete_loans") && (
+              <Button variant="destructive" size="sm" onClick={handleDelete} disabled={processing}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </Button>
+            )}
           </div>
         )}
       </div>
@@ -558,6 +564,7 @@ export default function AdminMortgageDetailsPage() {
                     <CardTitle>Repayment Management</CardTitle>
                     <CardDescription>Record repayments and view repayment schedule.</CardDescription>
                   </div>
+                  {can("manage_loan_repayments") ? (
                   <Dialog open={repaymentDialogOpen} onOpenChange={setRepaymentDialogOpen}>
                     <DialogTrigger asChild>
                       <Button>
@@ -646,6 +653,7 @@ export default function AdminMortgageDetailsPage() {
                       )}
                     </DialogContent>
                   </Dialog>
+                  ) : null}
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">

@@ -5,9 +5,15 @@ import { useLayoutEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { getUserData } from "@/lib/auth/auth-utils"
-import { isTenantSuperAdminContext, userHasPermissionForAdminHref } from "@/lib/admin/nav-permissions"
+import {
+  isLegacyStaffFallbackPath,
+  isTenantSuperAdminContext,
+  userHasPermissionForAdminHref,
+} from "@/lib/admin/nav-permissions"
 import { getRoleSlug } from "@/lib/auth/user-roles"
 import type { AuthUser } from "@/lib/auth/types"
+import { resolveAdminHrefModule } from "@/lib/modules/module-config"
+import { getCurrentSubscription } from "@/lib/api/client"
 
 /**
  * Blocks direct URL access to admin routes when the user lacks matching Spatie permissions.
@@ -22,52 +28,63 @@ export function AdminRoutePermissionGate({ children }: { children: React.ReactNo
 
   useLayoutEffect(() => {
     setReady(false)
-    const user = getUserData() as AuthUser | null
-    if (!user) {
-      setAllowed(false)
-      setReady(true)
-      router.replace("/login")
-      return
-    }
 
-    const perms = Array.isArray(user.permissions) ? user.permissions : []
-    const roles = Array.isArray(user.roles) ? (user.roles as string[]) : []
-    const legacyRole = getRoleSlug(user)
-
-    if (isTenantSuperAdminContext(roles, legacyRole)) {
-      setAllowed(true)
-      setReady(true)
-      return
-    }
-
-    const raw = pathname || "/admin"
-    const normalized = raw.length > 1 && raw.endsWith("/") ? raw.slice(0, -1) : raw
-
-    if (perms.length === 0) {
-      const fallbackOk =
-        normalized === "/admin" ||
-        normalized === "/admin/subscriptions" ||
-        normalized.startsWith("/admin/subscriptions/")
-      if (!fallbackOk) {
+    const run = async () => {
+      const user = getUserData() as AuthUser | null
+      if (!user) {
         setAllowed(false)
         setReady(true)
-        router.replace("/unauthorized")
+        router.replace("/login")
         return
       }
+
+      const perms = Array.isArray(user.permissions) ? user.permissions : []
+      const roles = Array.isArray(user.roles) ? (user.roles as string[]) : []
+      const legacyRole = getRoleSlug(user)
+
+      const raw = pathname || "/admin"
+      const normalized = raw.length > 1 && raw.endsWith("/") ? raw.slice(0, -1) : raw
+
+      if (!isTenantSuperAdminContext(roles, legacyRole)) {
+        if (perms.length === 0) {
+          if (!isLegacyStaffFallbackPath(normalized)) {
+            setAllowed(false)
+            setReady(true)
+            router.replace("/unauthorized")
+            return
+          }
+        } else if (!userHasPermissionForAdminHref(normalized, perms)) {
+          setAllowed(false)
+          setReady(true)
+          router.replace("/unauthorized")
+          return
+        }
+      }
+
+      const requiredModule = resolveAdminHrefModule(normalized)
+      if (requiredModule) {
+        try {
+          const subRes = await getCurrentSubscription()
+          const enabled = subRes.enabled_modules ?? []
+          if (!enabled.includes(requiredModule)) {
+            setAllowed(false)
+            setReady(true)
+            router.replace(`/admin/subscriptions?upgrade_module=${encodeURIComponent(requiredModule)}`)
+            return
+          }
+        } catch {
+          setAllowed(false)
+          setReady(true)
+          router.replace("/admin/subscriptions")
+          return
+        }
+      }
+
       setAllowed(true)
       setReady(true)
-      return
     }
 
-    if (userHasPermissionForAdminHref(normalized, perms)) {
-      setAllowed(true)
-      setReady(true)
-      return
-    }
-
-    setAllowed(false)
-    setReady(true)
-    router.replace("/unauthorized")
+    void run()
   }, [pathname, router])
 
   if (!ready) {

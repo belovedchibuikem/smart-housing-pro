@@ -10,8 +10,10 @@ import { useState, useEffect } from "react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { getInboxMessages, bulkMailOperation, updateMessage, deleteMessage } from "@/lib/api/client"
 import { useToast } from "@/hooks/use-toast"
+import { Can, useTenantPermissions } from "@/components/admin/can-permission"
 
 export default function AdminInboxPage() {
+  const { can } = useTenantPermissions()
   const { toast } = useToast()
   const [messages, setMessages] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -205,16 +207,22 @@ export default function AdminInboxPage() {
             {selectedMessages.length > 0 && (
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">{selectedMessages.length} selected</span>
-                <Button size="sm" variant="outline" onClick={handleMarkAsRead}>
-                  Mark as Read
-                </Button>
-                <Button size="sm" variant="outline" onClick={handleMarkAsUnread}>
-                  Mark as Unread
-                </Button>
-                <Button size="sm" variant="destructive" onClick={handleBulkDelete}>
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Delete
-                </Button>
+                {can("view_mail|assign_mail") && (
+                  <>
+                    <Button size="sm" variant="outline" onClick={handleMarkAsRead}>
+                      Mark as Read
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={handleMarkAsUnread}>
+                      Mark as Unread
+                    </Button>
+                  </>
+                )}
+                {can("delete_mail") && (
+                  <Button size="sm" variant="destructive" onClick={handleBulkDelete}>
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Delete
+                  </Button>
+                )}
               </div>
             )}
           </div>
@@ -299,17 +307,19 @@ export default function AdminInboxPage() {
                           >
                             <Archive className="h-4 w-4" />
                           </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-8 w-8"
-                            onClick={(e) => {
-                              e.preventDefault()
-                              handleDelete(message.id)
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {can("delete_mail") && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                handleDelete(message.id)
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>

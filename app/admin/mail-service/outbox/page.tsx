@@ -10,8 +10,10 @@ import Link from "next/link"
 import { useState, useEffect } from "react"
 import { getOutboxMessages, deleteMessage } from "@/lib/api/client"
 import { useToast } from "@/hooks/use-toast"
+import { useTenantPermissions } from "@/components/admin/can-permission"
 
 export default function AdminOutboxPage() {
+  const { can } = useTenantPermissions()
   const { toast } = useToast()
   const [messages, setMessages] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -172,14 +174,16 @@ export default function AdminOutboxPage() {
                         >
                           <Send className="h-4 w-4" />
                         </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-8 w-8"
-                          onClick={(e) => handleDelete(message.id, e)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {can("delete_mail") && (
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8"
+                            onClick={(e) => handleDelete(message.id, e)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </div>

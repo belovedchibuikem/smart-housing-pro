@@ -9,6 +9,7 @@ import { ArrowLeft, CheckCircle, XCircle, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { toast as sonnerToast } from "sonner"
 import { apiFetch } from "@/lib/api/client"
+import { useTenantPermissions } from "@/components/admin/can-permission"
 import {
   Dialog,
   DialogContent,
@@ -49,6 +50,7 @@ interface EquityContribution {
 }
 
 export default function EquityContributionDetailPage() {
+  const { can } = useTenantPermissions()
   const params = useParams()
   const router = useRouter()
   const [contribution, setContribution] = useState<EquityContribution | null>(null)
@@ -192,32 +194,33 @@ export default function EquityContributionDetailPage() {
             <p className="text-muted-foreground mt-1">View and manage equity contribution</p>
           </div>
         </div>
-        {contribution.status === 'pending' && (
+        {contribution.status === "pending" && (can("approve_equity_contributions") || can("reject_equity_contributions")) && (
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setShowRejectDialog(true)}
-              disabled={processing}
-            >
-              <XCircle className="h-4 w-4 mr-2" />
-              Reject
-            </Button>
-            <Button
-              onClick={handleApprove}
-              disabled={processing}
-            >
-              {processing ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Approve
-                </>
-              )}
-            </Button>
+            {can("reject_equity_contributions") && (
+              <Button
+                variant="outline"
+                onClick={() => setShowRejectDialog(true)}
+                disabled={processing}
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                Reject
+              </Button>
+            )}
+            {can("approve_equity_contributions") && (
+              <Button onClick={handleApprove} disabled={processing}>
+                {processing ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Approve
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         )}
       </div>

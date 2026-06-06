@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Mail, Send, Users, Search, Plus } from "lucide-react"
 import Link from "next/link"
+import { Can } from "@/components/admin/can-permission"
 
 export default function AdminMailServicePage() {
   const stats = [
@@ -52,12 +53,14 @@ export default function AdminMailServicePage() {
           <h1 className="text-3xl font-bold">Mail Service Management</h1>
           <p className="text-muted-foreground mt-2">Manage member correspondence and announcements</p>
         </div>
-        <Link href="/admin/mail-service/compose">
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Send Announcement
-          </Button>
-        </Link>
+        <Can permission="compose_mail|bulk_mail">
+          <Link href="/admin/mail-service/compose">
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Send Announcement
+            </Button>
+          </Link>
+        </Can>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">

@@ -1,5 +1,6 @@
 "use client"
 
+import { useBulkUploadPermission } from "@/lib/admin/bulk-upload-permissions"
 import type React from "react"
 import { useState } from "react"
 import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle2, X } from "lucide-react"
@@ -12,6 +13,7 @@ import { apiFetch } from "@/lib/api/client"
 import { parseFile } from "@/lib/utils/file-parser"
 
 export default function BulkUploadInternalMortgagesPage() {
+	const canUpload = useBulkUploadPermission("internal-mortgages")
   const [file, setFile] = useState<File | null>(null)
   const [previewData, setPreviewData] = useState<any[]>([])
   const [uploading, setUploading] = useState(false)
@@ -429,10 +431,10 @@ export default function BulkUploadInternalMortgagesPage() {
               >
                 Cancel
               </Button>
-              <Button onClick={handleUpload} disabled={uploading || errors.length > 0 || parsing}>
+              {canUpload && <Button onClick={handleUpload} disabled={uploading || errors.length > 0 || parsing}>
                 <Upload className="h-4 w-4 mr-2" />
                 {uploading ? "Uploading..." : `Upload ${previewData.length} Plans`}
-              </Button>
+              </Button>}
             </div>
           </CardContent>
         </Card>

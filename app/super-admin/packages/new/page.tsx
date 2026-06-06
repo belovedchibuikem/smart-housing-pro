@@ -15,6 +15,7 @@ import { apiFetch } from "@/lib/api/client"
 import { buildPackageLimitsPayload } from "@/lib/super-admin/package-form-utils"
 import { useRouter } from "next/navigation"
 import { toast as sonnerToast } from "sonner"
+import { ModulePicker } from "@/components/super-admin/module-picker"
 
 export default function NewPackagePage() {
   const router = useRouter()
@@ -33,6 +34,7 @@ export default function NewPackagePage() {
     usd_hint: "",
     sort_order: "",
     display_features_text: "",
+    moduleIds: [] as string[],
     limits: {
       max_members: "",
       max_properties: "",
@@ -79,6 +81,7 @@ export default function NewPackagePage() {
         is_active: formData.is_active,
         is_featured: formData.is_featured,
         limits,
+        ...(formData.moduleIds.length ? { modules: formData.moduleIds } : {}),
       }
 
       await apiFetch("/super-admin/packages", {
@@ -413,6 +416,11 @@ export default function NewPackagePage() {
               />
             </div>
           </Card>
+
+          <ModulePicker
+            selectedIds={formData.moduleIds}
+            onChange={(moduleIds) => setFormData((prev) => ({ ...prev, moduleIds }))}
+          />
 
           <div className="flex gap-4">
             <Button type="submit" disabled={isSubmitting}>

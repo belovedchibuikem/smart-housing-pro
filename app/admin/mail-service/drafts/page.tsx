@@ -10,8 +10,10 @@ import { useState, useEffect } from "react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { getDraftMessages, bulkMailOperation } from "@/lib/api/client"
 import { useToast } from "@/hooks/use-toast"
+import { Can, useTenantPermissions } from "@/components/admin/can-permission"
 
 export default function AdminDraftsPage() {
+  const { can } = useTenantPermissions()
   const { toast } = useToast()
   const [drafts, setDrafts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -87,7 +89,7 @@ export default function AdminDraftsPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        {selectedDrafts.length > 0 && (
+        {selectedDrafts.length > 0 && can("delete_mail") && (
           <Button variant="destructive" onClick={handleBulkDelete}>
             <Trash2 className="h-4 w-4 mr-2" />
             Delete {selectedDrafts.length} draft(s)
@@ -106,12 +108,14 @@ export default function AdminDraftsPage() {
           ) : filteredDrafts.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground mb-4">No draft messages</p>
-              <Button asChild>
-                <Link href="/admin/mail-service/compose">
-                  <Edit className="h-4 w-4 mr-2" />
-                  Compose New Message
-                </Link>
-              </Button>
+              <Can permission="compose_mail">
+                <Button asChild>
+                  <Link href="/admin/mail-service/compose">
+                    <Edit className="h-4 w-4 mr-2" />
+                    Compose New Message
+                  </Link>
+                </Button>
+              </Can>
             </div>
           ) : (
             <div className="space-y-2">

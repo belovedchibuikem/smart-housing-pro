@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -34,7 +35,10 @@ function getStatusBadge(status: string) {
 }
 
 export default function AdminSubscriptionsPage() {
+  const searchParams = useSearchParams()
+  const upgradeModule = searchParams.get("upgrade_module")
   const { isLoading, loadData } = usePageLoading()
+  const [upgradePackages, setUpgradePackages] = useState<Array<{ id: string; name: string; slug: string; price: number }>>([])
   const [activeSubscription, setActiveSubscription] = useState<any>(null)
   const [subscriptionHistory, setSubscriptionHistory] = useState<Array<{
     id: string
@@ -87,6 +91,30 @@ export default function AdminSubscriptionsPage() {
     })
   }, [loadData])
 
+  useEffect(() => {
+    if (!upgradeModule) {
+      setUpgradePackages([])
+      return
+    }
+    let cancelled = false
+    getSubscriptionPackages()
+      .then((res) => {
+        if (cancelled) return
+        const packages = res.packages ?? []
+        setUpgradePackages(
+          packages.filter((pkg: { modules?: Array<{ slug: string }> }) =>
+            Array.isArray(pkg.modules) && pkg.modules.some((m) => m.slug === upgradeModule),
+          ),
+        )
+      })
+      .catch(() => {
+        if (!cancelled) setUpgradePackages([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [upgradeModule])
+
   if (error && !activeSubscription && subscriptionHistory.length === 0) {
     return (
       <div className="space-y-6">
@@ -117,6 +145,34 @@ export default function AdminSubscriptionsPage() {
           </Button>
         </Link>
       </div>
+
+      {upgradeModule ? (
+        <Alert className="border-amber-500/50 bg-amber-500/5">
+          <AlertCircle className="h-4 w-4 text-amber-600" />
+          <AlertTitle>Upgrade required</AlertTitle>
+          <AlertDescription className="space-y-3">
+            <p>
+              The <strong>{upgradeModule.replace(/_/g, " ")}</strong> module is not included in your current
+              cooperative plan. Upgrade to a higher package to unlock this feature for your cooperative and members.
+            </p>
+            {upgradePackages.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {upgradePackages.map((pkg) => (
+                  <Link key={pkg.id} href="/admin/subscription">
+                    <Button size="sm" variant="outline">
+                      Upgrade to {pkg.name}
+                    </Button>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <Link href="/admin/subscription">
+                <Button size="sm">Browse upgrade packages</Button>
+              </Link>
+            )}
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       {coopPaymentPending > 0 ? (
         <Alert>

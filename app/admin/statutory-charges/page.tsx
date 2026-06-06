@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Can, useTenantPermissions } from "@/components/admin/can-permission"
 
 interface StatutoryCharge {
   id: string
@@ -44,6 +45,7 @@ interface StatutoryCharge {
 }
 
 export default function StatutoryChargesPage() {
+  const { can } = useTenantPermissions()
   const [charges, setCharges] = useState<StatutoryCharge[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
@@ -197,12 +199,14 @@ export default function StatutoryChargesPage() {
             <h1 className="text-3xl font-bold">Statutory Charges</h1>
             <p className="text-muted-foreground mt-1">View and manage all statutory charges</p>
           </div>
-          <Link href="/admin/statutory-charges/new">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Charge
-            </Button>
-          </Link>
+          <Can permission="create_statutory_charges">
+            <Link href="/admin/statutory-charges/new">
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Charge
+              </Button>
+            </Link>
+          </Can>
         </div>
 
         <div className="grid gap-6 md:grid-cols-4">
@@ -344,22 +348,26 @@ export default function StatutoryChargesPage() {
                           <Button variant="ghost" size="icon" onClick={() => router.push(`/admin/statutory-charges/${charge.id}`)}>
                             <Eye className="h-4 w-4" />
                           </Button>
-                          {charge.status === 'pending' && (
-                            <>
-                              <Button variant="ghost" size="icon" onClick={() => setApproveDialog({ open: true, chargeId: charge.id })}>
-                                <Check className="h-4 w-4 text-green-600" />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => setRejectDialog({ open: true, chargeId: charge.id, reason: "" })}>
-                                <X className="h-4 w-4 text-red-600" />
-                              </Button>
-                            </>
+                          {charge.status === "pending" && can("approve_statutory_charges") && (
+                            <Button variant="ghost" size="icon" onClick={() => setApproveDialog({ open: true, chargeId: charge.id })}>
+                              <Check className="h-4 w-4 text-green-600" />
+                            </Button>
                           )}
-                          <Button variant="ghost" size="icon" onClick={() => router.push(`/admin/statutory-charges/${charge.id}/edit`)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => setDeleteDialog({ open: true, chargeId: charge.id })}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          {charge.status === "pending" && can("reject_statutory_charges") && (
+                            <Button variant="ghost" size="icon" onClick={() => setRejectDialog({ open: true, chargeId: charge.id, reason: "" })}>
+                              <X className="h-4 w-4 text-red-600" />
+                            </Button>
+                          )}
+                          {can("edit_statutory_charges") && (
+                            <Button variant="ghost" size="icon" onClick={() => router.push(`/admin/statutory-charges/${charge.id}/edit`)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {can("delete_statutory_charges") && (
+                            <Button variant="ghost" size="icon" onClick={() => setDeleteDialog({ open: true, chargeId: charge.id })}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

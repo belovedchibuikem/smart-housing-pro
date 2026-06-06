@@ -1,9 +1,12 @@
+"use client"
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { ArrowLeft, Reply, Forward, Trash2, Archive, Star } from "lucide-react"
 import Link from "next/link"
+import { Can } from "@/components/admin/can-permission"
 
 export default function AdminMessageDetailPage({ params }: { params: { id: string } }) {
   // Mock data - replace with actual data fetching
@@ -54,9 +57,11 @@ Member ID: FRSC-2024-1234`,
           <Button variant="outline" size="icon">
             <Archive className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon">
-            <Trash2 className="h-4 w-4" />
-          </Button>
+          <Can permission="delete_mail">
+            <Button variant="outline" size="icon">
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </Can>
         </div>
       </div>
 
@@ -86,18 +91,22 @@ Member ID: FRSC-2024-1234`,
       </Card>
 
       <div className="flex gap-2">
-        <Button asChild>
-          <Link href={`/admin/mail-service/compose?reply=${message.id}`}>
-            <Reply className="h-4 w-4 mr-2" />
-            Reply
-          </Link>
-        </Button>
-        <Button variant="outline" asChild>
-          <Link href={`/admin/mail-service/compose?forward=${message.id}`}>
-            <Forward className="h-4 w-4 mr-2" />
-            Forward
-          </Link>
-        </Button>
+        <Can permission="reply_mail|compose_mail">
+          <Button asChild>
+            <Link href={`/admin/mail-service/compose?reply=${message.id}`}>
+              <Reply className="h-4 w-4 mr-2" />
+              Reply
+            </Link>
+          </Button>
+        </Can>
+        <Can permission="compose_mail">
+          <Button variant="outline" asChild>
+            <Link href={`/admin/mail-service/compose?forward=${message.id}`}>
+              <Forward className="h-4 w-4 mr-2" />
+              Forward
+            </Link>
+          </Button>
+        </Can>
       </div>
     </div>
   )

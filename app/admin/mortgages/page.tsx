@@ -12,6 +12,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
+import { Can, useTenantPermissions } from "@/components/admin/can-permission"
 
 interface Mortgage {
   id: string
@@ -42,6 +43,7 @@ interface Mortgage {
 }
 
 export default function AdminMortgagesPage() {
+  const { can } = useTenantPermissions()
   const [mortgages, setMortgages] = useState<Mortgage[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
@@ -153,12 +155,14 @@ export default function AdminMortgagesPage() {
           <h1 className="text-3xl font-bold">Mortgage Management</h1>
           <p className="text-muted-foreground mt-1">Create and manage housing mortgage agreements</p>
         </div>
-        <Link href="/admin/mortgages/new">
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Create Mortgage
-          </Button>
-        </Link>
+        <Can permission="create_loans">
+          <Link href="/admin/mortgages/new">
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Create Mortgage
+            </Button>
+          </Link>
+        </Can>
       </div>
 
       {/* Summary Cards */}
@@ -280,22 +284,26 @@ export default function AdminMortgagesPage() {
                         <Button variant="ghost" size="icon" onClick={() => handleViewMortgage(mortgage.id)}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                          {mortgage.status === 'pending' && (
-                            <>
-                              <Button variant="ghost" size="icon" onClick={() => handleApprove(mortgage.id)} title="Approve">
-                                <Check className="h-4 w-4 text-green-600" />
-                              </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleReject(mortgage.id)} title="Reject">
-                                <X className="h-4 w-4 text-red-600" />
-                              </Button>
-                            </>
+                          {mortgage.status === "pending" && can("approve_loans") && (
+                            <Button variant="ghost" size="icon" onClick={() => handleApprove(mortgage.id)} title="Approve">
+                              <Check className="h-4 w-4 text-green-600" />
+                            </Button>
                           )}
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(mortgage.id)}>
-                            <Edit className="h-4 w-4" />
-                        </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(mortgage.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                          {mortgage.status === "pending" && can("reject_loans") && (
+                            <Button variant="ghost" size="icon" onClick={() => handleReject(mortgage.id)} title="Reject">
+                              <X className="h-4 w-4 text-red-600" />
+                            </Button>
+                          )}
+                          {can("edit_loans") && (
+                            <Button variant="ghost" size="icon" onClick={() => handleEdit(mortgage.id)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {can("delete_loans") && (
+                            <Button variant="ghost" size="icon" onClick={() => handleDelete(mortgage.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          )}
                       </div>
                     </TableCell>
                   </TableRow>

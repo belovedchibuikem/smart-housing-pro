@@ -21,6 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Can, useTenantPermissions } from "@/components/admin/can-permission"
 
 interface MaintenanceRecord {
   id: string
@@ -53,6 +54,7 @@ interface MaintenanceRecord {
 }
 
 export default function MaintenanceRecordsPage() {
+  const { can } = useTenantPermissions()
   const [records, setRecords] = useState<MaintenanceRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
@@ -187,10 +189,12 @@ export default function MaintenanceRecordsPage() {
           <h1 className="text-3xl font-bold">Maintenance Records</h1>
           <p className="text-muted-foreground mt-1">View and manage property maintenance requests</p>
         </div>
-        <Button onClick={() => router.push('/admin/property-management/maintenance/new')}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Maintenance Request
-        </Button>
+        <Can permission="create_maintenance">
+          <Button onClick={() => router.push("/admin/property-management/maintenance/new")}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Maintenance Request
+          </Button>
+        </Can>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -340,12 +344,16 @@ export default function MaintenanceRecordsPage() {
                         <Button variant="ghost" size="icon" onClick={() => handleViewDetails(record)}>
                           <Eye className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => router.push(`/admin/property-management/maintenance/${record.id}/edit`)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeleteDialog({ open: true, recordId: record.id })}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {can("edit_maintenance|assign_maintenance|complete_maintenance") && (
+                          <Button variant="ghost" size="icon" onClick={() => router.push(`/admin/property-management/maintenance/${record.id}/edit`)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        )}
+                        {can("delete_maintenance") && (
+                          <Button variant="ghost" size="icon" onClick={() => setDeleteDialog({ open: true, recordId: record.id })}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

@@ -1,5 +1,6 @@
 "use client"
 
+import { useBulkUploadPermission } from "@/lib/admin/bulk-upload-permissions"
 import type React from "react"
 
 import { useState } from "react"
@@ -25,6 +26,7 @@ interface RepaymentData {
 }
 
 export default function BulkUploadLoanRepaymentsPage() {
+	const canUpload = useBulkUploadPermission("loan-repayments")
   const [file, setFile] = useState<File | null>(null)
   const [previewData, setPreviewData] = useState<RepaymentData[]>([])
   const [uploading, setUploading] = useState(false)
@@ -394,10 +396,10 @@ export default function BulkUploadLoanRepaymentsPage() {
               >
                 Cancel
               </Button>
-              <Button onClick={handleUpload} disabled={uploading || errors.length > 0 || parsing}>
+              {canUpload && <Button onClick={handleUpload} disabled={uploading || errors.length > 0 || parsing}>
                 <Upload className="h-4 w-4 mr-2" />
                 {uploading ? "Uploading..." : `Upload ${previewData.length} Repayments`}
-              </Button>
+              </Button>}
             </div>
           </CardContent>
         </Card>

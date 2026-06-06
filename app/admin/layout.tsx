@@ -29,41 +29,52 @@ export default function AdminLayout({
   // Check tenant subscription status and handle redirects
   const { isLoading } = useSubscriptionGuard(true)
 
+  const applyUserToNav = (user: AuthUser) => {
+    const slug = getRoleSlug(user)
+    setUserRole((slug || "member") as UserRole)
+    setPermissions(Array.isArray(user.permissions) ? user.permissions : [])
+    setRoleNames(Array.isArray(user.roles) ? (user.roles as string[]) : [])
+  }
+
   useEffect(() => {
     let cancelled = false
 
     async function syncSession() {
       persistAuthSessionFromStorage()
       const cached = getUserData()
-      if (cached) {
-        const slug = getRoleSlug(cached as AuthUser)
-        if (!cancelled) {
-          setUserRole((slug || "member") as UserRole)
-          setPermissions(Array.isArray(cached.permissions) ? cached.permissions : [])
-          setRoleNames(Array.isArray(cached.roles) ? (cached.roles as string[]) : [])
-        }
+      if (cached && !cancelled) {
+        applyUserToNav(cached as AuthUser)
       }
 
       try {
         const me = await getMe()
         const fresh = me?.user as AuthUser | undefined
-        if (fresh && !cancelled) {
+        const token = typeof window !== "undefined" ? window.localStorage.getItem("auth_token") : null
+        if (fresh && token && !cancelled) {
           localStorage.setItem("user_data", JSON.stringify(fresh))
-          persistAuthSession(fresh)
+          persistAuthSession(fresh, token)
           window.dispatchEvent(new Event("sh-auth-updated"))
-          const slug = getRoleSlug(fresh)
-          setUserRole((slug || "member") as UserRole)
-          setPermissions(Array.isArray(fresh.permissions) ? fresh.permissions : [])
-          setRoleNames(Array.isArray(fresh.roles) ? (fresh.roles as string[]) : [])
+          applyUserToNav(fresh)
         }
       } catch {
         // AuthGuard handles expired sessions
       }
     }
 
+    function onAuthUpdated() {
+      const cached = getUserData()
+      if (cached) {
+        applyUserToNav(cached as AuthUser)
+      }
+    }
+
     syncSession()
+    window.addEventListener("sh-auth-updated", onAuthUpdated)
+    window.addEventListener("storage", onAuthUpdated)
     return () => {
       cancelled = true
+      window.removeEventListener("sh-auth-updated", onAuthUpdated)
+      window.removeEventListener("storage", onAuthUpdated)
     }
   }, [])
 

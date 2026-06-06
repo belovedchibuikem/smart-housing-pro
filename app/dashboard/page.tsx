@@ -83,6 +83,7 @@ interface DashboardData {
   member_status: string
   kyc_status: string
   membership_type: string
+  enabled_modules?: string[]
 }
 
 export default function DashboardPage() {
@@ -177,7 +178,11 @@ export default function DashboardPage() {
       )}
 
       {/* Stats Cards */}
-      <StatsCards data={dashboardData} loading={isLoading} />
+      <StatsCards
+        data={dashboardData}
+        loading={isLoading}
+        enabledModules={dashboardData?.enabled_modules}
+      />
 
       <SavingsRefundsPanel
         loading={isLoading}
@@ -197,7 +202,7 @@ export default function DashboardPage() {
       />
 
       {/* Quick Actions */}
-      <QuickActions />
+      <QuickActions enabledModules={dashboardData?.enabled_modules} />
 
       {/* Charts and Transactions */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-6">

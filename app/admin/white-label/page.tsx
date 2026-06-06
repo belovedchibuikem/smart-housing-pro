@@ -15,6 +15,8 @@ import { Palette, Type, ImageIcon, Mail, FileText, Save, Upload, X, Code, LinkIc
 import { toast as sonnerToast } from "sonner"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { apiFetch } from "@/lib/api/client"
+import { useTenantModules } from "@/lib/hooks/use-tenant-modules"
+import Link from "next/link"
 import { resolveStorageUrl } from "@/lib/api/config"
 
 interface WhiteLabelSettings {
@@ -83,6 +85,7 @@ const MODULE_OPTIONS = [
 ]
 
 export default function WhiteLabelPage() {
+  const { modules: planModules, isLoading: planModulesLoading } = useTenantModules({ isAdmin: true })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState<Record<string, boolean>>({})
@@ -1023,24 +1026,31 @@ export default function WhiteLabelPage() {
         <TabsContent value="advanced" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Feature Control</CardTitle>
-              <CardDescription>Enable or disable platform modules</CardDescription>
+              <CardTitle>Modules included in your plan</CardTitle>
+              <CardDescription>
+                Features available to your cooperative are defined by your business subscription package.
+                To unlock more modules, upgrade your plan.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {MODULE_OPTIONS.map((module) => (
-                <div key={module.value} className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>{module.label}</Label>
-                    <p className="text-sm text-muted-foreground">
-                      {settings.enabled_modules.includes(module.value) ? "Enabled" : "Disabled"}
-                    </p>
-                  </div>
-                  <Switch
-                    checked={settings.enabled_modules.includes(module.value)}
-                    onCheckedChange={() => toggleModule(module.value)}
-                  />
+              {planModulesLoading ? (
+                <p className="text-sm text-muted-foreground">Loading plan modules...</p>
+              ) : planModules.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No modules found for your current plan.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {planModules.map((module) => (
+                    <Badge key={module.slug} variant="secondary">
+                      {module.name}
+                    </Badge>
+                  ))}
                 </div>
-              ))}
+              )}
+              <Link href="/admin/subscriptions">
+                <Button variant="outline" size="sm">
+                  View subscription &amp; upgrade options
+                </Button>
+              </Link>
             </CardContent>
           </Card>
 

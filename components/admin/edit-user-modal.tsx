@@ -25,6 +25,8 @@ import { useRoles } from "@/lib/hooks/use-roles"
 import { User, UpdateUserRequest } from "@/lib/types/user"
 import { toast } from "sonner"
 import { Loader2 } from "lucide-react"
+import { getUserData } from "@/lib/auth/auth-utils"
+import { refreshAuthSession } from "@/lib/auth/refresh-session"
 
 interface EditUserModalProps {
   open: boolean
@@ -79,6 +81,10 @@ export function EditUserModal({ open, onOpenChange, user, onSuccess }: EditUserM
 
     try {
       await updateUser(user.id, formData)
+      const current = getUserData() as { id?: string } | null
+      if (current?.id && current.id === user.id) {
+        await refreshAuthSession()
+      }
       toast.success("User updated successfully!")
       onSuccess?.()
       onOpenChange(false)

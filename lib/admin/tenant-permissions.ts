@@ -4,6 +4,7 @@ import { getUserData } from "@/lib/auth/auth-utils"
 import type { AuthUser } from "@/lib/auth/types"
 import { getRoleSlug } from "@/lib/auth/user-roles"
 import {
+  isLegacyStaffFallbackPath,
   isTenantSuperAdminContext,
   userHasPermissionForAdminHref,
 } from "@/lib/admin/nav-permissions"
@@ -40,12 +41,7 @@ export function canAccessAdminHref(href: string, user?: AuthUser | null): boolea
 
   const perms = Array.isArray(u.permissions) ? u.permissions : []
   if (perms.length === 0) {
-    const normalized = href.replace(/\/+$/, "") || "/admin"
-    return (
-      normalized === "/admin" ||
-      normalized === "/admin/subscriptions" ||
-      normalized.startsWith("/admin/subscriptions/")
-    )
+    return isLegacyStaffFallbackPath(href)
   }
 
   return userHasPermissionForAdminHref(href, perms)

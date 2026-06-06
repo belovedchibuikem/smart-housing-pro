@@ -9,11 +9,12 @@ export function useTenant() {
 // Helper hook to check if tenant has a specific module
 export function useTenantModule(moduleSlug: string) {
   const { tenant } = useTenantContext()
+  const enabledModules = Array.isArray((tenant as { enabled_modules?: string[] } | null)?.enabled_modules)
+    ? ((tenant as { enabled_modules?: string[] }).enabled_modules as string[])
+    : []
 
-  // TODO: Implement actual module checking logic
-  // For now, return true (all modules available)
   return {
-    hasAccess: true,
+    hasAccess: enabledModules.length === 0 ? true : enabledModules.includes(moduleSlug),
     isLoading: !tenant,
   }
 }

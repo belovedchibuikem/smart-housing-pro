@@ -1,5 +1,6 @@
 "use client"
 
+import { useBulkUploadPermission } from "@/lib/admin/bulk-upload-permissions"
 import type React from "react"
 import { useState } from "react"
 import { Upload, Download, FileSpreadsheet, AlertCircle, CheckCircle2 } from "lucide-react"
@@ -10,6 +11,7 @@ import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
 
 export default function BulkUploadPropertySubscribersPage() {
+	const canUpload = useBulkUploadPermission("property-subscribers")
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [errors, setErrors] = useState<string[]>([])
@@ -102,9 +104,9 @@ export default function BulkUploadPropertySubscribersPage() {
             </Button>
           </div>
           <div className="space-y-2">
-            <h3 className="font-medium">Step 2: Fill Property ID, Member Number, Email</h3>
+            <h3 className="font-medium">Step 2: Fill property and member identifiers</h3>
             <p className="text-sm text-muted-foreground">
-              Copy the property UUID from Admin → Property detail. Member must exist (match by member number or email).
+              Copy the property UUID from Admin → Property detail. Member must exist (match by member ID, member number, staff ID, IPPIS, or email).
             </p>
           </div>
           <div className="border-2 border-dashed rounded-lg p-8 text-center">
@@ -121,10 +123,10 @@ export default function BulkUploadPropertySubscribersPage() {
               <p className="text-xs text-muted-foreground">Max 5MB</p>
             </label>
           </div>
-          <Button onClick={handleUpload} disabled={!file || uploading}>
+          {canUpload && <Button onClick={handleUpload} disabled={!file || uploading}>
             <Upload className="h-4 w-4 mr-2" />
             {uploading ? "Importing…" : "Upload & import"}
-          </Button>
+          </Button>}
         </CardContent>
       </Card>
 

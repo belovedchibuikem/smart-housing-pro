@@ -33,6 +33,7 @@ interface Package {
     usd_hint?: string
     custom_pricing?: boolean
   } | null
+  modules?: Array<{ id: string; name?: string; slug?: string }>
   created_at: string
   updated_at: string
 }
@@ -123,6 +124,12 @@ export default function PackagesPage() {
                 ) : null}
                 <p className="text-sm text-muted-foreground mt-1">
                   {pkg.billing_cycle === "trial" ? `${pkg.trial_days} days trial` : `${pkg.trial_days} days free trial`}
+                </p>
+              </div>
+
+              <div className="pt-4 border-t">
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">{pkg.modules?.length ?? 0}</span> modules included
                 </p>
               </div>
 

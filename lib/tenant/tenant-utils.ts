@@ -99,9 +99,11 @@ export function isCustomDomain(hostname: string): boolean {
  * Check if tenant has access to a specific module
  */
 export function tenantHasModule(tenant: Tenant, moduleSlug: string): boolean {
-  // This would check the tenant's subscription package modules
-  // For now, return true (will be implemented with actual subscription data)
-  return true
+  const enabled = (tenant as Tenant & { enabled_modules?: string[] }).enabled_modules
+  if (!Array.isArray(enabled) || enabled.length === 0) {
+    return true
+  }
+  return enabled.includes(moduleSlug)
 }
 
 /**

@@ -13,6 +13,8 @@ import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { createPropertyAllottee } from "@/lib/api/client"
 import { apiFetch } from "@/lib/api/client"
+import { Can } from "@/components/admin/can-permission"
+import { SearchableSelect, membersToSearchableOptions, propertiesToSearchableOptions } from "@/components/ui/searchable-select"
 import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
 
 interface Member {
@@ -46,7 +48,7 @@ export default function NewAllotteePage() {
     property_id: "",
     member_id: "",
     allocation_date: "",
-    status: "pending",
+    status: "completed",
     notes: "",
   })
 
@@ -139,8 +141,8 @@ export default function NewAllotteePage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">Create New Property Allocation</h1>
-          <p className="text-muted-foreground mt-1">Allocate a property to a member</p>
+          <h1 className="text-3xl font-bold">Assign House to Member</h1>
+          <p className="text-muted-foreground mt-1">Post a house or building to a member so they can view it on their dashboard</p>
         </div>
       </div>
 
@@ -153,7 +155,7 @@ export default function NewAllotteePage() {
           <Card>
             <CardHeader>
               <CardTitle>Allocation Information</CardTitle>
-              <CardDescription>Enter the details for the property allocation</CardDescription>
+              <CardDescription>Creates an approved subscription and completed allocation for the member</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -211,8 +213,9 @@ export default function NewAllotteePage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="completed">Completed (member can view)</SelectItem>
                       <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="pending">Pending (not visible to member)</SelectItem>
                       <SelectItem value="rejected">Rejected</SelectItem>
                     </SelectContent>
                   </Select>
@@ -236,10 +239,12 @@ export default function NewAllotteePage() {
                     Cancel
                   </Button>
                 </Link>
-                <Button type="submit" disabled={loading}>
-                  {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Create Allocation
-                </Button>
+                <Can permission="manage_property_allottees|approve_allotments">
+                  <Button type="submit" disabled={loading}>
+                    {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                    Assign Property
+                  </Button>
+                </Can>
               </div>
             </CardContent>
           </Card>

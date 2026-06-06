@@ -40,6 +40,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { toast } from "sonner"
+import { useTenantPermissions } from "@/components/admin/can-permission"
 import { formatDistanceToNow, parseISO } from "date-fns"
 
 const currencyFormatter = new Intl.NumberFormat("en-NG", {
@@ -49,6 +50,7 @@ const currencyFormatter = new Intl.NumberFormat("en-NG", {
 })
 
 export default function AdminInvestmentWithdrawalRequestsPage() {
+	const { can } = useTenantPermissions()
 	const { isLoading, loadData } = usePageLoading()
 	const [withdrawals, setWithdrawals] = useState<AdminInvestmentWithdrawalRequest[]>([])
 	const [stats, setStats] = useState<any>(null)
@@ -351,31 +353,31 @@ export default function AdminInvestmentWithdrawalRequestsPage() {
 													>
 														<Eye className="h-4 w-4" />
 													</Button>
-													{withdrawal.status === "pending" && (
-														<>
-															<Button
-																variant="ghost"
-																size="sm"
-																onClick={() => {
-																	setSelectedWithdrawal(withdrawal)
-																	setApproveDialogOpen(true)
-																}}
-															>
-																<CheckCircle2 className="h-4 w-4 text-green-600" />
-															</Button>
-															<Button
-																variant="ghost"
-																size="sm"
-																onClick={() => {
-																	setSelectedWithdrawal(withdrawal)
-																	setRejectDialogOpen(true)
-																}}
-															>
-																<XCircle className="h-4 w-4 text-red-600" />
-															</Button>
-														</>
+													{withdrawal.status === "pending" && can("approve_investments") && (
+														<Button
+															variant="ghost"
+															size="sm"
+															onClick={() => {
+																setSelectedWithdrawal(withdrawal)
+																setApproveDialogOpen(true)
+															}}
+														>
+															<CheckCircle2 className="h-4 w-4 text-green-600" />
+														</Button>
 													)}
-													{withdrawal.status === "approved" && (
+													{withdrawal.status === "pending" && can("edit_investments|approve_investments") && (
+														<Button
+															variant="ghost"
+															size="sm"
+															onClick={() => {
+																setSelectedWithdrawal(withdrawal)
+																setRejectDialogOpen(true)
+															}}
+														>
+															<XCircle className="h-4 w-4 text-red-600" />
+														</Button>
+													)}
+													{withdrawal.status === "approved" && can("manage_payments|approve_investments") && (
 														<Button
 															variant="ghost"
 															size="sm"

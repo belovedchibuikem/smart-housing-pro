@@ -1,5 +1,6 @@
 "use client"
 
+import { useBulkUploadPermission } from "@/lib/admin/bulk-upload-permissions"
 import type React from "react"
 
 import { useState } from "react"
@@ -23,6 +24,7 @@ interface RepaymentData {
 }
 
 export default function BulkUploadInternalMortgageRepaymentsPage() {
+	const canUpload = useBulkUploadPermission("internal-mortgage-repayments")
 	const [file, setFile] = useState<File | null>(null)
 	const [previewData, setPreviewData] = useState<RepaymentData[]>([])
 	const [uploading, setUploading] = useState(false)
@@ -239,7 +241,7 @@ export default function BulkUploadInternalMortgageRepaymentsPage() {
 						<Button variant="outline" onClick={handleDownloadTemplate}>
 							<Download className="h-4 w-4 mr-2" />
 							Download CSV Template
-						</Button>
+						</Button>)}
 					</div>
 
 					<div className="space-y-2">
@@ -346,7 +348,7 @@ export default function BulkUploadInternalMortgageRepaymentsPage() {
 							>
 								Cancel
 							</Button>
-							<Button onClick={handleUpload} disabled={uploading || errors.length > 0 || parsing}>
+							{canUpload && <Button onClick={handleUpload} disabled={uploading || errors.length > 0 || parsing}>
 								{uploading ? (
 									<>
 										<Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -358,7 +360,7 @@ export default function BulkUploadInternalMortgageRepaymentsPage() {
 										Upload {previewData.length} Repayments
 									</>
 								)}
-							</Button>
+							</Button>})}
 						</div>
 					</CardContent>
 				</Card>

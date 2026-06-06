@@ -308,6 +308,11 @@ export async function meRequest() {
 	return apiFetch<{ user: unknown; message?: string }>("/auth/me", { method: "GET" })
 }
 
+/** Alias used by admin layout session refresh */
+export async function getMe() {
+	return meRequest()
+}
+
 export async function logoutRequest() {
 	return apiFetch<{ message: string }>("/auth/logout", { method: "POST" })
 }
@@ -1509,17 +1514,31 @@ export async function getUserInvestmentPlan(id: string) {
 export interface UserInvestment {
 	id: string
 	member_id: string
+	plan_id?: string | null
 	amount: number
 	type: string
 	duration_months: number
 	expected_return_rate: number
 	status: string
 	investment_date: string
+	maturity_date?: string | null
+	expected_return?: number
+	total_return?: number
 	approved_at: string | null
 	approved_by: string | null
 	rejection_reason: string | null
 	rejected_at: string | null
 	rejected_by: string | null
+	plan?: {
+		id: string
+		name: string
+		description?: string | null
+		expected_return_rate?: number
+		return_type?: string
+		risk_level?: string
+		min_duration_months?: number
+		max_duration_months?: number
+	}
 	member?: {
 		id: string
 		user?: {
@@ -1531,18 +1550,18 @@ export interface UserInvestment {
 	}
 	returns?: Array<{
 		id: string
-		investment_id: string
+		investment_id?: string
 		amount: number
 		return_date: string
 		status: string
-		type: string
 	}>
 }
 
-export async function getUserInvestments(params?: { status?: string; type?: string; page?: number; per_page?: number }) {
+export async function getUserInvestments(params?: { status?: string; type?: string; plan_id?: string; page?: number; per_page?: number }) {
 	const query = new URLSearchParams()
 	if (params?.status) query.set("status", params.status)
 	if (params?.type) query.set("type", params.type)
+	if (params?.plan_id) query.set("plan_id", params.plan_id)
 	if (params?.page) query.set("page", String(params.page))
 	if (params?.per_page) query.set("per_page", String(params.per_page))
 	return apiFetch<{
@@ -1553,11 +1572,11 @@ export async function getUserInvestments(params?: { status?: string; type?: stri
 			per_page: number
 			total: number
 		}
-	}>(`/financial/investments?${query.toString()}`, { method: "GET" })
+	}>(`/investments/my?${query.toString()}`, { method: "GET" })
 }
 
 export async function getUserInvestment(id: string) {
-	return apiFetch<{ investment: UserInvestment }>(`/financial/investments/${id}`, { method: "GET" })
+	return apiFetch<{ investment: UserInvestment }>(`/investments/my/${id}`, { method: "GET" })
 }
 
 export async function createInvestment(data: {
@@ -1672,9 +1691,9 @@ export async function initializeInvestmentPayment(
 			amount: number
 			payment_method: string
 			investment_plan_id: string
-			type: string
 			duration_months: number
-			expected_return_rate: number
+			type?: string
+			expected_return_rate?: number
 			notes?: string
 			payer_name?: string
 			payer_phone?: string
@@ -2086,6 +2105,20 @@ export async function getPropertyAllotteeStats() {
 
 export async function createPropertyAllottee(data: any) {
 	return apiFetch<{ success: boolean; message: string; data: any }>("/admin/property-management/allottees", { method: "POST", body: data })
+}
+
+export async function createLandSubscription(data: {
+	member_id: string
+	land_id: string
+	allocated_land_size?: string
+	allocation_total_cost?: number
+	amount_paid?: number
+	payment_description?: string
+}) {
+	return apiFetch<{ success: boolean; message: string; data: any }>("/admin/land-subscriptions", {
+		method: "POST",
+		body: data,
+	})
 }
 
 export async function updatePropertyAllottee(id: string, data: any) {
@@ -3090,6 +3123,7 @@ export async function getSubscriptionPackages() {
 			custom_pricing?: boolean
 			is_popular: boolean
 			is_active: boolean
+			modules?: Array<{ id: string; slug: string; name: string }>
 		}>
 	}>("/subscriptions/packages", { method: "GET" })
 }
@@ -3109,6 +3143,8 @@ export async function getCurrentSubscription() {
 			days_remaining: number
 			is_active: boolean
 		} | null
+		enabled_modules?: string[]
+		modules?: Array<{ slug: string; name: string; icon?: string | null }>
 		message?: string
 	}>("/subscriptions/current", { method: "GET" })
 }

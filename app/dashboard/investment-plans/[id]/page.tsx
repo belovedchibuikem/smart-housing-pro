@@ -44,7 +44,7 @@ export default function InvestmentPlanDetailPage() {
 			try {
 			const [planResponse, investmentsResponse, methodsResponse, walletResponse] = await Promise.all([
 				loadData(() => getUserInvestmentPlan(params.id)),
-				loadData(() => getUserInvestments()).catch(() => ({ investments: [] })),
+				loadData(() => getUserInvestments({ plan_id: params.id })).catch(() => ({ investments: [] })),
 				loadData(() => getInvestmentPaymentMethods()).catch(() => ({ payment_methods: [] })),
 				loadData(() => getWallet()).catch(() => null),
 			])
@@ -57,12 +57,7 @@ export default function InvestmentPlanDetailPage() {
 				}
 
 				if (investmentsResponse.investments) {
-					// Filter investments for this plan (if plan_id exists) or all user investments
-					const planInvestments = investmentsResponse.investments.filter((inv: any) => {
-						// For now, show all investments since plan_id might not be linked
-						return true
-					})
-					setMyInvestments(planInvestments)
+					setMyInvestments(investmentsResponse.investments)
 				}
 
 				if (methodsResponse.payment_methods) {
@@ -123,9 +118,7 @@ export default function InvestmentPlanDetailPage() {
 				amount: investAmount,
 				payment_method: paymentMethod,
 				investment_plan_id: plan.id,
-				type: "fixed_deposit", // Default type
 				duration_months: plan.min_duration_months,
-				expected_return_rate: plan.expected_return_rate,
 				notes: `Investment in ${plan.name}`,
 			})
 
@@ -139,18 +132,15 @@ export default function InvestmentPlanDetailPage() {
 					description: "Complete your payment in the new tab.",
 				})
 				window.location.href = paymentResponse.payment_url
-			} else if (paymentResponse.requires_approval) {
-				toast({
-					title: "Investment submitted",
-					description: paymentResponse.message || "Your investment has been submitted and payment is pending approval.",
-				})
-				router.push("/dashboard/investments")
 			} else {
-				toast({
-					title: "Investment created successfully",
-					description: paymentResponse.message || "Your investment has been submitted for approval.",
+				const qs = new URLSearchParams({
+					investment_id: paymentResponse.investment?.id || "",
+					plan_name: plan.name,
+					amount: String(investAmount),
+					status: paymentResponse.investment?.status || "pending",
+					payment_method: paymentMethod,
 				})
-				router.push("/dashboard/investments")
+				router.push(`/dashboard/investment-plans/investment-success?${qs.toString()}`)
 			}
 		} catch (error: any) {
 			toast({

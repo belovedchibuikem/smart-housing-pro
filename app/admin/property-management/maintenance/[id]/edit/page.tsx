@@ -13,6 +13,7 @@ import { useRouter, useParams } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { getPropertyMaintenanceById, updatePropertyMaintenance } from "@/lib/api/client"
 import { apiFetch } from "@/lib/api/client"
+import { Can } from "@/components/admin/can-permission"
 import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
 import {
 	SearchableSelect,
@@ -414,10 +415,12 @@ export default function EditMaintenancePage() {
                   Cancel
                 </Button>
               </Link>
-              <Button type="submit" disabled={loading}>
-                {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                Update Maintenance Record
-              </Button>
+              <Can permission="edit_maintenance|assign_maintenance|complete_maintenance">
+                <Button type="submit" disabled={loading}>
+                  {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Update Maintenance Record
+                </Button>
+              </Can>
             </div>
           </CardContent>
         </Card>

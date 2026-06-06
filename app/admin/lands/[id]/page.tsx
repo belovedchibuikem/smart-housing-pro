@@ -198,9 +198,14 @@ export default function AdminLandDetailPage() {
         </Card>
       ) : null}
 
-      <Button variant="outline" asChild>
-        <Link href="/admin/bulk-upload/land-subscriptions">Bulk subscribe members</Link>
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="default" asChild>
+          <Link href={`/admin/land-subscriptions/new?land_id=${land.id}`}>Assign member to this land</Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link href="/admin/bulk-upload/land-subscriptions">Bulk subscribe members</Link>
+        </Button>
+      </div>
 
       <LandDocuments landId={land.id} />
     </div>

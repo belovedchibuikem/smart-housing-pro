@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { toast as sonnerToast } from "sonner"
 import { apiFetch, getAdminRefundMemberSummary, type AdminRefundMemberSummary } from "@/lib/api/client"
 import { MemberFinancialSummaryGrid } from "@/components/admin/member-financial-summary-grid"
+import { useTenantPermissions } from "@/components/admin/can-permission"
 
 interface Payment {
   id?: string
@@ -61,6 +62,7 @@ interface Contribution {
 
 export default function ContributionDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const { can } = useTenantPermissions()
   const [contribution, setContribution] = useState<Contribution | null>(null)
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState(false)
@@ -265,7 +267,7 @@ export default function ContributionDetailPage({ params }: { params: Promise<{ i
         </Badge>
       </div>
 
-      {contribution.status === "pending" && (
+      {contribution.status === "pending" && (can("approve_contributions") || can("reject_contributions")) && (
         <Card className="border-orange-200 bg-orange-50">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
@@ -274,14 +276,18 @@ export default function ContributionDetailPage({ params }: { params: Promise<{ i
                 <p className="text-sm text-muted-foreground">Review payment details and approve or reject</p>
               </div>
               <div className="flex gap-2">
-                <Button onClick={() => setShowApproveDialog(true)} disabled={processing}>
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Approve
-                </Button>
-                <Button variant="destructive" onClick={() => setShowRejectDialog(true)} disabled={processing}>
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Reject
-                </Button>
+                {can("approve_contributions") && (
+                  <Button onClick={() => setShowApproveDialog(true)} disabled={processing}>
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Approve
+                  </Button>
+                )}
+                {can("reject_contributions") && (
+                  <Button variant="destructive" onClick={() => setShowRejectDialog(true)} disabled={processing}>
+                    <XCircle className="h-4 w-4 mr-2" />
+                    Reject
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>

@@ -15,6 +15,7 @@ import { useGroupedPermissions } from "@/lib/hooks/use-permissions"
 import { CreateRoleRequest } from "@/lib/types/role"
 import { toast } from "sonner"
 import Link from "next/link"
+import { Can } from "@/components/admin/can-permission"
 
 export default function NewRolePage() {
   const router = useRouter()
@@ -242,11 +243,13 @@ export default function NewRolePage() {
               Cancel
             </Button>
           </Link>
-          <Button type="submit" disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            <Save className="mr-2 h-4 w-4" />
-            Create Role
-          </Button>
+          <Can permission="manage_roles">
+            <Button type="submit" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Save className="mr-2 h-4 w-4" />
+              Create Role
+            </Button>
+          </Can>
         </div>
       </form>
     </div>

@@ -17,6 +17,7 @@ export const TENANT_ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
   "bulk.property-subscribers": "view_properties|manage_property_allottees|approve_allotments",
   "bulk.lands": "view_properties|create_properties|edit_properties|manage_property_estates",
   "bulk.land-subscriptions": "view_properties|manage_property_allottees|approve_allotments",
+  "land-subscriptions": "view_properties|manage_property_allottees|approve_allotments|manage_payments",
   "bulk.land-payments": "view_properties|manage_property_allottees|manage_payments",
   "bulk.contributions": "view_contributions|create_contributions|edit_contributions|delete_contributions",
   "bulk.equity-contributions":
@@ -27,11 +28,13 @@ export const TENANT_ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
   "bulk.internal-mortgage-repayments": "manage_loan_repayments|view_loans",
   "bulk.refund": "manage_payments|view_wallets|view_contributions",
   "bulk.internal-mortgages": "view_loans|create_loans|approve_loans",
+  "bulk.investments": "view_investments|create_investments|approve_investments|create_investment_plans",
 
   members:
     "view_members|create_members|edit_members|delete_members|bulk_upload_members|manage_member_kyc|view_kyc|approve_kyc|reject_kyc",
   "member-subscriptions": "view_members|manage_member_kyc|view_wallets|manage_payments|view_contributions",
-  subscriptions: "manage_settings|view_analytics|view_reports|view_members|view_payment_gateways",
+  subscriptions: "access_admin_panel|manage_settings|view_analytics|view_reports|view_members|view_payment_gateways",
+  subscription: "access_admin_panel|manage_settings|view_payment_gateways",
 
   users: "view_users|create_users|edit_users|delete_users",
   roles: "manage_roles",
@@ -123,6 +126,50 @@ export function adminHrefToPermissionKey(href: string): string | null {
   return rest.split("/")[0] || null
 }
 
+/**
+ * Strict sub-route rules checked before the coarse segment OR map.
+ * Mirrors api/config/tenant_admin_action_permissions.php intent for the admin UI.
+ */
+const ADMIN_HREF_ACTION_RULES: Array<{ test: (href: string) => boolean; permission: string }> = [
+  { test: (h) => h === "/admin/members/new", permission: "create_members" },
+  { test: (h) => /^\/admin\/members\/[^/]+\/edit$/.test(h), permission: "edit_members" },
+  { test: (h) => h === "/admin/users/new", permission: "create_users" },
+  { test: (h) => /^\/admin\/users\/[^/]+\/edit$/.test(h), permission: "edit_users" },
+  { test: (h) => h === "/admin/roles/new", permission: "manage_roles" },
+  { test: (h) => /^\/admin\/roles\/[^/]+\/edit$/.test(h), permission: "manage_roles" },
+  { test: (h) => h === "/admin/loans/new", permission: "create_loans" },
+  { test: (h) => /^\/admin\/loans\/[^/]+\/edit$/.test(h), permission: "edit_loans" },
+  { test: (h) => h === "/admin/contributions/new", permission: "create_contributions" },
+  { test: (h) => /^\/admin\/contributions\/[^/]+\/edit$/.test(h), permission: "edit_contributions" },
+  { test: (h) => h === "/admin/properties/new", permission: "create_properties" },
+  { test: (h) => /^\/admin\/properties\/[^/]+\/edit$/.test(h), permission: "edit_properties" },
+  { test: (h) => h === "/admin/lands/new", permission: "create_properties" },
+  { test: (h) => /^\/admin\/lands\/[^/]+\/edit$/.test(h), permission: "edit_properties" },
+  { test: (h) => h === "/admin/documents/new", permission: "upload_documents" },
+  { test: (h) => h === "/admin/mail-service/compose", permission: "compose_mail" },
+  { test: (h) => /^\/admin\/bulk-upload\/members/.test(h), permission: "bulk_upload_members" },
+  { test: (h) => /^\/admin\/bulk-upload\/contributions/.test(h), permission: "create_contributions" },
+  { test: (h) => /^\/admin\/bulk-upload\/loans/.test(h), permission: "create_loans" },
+  { test: (h) => /^\/admin\/bulk-upload\/properties/.test(h), permission: "create_properties" },
+  { test: (h) => /^\/admin\/statutory-charges\/new/.test(h), permission: "create_statutory_charges" },
+  { test: (h) => /^\/admin\/statutory-charges\/[^/]+\/edit$/.test(h), permission: "edit_statutory_charges" },
+  { test: (h) => /^\/admin\/investment-plans\/new/.test(h), permission: "create_investment_plans" },
+  { test: (h) => /^\/admin\/investment-plans\/[^/]+\/edit$/.test(h), permission: "edit_investment_plans" },
+  { test: (h) => /^\/admin\/loan-products\/new/.test(h), permission: "create_loan_plans" },
+  { test: (h) => /^\/admin\/loan-products\/[^/]+\/edit$/.test(h), permission: "edit_loan_plans" },
+  { test: (h) => /^\/admin\/contribution-plans\/new/.test(h), permission: "create_contributions" },
+  { test: (h) => /^\/admin\/contribution-plans\/[^/]+\/edit$/.test(h), permission: "edit_contributions" },
+  { test: (h) => /^\/admin\/equity-plans\/new/.test(h), permission: "manage_equity_plans" },
+  { test: (h) => /^\/admin\/equity-plans\/[^/]+\/edit$/.test(h), permission: "manage_equity_plans" },
+  { test: (h) => /^\/admin\/payment-gateways\/new/.test(h), permission: "manage_payment_gateways" },
+  { test: (h) => /^\/admin\/payment-gateways\/[^/]+\/edit$/.test(h), permission: "manage_payment_gateways" },
+]
+
+function normalizeAdminHref(href: string): string {
+  const trimmed = href.replace(/\/+$/, "")
+  return trimmed.length > 0 ? trimmed : "/admin"
+}
+
 function hasAnyPermission(userPerms: string[], requiredPipeList: string): boolean {
   const required = requiredPipeList
     .split("|")
@@ -135,6 +182,22 @@ function hasAnyPermission(userPerms: string[], requiredPipeList: string): boolea
   return required.some((p) => set.has(p))
 }
 
+/** Paths any staff user may open when the session has no permission slugs yet (legacy). */
+export function legacyStaffFallbackPaths(): string[] {
+  return ["/admin", "/admin/subscriptions", "/admin/subscription"]
+}
+
+export function isLegacyStaffFallbackPath(href: string): boolean {
+  const normalized = normalizeAdminHref(href)
+  return (
+    normalized === "/admin" ||
+    normalized === "/admin/subscriptions" ||
+    normalized.startsWith("/admin/subscriptions/") ||
+    normalized === "/admin/subscription" ||
+    normalized.startsWith("/admin/subscription/")
+  )
+}
+
 export function userHasPermissionForAdminHref(
   href: string | undefined,
   permissions: string[] | undefined,
@@ -142,15 +205,25 @@ export function userHasPermissionForAdminHref(
   if (!href) {
     return false
   }
-  const key = adminHrefToPermissionKey(href)
+
+  const normalized = normalizeAdminHref(href)
+  const perms = permissions ?? []
+
+  for (const rule of ADMIN_HREF_ACTION_RULES) {
+    if (rule.test(normalized)) {
+      return perms.includes(rule.permission)
+    }
+  }
+
+  const key = adminHrefToPermissionKey(normalized)
   if (!key) {
     return false
   }
-  const rule = TENANT_ADMIN_ROUTE_PERMISSIONS[key]
-  if (!rule) {
+  const segmentRule = TENANT_ADMIN_ROUTE_PERMISSIONS[key]
+  if (!segmentRule) {
     return false
   }
-  return hasAnyPermission(permissions ?? [], rule)
+  return hasAnyPermission(perms, segmentRule)
 }
 
 /** Tenant Spatie role name */

@@ -45,7 +45,8 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState, useEffect } from "react"
-import { getMemberCurrentSubscription } from "@/lib/api/client"
+import { apiFetch, getMemberCurrentSubscription } from "@/lib/api/client"
+import { filterMemberNavByModules } from "@/lib/modules/filter-nav-by-modules"
 import { useI18n } from "@/lib/i18n/i18n-provider"
 
 interface NavItem {
@@ -208,6 +209,7 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
   const { t } = useI18n()
   const [openMenus, setOpenMenus] = useState<string[]>([])
   const [hasActiveSubscription, setHasActiveSubscription] = useState<boolean | null>(null)
+  const [enabledModules, setEnabledModules] = useState<string[] | null>(null)
 
   const navLabel = (item: NavItem) => (item.displayKey ? t(item.displayKey) : item.label)
 
@@ -215,13 +217,17 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
   useEffect(() => {
     const checkSubscription = async () => {
       try {
-        const response = await getMemberCurrentSubscription()
-        const isActive = response.subscription?.is_active === true && response.subscription?.status === "active"
+        const [memberRes, tenantRes] = await Promise.all([
+          getMemberCurrentSubscription(),
+          apiFetch<{ enabled_modules?: string[] }>("/tenant/modules").catch(() => ({ enabled_modules: [] })),
+        ])
+        const isActive = memberRes.subscription?.is_active === true && memberRes.subscription?.status === "active"
         setHasActiveSubscription(isActive)
+        setEnabledModules(tenantRes.enabled_modules ?? [])
       } catch (error) {
         console.error("Failed to check subscription status:", error)
-        // Default to false if check fails
         setHasActiveSubscription(false)
+        setEnabledModules([])
       }
     }
     checkSubscription()
@@ -235,7 +241,7 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
 
   // Filter nav items based on subscription status
   // Always show subscription menu, hide others if no active subscription
-  const filteredNavItems = navItems.filter((item) => {
+  const subscriptionFiltered = navItems.filter((item) => {
     // Always show subscription menu
     if (item.label === "Subscription" || item.href === "/dashboard/subscriptions") {
       return true
@@ -247,6 +253,11 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
     }
     return hasActiveSubscription
   })
+
+  const filteredNavItems =
+    enabledModules === null
+      ? subscriptionFiltered
+      : filterMemberNavByModules(subscriptionFiltered, enabledModules)
 
   const renderNavItem = (item: NavItem, level = 0) => {
     const Icon = item.icon

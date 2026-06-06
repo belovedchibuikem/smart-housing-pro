@@ -28,8 +28,10 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Loader2 } from "lucide-react"
+import { Can, useTenantPermissions } from "@/components/admin/can-permission"
 
 export default function PermissionsPage() {
+  const { can } = useTenantPermissions()
   const [searchQuery, setSearchQuery] = useState("")
   const [groupFilter, setGroupFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -107,10 +109,12 @@ export default function PermissionsPage() {
           <h1 className="text-3xl font-bold text-foreground">Permissions</h1>
           <p className="text-muted-foreground mt-1">Manage system permissions and access controls</p>
         </div>
-        <Button onClick={() => window.location.href = '/admin/permissions/new'}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Permission
-        </Button>
+        <Can permission="manage_roles">
+          <Button onClick={() => window.location.href = "/admin/permissions/new"}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Permission
+          </Button>
+        </Can>
       </div>
 
       {/* Stats Cards */}
@@ -286,17 +290,21 @@ export default function PermissionsPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => window.location.href = `/admin/permissions/${permission.id}/edit`}>
-                                  <Edit className="h-4 w-4 mr-2" />
-                                  Edit Permission
-                                </DropdownMenuItem>
-                                <DropdownMenuItem 
-                                  onClick={() => setDeletePermissionId(permission.id)}
-                                  className="text-red-600"
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
+                                {can("manage_roles") && (
+                                  <DropdownMenuItem onClick={() => window.location.href = `/admin/permissions/${permission.id}/edit`}>
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Edit Permission
+                                  </DropdownMenuItem>
+                                )}
+                                {can("manage_roles") && (
+                                  <DropdownMenuItem
+                                    onClick={() => setDeletePermissionId(permission.id)}
+                                    className="text-red-600"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>

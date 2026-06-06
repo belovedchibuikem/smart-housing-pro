@@ -54,6 +54,7 @@ import {
   isTenantSuperAdminContext,
 } from "@/lib/admin/nav-permissions"
 import { getAdminPendingBadges, getCurrentSubscription, type AdminPendingBadgeCounts } from "@/lib/api/client"
+import { filterAdminNavByModules } from "@/lib/modules/filter-nav-by-modules"
 
 /** When the API returns no permission slugs (legacy session), only the dashboard is shown. */
 const MINIMAL_STAFF_NAV: NavItem[] = [{ href: "/admin", label: "Dashboard", icon: LayoutDashboard }]
@@ -188,6 +189,7 @@ const navItems: NavItem[] = [
       { href: "/admin/property-payment-plans", label: "Payment Plans", icon: CreditCard },
       { href: "/admin/bulk-upload/properties", label: "Bulk Houses (CSV)", icon: Upload },
       { href: "/admin/bulk-upload/lands", label: "Bulk Land (CSV)", icon: Upload },
+      { href: "/admin/land-subscriptions/new", label: "Assign Land to Member", icon: UserCheck },
       { href: "/admin/bulk-upload/land-subscriptions", label: "Bulk Land Subscriptions", icon: Upload },
       { href: "/admin/bulk-upload/land-payments", label: "Bulk Land Payments", icon: Upload },
       { href: "/admin/bulk-upload/property-subscribers", label: "Bulk Property Subscribers", icon: Upload },
@@ -199,6 +201,7 @@ const navItems: NavItem[] = [
     subItems: [
       { href: "/admin/investment-plans", label: "Investment Plans", icon: Package },
       { href: "/admin/investments", label: "All Investments", icon: TrendingUp },
+      { href: "/admin/bulk-upload/investments", label: "Bulk Upload Investments", icon: Upload },
       { href: "/admin/investment-withdrawal-requests", label: "Withdrawal Requests", icon: DollarSign },
     ],
   },
@@ -217,6 +220,7 @@ const navItems: NavItem[] = [
     icon: Building2,
     subItems: [
       { href: "/admin/property-management/estates", label: "Manage Estates", icon: Building },
+      { href: "/admin/property-management/allottees/new", label: "Assign House to Member", icon: UserCheck },
       { href: "/admin/property-management/allottees", label: "Manage Allottees", icon: UserCheck },
       { href: "/admin/property-management/maintenance", label: "Maintenance Records", icon: Wrench },
       { href: "/admin/property-management/reports", label: "Management Reports", icon: FileBarChart },
@@ -304,6 +308,7 @@ export function AdminSidebar({
   const pathname = usePathname()
   const [openMenus, setOpenMenus] = useState<string[]>([])
   const [hasActiveSubscription, setHasActiveSubscription] = useState<boolean | null>(null)
+  const [enabledModules, setEnabledModules] = useState<string[] | null>(null)
   const [pendingBadges, setPendingBadges] = useState<AdminPendingBadgeCounts | null>(null)
 
   useEffect(() => {
@@ -341,10 +346,12 @@ export function AdminSidebar({
         const response = await getCurrentSubscription()
         const isActive = response.subscription?.is_active === true && response.subscription?.status === "active"
         setHasActiveSubscription(isActive)
+        setEnabledModules(response.enabled_modules ?? [])
       } catch (error) {
         console.error("Failed to check subscription status:", error)
         // Default to false if check fails
         setHasActiveSubscription(false)
+        setEnabledModules([])
       }
     }
     checkSubscription()
@@ -361,7 +368,11 @@ export function AdminSidebar({
   const filterBySubscription = (items: NavItem[]): NavItem[] => {
     return items.filter((item) => {
       // Always show subscription menu
-      if (item.label === "Subscription" || item.href === "/admin/subscriptions") {
+      if (
+        item.label === "Subscription" ||
+        item.href === "/admin/subscriptions" ||
+        item.href === "/admin/subscription"
+      ) {
         return true
       }
       // Show all other menus only if subscription is active
@@ -464,7 +475,11 @@ export function AdminSidebar({
           roleSlug,
         )
       : MINIMAL_STAFF_NAV
-  const filteredNavItems = filterBySubscription(roleFilteredItems)
+  const subscriptionFiltered = filterBySubscription(roleFilteredItems)
+  const filteredNavItems =
+    enabledModules === null
+      ? subscriptionFiltered
+      : filterAdminNavByModules(subscriptionFiltered, enabledModules)
 
   return (
     <>
