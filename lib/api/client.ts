@@ -302,6 +302,7 @@ export async function loginRequest(payload: { email: string; password: string; r
 		message: string
 		user: AuthUser
 		token: string
+		auth_context?: "tenant" | "platform"
 		tenant_id?: string | null
 		tenant?: { id: string; slug?: string | null; name?: string | null } | null
 	}>("/auth/login", {

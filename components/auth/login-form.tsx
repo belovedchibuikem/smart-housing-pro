@@ -12,6 +12,7 @@ import { Eye, EyeOff } from "lucide-react"
 import { loginRequest, setAuthToken, setTenantSlug } from "@/lib/api/client"
 import { persistAuthSession } from "@/lib/auth/auth-cookies"
 import { getDashboardRoute, hasRouteAccess } from "@/lib/auth/redirect-utils"
+import type { AuthUser } from "@/lib/auth/types"
 import { Recaptcha, RecaptchaRef } from "@/components/auth/recaptcha"
 import { useI18n } from "@/lib/i18n/i18n-provider"
 
@@ -56,7 +57,12 @@ export function LoginForm({ allowRegistration = true }: LoginFormProps) {
       setAuthToken(result.token)
 
       // Use user data from login response (no need to call /api/auth/me)
-      const user = result.user
+      const user = {
+        ...result.user,
+        auth_context:
+          result.user?.auth_context ??
+          (result.auth_context as AuthUser["auth_context"] | undefined),
+      }
 
       // Store user data in localStorage for ALL users (super-admin and cooperative orgs)
       // This allows AuthGuard to validate without calling /auth/me
