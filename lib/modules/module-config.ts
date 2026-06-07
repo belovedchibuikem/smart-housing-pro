@@ -2,6 +2,23 @@ export const ALWAYS_VISIBLE_ADMIN_HREFS = new Set([
   "/admin",
   "/admin/subscriptions",
   "/admin/subscription",
+  "/admin/settings",
+  "/admin/users",
+  "/admin/users/new",
+  "/admin/roles",
+  "/admin/roles/new",
+  "/admin/permissions",
+  "/admin/activity-logs",
+  "/admin/notifications",
+])
+
+/** Always shown in tenant admin sidebar/API — not gated by business package modules. */
+export const CORE_ADMIN_MODULE_SLUGS = new Set([
+  "settings",
+  "admin_users",
+  "roles_permissions",
+  "activity_logs",
+  "notifications",
 ])
 
 export const ALWAYS_VISIBLE_MEMBER_HREFS = new Set([
@@ -159,6 +176,7 @@ export function resolveMemberHrefModule(href: string): string | null {
 
 export function hasModuleAccess(enabledModules: string[], slug: string | null | undefined): boolean {
   if (!slug) return true
+  if (CORE_ADMIN_MODULE_SLUGS.has(slug)) return true
   if (enabledModules.length === 0) return false
   return enabledModules.includes(slug)
 }

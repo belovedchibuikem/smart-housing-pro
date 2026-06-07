@@ -55,6 +55,11 @@ import {
 } from "@/lib/admin/nav-permissions"
 import { getAdminPendingBadges, getCurrentSubscription, type AdminPendingBadgeCounts } from "@/lib/api/client"
 import { filterAdminNavByModules } from "@/lib/modules/filter-nav-by-modules"
+import {
+  ADMIN_NAV_MODULE_MAP,
+  ALWAYS_VISIBLE_ADMIN_HREFS,
+  CORE_ADMIN_MODULE_SLUGS,
+} from "@/lib/modules/module-config"
 
 /** When the API returns no permission slugs (legacy session), only the dashboard is shown. */
 const MINIMAL_STAFF_NAV: NavItem[] = [{ href: "/admin", label: "Dashboard", icon: LayoutDashboard }]
@@ -363,11 +368,21 @@ export function AdminSidebar({
 
   const isMenuOpen = (label: string) => openMenus.includes(label)
 
+  const isCoreAdminNavItem = (item: NavItem): boolean => {
+    if (item.href) {
+      const normalized = item.href.split("?")[0].replace(/\/$/, "")
+      if (ALWAYS_VISIBLE_ADMIN_HREFS.has(normalized)) {
+        return true
+      }
+    }
+    const slug = ADMIN_NAV_MODULE_MAP[item.label]
+    return slug ? CORE_ADMIN_MODULE_SLUGS.has(slug) : false
+  }
+
   // Filter nav items based on subscription status
-  // Always show subscription menu, hide others if no active subscription
+  // Always show subscription + core admin tools; hide business modules if no active subscription
   const filterBySubscription = (items: NavItem[]): NavItem[] => {
     return items.filter((item) => {
-      // Always show subscription menu
       if (
         item.label === "Subscription" ||
         item.href === "/admin/subscriptions" ||
@@ -375,10 +390,11 @@ export function AdminSidebar({
       ) {
         return true
       }
-      // Show all other menus only if subscription is active
-      // If subscription status is still loading (null), show all menus
+      if (isCoreAdminNavItem(item)) {
+        return true
+      }
       if (hasActiveSubscription === null) {
-        return true // Show all while loading
+        return true
       }
       return hasActiveSubscription
     })

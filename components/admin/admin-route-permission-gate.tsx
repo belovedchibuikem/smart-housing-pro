@@ -12,7 +12,7 @@ import {
 } from "@/lib/admin/nav-permissions"
 import { getRoleSlug } from "@/lib/auth/user-roles"
 import type { AuthUser } from "@/lib/auth/types"
-import { resolveAdminHrefModule } from "@/lib/modules/module-config"
+import { hasModuleAccess, resolveAdminHrefModule } from "@/lib/modules/module-config"
 import { getCurrentSubscription } from "@/lib/api/client"
 
 /**
@@ -66,7 +66,7 @@ export function AdminRoutePermissionGate({ children }: { children: React.ReactNo
         try {
           const subRes = await getCurrentSubscription()
           const enabled = subRes.enabled_modules ?? []
-          if (!enabled.includes(requiredModule)) {
+          if (!hasModuleAccess(enabled, requiredModule)) {
             setAllowed(false)
             setReady(true)
             router.replace(`/admin/subscriptions?upgrade_module=${encodeURIComponent(requiredModule)}`)
