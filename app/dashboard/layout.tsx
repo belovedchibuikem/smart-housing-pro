@@ -32,7 +32,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <AuthGuard requiredRole={["member", "user"]} redirectTo="/login">
+    <AuthGuard requireMemberDashboard redirectTo="/login">
       <div className="min-h-screen bg-background">
         <DashboardHeader mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
         <div className="flex">

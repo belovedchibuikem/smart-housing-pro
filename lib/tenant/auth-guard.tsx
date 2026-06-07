@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import { hasTenantStaffDashboardAccess } from "@/lib/auth/staff-access"
 import { persistAuthSessionFromStorage } from "@/lib/auth/auth-cookies"
 import { getEffectiveRoleNames } from "@/lib/auth/user-roles"
+import { getDashboardRoute } from "@/lib/auth/redirect-utils"
 
 interface AuthGuardProps {
 	children: React.ReactNode
@@ -14,6 +15,8 @@ interface AuthGuardProps {
 	requiredRole?: string | string[]
 	/** When true, allows any tenant staff user (access_admin_panel or staff Spatie role), not only legacy Admin role */
 	requireStaffDashboardAccess?: boolean
+	/** When true, only non-staff users may access (member portal). Staff are sent to /admin. */
+	requireMemberDashboard?: boolean
 }
 
 export function AuthGuard({ 
@@ -21,6 +24,7 @@ export function AuthGuard({
 	redirectTo = "/login",
 	requiredRole,
 	requireStaffDashboardAccess,
+	requireMemberDashboard,
 }: AuthGuardProps) {
 	const router = useRouter()
 	const [checking, setChecking] = useState(true)
@@ -57,7 +61,15 @@ export function AuthGuard({
 				// Tenant staff dashboard (permission-based; not limited to Admin / Super Admin roles)
 				if (requireStaffDashboardAccess) {
 					if (!hasTenantStaffDashboardAccess(userData)) {
-						if (!cancelled) router.replace(redirectTo)
+						if (!cancelled) router.replace(getDashboardRoute(userData))
+						return
+					}
+				}
+
+				// Member portal — staff belong on /admin, not /dashboard
+				if (requireMemberDashboard) {
+					if (hasTenantStaffDashboardAccess(userData)) {
+						if (!cancelled) router.replace("/admin")
 						return
 					}
 				}
@@ -78,8 +90,8 @@ export function AuthGuard({
 					)
 					
 					if (!hasRequiredRole) {
-						// User doesn't have required role
-						if (!cancelled) router.replace(redirectTo)
+						const fallbackRoute = getDashboardRoute(userData)
+						if (!cancelled) router.replace(fallbackRoute)
 						return
 					}
 				}
@@ -103,7 +115,7 @@ export function AuthGuard({
 		return () => {
 			cancelled = true
 		}
-	}, [router, redirectTo, requiredRole, requireStaffDashboardAccess])
+	}, [router, redirectTo, requiredRole, requireStaffDashboardAccess, requireMemberDashboard])
 
 	if (checking) {
 		return (

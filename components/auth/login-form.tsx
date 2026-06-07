@@ -8,11 +8,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { Eye, EyeOff } from "lucide-react"
 import { loginRequest, setAuthToken } from "@/lib/api/client"
 import { persistAuthSession } from "@/lib/auth/auth-cookies"
-import { getDashboardRoute } from "@/lib/auth/redirect-utils"
+import { getDashboardRoute, hasRouteAccess } from "@/lib/auth/redirect-utils"
 import { Recaptcha, RecaptchaRef } from "@/components/auth/recaptcha"
 import { useI18n } from "@/lib/i18n/i18n-provider"
 
@@ -22,7 +21,6 @@ interface LoginFormProps {
 
 export function LoginForm({ allowRegistration = true }: LoginFormProps) {
   const { t } = useI18n()
-  const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null)
@@ -65,15 +63,25 @@ export function LoginForm({ allowRegistration = true }: LoginFormProps) {
       localStorage.setItem('user_data', JSON.stringify(user))
       persistAuthSession(user, result.token)
 
-      // Role-based redirection using utility function
-      const dashboardRoute = getDashboardRoute(user)
+      const fallbackRoute = getDashboardRoute(user)
+      const requestedRedirect =
+        typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("redirect")
+          : null
+      const dashboardRoute =
+        requestedRedirect &&
+        requestedRedirect.startsWith("/") &&
+        !requestedRedirect.startsWith("//") &&
+        hasRouteAccess(user, requestedRedirect.split("?")[0])
+          ? requestedRedirect
+          : fallbackRoute
       
       // Debug logging
       console.log('Login successful - User data:', user)
       console.log('Dashboard route:', dashboardRoute)
       
-      // Use router.replace to avoid adding to history (prevents back button issues)
-      router.replace(dashboardRoute)
+      // Full navigation ensures auth cookies are visible to Next.js middleware
+      window.location.assign(dashboardRoute)
     } catch (err) {
       // basic error feedback
       const message = err instanceof Error ? err.message : "Login failed"
