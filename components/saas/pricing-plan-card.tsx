@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
+import { sortedPackageModules, type PackageModuleItem } from "@/lib/subscription/package-modules"
 
 export type PricingPlanDisplay = {
   id?: string
@@ -20,6 +21,7 @@ export type PricingPlanDisplay = {
   isFeatured?: boolean
   trialDays?: number
   features: string[]
+  modules?: PackageModuleItem[]
   ctaHref: string
   ctaLabel: string
   ctaVariant?: "default" | "outline"
@@ -59,6 +61,7 @@ export function PricingPlanCard({ plan }: { plan: PricingPlanDisplay }) {
   const contact = Boolean(plan.customPricing)
   const tagline = plan.tagline?.trim()
   const showTaglineBadge = tagline && tagline.toLowerCase() !== "most popular"
+  const modules = sortedPackageModules(plan.modules)
 
   return (
     <Card
@@ -120,7 +123,7 @@ export function PricingPlanCard({ plan }: { plan: PricingPlanDisplay }) {
         </div>
 
         {plan.features.length > 0 && (
-          <ul className="mb-8 flex-1 space-y-3">
+          <ul className="mb-6 space-y-3">
             {plan.features.map((feature) => (
               <li key={feature} className="flex items-start gap-3 text-sm leading-snug">
                 <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/15">
@@ -131,6 +134,26 @@ export function PricingPlanCard({ plan }: { plan: PricingPlanDisplay }) {
             ))}
           </ul>
         )}
+
+        {modules.length > 0 && (
+          <div className={cn("mb-8 flex-1", plan.features.length === 0 && "mt-0")}>
+            <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Included modules
+            </p>
+            <ul className="space-y-2">
+              {modules.map((module) => (
+                <li key={module.id ?? module.slug} className="flex items-start gap-3 text-sm leading-snug">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                    <Check className="h-3 w-3 text-primary" />
+                  </span>
+                  <span>{module.name}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {plan.features.length === 0 && modules.length === 0 ? <div className="mb-8 flex-1" /> : null}
 
         <Button className="mt-auto w-full" size="lg" variant={plan.ctaVariant ?? (featured ? "default" : "outline")} asChild>
           <Link href={plan.ctaHref}>{plan.ctaLabel}</Link>

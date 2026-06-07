@@ -13,6 +13,8 @@ import { getMemberSubscriptionPackages, getSubscriptionPackages } from "@/lib/ap
 import { usePageLoading } from "@/hooks/use-loading"
 import { getUserData } from "@/lib/auth/auth-utils"
 import { hasTenantStaffDashboardAccess } from "@/lib/auth/staff-access"
+import { PackageModuleList } from "@/components/subscription/package-module-list"
+import { marketingFeaturesFromPackage, type PackageModuleItem } from "@/lib/subscription/package-modules"
 
 function formatDuration(days: number): string {
   if (days === 7) return "7 days"
@@ -72,6 +74,7 @@ export default function SubscriptionPage() {
       custom_pricing?: boolean
       is_popular: boolean
       is_active: boolean
+      modules?: PackageModuleItem[]
     }>
   >([])
   const [error, setError] = useState<string | null>(null)
@@ -157,13 +160,9 @@ export default function SubscriptionPage() {
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4 max-w-7xl mx-auto">
           {packages.map((pkg) => {
             const custom = Boolean(pkg.custom_pricing)
-            const list =
-              Array.isArray(pkg.display_features) && pkg.display_features.length
-                ? pkg.display_features
-                : pkg.features
-            const hasItems = Array.isArray(list)
-              ? list.length > 0
-              : list && typeof list === "object" && Object.keys(list as object).length > 0
+            const marketingFeatures = marketingFeaturesFromPackage(pkg)
+            const hasMarketing = marketingFeatures.length > 0
+            const hasModules = Array.isArray(pkg.modules) && pkg.modules.length > 0
 
             return (
               <Card
@@ -195,32 +194,26 @@ export default function SubscriptionPage() {
                     <p className="text-sm text-muted-foreground mt-2">{pkg.description}</p>
                   )}
                 </CardHeader>
-                <CardContent className="flex-1">
-                  {hasItems ? (
+                <CardContent className="flex-1 space-y-4">
+                  {hasMarketing ? (
                     <ul className="space-y-3">
-                      {Array.isArray(list) ? (
-                        list.map((feature, index) => (
-                          <li key={index} className="flex items-start gap-2">
-                            <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                            <span className="text-sm">
-                              {typeof feature === "string" ? feature : JSON.stringify(feature)}
-                            </span>
-                          </li>
-                        ))
-                      ) : (
-                        Object.entries(list as Record<string, unknown>).map(([key, value], index) => (
-                          <li key={index} className="flex items-start gap-2">
-                            <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                            <span className="text-sm">
-                              <strong>{key}:</strong> {String(value)}
-                            </span>
-                          </li>
-                        ))
-                      )}
+                      {marketingFeatures.map((feature, index) => (
+                        <li key={index} className="flex items-start gap-2">
+                          <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+                          <span className="text-sm">{feature}</span>
+                        </li>
+                      ))}
                     </ul>
-                  ) : (
+                  ) : null}
+                  {hasModules && isAdmin ? (
+                    <PackageModuleList
+                      modules={pkg.modules}
+                      heading={hasMarketing ? "Included modules" : null}
+                    />
+                  ) : null}
+                  {!hasMarketing && !(hasModules && isAdmin) ? (
                     <p className="text-sm text-muted-foreground">All standard features included</p>
-                  )}
+                  ) : null}
                 </CardContent>
                 <CardFooter>
                   {custom && isAdmin ? (

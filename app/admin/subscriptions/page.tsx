@@ -40,6 +40,7 @@ export default function AdminSubscriptionsPage() {
   const { isLoading, loadData } = usePageLoading()
   const [upgradePackages, setUpgradePackages] = useState<Array<{ id: string; name: string; slug: string; price: number }>>([])
   const [activeSubscription, setActiveSubscription] = useState<any>(null)
+  const [planModules, setPlanModules] = useState<Array<{ slug: string; name: string }>>([])
   const [subscriptionHistory, setSubscriptionHistory] = useState<Array<{
     id: string
     package_name: string
@@ -79,6 +80,12 @@ export default function AdminSubscriptionsPage() {
 
         if (currentRes.subscription) {
           setActiveSubscription(currentRes.subscription)
+        }
+
+        if (Array.isArray(currentRes.modules)) {
+          setPlanModules(currentRes.modules)
+        } else {
+          setPlanModules([])
         }
 
         if (historyRes.subscriptions) {
@@ -238,6 +245,19 @@ export default function AdminSubscriptionsPage() {
               </div>
             </div>
           </div>
+
+          {planModules.length > 0 ? (
+            <div className="mt-6 border-t pt-6">
+              <p className="text-sm text-muted-foreground mb-3">Included modules</p>
+              <div className="flex flex-wrap gap-2">
+                {planModules.map((module) => (
+                  <Badge key={module.slug} variant="secondary">
+                    {module.name}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
       ) : isLoading ? (

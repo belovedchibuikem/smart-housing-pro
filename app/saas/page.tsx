@@ -9,6 +9,7 @@ import { SaaSHeader } from "@/components/saas/saas-header"
 import { PricingPlanCard, type PricingPlanDisplay } from "@/components/saas/pricing-plan-card"
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api/client"
+import { marketingFeaturesFromPackage } from "@/lib/subscription/package-modules"
 
 /** Central business subscription package (from GET /onboarding/packages) */
 interface OnboardingPackage {
@@ -25,17 +26,15 @@ interface OnboardingPackage {
   usd_hint?: string | null
   custom_pricing?: boolean
   limits?: Record<string, any>
+  modules?: Array<{
+    id: string
+    name: string
+    slug: string
+  }>
 }
 
 function planFeaturesFromApi(pkg: OnboardingPackage): string[] {
-  if (Array.isArray(pkg.display_features) && pkg.display_features.length) {
-    return pkg.display_features
-  }
-  const fromLimits = pkg.limits?.display_features
-  if (Array.isArray(fromLimits) && fromLimits.length) {
-    return fromLimits
-  }
-  return []
+  return marketingFeaturesFromPackage(pkg)
 }
 
 function apiPackageToPlan(pkg: OnboardingPackage): PricingPlanDisplay {
@@ -53,6 +52,7 @@ function apiPackageToPlan(pkg: OnboardingPackage): PricingPlanDisplay {
     isFeatured: Boolean(pkg.is_featured),
     trialDays: pkg.trial_days,
     features: planFeaturesFromApi(pkg),
+    modules: pkg.modules,
     ctaHref: isContact ? "/saas/contact" : "/onboard",
     ctaLabel: isContact ? "Contact sales" : "Get started",
     ctaVariant: pkg.is_featured ? "default" : "outline",

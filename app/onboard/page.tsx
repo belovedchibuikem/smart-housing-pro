@@ -12,6 +12,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Building2, Check, ArrowRight, ArrowLeft, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
 import { apiFetch } from "@/lib/api/client"
+import {
+  marketingFeaturesFromPackage,
+  mergePackageFeatures,
+} from "@/lib/subscription/package-modules"
 
 interface Package {
   id: string
@@ -288,12 +292,12 @@ export default function OnboardingPage() {
   }
 
   const getPackageFeatures = (pkg: Package): string[] => {
-    if (Array.isArray(pkg.display_features) && pkg.display_features.length) {
-      return pkg.display_features
+    const marketing = marketingFeaturesFromPackage(pkg)
+    const merged = mergePackageFeatures(marketing, pkg.modules)
+    if (merged.length > 0) {
+      return merged
     }
-    if (Array.isArray(pkg.limits?.display_features) && pkg.limits.display_features.length) {
-      return pkg.limits.display_features as string[]
-    }
+
     const features: string[] = []
     if (pkg.limits) {
       if (pkg.limits.max_members) {
@@ -308,9 +312,6 @@ export default function OnboardingPage() {
       if (pkg.limits.storage_gb) {
         features.push(`${pkg.limits.storage_gb}GB storage`)
       }
-    }
-    if (pkg.modules && pkg.modules.length > 0) {
-      features.push(`${pkg.modules.length} modules included`)
     }
     if (features.length === 0) {
       features.push("All core features")
