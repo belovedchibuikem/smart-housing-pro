@@ -492,10 +492,12 @@ export function AdminSidebar({
         )
       : MINIMAL_STAFF_NAV
   const subscriptionFiltered = filterBySubscription(roleFilteredItems)
-  const filteredNavItems =
-    enabledModules === null
-      ? subscriptionFiltered
-      : filterAdminNavByModules(subscriptionFiltered, enabledModules)
+  const shouldSkipModuleFilter =
+    enabledModules === null ||
+    (hasActiveSubscription === true && enabledModules.length === 0)
+  const filteredNavItems = shouldSkipModuleFilter
+    ? subscriptionFiltered
+    : filterAdminNavByModules(subscriptionFiltered, enabledModules)
 
   return (
     <>

@@ -10,6 +10,13 @@ export const ALWAYS_VISIBLE_ADMIN_HREFS = new Set([
   "/admin/permissions",
   "/admin/activity-logs",
   "/admin/notifications",
+  "/admin/documents",
+  "/admin/payment-gateways",
+  "/admin/payment-approvals",
+  "/admin/landing-page",
+  "/admin/landing-page/templates",
+  "/admin/white-label",
+  "/admin/custom-domains",
 ])
 
 /** Always shown in tenant admin sidebar/API — not gated by business package modules. */
@@ -19,6 +26,10 @@ export const CORE_ADMIN_MODULE_SLUGS = new Set([
   "roles_permissions",
   "activity_logs",
   "notifications",
+  "documents",
+  "payment_manager",
+  "landing_page",
+  "white_label",
 ])
 
 export const ALWAYS_VISIBLE_MEMBER_HREFS = new Set([
