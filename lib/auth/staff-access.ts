@@ -1,12 +1,27 @@
 import { getEffectiveRoleNames } from "./user-roles"
 
+/** Non-member cooperative staff roles (Spatie role `name` values). */
+const STAFF_ROLE_SLUGS = new Set([
+  "super_admin",
+  "admin",
+  "finance_manager",
+  "accountant",
+  "loan_officer",
+  "property_manager",
+  "manager",
+  "member_manager",
+  "document_manager",
+  "investment_manager",
+  "system_admin",
+  "staff",
+])
+
 function normalizeRoleName(role: string | undefined | null): string {
   return role?.toLowerCase().replace(/-/g, "_") ?? ""
 }
 
 function isStaffRoleName(role: string): boolean {
-  const normalized = normalizeRoleName(role)
-  return normalized === "super_admin" || normalized === "admin"
+  return STAFF_ROLE_SLUGS.has(normalizeRoleName(role))
 }
 
 /**
@@ -14,11 +29,16 @@ function isStaffRoleName(role: string): boolean {
  * Mirrors App\Models\Tenant\User::isAdmin() so login routing matches API access.
  */
 export function hasTenantStaffDashboardAccess(userData: {
+  is_staff?: boolean
   permissions?: string[]
   roles?: string[]
   role?: string | { slug?: string }
 } | null): boolean {
   if (!userData) return false
+
+  if (userData.is_staff === true) {
+    return true
+  }
 
   const roles = getEffectiveRoleNames(userData)
 

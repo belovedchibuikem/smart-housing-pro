@@ -298,7 +298,13 @@ export async function apiFetchBlob(path: string): Promise<Blob> {
 
 /** `email` is the login identifier: email, member number, IPPIS, FRSC PIN, or (tenant / cooperative subdomain only) member UUID. */
 export async function loginRequest(payload: { email: string; password: string; recaptcha_token?: string }) {
-	return apiFetch<{ message: string; user: AuthUser; token: string }>("/auth/login", {
+	return apiFetch<{
+		message: string
+		user: AuthUser
+		token: string
+		tenant_id?: string | null
+		tenant?: { id: string; slug?: string | null; name?: string | null } | null
+	}>("/auth/login", {
 		method: "POST",
 		body: payload,
 	})

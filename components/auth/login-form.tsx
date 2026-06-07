@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
 import { Eye, EyeOff } from "lucide-react"
-import { loginRequest, setAuthToken } from "@/lib/api/client"
+import { loginRequest, setAuthToken, setTenantSlug } from "@/lib/api/client"
 import { persistAuthSession } from "@/lib/auth/auth-cookies"
 import { getDashboardRoute, hasRouteAccess } from "@/lib/auth/redirect-utils"
 import { Recaptcha, RecaptchaRef } from "@/components/auth/recaptcha"
@@ -62,6 +62,11 @@ export function LoginForm({ allowRegistration = true }: LoginFormProps) {
       // This allows AuthGuard to validate without calling /auth/me
       localStorage.setItem('user_data', JSON.stringify(user))
       persistAuthSession(user, result.token)
+
+      const tenantSlug = result.tenant?.slug?.trim()
+      if (tenantSlug) {
+        setTenantSlug(tenantSlug)
+      }
 
       const fallbackRoute = getDashboardRoute(user)
       const requestedRedirect =

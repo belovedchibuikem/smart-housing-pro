@@ -16,9 +16,18 @@ function parsePermCookie(raw: string | undefined | null): string[] {
   }
 }
 
-function adminPathAllowed(pathname: string, perms: string[], roleSlug: string): boolean {
+function adminPathAllowed(
+  pathname: string,
+  perms: string[],
+  roleSlug: string,
+  isStaffFlag: string | undefined,
+): boolean {
   const slug = roleSlug.toLowerCase().replace(/-/g, "_")
-  if (slug === "super_admin") return true
+  if (slug === "super_admin" || slug === "admin") return true
+  if (isStaffFlag === "1") {
+    if (perms.length > 0) return userHasPermissionForAdminHref(pathname, perms)
+    return isLegacyStaffFallbackPath(pathname)
+  }
   if (perms.length > 0) return userHasPermissionForAdminHref(pathname, perms)
   return isLegacyStaffFallbackPath(pathname)
 }
@@ -43,18 +52,17 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Cooperative staff /admin — requires mirrored auth cookies (see persistAuthSession in login flow)
+  // Cooperative staff /admin — enforce route permissions when auth cookies exist.
+  // Missing cookies: allow through; client AuthGuard reads localStorage (avoids post-login redirect loops).
   if (pathname.startsWith("/admin")) {
     const token = request.cookies.get(AUTH_COOKIE.TOKEN)?.value
-    if (!token) {
-      const loginUrl = new URL("/login", request.url)
-      loginUrl.searchParams.set("redirect", pathname)
-      return NextResponse.redirect(loginUrl)
-    }
-    const perms = parsePermCookie(request.cookies.get(AUTH_COOKIE.PERMISSIONS)?.value)
-    const roleSlug = request.cookies.get(AUTH_COOKIE.ROLE_SLUG)?.value ?? ""
-    if (!adminPathAllowed(pathname, perms, roleSlug)) {
-      return NextResponse.redirect(new URL("/unauthorized", request.url))
+    if (token) {
+      const perms = parsePermCookie(request.cookies.get(AUTH_COOKIE.PERMISSIONS)?.value)
+      const roleSlug = request.cookies.get(AUTH_COOKIE.ROLE_SLUG)?.value ?? ""
+      const isStaff = request.cookies.get(AUTH_COOKIE.IS_STAFF)?.value
+      if (!adminPathAllowed(pathname, perms, roleSlug, isStaff)) {
+        return NextResponse.redirect(new URL("/unauthorized", request.url))
+      }
     }
   }
 

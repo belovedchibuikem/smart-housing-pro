@@ -15,4 +15,6 @@ export interface AuthUser {
 	role?: AuthRole | string
 	roles?: string[]
 	permissions?: string[]
+	/** Set by API UserResource; mirrors User::isAdmin() */
+	is_staff?: boolean
 }
