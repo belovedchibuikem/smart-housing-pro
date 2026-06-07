@@ -1,4 +1,4 @@
-import { getMe } from "@/lib/api/client"
+import { meRequest } from "@/lib/api/client"
 import { persistAuthSession } from "@/lib/auth/auth-cookies"
 import type { AuthUser } from "@/lib/auth/types"
 
@@ -13,7 +13,7 @@ export async function refreshAuthSession(): Promise<AuthUser | null> {
   if (!token) return null
 
   try {
-    const res = await getMe()
+    const res = await meRequest()
     const fresh = res?.user as AuthUser | undefined
     if (!fresh) return null
 

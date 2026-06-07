@@ -11,7 +11,7 @@ import type { UserRole } from "@/lib/roles"
 import { getUserData } from "@/lib/auth/auth-utils"
 import type { AuthUser } from "@/lib/auth/types"
 import { persistAuthSession, persistAuthSessionFromStorage } from "@/lib/auth/auth-cookies"
-import { getMe } from "@/lib/api/client"
+import { meRequest } from "@/lib/api/client"
 import { getRoleSlug } from "@/lib/auth/user-roles"
 import { useSubscriptionGuard } from "@/lib/hooks/use-subscription"
 import { Loader2 } from "lucide-react"
@@ -47,7 +47,7 @@ export default function AdminLayout({
       }
 
       try {
-        const me = await getMe()
+        const me = await meRequest()
         const fresh = me?.user as AuthUser | undefined
         const token = typeof window !== "undefined" ? window.localStorage.getItem("auth_token") : null
         if (fresh && token && !cancelled) {

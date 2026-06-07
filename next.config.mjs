@@ -1,5 +1,18 @@
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  transpilePackages: ['react-day-picker', 'date-fns'],
+  webpack: (config) => {
+    config.resolve.alias['date-fns/locale/en-US'] = path.join(
+      __dirname,
+      'node_modules/date-fns/locale/en-US.js',
+    )
+    return config
+  },
   eslint: {
     ignoreDuringBuilds: true,
   },

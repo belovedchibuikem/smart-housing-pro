@@ -314,7 +314,7 @@ export default function BulkUploadPropertiesPage() {
             <Button variant="outline" onClick={downloadTemplate}>
               <Download className="h-4 w-4 mr-2" />
               Download CSV Template
-            </Button>)}
+            </Button>
           </div>
 
           <div className="space-y-2">
@@ -403,10 +403,12 @@ export default function BulkUploadPropertiesPage() {
               <Button variant="outline" onClick={() => { setFile(null); setPreviewData([]); setErrors([]) }}>
                 Cancel
               </Button>
-              {canUpload && <Button onClick={handleUpload} disabled={uploading || errors.length > 0 || parsing}>
+              {canUpload && (
+                <Button onClick={handleUpload} disabled={uploading || errors.length > 0 || parsing}>
                 <Upload className="h-4 w-4 mr-2" />
                 {uploading ? "Uploading..." : `Upload ${previewData.length} Properties`}
-              </Button>})}
+              </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -451,7 +453,7 @@ export default function BulkUploadPropertiesPage() {
               <Button variant="outline" onClick={() => { setFile(null); setPreviewData([]); setErrors([]); setUploadComplete(false); setUploadResult(null) }}>
                 <X className="h-4 w-4 mr-2" />
                 Start New Upload
-              </Button>)}
+              </Button>
             </div>
           </CardContent>
         </Card>

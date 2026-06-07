@@ -241,7 +241,7 @@ export default function BulkUploadMortgageRepaymentsPage() {
 						<Button variant="outline" onClick={handleDownloadTemplate}>
 							<Download className="h-4 w-4 mr-2" />
 							Download CSV Template
-						</Button>)}
+						</Button>
 					</div>
 
 					<div className="space-y-2">
@@ -348,7 +348,8 @@ export default function BulkUploadMortgageRepaymentsPage() {
 							>
 								Cancel
 							</Button>
-							{canUpload && <Button onClick={handleUpload} disabled={uploading || errors.length > 0 || parsing}>
+							{canUpload && (
+								<Button onClick={handleUpload} disabled={uploading || errors.length > 0 || parsing}>
 								{uploading ? (
 									<>
 										<Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -360,7 +361,8 @@ export default function BulkUploadMortgageRepaymentsPage() {
 										Upload {previewData.length} Repayments
 									</>
 								)}
-							</Button>})}
+							</Button>
+							)}
 						</div>
 					</CardContent>
 				</Card>

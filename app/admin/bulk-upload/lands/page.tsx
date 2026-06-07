@@ -228,10 +228,12 @@ export default function BulkUploadLandsPage() {
               <Button variant="outline" onClick={() => { setFile(null); setPreviewData([]); setErrors([]) }}>
                 Clear
               </Button>
-              {canUpload && <Button onClick={handleUpload} disabled={uploading || parsing}>
+              {canUpload && (
+                <Button onClick={handleUpload} disabled={uploading || parsing}>
                 <Upload className="mr-2 h-4 w-4" />
                 {uploading ? "Uploading…" : "Upload"}
-              </Button>})}
+              </Button>
+              )}
             </div>
           </CardContent>
         </Card>
