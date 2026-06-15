@@ -21,16 +21,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Globe, CheckCircle, XCircle, Clock, Search, Eye, Check, X } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { Globe, CheckCircle, XCircle, Clock, Search, Eye, Check, X, Loader2 } from "lucide-react"
+import { toast } from "sonner"
 import Link from "next/link"
+import { PageSkeleton } from "@/components/ui/skeleton-loader"
 
 interface DomainRequest {
   id: string
   tenant_id: string
   business_name: string
   full_domain: string
-  status: "pending" | "verifying" | "verified" | "active" | "failed" | "rejected"
+  status: "pending" | "verifying" | "pending_verification" | "verified" | "active" | "failed" | "rejected"
   verification_token: string
   dns_records: Array<{ type: string; name: string; value: string }>
   requested_at: string
@@ -48,13 +49,13 @@ interface DomainRequestsResponse {
 }
 
 export default function DomainRequestsPage() {
-  const { toast } = useToast()
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [selectedRequest, setSelectedRequest] = useState<DomainRequest | null>(null)
   const [showReviewDialog, setShowReviewDialog] = useState(false)
   const [reviewAction, setReviewAction] = useState<"approve" | "reject" | null>(null)
   const [adminNotes, setAdminNotes] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const { isLoading, data, error, loadData } = usePageLoading<DomainRequestsResponse>()
 
   const debouncedSearch = useCallback(() => {
@@ -75,11 +76,16 @@ export default function DomainRequestsPage() {
     debouncedSearch()
   }, [debouncedSearch])
 
-  if (error) return <div className="p-6 text-red-600">{error}</div>
-  if (isLoading || !data) return null // Let the skeleton loader handle the display
+  const reloadRequests = useCallback(async () => {
+    const params = new URLSearchParams()
+    if (searchQuery) params.append("search", searchQuery)
+    if (statusFilter !== "all") params.append("status", statusFilter)
 
-  const requests = data?.requests || []
-  const stats = data?.stats
+    return loadData(async () => {
+      const response = await apiFetch<DomainRequestsResponse>(`/super-admin/domain-requests?${params.toString()}`)
+      return response
+    })
+  }, [searchQuery, statusFilter, loadData])
 
   const handleReview = (request: DomainRequest, action: "approve" | "reject") => {
     setSelectedRequest(request)
@@ -88,47 +94,54 @@ export default function DomainRequestsPage() {
     setShowReviewDialog(true)
   }
 
-  const handleSubmitReview = async () => {
-    if (!selectedRequest || !reviewAction) return
-
-    try {
-      await apiFetch(`/super-admin/domain-requests/${selectedRequest.id}/review`, {
-        method: 'POST',
-        body: {
-          action: reviewAction,
-          admin_notes: adminNotes
-        }
-      })
-
-      toast({
-        title: "Success",
-        description: `Domain request ${reviewAction === "approve" ? "approved" : "rejected"} successfully`,
-      })
-
-      setShowReviewDialog(false)
-      // Reload data
-      loadData(async () => {
-        const params = new URLSearchParams()
-        if (searchQuery) params.append('search', searchQuery)
-        if (statusFilter !== 'all') params.append('status', statusFilter)
-        
-        const response = await apiFetch<DomainRequestsResponse>(`/super-admin/domain-requests?${params.toString()}`)
-        return response
-      })
-    } catch (error) {
-      console.error("Error reviewing domain request:", error)
-      toast({
-        title: "Error",
-        description: "Failed to process domain request",
-        variant: "destructive",
-      })
+  const handleReviewDialogOpenChange = (open: boolean) => {
+    setShowReviewDialog(open)
+    if (!open) {
+      setReviewAction(null)
+      setSelectedRequest(null)
+      setAdminNotes("")
+      setIsSubmitting(false)
     }
   }
+
+  const handleSubmitReview = async () => {
+    if (!selectedRequest || !reviewAction || isSubmitting) return
+
+    setIsSubmitting(true)
+    try {
+      await apiFetch(`/super-admin/domain-requests/${selectedRequest.id}/review`, {
+        method: "POST",
+        body: {
+          action: reviewAction,
+          admin_notes: adminNotes,
+        },
+      })
+
+      toast.success(
+        `Domain request ${reviewAction === "approve" ? "approved" : "rejected"} successfully`
+      )
+
+      handleReviewDialogOpenChange(false)
+      await reloadRequests()
+    } catch (err) {
+      console.error("Error reviewing domain request:", err)
+      toast.error(err instanceof Error ? err.message : "Failed to process domain request")
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  if (error) return <div className="p-6 text-red-600">{error}</div>
+
+  const showInitialLoading = (isLoading || !data) && !showReviewDialog
+  const requests = data?.requests || []
+  const stats = data?.stats || { total: 0, pending: 0, verified: 0, active: 0 }
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: any; icon: any; label: string }> = {
       pending: { variant: "secondary", icon: Clock, label: "Pending" },
       verifying: { variant: "default", icon: Clock, label: "Verifying" },
+      pending_verification: { variant: "default", icon: Clock, label: "Pending Verification" },
       verified: { variant: "default", icon: CheckCircle, label: "Verified" },
       active: { variant: "default", icon: CheckCircle, label: "Active" },
       failed: { variant: "destructive", icon: XCircle, label: "Failed" },
@@ -146,6 +159,79 @@ export default function DomainRequestsPage() {
     )
   }
 
+
+  const reviewDialog = (
+    <Dialog open={showReviewDialog} onOpenChange={handleReviewDialogOpenChange}>
+      <DialogContent className="sm:max-w-lg z-[100]">
+        <DialogHeader>
+          <DialogTitle>{reviewAction === "approve" ? "Approve" : "Reject"} Domain Request</DialogTitle>
+          <DialogDescription>
+            {reviewAction === "approve"
+              ? "Approve this custom domain request to allow the business to use it."
+              : "Reject this custom domain request. The business will be notified."}
+          </DialogDescription>
+        </DialogHeader>
+        {selectedRequest && (
+          <div className="space-y-4 py-4">
+            <div>
+              <p className="text-sm font-medium">Business</p>
+              <p className="text-sm text-muted-foreground">{selectedRequest.business_name}</p>
+            </div>
+            <div>
+              <p className="text-sm font-medium">Domain</p>
+              <p className="text-sm text-muted-foreground font-mono">{selectedRequest.full_domain}</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="admin-notes">Admin Notes (Optional)</Label>
+              <Textarea
+                id="admin-notes"
+                placeholder="Add notes about this decision..."
+                value={adminNotes}
+                onChange={(e) => setAdminNotes(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+        )}
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => handleReviewDialogOpenChange(false)}
+            disabled={isSubmitting}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={handleSubmitReview}
+            disabled={isSubmitting || !selectedRequest || !reviewAction}
+            variant={reviewAction === "approve" ? "default" : "destructive"}
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Processing...
+              </>
+            ) : reviewAction === "approve" ? (
+              "Approve Request"
+            ) : (
+              "Reject Request"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+
+  if (showInitialLoading) {
+    return (
+      <>
+        <PageSkeleton />
+        {reviewDialog}
+      </>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -302,49 +388,7 @@ export default function DomainRequestsPage() {
         </CardContent>
       </Card>
 
-      {/* Review Dialog */}
-      <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{reviewAction === "approve" ? "Approve" : "Reject"} Domain Request</DialogTitle>
-            <DialogDescription>
-              {reviewAction === "approve"
-                ? "Approve this custom domain request to allow the business to use it."
-                : "Reject this custom domain request. The business will be notified."}
-            </DialogDescription>
-          </DialogHeader>
-          {selectedRequest && (
-            <div className="space-y-4 py-4">
-              <div>
-                <p className="text-sm font-medium">Business</p>
-                <p className="text-sm text-muted-foreground">{selectedRequest.business_name}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium">Domain</p>
-                <p className="text-sm text-muted-foreground font-mono">{selectedRequest.full_domain}</p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="admin-notes">Admin Notes (Optional)</Label>
-                <Textarea
-                  id="admin-notes"
-                  placeholder="Add notes about this decision..."
-                  value={adminNotes}
-                  onChange={(e) => setAdminNotes(e.target.value)}
-                  rows={3}
-                />
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowReviewDialog(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSubmitReview} variant={reviewAction === "approve" ? "default" : "destructive"}>
-              {reviewAction === "approve" ? "Approve Request" : "Reject Request"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {reviewDialog}
     </div>
   )
 }
