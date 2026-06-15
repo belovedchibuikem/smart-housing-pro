@@ -6,21 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { MapPin, Home, Maximize } from "lucide-react"
 import { resolveStorageUrl } from "@/lib/api/config"
-
-interface Property {
-  id: string
-  name: string
-  type: string
-  location: string
-  price: number
-  size?: string
-  bedrooms?: number
-  bathrooms?: number
-  image?: string
-}
+import { formatPropertyPrice, propertyDetailPath, type PublicPropertyListing } from "@/lib/api/public-properties"
 
 interface PropertyListingsProps {
-  properties?: Property[]
+  properties?: PublicPropertyListing[]
   config?: {
     title?: string
     subtitle?: string
@@ -32,13 +21,7 @@ export function PropertyListings({ properties = [], config }: PropertyListingsPr
   // Use provided properties or fallback to empty array
   const displayProperties = properties.slice(0, config?.limit || 6)
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-    }).format(price)
-  }
+  const formatPrice = formatPropertyPrice
 
   return (
     <section className="py-20 bg-background">
@@ -89,7 +72,7 @@ export function PropertyListings({ properties = [], config }: PropertyListingsPr
                 <div className="text-2xl font-bold text-primary">{formatPrice(property.price)}</div>
               </CardContent>
               <CardFooter className="p-4 pt-0 flex gap-2">
-                <Link href={`/properties/${property.id}`} className="flex-1">
+                <Link href={propertyDetailPath(property)} className="flex-1">
                   <Button className="w-full" size="sm">
                     View Details
                   </Button>

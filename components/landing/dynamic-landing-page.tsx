@@ -4,12 +4,13 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Building2, Users, Wallet, Home, TrendingUp, Shield, Zap, BarChart3, Smartphone, Award, Handshake, Heart, FileCheck, Star, ArrowRight, Sparkles } from "lucide-react"
+import { Building2, Users, Wallet, Home, TrendingUp, Shield, Zap, BarChart3, Smartphone, Award, Handshake, Heart, FileCheck, Star, ArrowRight, Sparkles, MapPin } from "lucide-react"
 import { PropertyListings } from "@/components/landing/property-listings"
 import { InvestmentOpportunities } from "@/components/landing/investment-opportunities"
 import { LoanOfferings } from "@/components/landing/loan-offerings"
 import { LandingHeader } from "@/components/landing/landing-header"
 import { useWhiteLabel } from "@/lib/hooks/use-white-label"
+import type { TenantLandingStats } from "@/lib/api/public-properties"
 
 interface PageSection {
   id: string
@@ -50,6 +51,7 @@ export function DynamicLandingPage({ isTenantPage = true }: DynamicLandingPagePr
   const [pageData, setPageData] = useState<LandingPageData | null>(null)
   const [plansData, setPlansData] = useState<PlansData>({ loans: [], investments: [] })
   const [propertiesData, setPropertiesData] = useState<any[]>([])
+  const [tenantStats, setTenantStats] = useState<TenantLandingStats | null>(null)
   const [loading, setLoading] = useState(true)
   const { settings: whiteLabelSettings } = useWhiteLabel()
 
@@ -242,6 +244,9 @@ export function DynamicLandingPage({ isTenantPage = true }: DynamicLandingPagePr
       if (data.properties) {
         setPropertiesData(data.properties)
       }
+      if (data.stats) {
+        setTenantStats(data.stats)
+      }
     } catch (error) {
       console.error("[Landing Page] Error fetching landing page:", error)
     } finally {
@@ -255,7 +260,13 @@ export function DynamicLandingPage({ isTenantPage = true }: DynamicLandingPagePr
 
     switch (section.type) {
       case "hero":
-        return <HeroSection key={section.id} config={section.config} templateId={templateId} />
+        return (
+          <HeroSection
+            key={section.id}
+            config={{ ...section.config, live_stats: tenantStats?.hero }}
+            templateId={templateId}
+          />
+        )
       case "properties":
         return (
           <div key={section.id} id="properties">
@@ -281,7 +292,13 @@ export function DynamicLandingPage({ isTenantPage = true }: DynamicLandingPagePr
       case "cta":
         return <CTASection key={section.id} config={section.config} templateId={templateId} />
       case "stats":
-        return <StatsSection key={section.id} config={section.config} templateId={templateId} />
+        return (
+          <StatsSection
+            key={section.id}
+            config={{ ...section.config, live_stats: tenantStats?.impact }}
+            templateId={templateId}
+          />
+        )
       case "testimonials":
         return <TestimonialsSection key={section.id} config={section.config} templateId={templateId} />
       default:
@@ -322,7 +339,26 @@ export function DynamicLandingPage({ isTenantPage = true }: DynamicLandingPagePr
   )
 }
 
+function getHeroStats(config: Record<string, any>, templateId = "default") {
+  const fallback = [
+    { label: "Active Members", value: "0" },
+    { label: "Total Contributions", value: "₦0" },
+    { label: "Properties Allocated", value: "0" },
+  ]
+  const live = (config.live_stats as Array<{ label: string; value: string }> | undefined) ?? fallback
+
+  if (templateId === "classic") {
+    return [
+      ...live,
+      { label: "Member Satisfaction", value: config.satisfaction_rate ?? "98%" },
+    ]
+  }
+
+  return live
+}
+
 function HeroSection({ config, templateId = "default" }: { config: Record<string, any>; templateId?: string }) {
+  const heroStats = getHeroStats(config, templateId)
   if (templateId === "modern") {
     return (
       <section className="relative overflow-hidden bg-gradient-to-br from-primary/10 via-secondary/5 to-accent/10">
@@ -354,18 +390,23 @@ function HeroSection({ config, templateId = "default" }: { config: Record<string
             </div>
             {config.show_stats && (
               <div className="grid grid-cols-3 gap-8 pt-16 max-w-3xl mx-auto">
-                <div className="p-6 rounded-2xl bg-background/60 backdrop-blur-sm border border-primary/20 shadow-lg">
-                  <div className="text-4xl font-extrabold text-primary mb-2">5,000+</div>
-                  <div className="text-sm text-muted-foreground font-medium">Active Members</div>
-                </div>
-                <div className="p-6 rounded-2xl bg-background/60 backdrop-blur-sm border border-secondary/20 shadow-lg">
-                  <div className="text-4xl font-extrabold text-secondary mb-2">₦2.5B</div>
-                  <div className="text-sm text-muted-foreground font-medium">Total Contributions</div>
-                </div>
-                <div className="p-6 rounded-2xl bg-background/60 backdrop-blur-sm border border-accent/20 shadow-lg">
-                  <div className="text-4xl font-extrabold text-accent mb-2">1,200+</div>
-                  <div className="text-sm text-muted-foreground font-medium">Properties Allocated</div>
-                </div>
+                {heroStats.slice(0, 3).map((stat, index) => (
+                  <div
+                    key={stat.label}
+                    className={`p-6 rounded-2xl bg-background/60 backdrop-blur-sm border shadow-lg ${
+                      index === 0 ? "border-primary/20" : index === 1 ? "border-secondary/20" : "border-accent/20"
+                    }`}
+                  >
+                    <div
+                      className={`text-4xl font-extrabold mb-2 ${
+                        index === 0 ? "text-primary" : index === 1 ? "text-secondary" : "text-accent"
+                      }`}
+                    >
+                      {stat.value}
+                    </div>
+                    <div className="text-sm text-muted-foreground font-medium">{stat.label}</div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -404,22 +445,14 @@ function HeroSection({ config, templateId = "default" }: { config: Record<string
             </div>
             {config.show_stats && (
               <div className="grid grid-cols-4 gap-6 pt-16 max-w-4xl mx-auto border-t border-border">
-                <div className="text-center py-4">
-                  <div className="text-3xl font-bold text-primary mb-2" style={{ fontFamily: 'Georgia, serif' }}>5,000+</div>
-                  <div className="text-sm text-muted-foreground uppercase tracking-wide">Trusted Members</div>
-                </div>
-                <div className="text-center py-4">
-                  <div className="text-3xl font-bold text-primary mb-2" style={{ fontFamily: 'Georgia, serif' }}>₦2.5B</div>
-                  <div className="text-sm text-muted-foreground uppercase tracking-wide">Total Contributions</div>
-                </div>
-                <div className="text-center py-4">
-                  <div className="text-3xl font-bold text-primary mb-2" style={{ fontFamily: 'Georgia, serif' }}>1,200+</div>
-                  <div className="text-sm text-muted-foreground uppercase tracking-wide">Properties Delivered</div>
-                </div>
-                <div className="text-center py-4">
-                  <div className="text-3xl font-bold text-primary mb-2" style={{ fontFamily: 'Georgia, serif' }}>98%</div>
-                  <div className="text-sm text-muted-foreground uppercase tracking-wide">Satisfaction Rate</div>
-                </div>
+                {heroStats.map((stat) => (
+                  <div key={stat.label} className="text-center py-4">
+                    <div className="text-3xl font-bold text-primary mb-2" style={{ fontFamily: "Georgia, serif" }}>
+                      {stat.value}
+                    </div>
+                    <div className="text-sm text-muted-foreground uppercase tracking-wide">{stat.label}</div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -456,18 +489,12 @@ function HeroSection({ config, templateId = "default" }: { config: Record<string
         </div>
         {config.show_stats && (
           <div className="grid grid-cols-3 gap-8 pt-12 max-w-2xl mx-auto">
-            <div>
-              <div className="text-3xl font-bold text-primary">5,000+</div>
-              <div className="text-sm text-muted-foreground">Active Members</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-primary">₦2.5B</div>
-              <div className="text-sm text-muted-foreground">Total Contributions</div>
-            </div>
-            <div>
-              <div className="text-3xl font-bold text-primary">1,200+</div>
-              <div className="text-sm text-muted-foreground">Properties Allocated</div>
-            </div>
+            {heroStats.slice(0, 3).map((stat) => (
+              <div key={stat.label}>
+                <div className="text-3xl font-bold text-primary">{stat.value}</div>
+                <div className="text-sm text-muted-foreground">{stat.label}</div>
+              </div>
+            ))}
           </div>
         )}
       </div>
@@ -947,10 +974,29 @@ function TestimonialsSection({ config, templateId = "default" }: { config: Recor
   )
 }
 
+function getImpactStats(config: Record<string, any>) {
+  const fallback = [
+    { label: "Active Members", value: "0", icon: "Users" },
+    { label: "Houses Available", value: "0", icon: "Building2" },
+    { label: "Land Parcels Available", value: "0", icon: "MapPin" },
+    { label: "Total Loans Disbursed", value: "₦0", icon: "TrendingUp" },
+  ]
+
+  if (config.live_stats?.length) {
+    return config.live_stats
+  }
+
+  if (config.stats?.length) {
+    return config.stats
+  }
+
+  return fallback
+}
+
 function StatsSection({ config, templateId = "default" }: { config: Record<string, any>; templateId?: string }) {
-  const stats = config.stats || []
+  const stats = getImpactStats(config)
   const iconMap: Record<string, any> = {
-    Users, Building2, TrendingUp, Shield, BarChart3, Award
+    Users, Building2, TrendingUp, Shield, BarChart3, Award, MapPin
   }
 
   if (templateId === "modern") {
@@ -967,12 +1013,7 @@ function StatsSection({ config, templateId = "default" }: { config: Record<strin
             </p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-6xl mx-auto">
-            {(stats.length > 0 ? stats : [
-              { label: "Active Members", value: "0", icon: "Users" },
-              { label: "Properties Available", value: "0", icon: "Building2" },
-              { label: "Total Loans Disbursed", value: "₦0", icon: "TrendingUp" },
-              { label: "Investment Returns", value: "0%", icon: "BarChart3" },
-            ]).map((stat: any, index: number) => {
+            {stats.map((stat: any, index: number) => {
               const Icon = iconMap[stat.icon] || TrendingUp
               return (
                 <Card key={index} className="p-8 text-center hover:shadow-2xl transition-all duration-300 border-2 border-transparent hover:border-primary/20 group bg-gradient-to-br from-background to-muted/10 relative overflow-hidden">
@@ -1011,12 +1052,7 @@ function StatsSection({ config, templateId = "default" }: { config: Record<strin
             </p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-6xl mx-auto">
-            {(stats.length > 0 ? stats : [
-              { label: "Trusted Members", value: "0", icon: "Users" },
-              { label: "Properties Delivered", value: "0", icon: "Building2" },
-              { label: "Loans Disbursed", value: "₦0", icon: "TrendingUp" },
-              { label: "Member Satisfaction", value: "98%", icon: "Award" },
-            ]).map((stat: any, index: number) => {
+            {stats.map((stat: any, index: number) => {
               const Icon = iconMap[stat.icon] || TrendingUp
               return (
                 <Card key={index} className="p-8 text-center hover:shadow-xl transition-all duration-300 border-2 border-border/50 bg-background group">
@@ -1051,12 +1087,7 @@ function StatsSection({ config, templateId = "default" }: { config: Record<strin
           </p>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
-          {(stats.length > 0 ? stats : [
-            { label: "Active Members", value: "0", icon: "Users" },
-            { label: "Properties Available", value: "0", icon: "Building2" },
-            { label: "Total Loans Disbursed", value: "₦0", icon: "TrendingUp" },
-            { label: "Member Satisfaction", value: "98%", icon: "Shield" },
-          ]).map((stat: any, index: number) => {
+          {stats.map((stat: any, index: number) => {
             const Icon = iconMap[stat.icon] || TrendingUp
             return (
               <div key={index} className="text-center">
@@ -1163,6 +1194,23 @@ function Footer({ isTenantPage = true }: { isTenantPage?: boolean }) {
 }
 
 function DefaultLandingPage() {
+  const [propertiesData, setPropertiesData] = useState<any[]>([])
+  const [tenantStats, setTenantStats] = useState<TenantLandingStats | null>(null)
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/public/properties", { cache: "no-store" }).then((res) => (res.ok ? res.json() : null)),
+      fetch("/api/public/tenant-stats", { cache: "no-store" }).then((res) => (res.ok ? res.json() : null)),
+    ]).then(([propertiesResponse, statsResponse]) => {
+      if (propertiesResponse?.properties) {
+        setPropertiesData(propertiesResponse.properties)
+      }
+      if (statsResponse?.stats) {
+        setTenantStats(statsResponse.stats)
+      }
+    })
+  }, [])
+
   return (
     <div className="min-h-screen bg-background relative">
       {/* Cooperative portal indicator */}
@@ -1178,10 +1226,11 @@ function DefaultLandingPage() {
           cta_text: "Become a Member",
           cta_link: "/register",
           show_stats: true,
+          live_stats: tenantStats?.hero,
         }}
       />
       <div id="properties">
-        <PropertyListings />
+        <PropertyListings properties={propertiesData} />
       </div>
       <div id="investments">
         <InvestmentOpportunities />
@@ -1196,6 +1245,13 @@ function DefaultLandingPage() {
         }}
       />
       <HowItWorksSection config={{}} />
+      <StatsSection
+        config={{
+          title: "Our Impact",
+          subtitle: "Numbers that matter",
+          live_stats: tenantStats?.impact,
+        }}
+      />
       <CTASection
         config={{
           title: "Ready to Start Your Homeownership Journey?",

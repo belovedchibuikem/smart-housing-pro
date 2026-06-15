@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
@@ -9,87 +9,48 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Search, MapPin, Home, Maximize, Building2 } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-
-const properties = [
-  {
-    id: 1,
-    name: "Luxury 3-Bedroom Apartment",
-    type: "House",
-    location: "Abuja, FCT",
-    price: 25000000,
-    size: "180 sqm",
-    bedrooms: 3,
-    bathrooms: 2,
-    image: "/modern-apartment-exterior.png",
-    featured: true,
-  },
-  {
-    id: 2,
-    name: "Prime Residential Land",
-    type: "Land",
-    location: "Lagos, Lekki",
-    price: 15000000,
-    size: "500 sqm",
-    image: "/residential-land-plot.jpg",
-    featured: true,
-  },
-  {
-    id: 3,
-    name: "4-Bedroom Duplex",
-    type: "House",
-    location: "Port Harcourt, Rivers",
-    price: 35000000,
-    size: "250 sqm",
-    bedrooms: 4,
-    bathrooms: 3,
-    image: "/modern-duplex.png",
-    featured: false,
-  },
-  {
-    id: 4,
-    name: "Commercial Land",
-    type: "Land",
-    location: "Abuja, Maitama",
-    price: 45000000,
-    size: "1000 sqm",
-    image: "/commercial-land.png",
-    featured: true,
-  },
-  {
-    id: 5,
-    name: "2-Bedroom Bungalow",
-    type: "House",
-    location: "Ibadan, Oyo",
-    price: 18000000,
-    size: "120 sqm",
-    bedrooms: 2,
-    bathrooms: 2,
-    image: "/modern-bungalow.jpg",
-    featured: false,
-  },
-  {
-    id: 6,
-    name: "Estate Development Land",
-    type: "Land",
-    location: "Enugu, Enugu",
-    price: 8000000,
-    size: "300 sqm",
-    image: "/estate-land.jpg",
-    featured: false,
-  },
-]
+import { resolveStorageUrl } from "@/lib/api/config"
+import {
+  fetchPublicProperties,
+  formatPropertyPrice,
+  propertyDetailPath,
+  type PublicPropertyListing,
+} from "@/lib/api/public-properties"
 
 export default function PropertiesPage() {
+  const [properties, setProperties] = useState<PublicPropertyListing[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [propertyType, setPropertyType] = useState("all")
   const [priceRange, setPriceRange] = useState("all")
   const [location, setLocation] = useState("all")
 
+  useEffect(() => {
+    fetchPublicProperties()
+      .then(setProperties)
+      .finally(() => setLoading(false))
+  }, [])
+
+  const locations = useMemo(() => {
+    const values = new Set<string>()
+    properties.forEach((property) => {
+      const parts = property.location.split(",").map((part) => part.trim()).filter(Boolean)
+      if (parts[0]) values.add(parts[0])
+    })
+    return Array.from(values).sort()
+  }, [properties])
+
   const filteredProperties = properties.filter((property) => {
     const matchesSearch =
       property.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       property.location.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesType = propertyType === "all" || property.type === propertyType
+
+    const matchesType =
+      propertyType === "all" ||
+      (propertyType === "House" && property.listing_kind === "house") ||
+      (propertyType === "Land" &&
+        (property.listing_kind === "land_parcel" || property.listing_kind === "land_legacy"))
+
     const matchesLocation = location === "all" || property.location.includes(location)
 
     let matchesPrice = true
@@ -100,24 +61,15 @@ export default function PropertiesPage() {
     return matchesSearch && matchesType && matchesLocation && matchesPrice
   })
 
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat("en-NG", {
-      style: "currency",
-      currency: "NGN",
-      minimumFractionDigits: 0,
-    }).format(price)
-  }
-
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Building2 className="h-8 w-8 text-primary" />
             <div>
-              <h1 className="font-bold text-xl">FRSC HMS</h1>
-              <p className="text-xs text-muted-foreground">Housing Management System</p>
+              <h1 className="font-bold text-xl">Housing Cooperative</h1>
+              <p className="text-xs text-muted-foreground">Houses & Land Listings</p>
             </div>
           </Link>
           <div className="flex items-center gap-3">
@@ -134,7 +86,6 @@ export default function PropertiesPage() {
       </header>
 
       <div className="container mx-auto px-4 py-12">
-        {/* Page Header */}
         <div className="text-center max-w-2xl mx-auto mb-12">
           <Badge className="mb-4" variant="secondary">
             <Home className="h-3 w-3 mr-1" />
@@ -142,11 +93,10 @@ export default function PropertiesPage() {
           </Badge>
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Browse All Properties</h1>
           <p className="text-muted-foreground text-lg">
-            Explore our complete collection of properties. Use filters to find exactly what you're looking for.
+            Explore available houses and land parcels from your cooperative.
           </p>
         </div>
 
-        {/* Search and Filters */}
         <div className="mb-8 space-y-4 max-w-5xl mx-auto">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
@@ -178,11 +128,11 @@ export default function PropertiesPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Locations</SelectItem>
-                <SelectItem value="Abuja">Abuja</SelectItem>
-                <SelectItem value="Lagos">Lagos</SelectItem>
-                <SelectItem value="Port Harcourt">Port Harcourt</SelectItem>
-                <SelectItem value="Ibadan">Ibadan</SelectItem>
-                <SelectItem value="Enugu">Enugu</SelectItem>
+                {locations.map((loc) => (
+                  <SelectItem key={loc} value={loc}>
+                    {loc}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
 
@@ -216,51 +166,57 @@ export default function PropertiesPage() {
           </div>
         </div>
 
-        {/* Property Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {filteredProperties.map((property) => (
-            <Card key={property.id} className="overflow-hidden hover:shadow-xl transition-shadow group">
-              <div className="relative h-48 overflow-hidden">
-                <Image
-                  src={property.image || "/placeholder.svg"}
-                  alt={property.name}
-                  fill
-                  className="object-cover group-hover:scale-110 transition-transform duration-300"
-                />
-                {property.featured && <Badge className="absolute top-3 right-3 bg-primary">Featured</Badge>}
-                <Badge className="absolute top-3 left-3 bg-background/90 text-foreground">{property.type}</Badge>
-              </div>
-              <CardContent className="p-4 space-y-3">
-                <h3 className="font-semibold text-lg line-clamp-1">{property.name}</h3>
-                <div className="flex items-center text-sm text-muted-foreground">
-                  <MapPin className="h-4 w-4 mr-1" />
-                  {property.location}
+        {loading ? (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">Loading properties...</p>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+            {filteredProperties.map((property) => (
+              <Card key={`${property.listing_kind}-${property.id}`} className="overflow-hidden hover:shadow-xl transition-shadow group">
+                <div className="relative h-48 overflow-hidden">
+                  <Image
+                    src={(property.image && resolveStorageUrl(property.image)) || "/placeholder.svg"}
+                    alt={property.name}
+                    fill
+                    className="object-cover group-hover:scale-110 transition-transform duration-300"
+                  />
+                  <Badge className="absolute top-3 left-3 bg-background/90 text-foreground capitalize">
+                    {property.type}
+                  </Badge>
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center text-muted-foreground">
-                    <Maximize className="h-4 w-4 mr-1" />
-                    {property.size}
+                <CardContent className="p-4 space-y-3">
+                  <h3 className="font-semibold text-lg line-clamp-1">{property.name}</h3>
+                  <div className="flex items-center text-sm text-muted-foreground">
+                    <MapPin className="h-4 w-4 mr-1" />
+                    {property.location}
                   </div>
-                  {property.bedrooms && (
-                    <div className="text-muted-foreground">
-                      {property.bedrooms} Beds • {property.bathrooms} Baths
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center text-muted-foreground">
+                      <Maximize className="h-4 w-4 mr-1" />
+                      {property.size}
                     </div>
-                  )}
-                </div>
-                <div className="text-2xl font-bold text-primary">{formatPrice(property.price)}</div>
-              </CardContent>
-              <CardFooter className="p-4 pt-0">
-                <Link href={`/properties/${property.id}`} className="w-full">
-                  <Button className="w-full" size="sm">
-                    View Details
-                  </Button>
-                </Link>
-              </CardFooter>
-            </Card>
-          ))}
-        </div>
+                    {property.bedrooms != null && (
+                      <div className="text-muted-foreground">
+                        {property.bedrooms} Beds • {property.bathrooms} Baths
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-2xl font-bold text-primary">{formatPropertyPrice(property.price)}</div>
+                </CardContent>
+                <CardFooter className="p-4 pt-0">
+                  <Link href={propertyDetailPath(property)} className="w-full">
+                    <Button className="w-full" size="sm">
+                      View Details
+                    </Button>
+                  </Link>
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        )}
 
-        {filteredProperties.length === 0 && (
+        {!loading && filteredProperties.length === 0 && (
           <div className="text-center py-12">
             <p className="text-muted-foreground">No properties found matching your criteria.</p>
           </div>
