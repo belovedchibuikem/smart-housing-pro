@@ -111,8 +111,8 @@ export default function CustomDomainsPage() {
       })
 
       if (data.success) {
-        sonnerToast.success("Domain verified successfully", {
-          description: data.message
+        sonnerToast.success("Domain verified on Vercel", {
+          description: data.message || "Your custom domain is now active",
         })
         await fetchDomains()
       } else {
@@ -120,8 +120,8 @@ export default function CustomDomainsPage() {
       }
     } catch (error: any) {
       console.error("Error verifying domain:", error)
-      sonnerToast.error("Verification failed", {
-        description: error.message || "Please check your DNS records and try again"
+      sonnerToast.error("Verification not ready yet", {
+        description: error.message || "Confirm the domain shows Valid in Vercel, wait a few minutes, then try again",
       })
       await fetchDomains() // Refresh to get updated status
     } finally {
@@ -137,12 +137,12 @@ export default function CustomDomainsPage() {
       })
 
       if (data.verified) {
-        sonnerToast.success("Domain verified successfully", {
-          description: data.message
+        sonnerToast.success("Domain verified on Vercel", {
+          description: data.message || "Your custom domain is active",
         })
       } else {
-        sonnerToast.info("Domain not yet verified", {
-          description: data.message || "Please ensure DNS records are configured correctly"
+        sonnerToast.info("Not verified on Vercel yet", {
+          description: data.message || "Add the domain in Vercel and wait for DNS to propagate",
         })
       }
       await fetchDomains()
@@ -282,8 +282,7 @@ export default function CustomDomainsPage() {
       <Alert>
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
-          Custom domains require DNS configuration. After adding a domain, you'll receive DNS records to configure with
-          your domain registrar.
+          Add your domain in Vercel first, then configure DNS (nameservers or A/CNAME records). When Vercel shows the domain as Valid, click <strong>Verify Now</strong> here to activate it for your tenant.
         </AlertDescription>
       </Alert>
 
@@ -324,17 +323,24 @@ export default function CustomDomainsPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
-                {domain.status_message && (
-                  <Alert>
+                {domain.status === 'active' ? (
+                  <Alert className="border-green-200 bg-green-50 dark:bg-green-950/20">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <AlertDescription>
+                      {domain.status_message || "Domain is connected to Vercel and active."}
+                    </AlertDescription>
+                  </Alert>
+                ) : domain.status_message ? (
+                  <Alert variant={domain.status === 'failed' ? 'destructive' : 'default'}>
                     <AlertCircle className="h-4 w-4" />
                     <AlertDescription>{domain.status_message}</AlertDescription>
                   </Alert>
-                )}
+                ) : null}
 
                 <div>
                   <h4 className="font-semibold mb-3">DNS Configuration</h4>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Add these DNS records to your domain registrar to verify ownership and activate your custom domain.
+                    Add these DNS records at your registrar, or point nameservers to Vercel (<code className="text-xs">ns1.vercel-dns.com</code>, <code className="text-xs">ns2.vercel-dns.com</code>). Verification checks whether the domain is connected to Vercel — not an exact string match on every record.
                   </p>
 
                   <div className="border rounded-lg overflow-hidden">
@@ -425,7 +431,7 @@ export default function CustomDomainsPage() {
                       disabled={verifying[domain.id] || deleting[domain.id]}
                     >
                       <CheckCircle2 className="h-4 w-4 mr-2" />
-                      Verify Now
+                      Verify on Vercel
                     </Button>
                   )}
                   {domain.status === 'active' && (
