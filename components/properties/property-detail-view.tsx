@@ -5,8 +5,9 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { MapPin, Maximize, Building2, ArrowLeft, Phone, Mail, Share2, Trees } from "lucide-react"
+import { MapPin, Maximize, ArrowLeft, Phone, Mail, Share2, Trees } from "lucide-react"
 import { resolveStorageUrl } from "@/lib/api/config"
+import { LandingHeader } from "@/components/landing/landing-header"
 import {
   formatPropertyPrice,
   isLandListing,
@@ -32,27 +33,7 @@ export function PropertyDetailView({ property }: PropertyDetailViewProps) {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <Building2 className="h-8 w-8 text-primary" />
-            <div>
-              <h1 className="font-bold text-xl">Housing Cooperative</h1>
-              <p className="text-xs text-muted-foreground">Browse available listings</p>
-            </div>
-          </Link>
-          <div className="flex items-center gap-3">
-            <Link href="/login">
-              <Button variant="ghost" size="sm">
-                Login
-              </Button>
-            </Link>
-            <Link href="/register">
-              <Button size="sm">Get Started</Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <LandingHeader isTenantPage={true} />
 
       <div className="container mx-auto px-4 py-8">
         <Link href="/properties">

@@ -7,19 +7,27 @@ export async function GET(request: NextRequest) {
 		const laravelApiUrl = getApiBaseUrl()
 		const auth = request.headers.get("authorization") || ""
 		const host = request.headers.get("host") || ""
+		const tenantSlug = request.headers.get("x-tenant-slug") || ""
+		const tenantId = request.headers.get("x-tenant-id") || ""
 
-		console.log('Tenant API Route - Fetching tenant:', {
-			laravelApiUrl: `${laravelApiUrl}/tenant/current`,
-			hasAuth: !!auth,
-			host
-		})
+		const headers: Record<string, string> = {
+			Accept: "application/json",
+			"X-Forwarded-Host": host,
+		}
+
+		if (tenantSlug) {
+			headers["X-Tenant-Slug"] = tenantSlug
+		}
+		if (tenantId) {
+			headers["X-Tenant-ID"] = tenantId
+		}
 
 		const res = await fetch(`${laravelApiUrl}/tenant/current`, {
 			method: "GET",
 			headers: {
-				"Accept": "application/json",
-				"Authorization": auth,
-				"X-Forwarded-Host": host,
+				Accept: "application/json",
+				Authorization: auth,
+				...headers,
 			},
 			cache: "no-store",
 		})

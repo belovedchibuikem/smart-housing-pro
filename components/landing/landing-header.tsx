@@ -3,10 +3,9 @@
 import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Building2, Menu, X } from "lucide-react"
+import { Menu, X } from "lucide-react"
 import { useWhiteLabel } from "@/lib/hooks/use-white-label"
-import Image from "next/image"
-import { resolveStorageUrl } from "@/lib/api/config"
+import { TenantBrandLogo } from "@/components/branding/tenant-brand-logo"
 
 interface LandingHeaderProps {
   isTenantPage?: boolean
@@ -20,23 +19,9 @@ export function LandingHeader({ isTenantPage = true }: LandingHeaderProps) {
     <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {settings?.logo_url ? (
-              <Image
-                src={resolveStorageUrl(settings.logo_url) || "/placeholder.svg"}
-                alt={settings.company_name || "Logo"}
-                width={32}
-                height={32}
-                className="h-8 w-8 object-contain"
-              />
-            ) : (
-              <Building2 className="h-8 w-8 text-primary" />
-            )}
-            <div>
-              <h1 className="font-bold text-xl">{settings?.company_name || "FRSC HMS"}</h1>
-              <p className="text-xs text-muted-foreground">{settings?.company_tagline || "Housing Management System"}</p>
-            </div>
-          </div>
+          <Link href="/" className="flex items-center gap-2 min-w-0">
+            <TenantBrandLogo settings={settings} />
+          </Link>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-6">

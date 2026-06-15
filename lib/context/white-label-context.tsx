@@ -1,10 +1,13 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import { applyPublicBranding } from "@/lib/branding/apply-public-branding"
+import { useTenant } from "@/lib/tenant/tenant-context"
 
-interface WhiteLabelSettings {
+export interface WhiteLabelSettings {
   company_name: string
   company_tagline: string
+  company_description?: string
   logo_url: string
   logo_dark_url: string
   favicon_url: string
@@ -18,9 +21,15 @@ interface WhiteLabelSettings {
   enabled_modules: string[]
   custom_css: string
   is_active: boolean
+  footer_text?: string
+  privacy_url?: string
+  terms_url?: string
+  support_email?: string
+  support_phone?: string
+  help_center_url?: string
 }
 
-interface WhiteLabelContextType {
+export interface WhiteLabelContextType {
   settings: WhiteLabelSettings | null
   loading: boolean
   refreshSettings: () => Promise<void>
@@ -31,6 +40,7 @@ const WhiteLabelContext = createContext<WhiteLabelContextType | undefined>(undef
 const defaultSettings: WhiteLabelSettings = {
   company_name: "FRSC Housing Management",
   company_tagline: "Building Dreams Together",
+  company_description: "",
   logo_url: "",
   logo_dark_url: "",
   favicon_url: "",
@@ -46,19 +56,34 @@ const defaultSettings: WhiteLabelSettings = {
   is_active: false,
 }
 
+async function fetchPublicWhiteLabelSettings(): Promise<WhiteLabelSettings | null> {
+  const response = await fetch("/api/public/white-label", {
+    cache: "no-store",
+    headers: {
+      Accept: "application/json",
+    },
+  })
+
+  if (!response.ok) {
+    return null
+  }
+
+  const data = await response.json()
+  return data.settings ?? null
+}
+
 export function WhiteLabelProvider({ children }: { children: ReactNode }) {
   const [settings, setSettings] = useState<WhiteLabelSettings | null>(null)
   const [loading, setLoading] = useState(true)
+  const { tenant, isLoading: tenantLoading } = useTenant()
 
   const fetchSettings = async () => {
     try {
-      // Use dynamic import to avoid SSR issues
-      const { apiFetch } = await import("@/lib/api/client")
-      const data = await apiFetch<{ settings: WhiteLabelSettings }>("/admin/white-label")
+      const apiSettings = await fetchPublicWhiteLabelSettings()
 
-      if (data.settings && data.settings.is_active) {
-        setSettings(data.settings)
-        applyWhiteLabelStyles(data.settings)
+      if (apiSettings) {
+        setSettings(apiSettings)
+        applyPublicBranding(apiSettings)
       } else {
         setSettings(defaultSettings)
       }
@@ -70,61 +95,20 @@ export function WhiteLabelProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  const applyWhiteLabelStyles = (settings: WhiteLabelSettings) => {
-    // Apply CSS custom properties for colors
-    const root = document.documentElement
-    root.style.setProperty("--primary-color", settings.primary_color)
-    root.style.setProperty("--secondary-color", settings.secondary_color)
-    root.style.setProperty("--accent-color", settings.accent_color)
-    root.style.setProperty("--background-color", settings.background_color)
-    root.style.setProperty("--text-color", settings.text_color)
-
-    // Apply fonts
-    root.style.setProperty("--heading-font", settings.heading_font)
-    root.style.setProperty("--body-font", settings.body_font)
-
-    // Apply custom CSS if provided
-    if (settings.custom_css) {
-      const styleId = "white-label-custom-css"
-      let styleElement = document.getElementById(styleId) as HTMLStyleElement
-
-      if (!styleElement) {
-        styleElement = document.createElement("style")
-        styleElement.id = styleId
-        document.head.appendChild(styleElement)
-      }
-
-      styleElement.textContent = settings.custom_css
-    }
-
-    // Update favicon if provided
-    if (settings.favicon_url) {
-      const favicon = document.querySelector("link[rel='icon']") as HTMLLinkElement
-      if (favicon) {
-        favicon.href = settings.favicon_url
-      }
-    }
-
-    // Update page title if company name is set
-    if (settings.company_name) {
-      document.title = settings.company_name
-    }
-  }
-
   useEffect(() => {
+    if (tenantLoading) return
     fetchSettings()
-    
-    // Listen for settings updates
+
     const handleSettingsUpdate = () => {
       fetchSettings()
     }
-    
-    window.addEventListener('white-label-settings-updated', handleSettingsUpdate)
-    
+
+    window.addEventListener("white-label-settings-updated", handleSettingsUpdate)
+
     return () => {
-      window.removeEventListener('white-label-settings-updated', handleSettingsUpdate)
+      window.removeEventListener("white-label-settings-updated", handleSettingsUpdate)
     }
-  }, [])
+  }, [tenantLoading, tenant?.id, tenant?.slug])
 
   const refreshSettings = async () => {
     setLoading(true)
@@ -132,7 +116,9 @@ export function WhiteLabelProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <WhiteLabelContext.Provider value={{ settings, loading, refreshSettings }}>{children}</WhiteLabelContext.Provider>
+    <WhiteLabelContext.Provider value={{ settings, loading, refreshSettings }}>
+      {children}
+    </WhiteLabelContext.Provider>
   )
 }
 
@@ -143,5 +129,3 @@ export function useWhiteLabel() {
   }
   return context
 }
-
-export type { WhiteLabelSettings, WhiteLabelContextType }
