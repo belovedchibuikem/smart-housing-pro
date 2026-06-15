@@ -7,13 +7,16 @@ import { clearAuthCookies } from "@/lib/auth/auth-cookies"
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
 
-// Use Next.js API route proxy to avoid CORS issues
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "/api"
 const AUTH_TOKEN_KEY = "auth_token"
 const TENANT_SLUG_KEY = "tenant_slug"
 
+/** Browser calls use same-origin /api rewrite; server/SSR uses the configured Laravel URL. */
 export function getApiBaseUrl(): string {
-	return API_BASE_URL.replace(/\/$/, "")
+	const base =
+		typeof window !== "undefined"
+			? "/api"
+			: process.env.NEXT_PUBLIC_API_BASE_URL || "/api"
+	return base.replace(/\/$/, "")
 }
 
 export function getAuthToken(): string | null {
