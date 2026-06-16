@@ -55,7 +55,7 @@ export function MyProperties({ properties, loading, propertyType = "house" }: My
 				return
 			}
 
-			router.push(`/dashboard/properties/${property.id}?tab=payments`)
+			router.push(`/dashboard/properties/${property.property_id ?? property.id}?tab=payments`)
 		},
 		[router, toast, propertyLabel],
 	)
@@ -99,6 +99,8 @@ export function MyProperties({ properties, loading, propertyType = "house" }: My
 		return (
 			<div className="space-y-6">
 				{properties.map((property) => {
+					const propertyId = property.property_id ?? property.id
+					const rowKey = property.interest_id ?? property.id
 					const raw =
 						property.images?.find((image) => image.is_primary)?.url || property.images?.[0]?.url
 					const primaryImage = (raw && resolveStorageUrl(raw)) || "/placeholder.svg"
@@ -109,7 +111,7 @@ export function MyProperties({ properties, loading, propertyType = "house" }: My
 					const isPaidInFull = progress >= 100
 
 					return (
-						<Card key={property.id} className="overflow-hidden">
+						<Card key={rowKey} className="overflow-hidden">
 							<div className="flex flex-col md:flex-row">
 								<div className="relative md:w-64">
 									<Image
@@ -214,7 +216,7 @@ export function MyProperties({ properties, loading, propertyType = "house" }: My
 									</div>
 
 									<div className="flex flex-wrap gap-2 border-t pt-4">
-										<Link href={`/dashboard/properties/${property.id}`}>
+										<Link href={`/dashboard/properties/${propertyId}`}>
 											<Button size="sm" variant="outline">
 												View Details
 											</Button>

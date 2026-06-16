@@ -6,7 +6,17 @@ import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
 import { PropertyListings } from "@/components/properties/property-listings"
-import { getAvailableProperties, type AvailableProperty } from "@/lib/api/client"
+import {
+	BrowsePropertyFilters,
+	browseFilterDefaults,
+	type BrowseFilterValues,
+} from "@/components/properties/browse-property-filters"
+import { Pagination } from "@/components/ui/pagination"
+import {
+	getAvailableProperties,
+	type AvailableProperty,
+	type BrowsePropertiesPagination,
+} from "@/lib/api/client"
 
 export default function BrowsePropertiesPage() {
 	const { toast } = useToast()
@@ -23,13 +33,25 @@ export default function BrowsePropertiesPage() {
 	}, [searchParams])
 
 	const [availableProperties, setAvailableProperties] = useState<AvailableProperty[]>([])
+	const [pagination, setPagination] = useState<BrowsePropertiesPagination | null>(null)
+	const [filters, setFilters] = useState<BrowseFilterValues>(() => browseFilterDefaults())
+	const [appliedFilters, setAppliedFilters] = useState<BrowseFilterValues>(() => browseFilterDefaults())
+	const [page, setPage] = useState(1)
 	const [loading, setLoading] = useState(true)
 
 	const loadAvailableProperties = useCallback(
-		async (mode: "house" | "land" | "all") => {
+		async (
+			mode: "house" | "land" | "all",
+			activeFilters: BrowseFilterValues,
+			activePage: number,
+		) => {
 			try {
 				setLoading(true)
-				const response = await getAvailableProperties(mode)
+				const response = await getAvailableProperties({
+					type: mode,
+					page: activePage,
+					...activeFilters,
+				})
 				const formatted = (response.properties ?? []).map((property) => ({
 					...property,
 					price: Number(property.price ?? 0),
@@ -42,6 +64,7 @@ export default function BrowsePropertiesPage() {
 					})),
 				}))
 				setAvailableProperties(formatted)
+				setPagination(response.pagination ?? null)
 			} catch (error: unknown) {
 				const message = error instanceof Error ? error.message : "Unable to load listings"
 				toast({
@@ -57,8 +80,25 @@ export default function BrowsePropertiesPage() {
 	)
 
 	useEffect(() => {
-		void loadAvailableProperties(listing === "house" ? "house" : listing === "land" ? "land" : "all")
-	}, [listing, loadAvailableProperties])
+		const mode = listing === "house" ? "house" : listing === "land" ? "land" : "all"
+		void loadAvailableProperties(mode, appliedFilters, page)
+	}, [listing, appliedFilters, page, loadAvailableProperties])
+
+	useEffect(() => {
+		setPage(1)
+	}, [listing])
+
+	const handleApplyFilters = () => {
+		setAppliedFilters({ ...filters })
+		setPage(1)
+	}
+
+	const handleResetFilters = () => {
+		const defaults = browseFilterDefaults()
+		setFilters(defaults)
+		setAppliedFilters(defaults)
+		setPage(1)
+	}
 
 	return (
 		<div className="mx-auto max-w-7xl space-y-6">
@@ -84,7 +124,31 @@ export default function BrowsePropertiesPage() {
 				</div>
 			</div>
 
+			<BrowsePropertyFilters
+				listing={listing}
+				values={filters}
+				onChange={setFilters}
+				onApply={handleApplyFilters}
+				onReset={handleResetFilters}
+				loading={loading}
+			/>
+
+			{pagination ? (
+				<p className="text-sm text-muted-foreground">
+					Showing page {pagination.current_page} of {pagination.last_page} ({pagination.total} listing
+					{pagination.total === 1 ? "" : "s"})
+				</p>
+			) : null}
+
 			<PropertyListings properties={availableProperties} loading={loading} />
+
+			{pagination && pagination.last_page > 1 ? (
+				<Pagination
+					currentPage={pagination.current_page}
+					totalPages={pagination.last_page}
+					onPageChange={setPage}
+				/>
+			) : null}
 		</div>
 	)
 }

@@ -23,6 +23,9 @@ type PropertyDetailsTabProps = {
     interestStatus?: string | null
     slotsAvailable?: number | null
     acceptingInterest?: boolean
+    hasPendingInterest?: boolean
+    approvedInterestCount?: number
+    canExpressInterest?: boolean
   } | null
 }
 
@@ -59,11 +62,13 @@ export function PropertyDetailsTab({ property }: PropertyDetailsTabProps) {
   const features = Array.isArray(property.features) ? property.features.filter(Boolean) : []
   const statusLabel = property.status?.replace(/_/g, " ") ?? "Available"
   const interestStatus = property.interestStatus?.toLowerCase()
-  const interestDisabled = interestStatus === "pending" || interestStatus === "approved"
+  const hasPendingInterest = interestStatus === "pending" || property.hasPendingInterest === true
+  const approvedInterestCount = property.approvedInterestCount ?? (interestStatus === "approved" ? 1 : 0)
   const slotsFull =
     property.slotsAvailable === 0 ||
     (property.acceptingInterest === false && property.slotsAvailable !== null && property.slotsAvailable !== undefined)
-  const subscribeDisabled = interestDisabled || slotsFull
+  const canExpressInterest = property.canExpressInterest ?? (!hasPendingInterest && !slotsFull)
+  const subscribeDisabled = !canExpressInterest
 
   return (
     <div className="space-y-6">
@@ -148,24 +153,26 @@ export function PropertyDetailsTab({ property }: PropertyDetailsTabProps) {
             >
               {subscribeDisabled ? (
                 <span>
-                  {interestDisabled
-                    ? "Interest Submitted"
+                  {hasPendingInterest
+                    ? "Interest Pending"
                     : slotsFull
                       ? "All Slots Taken"
                       : "Subscribe to This Property"}
                 </span>
               ) : (
                 <Link href={property.id ? `/dashboard/properties/${property.id}/subscribe` : "#"}>
-                  Subscribe to This Property
+                  {approvedInterestCount > 0 ? "Request Another Slot" : "Subscribe to This Property"}
                 </Link>
               )}
             </Button>
             <p className="text-center text-xs text-muted-foreground">
-              {interestDisabled
-                ? "You have already submitted an expression of interest for this property."
+              {hasPendingInterest
+                ? "You have a pending expression of interest. Wait for approval before requesting another slot."
                 : slotsFull
                   ? "This property is still visible for reference, but every slot has been assigned."
-                  : "Fill the Expression of Interest form to begin your property subscription"}
+                  : approvedInterestCount > 0
+                    ? `You have ${approvedInterestCount} approved slot${approvedInterestCount === 1 ? "" : "s"}. Request another while slots remain.`
+                    : "Fill the Expression of Interest form to begin your property subscription"}
             </p>
             {interestStatus && (
               <p className="text-center text-xs text-muted-foreground">

@@ -122,7 +122,22 @@ export default function PropertyDetailPage() {
     router.replace(`/dashboard/properties/${propertyId}?${currentParams.toString()}`, { scroll: false })
   }
 
-  const activeHouse = useMemo(() => houses.find((house) => house.id === propertyId) ?? null, [houses, propertyId])
+  const memberInterestsForProperty = useMemo(
+    () => houses.filter((house) => (house.property_id ?? house.id) === propertyId),
+    [houses, propertyId],
+  )
+
+  const activeHouse = useMemo(() => {
+    return (
+      memberInterestsForProperty.find((house) => house.interest_status === "approved") ??
+      memberInterestsForProperty.find((house) => house.interest_status === "pending") ??
+      memberInterestsForProperty[0] ??
+      null
+    )
+  }, [memberInterestsForProperty])
+
+  const hasPendingInterest = memberInterestsForProperty.some((house) => house.interest_status === "pending")
+  const approvedInterestCount = memberInterestsForProperty.filter((house) => house.interest_status === "approved").length
 
   const property = useMemo<AvailableProperty | MemberHouse | undefined>(() => {
     if (activeHouse) return activeHouse
@@ -134,7 +149,9 @@ export default function PropertyDetailPage() {
   }, [property])
 
   const similarProperties = useMemo(() => {
-    return houses.filter((house) => house.id !== propertyId && house.type?.toLowerCase() === propertyType)
+    return houses.filter(
+      (house) => (house.property_id ?? house.id) !== propertyId && house.type?.toLowerCase() === propertyType,
+    )
   }, [houses, propertyId, propertyType])
 
   const detailsProps = useMemo(() => {
@@ -201,7 +218,7 @@ export default function PropertyDetailPage() {
       ("interest_status" in property ? ((property as any).interest_status as string | null | undefined) ?? null : null)
 
     return {
-      id: property.id,
+      id: propertyId,
       title: property.title,
       type: property.type,
       status: property.status,
@@ -221,8 +238,19 @@ export default function PropertyDetailPage() {
         "accepting_interest" in property
           ? (property as AvailableProperty).accepting_interest
           : undefined,
+      hasPendingInterest,
+      approvedInterestCount,
+      canExpressInterest:
+        !hasPendingInterest &&
+        (("accepting_interest" in property
+          ? (property as AvailableProperty).accepting_interest !== false
+          : true) &&
+          !(
+            "slots_available" in property &&
+            (property as AvailableProperty).slots_available === 0
+          )),
     }
-  }, [property, activeHouse])
+  }, [property, activeHouse, propertyId, hasPendingInterest, approvedInterestCount])
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -265,7 +293,7 @@ export default function PropertyDetailPage() {
 
         <TabsContent value="payments">
           {activeHouse ? (
-            <PropertyPaymentTab propertyId={activeHouse.id} house={activeHouse} />
+            <PropertyPaymentTab propertyId={propertyId!} house={activeHouse} />
           ) : (
             <div className="rounded-lg border p-6 text-sm text-muted-foreground">
               Payment setup is only available for properties you have expressed interest in.
@@ -275,7 +303,7 @@ export default function PropertyDetailPage() {
 
         <TabsContent value="documents">
           {activeHouse ? (
-            <PropertyDocuments propertyId={activeHouse.id} canUpload allowDelete={false} role="member" />
+            <PropertyDocuments propertyId={propertyId!} canUpload allowDelete={false} role="member" />
           ) : (
             <div className="rounded-lg border p-6 text-sm text-muted-foreground">
               Documents are only available for properties you have subscribed to.

@@ -97,12 +97,22 @@ export default function TenantLandDetailPage() {
   const hasAccess = Boolean(activeSubscription)
 
   const memberContext = land?.member_context as
-    | { interest_status?: string; subscription_id?: string; has_subscription?: boolean }
+    | {
+        interest_status?: string
+        subscription_id?: string
+        has_subscription?: boolean
+        has_pending_interest?: boolean
+        approved_interest_count?: number
+        can_express_interest?: boolean
+      }
     | undefined
 
   const interestStatus =
     memberContext?.interest_status ??
     (hasAccess ? "approved" : null)
+
+  const hasPendingInterest = memberContext?.has_pending_interest ?? interestStatus === "pending"
+  const approvedInterestCount = memberContext?.approved_interest_count ?? (interestStatus === "approved" ? 1 : 0)
 
   const galleryImages: PropertyImage[] = useMemo(() => {
     const raw = land?.images
@@ -133,8 +143,16 @@ export default function TenantLandDetailPage() {
         typeof land.accepting_interest === "boolean"
           ? land.accepting_interest
           : land.total_slots == null || Number(land.slots_available ?? 1) > 0,
+      has_pending_interest: hasPendingInterest,
+      approved_interest_count: approvedInterestCount,
+      can_express_interest:
+        memberContext?.can_express_interest ??
+        (!hasPendingInterest &&
+          (typeof land.accepting_interest === "boolean"
+            ? land.accepting_interest
+            : land.total_slots == null || Number(land.slots_available ?? 1) > 0)),
     }
-  }, [land, landId, interestStatus])
+  }, [land, landId, interestStatus, hasPendingInterest, approvedInterestCount, memberContext?.can_express_interest])
 
   const title = String(land?.land_title ?? "Land parcel")
 

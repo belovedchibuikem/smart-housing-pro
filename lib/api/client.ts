@@ -478,6 +478,7 @@ export interface AvailableProperty {
 
 export interface MemberHouse {
 	id: string
+	property_id?: string
 	title: string
 	type: string
 	location: string
@@ -841,9 +842,51 @@ export interface PropertyInterestResponse {
 	}
 }
 
-export async function getAvailableProperties(type?: string) {
-	const params = type ? `?type=${encodeURIComponent(type)}` : ""
-	return apiFetch<{ properties: AvailableProperty[] }>(`/properties/available${params}`, { method: "GET" })
+export interface BrowsePropertiesParams {
+	type?: "house" | "land" | "all"
+	page?: number
+	per_page?: number
+	search?: string
+	location?: string
+	min_price?: number
+	max_price?: number
+	min_size?: number | string
+	max_size?: number | string
+	min_bedrooms?: number
+	max_bedrooms?: number
+	sort?: "newest" | "price_asc" | "price_desc" | "title_asc" | "title_desc"
+}
+
+export interface BrowsePropertiesPagination {
+	current_page: number
+	last_page: number
+	per_page: number
+	total: number
+}
+
+export async function getAvailableProperties(params?: BrowsePropertiesParams | string) {
+	const resolved: BrowsePropertiesParams =
+		typeof params === "string" ? { type: params as BrowsePropertiesParams["type"] } : (params ?? {})
+
+	const query = new URLSearchParams()
+	if (resolved.type) query.set("type", resolved.type)
+	if (resolved.page) query.set("page", String(resolved.page))
+	if (resolved.per_page) query.set("per_page", String(resolved.per_page))
+	if (resolved.search) query.set("search", resolved.search)
+	if (resolved.location) query.set("location", resolved.location)
+	if (resolved.min_price != null) query.set("min_price", String(resolved.min_price))
+	if (resolved.max_price != null) query.set("max_price", String(resolved.max_price))
+	if (resolved.min_size != null) query.set("min_size", String(resolved.min_size))
+	if (resolved.max_size != null) query.set("max_size", String(resolved.max_size))
+	if (resolved.min_bedrooms != null) query.set("min_bedrooms", String(resolved.min_bedrooms))
+	if (resolved.max_bedrooms != null) query.set("max_bedrooms", String(resolved.max_bedrooms))
+	if (resolved.sort) query.set("sort", resolved.sort)
+
+	const qs = query.toString()
+	return apiFetch<{ properties: AvailableProperty[]; pagination?: BrowsePropertiesPagination }>(
+		`/properties/available${qs ? `?${qs}` : ""}`,
+		{ method: "GET" },
+	)
 }
 
 export async function getMemberProperties(type?: string) {

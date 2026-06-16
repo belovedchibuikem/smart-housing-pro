@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -85,6 +85,7 @@ export default function MyPropertyPortfolioPage() {
 	const [landProperties, setLandProperties] = useState<MemberHouse[]>([])
 	const [landRows, setLandRows] = useState<MemberLandSubscriptionRow[]>([])
 	const [summary, setSummary] = useState<MemberPropertiesSummary | null>(null)
+	const [landSummary, setLandSummary] = useState<MemberPropertiesSummary | null>(null)
 	const [loadingHouses, setLoadingHouses] = useState(true)
 	const [loadingLand, setLoadingLand] = useState(true)
 
@@ -127,6 +128,10 @@ export default function MyPropertyPortfolioPage() {
 			])
 			if (memberRes.success) {
 				setLandProperties(memberRes.properties ?? [])
+				setLandSummary(memberRes.summary ?? null)
+			} else {
+				setLandProperties([])
+				setLandSummary(null)
 			}
 			if (portfolioRes.success && Array.isArray(portfolioRes.data)) {
 				setLandRows(portfolioRes.data)
@@ -136,6 +141,7 @@ export default function MyPropertyPortfolioPage() {
 		} catch {
 			setLandProperties([])
 			setLandRows([])
+			setLandSummary(null)
 		} finally {
 			setLoadingLand(false)
 		}
@@ -149,6 +155,35 @@ export default function MyPropertyPortfolioPage() {
 	useEffect(() => {
 		setActiveTab(searchParams?.get("tab") === "land" ? "land" : "houses")
 	}, [searchParams])
+
+	const displayLandSummary = useMemo(() => {
+		const interestCount = landProperties.length
+		const subscriptionCount = landRows.length
+		const base = landSummary ?? {
+			total_properties: 0,
+			houses_owned: 0,
+			lands_owned: 0,
+			total_paid: 0,
+			current_value: 0,
+			predictive_value: 0,
+		}
+
+		if (subscriptionCount === 0) {
+			return base
+		}
+
+		const subscriptionPaid = landRows.reduce((sum, row) => sum + Number(row.amount_paid ?? 0), 0)
+		const subscriptionValue = landRows.reduce((sum, row) => sum + Number(row.total_cost ?? 0), 0)
+
+		return {
+			...base,
+			total_properties: Math.max(base.total_properties, interestCount + subscriptionCount),
+			lands_owned: Math.max(base.lands_owned ?? 0, interestCount + subscriptionCount),
+			total_paid: base.total_paid + subscriptionPaid,
+			current_value: base.current_value + subscriptionValue,
+			predictive_value: base.predictive_value + subscriptionValue * 1.12,
+		}
+	}, [landSummary, landProperties.length, landRows])
 
 	return (
 		<div className="mx-auto max-w-7xl space-y-6">
@@ -172,7 +207,11 @@ export default function MyPropertyPortfolioPage() {
 				</div>
 			</div>
 
-			<PropertiesSummary summary={summary} loading={loadingHouses} propertyType="house" />
+			<PropertiesSummary
+				summary={activeTab === "land" ? displayLandSummary : summary}
+				loading={activeTab === "land" ? loadingLand : loadingHouses}
+				propertyType={activeTab === "land" ? "land" : "house"}
+			/>
 
 			<Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
 				<TabsList className="grid w-full max-w-md grid-cols-2">

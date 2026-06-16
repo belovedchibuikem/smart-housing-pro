@@ -76,7 +76,7 @@ export function PropertyListings({ properties, loading }: PropertyListingsProps)
 					const primaryImage = (raw && resolveStorageUrl(raw)) || "/placeholder.svg"
 
   return (
-        <Card key={property.id} className="overflow-hidden">
+        <Card key={`${property.listing_kind ?? "house"}-${property.id}`} className="overflow-hidden">
           <div className="relative">
 								<Image
 									src={primaryImage || "/placeholder.svg"}
