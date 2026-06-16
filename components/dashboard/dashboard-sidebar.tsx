@@ -28,7 +28,6 @@ import {
   Building,
   DollarSign,
   UserCog,
-  ArrowRightLeft,
   LogOut,
   Building2,
   LandPlot,
@@ -42,9 +41,12 @@ import {
   Users,
   FileText,
   Banknote,
+  Landmark,
+  Search,
+  LayoutGrid,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { apiFetch, getMemberCurrentSubscription } from "@/lib/api/client"
 import { filterMemberNavByModules } from "@/lib/modules/filter-nav-by-modules"
 import { useI18n } from "@/lib/i18n/i18n-provider"
@@ -72,89 +74,100 @@ const navItems: NavItem[] = [
     ],
   },
   {
-    label: "My Contribution",
-    displayKey: "nav.myContribution",
-    icon: CreditCard,
+    label: "My Accounts",
+    displayKey: "nav.myAccounts",
+    icon: Landmark,
     subItems: [
-      { href: "/dashboard/contributions", label: "View Contributions", displayKey: "nav.viewContributions", icon: Eye },
-      { href: "/dashboard/contributions/new", label: "Pay Contribution", displayKey: "nav.payContribution", icon: DollarSign },
-      { href: "/dashboard/contributions/plan", label: "Contribution Plan", displayKey: "nav.contributionPlan", icon: Calendar },
+      {
+        label: "Contributions",
+        displayKey: "nav.contributionsGroup",
+        icon: CreditCard,
+        subItems: [
+          {
+            label: "General Contribution",
+            displayKey: "nav.generalContribution",
+            icon: CreditCard,
+            subItems: [
+              { href: "/dashboard/contributions", label: "View Contributions", displayKey: "nav.viewContributions", icon: Eye },
+              { href: "/dashboard/contributions/new", label: "Pay Contribution", displayKey: "nav.payContribution", icon: DollarSign },
+              { href: "/dashboard/contributions/plan", label: "Contribution Plan", displayKey: "nav.contributionPlan", icon: Calendar },
+            ],
+          },
+          {
+            label: "Equity Contribution",
+            displayKey: "nav.equityContribution",
+            icon: HandCoins,
+            subItems: [
+              { href: "/dashboard/equity-contributions", label: "View Equity Contributions", displayKey: "nav.equityView", icon: Eye },
+              { href: "/dashboard/equity-contributions/new", label: "Make Equity Contribution", displayKey: "nav.equityNew", icon: Plus },
+              { href: "/dashboard/equity-wallet", label: "Equity Wallet", displayKey: "nav.equityWallet", icon: Wallet },
+              { href: "/dashboard/equity-plans", label: "Equity Plans", displayKey: "nav.equityPlans", icon: Package },
+            ],
+          },
+        ],
+      },
+      {
+        label: "Loans",
+        displayKey: "nav.loans",
+        icon: Banknote,
+        subItems: [
+          { href: "/dashboard/loans", label: "View Loans", displayKey: "nav.viewLoans", icon: Eye },
+          { href: "/dashboard/loans/apply", label: "Request Loan", displayKey: "nav.requestLoan", icon: PlusCircle },
+          { href: "/dashboard/loans/plans", label: "Loan Plans", displayKey: "nav.loanPlans", icon: ListChecks },
+        ],
+      },
+      {
+        label: "Investments",
+        displayKey: "nav.investments",
+        icon: TrendingUp,
+        subItems: [
+          { href: "/dashboard/investment-plans", label: "Investment Plan", displayKey: "nav.investmentPlans", icon: ListChecks },
+          { href: "/dashboard/investments", label: "View My Investment", displayKey: "nav.viewInvestments", icon: Eye },
+          { href: "/dashboard/investments/withdraw", label: "Withdraw my Investment", displayKey: "nav.withdrawInvestment", icon: LogOut },
+        ],
+      },
     ],
   },
   {
-    label: "Equity Contributions",
-    displayKey: "nav.equity",
-    icon: HandCoins,
+    label: "Browse Properties",
+    displayKey: "nav.browseProperties",
+    icon: Search,
     subItems: [
-      { href: "/dashboard/equity-contributions", label: "View Equity Contributions", displayKey: "nav.equityView", icon: Eye },
-      { href: "/dashboard/equity-contributions/new", label: "Make Equity Contribution", displayKey: "nav.equityNew", icon: Plus },
-      { href: "/dashboard/equity-wallet", label: "Equity Wallet", displayKey: "nav.equityWallet", icon: Wallet },
-      { href: "/dashboard/equity-plans", label: "Equity Plans", displayKey: "nav.equityPlans", icon: Package },
+      { href: "/dashboard/browse-properties?listing=all", label: "All Listings", displayKey: "nav.allListings", icon: LayoutGrid },
+      { href: "/dashboard/browse-properties?listing=house", label: "Browse Houses", displayKey: "nav.browseHouses", icon: Building2 },
+      { href: "/dashboard/browse-properties?listing=land", label: "Browse Lands", displayKey: "nav.browseLands", icon: LandPlot },
     ],
   },
   {
-    label: "My Loans",
-    displayKey: "nav.myLoans",
-    icon: HandCoins,
-    subItems: [
-      { href: "/dashboard/loans", label: "View Loans", displayKey: "nav.viewLoans", icon: Eye },
-      { href: "/dashboard/loans/apply", label: "Request Loan", displayKey: "nav.requestLoan", icon: PlusCircle },
-      { href: "/dashboard/loans/plans", label: "Loan Plans", displayKey: "nav.loanPlans", icon: ListChecks },
-    ],
-  },
-  {
-    label: "My Investment",
-    displayKey: "nav.myInvestment",
-    icon: TrendingUp,
-    subItems: [
-      { href: "/dashboard/investment-plans", label: "Investment Plan", displayKey: "nav.investmentPlans", icon: ListChecks },
-      { href: "/dashboard/investments", label: "View My Investment", displayKey: "nav.viewInvestments", icon: Eye },
-      { href: "/dashboard/investments/withdraw", label: "Withdraw my Investment", displayKey: "nav.withdrawInvestment", icon: LogOut },
-    ],
-  },
-  
-  {
-    label: "My Properties",
-    displayKey: "nav.myProperties",
+    label: "My Property",
+    displayKey: "nav.myProperty",
     icon: Home,
     subItems: [
+      { href: "/dashboard/my-property", label: "My Portfolio", displayKey: "nav.myPortfolio", icon: Home },
+      { href: "/dashboard/my-property?tab=land", label: "My Land Parcels", displayKey: "nav.myLandParcels", icon: LandPlot },
+      { href: "/dashboard/properties/manage", label: "Manage My Property", displayKey: "nav.manageMyProperty", icon: UserCog },
+      { href: "/dashboard/properties/sell", label: "Sell My Property", displayKey: "nav.sellMyProperty", icon: DollarSign },
       {
-        label: "Property List",
-        icon: Building,
+        label: "Statutory Charges",
+        displayKey: "nav.statutory",
+        icon: Receipt,
         subItems: [
-          { href: "/dashboard/properties?type=house", label: "House", icon: Building2 },
-          { href: "/dashboard/properties?type=land", label: "Land", icon: LandPlot },
+          { href: "/dashboard/statutory-charges", label: "View Charges", displayKey: "nav.viewCharges", icon: Eye },
+          { href: "/dashboard/statutory-charges/pay", label: "Pay Charges", displayKey: "nav.payCharges", icon: DollarSign },
+          { href: "/dashboard/statutory-charges/history", label: "Payment History", displayKey: "nav.chargeHistory", icon: History },
         ],
       },
       {
-        label: "Authority Transfer",
-        icon: ArrowRightLeft,
+        label: "Estates & Maintenance",
+        displayKey: "nav.estatesMaintenance",
+        icon: Building2,
         subItems: [
-          { href: "/dashboard/properties/manage", label: "Manage My Property", icon: UserCog },
-          { href: "/dashboard/properties/sell", label: "Sell My Property", icon: DollarSign },
+          { href: "/dashboard/property-management/estates", label: "My Estates", displayKey: "nav.myEstates", icon: Building },
+          { href: "/dashboard/property-management/allottees", label: "Allottee Status", displayKey: "nav.allotteeStatus", icon: Users },
+          { href: "/dashboard/property-management/maintenance", label: "Maintenance Requests", displayKey: "nav.maintenanceRequests", icon: Wrench },
+          { href: "/dashboard/property-management/maintenance/new", label: "New Request", displayKey: "nav.newMaintenanceRequest", icon: PlusCircle },
         ],
       },
-    ],
-  },
-  {
-    label: "Statutory Charges",
-    displayKey: "nav.statutory",
-    icon: Receipt,
-    subItems: [
-      { href: "/dashboard/statutory-charges", label: "View Charges", icon: Eye },
-      { href: "/dashboard/statutory-charges/pay", label: "Pay Charges", icon: DollarSign },
-      { href: "/dashboard/statutory-charges/history", label: "Payment History", icon: History },
-    ],
-  },
-  {
-    label: "Property Management",
-    displayKey: "nav.propertyMgmt",
-    icon: Building2,
-    subItems: [
-      { href: "/dashboard/property-management/estates", label: "My Estates", icon: Building },
-      { href: "/dashboard/property-management/allottees", label: "Allottee Status", icon: Users },
-      { href: "/dashboard/property-management/maintenance", label: "Maintenance Requests", icon: Wrench },
-      { href: "/dashboard/property-management/maintenance/new", label: "New Request", icon: PlusCircle },
     ],
   },
   {
@@ -233,78 +246,108 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
     checkSubscription()
   }, [])
 
-  const toggleMenu = (label: string) => {
-    setOpenMenus((prev) => (prev.includes(label) ? prev.filter((item) => item !== label) : [...prev, label]))
+  const toggleMenu = (menuKey: string) => {
+    setOpenMenus((prev) => (prev.includes(menuKey) ? prev.filter((item) => item !== menuKey) : [...prev, menuKey]))
   }
 
-  const isMenuOpen = (label: string) => openMenus.includes(label)
+  const isMenuOpen = (menuKey: string) => openMenus.includes(menuKey)
+
+  const hrefMatchesCurrentLocation = (href: string) => {
+    const [path, queryString] = href.split("?")
+    const pathMatches = pathname === path || pathname.startsWith(`${path}/`)
+    if (!pathMatches) return false
+    if (!queryString || typeof window === "undefined") return pathMatches
+    const expected = new URLSearchParams(queryString)
+    const current = new URLSearchParams(window.location.search)
+    for (const [key, value] of expected.entries()) {
+      if (current.get(key) !== value) return false
+    }
+    return true
+  }
+
+  const itemMatchesLocation = (item: NavItem): boolean => {
+    if (item.href && hrefMatchesCurrentLocation(item.href)) return true
+    return item.subItems?.some((sub) => itemMatchesLocation(sub)) ?? false
+  }
+
+  const collectOpenMenuKeys = (items: NavItem[], parentKey = ""): string[] => {
+    const keys: string[] = []
+    for (const item of items) {
+      const menuKey = parentKey ? `${parentKey}/${item.label}` : item.label
+      if (item.subItems?.length) {
+        const childKeys = collectOpenMenuKeys(item.subItems, menuKey)
+        if (itemMatchesLocation(item)) {
+          keys.push(menuKey, ...childKeys)
+        } else if (childKeys.length > 0) {
+          keys.push(menuKey, ...childKeys)
+        }
+      }
+    }
+    return keys
+  }
 
   // Filter nav items based on subscription status
   // Always show subscription menu, hide others if no active subscription
-  const subscriptionFiltered = navItems.filter((item) => {
-    // Always show subscription menu
-    if (item.label === "Subscription" || item.href === "/dashboard/subscriptions") {
-      return true
-    }
-    // Show all other menus only if subscription is active
-    // If subscription status is still loading (null), show all menus
-    if (hasActiveSubscription === null) {
-      return true // Show all while loading
-    }
-    return hasActiveSubscription
-  })
+  const subscriptionFiltered = useMemo(
+    () =>
+      navItems.filter((item) => {
+        if (item.label === "Subscription" || item.href === "/dashboard/subscriptions") {
+          return true
+        }
+        if (hasActiveSubscription === null) {
+          return true
+        }
+        return hasActiveSubscription
+      }),
+    [hasActiveSubscription],
+  )
 
-  const filteredNavItems =
-    enabledModules === null
-      ? subscriptionFiltered
-      : filterMemberNavByModules(subscriptionFiltered, enabledModules)
+  const filteredNavItems = useMemo(
+    () =>
+      enabledModules === null
+        ? subscriptionFiltered
+        : filterMemberNavByModules(subscriptionFiltered, enabledModules),
+    [subscriptionFiltered, enabledModules],
+  )
 
-  const renderNavItem = (item: NavItem, level = 0) => {
+  useEffect(() => {
+    if (filteredNavItems.length === 0) return
+    const activeKeys = collectOpenMenuKeys(filteredNavItems)
+    if (activeKeys.length === 0) return
+    setOpenMenus((prev) => Array.from(new Set([...prev, ...activeKeys])))
+  }, [pathname, filteredNavItems])
+
+  const renderNavItem = (item: NavItem, level = 0, menuKey = item.label) => {
     const Icon = item.icon
     const hasSubItems = item.subItems && item.subItems.length > 0
-    const isOpen = isMenuOpen(item.label)
-    const isActive = item.href ? pathname === item.href || pathname.startsWith(item.href + "/") : false
+    const isOpen = isMenuOpen(menuKey)
+    const isActive = item.href ? hrefMatchesCurrentLocation(item.href) : false
+    const hasActiveChild = item.subItems?.some((sub) => itemMatchesLocation(sub)) ?? false
 
     if (hasSubItems) {
       return (
-        <div key={item.label}>
-          <div className="flex items-center gap-1">
-            {item.href ? (
-              <Link
-                href={item.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className={cn(
-                  "flex items-center flex-1 gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
-                  level > 0 && "py-2 text-xs",
-                  isActive
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                )}
-              >
-                <Icon className={cn("h-5 w-5", level > 0 && "h-4 w-4")} />
-                {navLabel(item)}
-              </Link>
-            ) : (
-              <div
-                className={cn(
-                  "flex items-center flex-1 gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground",
-                  level > 0 && "py-2 text-xs",
-                )}
-              >
-                <Icon className={cn("h-5 w-5", level > 0 && "h-4 w-4")} />
-                {navLabel(item)}
-              </div>
+        <div key={menuKey}>
+          <button
+            type="button"
+            onClick={() => toggleMenu(menuKey)}
+            className={cn(
+              "flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors",
+              level > 0 && "py-2 text-xs",
+              isActive || hasActiveChild
+                ? "bg-primary/10 text-foreground"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
-            <button
-              onClick={() => toggleMenu(item.label)}
-              className="p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            >
-              {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            </button>
-          </div>
+            aria-expanded={isOpen}
+          >
+            <Icon className={cn("h-5 w-5 shrink-0", level > 0 && "h-4 w-4")} />
+            <span className="flex-1">{navLabel(item)}</span>
+            {isOpen ? <ChevronDown className="h-4 w-4 shrink-0 opacity-70" /> : <ChevronRight className="h-4 w-4 shrink-0 opacity-70" />}
+          </button>
           {isOpen && (
-            <div className={cn("ml-4 mt-1 space-y-1", level > 0 && "ml-6")}>
-              {item.subItems?.map((subItem) => renderNavItem(subItem, level + 1))}
+            <div className={cn("ml-4 mt-1 space-y-1 border-l border-border/60 pl-2", level > 0 && "ml-5")}>
+              {item.subItems?.map((subItem) =>
+                renderNavItem(subItem, level + 1, `${menuKey}/${subItem.label}`),
+              )}
             </div>
           )}
         </div>
@@ -313,11 +356,11 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
 
     return (
       <Link
-        key={item.href}
+        key={menuKey}
         href={item.href!}
         onClick={() => setMobileMenuOpen(false)}
         className={cn(
-          "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
+          "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors",
           level > 0 && "py-2 text-xs",
           isActive
             ? "bg-primary text-primary-foreground"

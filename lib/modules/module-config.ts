@@ -68,13 +68,15 @@ export const ADMIN_NAV_MODULE_MAP: Record<string, string> = {
 /** Member nav label → module slug */
 export const MEMBER_NAV_MODULE_MAP: Record<string, string> = {
   "My Wallet": "wallet",
-  "My Contribution": "contributions",
-  "Equity Contributions": "equity",
-  "My Loans": "loans",
-  "My Investment": "investments",
-  "My Properties": "properties",
+  Contributions: "contributions",
+  "General Contribution": "contributions",
+  "Equity Contribution": "equity",
+  Loans: "loans",
+  Investments: "investments",
+  "Browse Properties": "properties",
+  "My Property": "properties",
   "Statutory Charges": "statutory",
-  "Property Management": "property_management",
+  "Estates & Maintenance": "property_management",
   "Mail Service": "mail",
   Report: "reports",
   AI: "ai",
@@ -82,6 +84,13 @@ export const MEMBER_NAV_MODULE_MAP: Record<string, string> = {
   "Refunds & Requests": "refunds",
   "Withdraw Membership": "withdraw_membership",
   Settings: "settings",
+  // Legacy labels (backward compatibility)
+  "My Contribution": "contributions",
+  "Equity Contributions": "equity",
+  "My Loans": "loans",
+  "My Investment": "investments",
+  "My Properties": "properties",
+  "Property Management": "property_management",
 }
 
 /** Admin href path segment → module slug */
@@ -142,6 +151,8 @@ export const MEMBER_HREF_MODULE_MAP: Record<string, string> = {
   loans: "loans",
   investments: "investments",
   properties: "properties",
+  "browse-properties": "properties",
+  "my-property": "properties",
   "statutory-charges": "statutory",
   "property-management": "property_management",
   mail: "mail",

@@ -23,7 +23,7 @@ export function PropertyHeader({ property, loading }: PropertyHeaderProps) {
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div className="flex items-center gap-3">
         <Button asChild variant="outline" size="icon">
-          <Link href="/dashboard/properties">
+          <Link href="/dashboard/browse-properties">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>

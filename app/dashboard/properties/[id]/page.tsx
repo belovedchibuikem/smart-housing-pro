@@ -94,7 +94,7 @@ export default function PropertyDetailPage() {
           description: error?.message || "We could not load this property. Please try again later.",
           variant: "destructive",
         })
-        router.replace("/dashboard/properties")
+        router.replace("/dashboard/browse-properties")
       } finally {
         if (isMounted) setLoading(false)
       }

@@ -9,6 +9,7 @@ import { SavingsRefundsPanel } from "@/components/dashboard/savings-refunds-pane
 import { ContributionChart } from "@/components/dashboard/contribution-chart"
 import { RecentTransactions } from "@/components/dashboard/recent-transactions"
 import { QuickActions } from "@/components/dashboard/quick-actions"
+import { HousingDiscoveryPanel } from "@/components/dashboard/housing-discovery-panel"
 import { UpcomingPayments } from "@/components/dashboard/upcoming-payments"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { ArrowRight, AlertCircle } from "lucide-react"
@@ -200,6 +201,9 @@ export default function DashboardPage() {
         totalContributionRefunded={dashboardData?.financial_summary?.total_contribution_refunded ?? 0}
         history={dashboardData?.refunds?.history}
       />
+
+      {/* Housing discovery */}
+      <HousingDiscoveryPanel enabledModules={dashboardData?.enabled_modules} />
 
       {/* Quick Actions */}
       <QuickActions enabledModules={dashboardData?.enabled_modules} />

@@ -45,7 +45,7 @@ export default function MemberLandAccountPage() {
 	return (
 		<div className="mx-auto max-w-4xl space-y-6 py-8">
 			<Button asChild variant="ghost" size="sm">
-				<Link href="/dashboard/properties?listing=land">
+				<Link href="/dashboard/browse-properties?listing=land">
 					<ArrowLeft className="mr-2 h-4 w-4" /> Back to land portfolio
 				</Link>
 			</Button>

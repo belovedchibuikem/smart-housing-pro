@@ -28,6 +28,7 @@ import {
 } from "@/lib/api/client"
 import { useWhiteLabelSettings } from "@/lib/hooks/use-white-label"
 import { resolveStorageUrl } from "@/lib/api/config"
+import { cn } from "@/lib/utils"
 import { remoteImageToDataUrl } from "@/lib/utils/image-data-url"
 
 interface ExpressionOfInterestFormProps {
@@ -154,6 +155,7 @@ export function ExpressionOfInterestForm({ propertyId, landId }: ExpressionOfInt
 	const [memberAge, setMemberAge] = useState<number | null>(null)
 	const [yearsOfService, setYearsOfService] = useState<number | null>(null)
 	const [mortgageTerms, setMortgageTerms] = useState<PropertyMortgage | null>(null)
+	const [fieldErrors, setFieldErrors] = useState<{ netSalary?: string }>({})
 	const { getLogo } = useWhiteLabelSettings()
 
 	const expressionHeading = useMemo(() => {
@@ -336,7 +338,7 @@ useEffect(() => {
 						description: "The selected land parcel could not be found.",
 						variant: "destructive",
 					})
-					router.replace("/dashboard/properties?listing=land")
+					router.replace("/dashboard/browse-properties?listing=land")
 					return
 				}
 				const landRecord = land as Record<string, unknown>
@@ -362,7 +364,7 @@ useEffect(() => {
 						description: "The selected property could not be found. Please select another property.",
 						variant: "destructive",
 					})
-					router.replace("/dashboard/properties")
+					router.replace("/dashboard/browse-properties")
 					return
 				}
 				try {
@@ -440,7 +442,7 @@ useEffect(() => {
 				description: "We could not load your profile details. Please try again later.",
 				variant: "destructive",
 			})
-			router.replace(isLand ? "/dashboard/properties?listing=land" : "/dashboard/properties")
+			router.replace(isLand ? "/dashboard/browse-properties?listing=land" : "/dashboard/browse-properties")
 		} finally {
 			setLoading(false)
 		}
@@ -455,6 +457,9 @@ useEffect(() => {
 			...prev,
 			[field]: event.target.value,
 		}))
+		if (field === "netSalary" && fieldErrors.netSalary) {
+			setFieldErrors((prev) => ({ ...prev, netSalary: undefined }))
+		}
     }
 
 	const toggleLoanType = (key: keyof LoanState) => (checked: boolean | string) => {
@@ -583,15 +588,27 @@ useEffect(() => {
 		}
 
 		const netSalaryValue = sanitizeNumber(formData.netSalary)
-		if (!Number.isFinite(netSalaryValue) || netSalaryValue <= 0) {
+		if (!formData.netSalary.trim()) {
+			setFieldErrors({ netSalary: "Net salary is required. Enter the amount shown on your last pay slip." })
 			toast({
 				title: "Net salary required",
+				description: "Please enter your net salary before submitting this form.",
+				variant: "destructive",
+			})
+			document.getElementById("netSalary")?.focus()
+			return
+		}
+		if (!Number.isFinite(netSalaryValue) || netSalaryValue <= 0) {
+			setFieldErrors({ netSalary: "Enter a valid net salary amount greater than zero." })
+			toast({
+				title: "Invalid net salary",
 				description: "Please provide a valid net salary amount.",
 				variant: "destructive",
 			})
-			console.warn("Submission blocked: invalid net salary", { netSalaryValue, raw: formData.netSalary })
+			document.getElementById("netSalary")?.focus()
 			return
 		}
+		setFieldErrors((prev) => ({ ...prev, netSalary: undefined }))
 
 		const payload: SubmitPropertyInterestPayload = {
 			interest_type: "purchase",
@@ -855,7 +872,9 @@ useEffect(() => {
 						<h3 className="border-b pb-2 text-lg font-semibold uppercase">Affordability Test</h3>
 
             <div className="space-y-2">
-							<Label htmlFor="netSalary">Net Salary (as at last pay slip) ₦</Label>
+							<Label htmlFor="netSalary">
+								Net Salary (as at last pay slip) ₦ <span className="text-destructive">*</span>
+							</Label>
 							<div className="flex flex-col gap-3 md:flex-row md:items-center">
 								<div className="flex-1">
                 <Input
@@ -865,9 +884,19 @@ useEffect(() => {
 										onChange={onChangeField("netSalary")}
 										min="0"
                   required
+                  aria-invalid={Boolean(fieldErrors.netSalary)}
+                  aria-describedby={fieldErrors.netSalary ? "netSalary-error" : undefined}
                   placeholder="Enter net salary"
-										className="rounded-none border-x-0 border-t-0 border-b border-dotted"
+										className={cn(
+											"rounded-none border-x-0 border-t-0 border-b border-dotted",
+											fieldErrors.netSalary && "border-destructive text-destructive",
+										)}
                 />
+								{fieldErrors.netSalary ? (
+									<p id="netSalary-error" className="mt-1 text-sm text-destructive">
+										{fieldErrors.netSalary}
+									</p>
+								) : null}
 								</div>
 								<div className="flex items-center gap-2 text-sm">
 									<label

@@ -28,7 +28,7 @@ export function QuickActions({ enabledModules }: QuickActionsProps) {
       title: "Browse Properties",
       description: "View available properties",
       icon: Home,
-      href: "/dashboard/properties",
+      href: "/dashboard/browse-properties",
       variant: "outline" as const,
     },
     {
