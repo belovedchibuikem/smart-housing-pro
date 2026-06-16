@@ -21,6 +21,8 @@ type PropertyDetailsTabProps = {
     description?: string | null
     features?: string[] | null
     interestStatus?: string | null
+    slotsAvailable?: number | null
+    acceptingInterest?: boolean
   } | null
 }
 
@@ -58,6 +60,10 @@ export function PropertyDetailsTab({ property }: PropertyDetailsTabProps) {
   const statusLabel = property.status?.replace(/_/g, " ") ?? "Available"
   const interestStatus = property.interestStatus?.toLowerCase()
   const interestDisabled = interestStatus === "pending" || interestStatus === "approved"
+  const slotsFull =
+    property.slotsAvailable === 0 ||
+    (property.acceptingInterest === false && property.slotsAvailable !== null && property.slotsAvailable !== undefined)
+  const subscribeDisabled = interestDisabled || slotsFull
 
   return (
     <div className="space-y-6">
@@ -135,19 +141,31 @@ export function PropertyDetailsTab({ property }: PropertyDetailsTabProps) {
 
           <div className="space-y-2 border-t pt-4">
             <Button
-              asChild
-              disabled={interestDisabled}
+              asChild={!subscribeDisabled}
+              disabled={subscribeDisabled}
               className="h-12 w-full rounded-md bg-amber-500 text-sm font-semibold text-white transition hover:bg-amber-600"
-              variant={interestDisabled ? "secondary" : "default"}
+              variant={subscribeDisabled ? "secondary" : "default"}
             >
-              <Link href={property.id ? `/dashboard/properties/${property.id}/subscribe` : "#"}>
-                {interestDisabled ? "Interest Submitted" : "Subscribe to This Property"}
-              </Link>
+              {subscribeDisabled ? (
+                <span>
+                  {interestDisabled
+                    ? "Interest Submitted"
+                    : slotsFull
+                      ? "All Slots Taken"
+                      : "Subscribe to This Property"}
+                </span>
+              ) : (
+                <Link href={property.id ? `/dashboard/properties/${property.id}/subscribe` : "#"}>
+                  Subscribe to This Property
+                </Link>
+              )}
             </Button>
             <p className="text-center text-xs text-muted-foreground">
               {interestDisabled
                 ? "You have already submitted an expression of interest for this property."
-                : "Fill the Expression of Interest form to begin your property subscription"}
+                : slotsFull
+                  ? "This property is still visible for reference, but every slot has been assigned."
+                  : "Fill the Expression of Interest form to begin your property subscription"}
             </p>
             {interestStatus && (
               <p className="text-center text-xs text-muted-foreground">

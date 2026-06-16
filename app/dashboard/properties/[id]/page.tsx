@@ -213,6 +213,14 @@ export default function PropertyDetailPage() {
       features,
       listedAt: computedListedAt,
       interestStatus,
+      slotsAvailable:
+        "slots_available" in property && (property as AvailableProperty).slots_available !== undefined
+          ? (property as AvailableProperty).slots_available ?? null
+          : null,
+      acceptingInterest:
+        "accepting_interest" in property
+          ? (property as AvailableProperty).accepting_interest
+          : undefined,
     }
   }, [property, activeHouse])
 

@@ -20,6 +20,9 @@ type LandDetailsTabProps = {
     infrastructure_plan?: string[] | null
     created_at?: string | null
     interestStatus?: string | null
+    total_slots?: number | null
+    slots_available?: number | null
+    accepting_interest?: boolean
   } | null
 }
 
@@ -47,6 +50,10 @@ export function LandDetailsTab({ land }: LandDetailsTabProps) {
   const statusLabel = land.status?.replace(/_/g, " ") ?? "Available"
   const interestStatus = land.interestStatus?.toLowerCase()
   const interestDisabled = interestStatus === "pending" || interestStatus === "approved"
+  const slotsFull =
+    land.slots_available === 0 ||
+    (land.accepting_interest === false && land.slots_available !== null && land.slots_available !== undefined)
+  const subscribeDisabled = interestDisabled || slotsFull
 
   return (
     <div className="space-y-6">
@@ -126,19 +133,31 @@ export function LandDetailsTab({ land }: LandDetailsTabProps) {
 
           <div className="space-y-2 border-t pt-4">
             <Button
-              asChild
-              disabled={interestDisabled}
+              asChild={!subscribeDisabled}
+              disabled={subscribeDisabled}
               className="h-12 w-full rounded-md bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-700"
-              variant={interestDisabled ? "secondary" : "default"}
+              variant={subscribeDisabled ? "secondary" : "default"}
             >
-              <Link href={land.id ? `/dashboard/lands/${land.id}/subscribe` : "#"}>
-                {interestDisabled ? "Interest Submitted" : "Express Interest in This Land"}
-              </Link>
+              {subscribeDisabled ? (
+                <span>
+                  {interestDisabled
+                    ? "Interest Submitted"
+                    : slotsFull
+                      ? "All Slots Taken"
+                      : "Express Interest in This Land"}
+                </span>
+              ) : (
+                <Link href={land.id ? `/dashboard/lands/${land.id}/subscribe` : "#"}>
+                  Express Interest in This Land
+                </Link>
+              )}
             </Button>
             <p className="text-center text-xs text-muted-foreground">
               {interestDisabled
                 ? "You have already submitted an expression of interest for this land parcel."
-                : "Complete the Expression of Interest form to begin your land subscription journey."}
+                : slotsFull
+                  ? "This land parcel remains visible, but every slot has been assigned."
+                  : "Complete the Expression of Interest form to begin your land subscription journey."}
             </p>
             {interestStatus && (
               <p className="text-center text-xs text-muted-foreground">

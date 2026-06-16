@@ -463,6 +463,7 @@ export interface AvailableProperty {
 	total_slots?: number | null
 	slots_used?: number | null
 	slots_available?: number | null
+	accepting_interest?: boolean
 	/** Unified catalog: house | land_parcel | land_legacy */
 	listing_kind?: string
 	land_code?: string | null

@@ -146,7 +146,11 @@ export function PropertyListings({ properties, loading }: PropertyListingsProps)
             </div>
 
             <Link href={detailHref(property)}>
-									<Button className="w-full">View Details &amp; Show Interest</Button>
+									<Button className="w-full" variant={property.accepting_interest === false ? "secondary" : "default"}>
+										{property.accepting_interest === false
+											? "View Details (All Slots Taken)"
+											: "View Details & Show Interest"}
+									</Button>
             </Link>
           </div>
         </Card>

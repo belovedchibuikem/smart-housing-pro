@@ -126,6 +126,12 @@ export default function TenantLandDetailPage() {
       infrastructure_plan: (land.infrastructure_plan as string[]) ?? null,
       created_at: land.created_at ? String(land.created_at) : null,
       interestStatus,
+      total_slots: land.total_slots != null ? Number(land.total_slots) : null,
+      slots_available: land.slots_available != null ? Number(land.slots_available) : null,
+      accepting_interest:
+        typeof land.accepting_interest === "boolean"
+          ? land.accepting_interest
+          : land.total_slots == null || Number(land.slots_available ?? 1) > 0,
     }
   }, [land, landId, interestStatus])
 
