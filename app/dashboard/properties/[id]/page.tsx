@@ -228,11 +228,11 @@ export default function PropertyDetailPage() {
     <div className="mx-auto max-w-7xl space-y-6">
       <PropertyHeader property={property} loading={loading} />
       <PropertyGallery images={property?.images} />
-      {activeHouse ? <PropertyFinancials house={activeHouse} /> : null}
 
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList>
+        <TabsList className="flex h-auto flex-wrap">
           <TabsTrigger value="details">{propertyType === "land" ? "Land Details" : "House Details"}</TabsTrigger>
+          <TabsTrigger value="overview" disabled={!activeHouse}>Financial Overview</TabsTrigger>
           <TabsTrigger value="payments" disabled={!activeHouse}>Payments</TabsTrigger>
           <TabsTrigger value="documents" disabled={!activeHouse}>Documents</TabsTrigger>
           <TabsTrigger value="journey">Payment Journey</TabsTrigger>
@@ -241,6 +241,16 @@ export default function PropertyDetailPage() {
 
         <TabsContent value="details">
           <PropertyDetailsTab property={detailsProps} />
+        </TabsContent>
+
+        <TabsContent value="overview">
+          {activeHouse ? (
+            <PropertyFinancials house={activeHouse} />
+          ) : (
+            <div className="rounded-lg border p-6 text-sm text-muted-foreground">
+              Financial overview is available once you have expressed interest in this property.
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="journey">

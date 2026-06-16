@@ -28,6 +28,7 @@ import {
 } from "@/lib/api/client"
 import { useWhiteLabelSettings } from "@/lib/hooks/use-white-label"
 import { resolveStorageUrl } from "@/lib/api/config"
+import { remoteImageToDataUrl } from "@/lib/utils/image-data-url"
 
 interface ExpressionOfInterestFormProps {
   propertyId?: string
@@ -419,6 +420,19 @@ useEffect(() => {
 					setYearsOfService(differenceInYears(new Date(), start))
 				}
 			}
+
+			if (user.avatar_url) {
+				const avatarSrc = resolveStorageUrl(user.avatar_url)
+				if (avatarSrc) {
+					setPassportPreview(avatarSrc)
+					try {
+						const dataUrl = await remoteImageToDataUrl(avatarSrc)
+						setPassportDataUrl(dataUrl)
+					} catch (avatarError) {
+						console.warn("Unable to load profile photo for EOI form", avatarError)
+					}
+				}
+			}
 		} catch (error) {
 			console.error(error)
 			toast({
@@ -737,22 +751,30 @@ useEffect(() => {
             </div>
 						<div className="flex h-40 w-32 flex-col items-center justify-center rounded border-2 border-gray-300">
 							{passportPreview ? (
-								<img src={passportPreview} alt="Passport" className="h-full w-full rounded object-cover" />
+								<div className="relative h-full w-full">
+									<img src={passportPreview} alt="Passport" className="h-full w-full rounded object-cover" />
+									<label
+										htmlFor="passport-upload"
+										className="absolute bottom-0 left-0 right-0 cursor-pointer bg-black/50 py-1 text-center text-[10px] text-white"
+									>
+										Change photo
+									</label>
+								</div>
               ) : (
                 <>
 									<div className="mb-2 px-2 text-center text-xs">AFFIX YOUR PASSPORT (UNIFORM)</div>
                   <label htmlFor="passport-upload" className="cursor-pointer">
                     <Upload className="h-6 w-6 text-gray-400" />
                   </label>
-                  <input
-                    id="passport-upload"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handlePassportUpload}
-                  />
                 </>
               )}
+							<input
+								id="passport-upload"
+								type="file"
+								accept="image/*"
+								className="hidden"
+								onChange={handlePassportUpload}
+							/>
             </div>
           </div>
         </CardHeader>

@@ -9,11 +9,12 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { useMemberProfile } from "@/lib/hooks/use-member-profile"
 import { useMemberKyc } from "@/lib/hooks/use-member-kyc"
-import { User, Mail, Phone, MapPin, Briefcase, Calendar, AlertTriangle } from "lucide-react"
+import { ProfilePhotoUpload } from "@/components/profile/profile-photo-upload"
+import { Mail, Phone, MapPin, Briefcase, Calendar, AlertTriangle } from "lucide-react"
 import Link from "next/link"
 
 export default function ProfilePage() {
-	const { user, member, isLoading, error, updateProfile } = useMemberProfile()
+	const { user, member, isLoading, error, updateProfile, uploadAvatar } = useMemberProfile()
 	const kyc = useMemberKyc()
 	const [activeTab, setActiveTab] = useState<"personal" | "employment" | "next-of-kin" | "documents" | "account">(
 		"personal",
@@ -137,9 +138,12 @@ export default function ProfilePage() {
       <Card className="p-6">
 				<div className="flex flex-col gap-6 md:flex-row">
           <div className="flex-shrink-0">
-						<div className="flex h-24 w-24 items-center justify-center rounded-full bg-primary/10">
-              <User className="h-12 w-12 text-primary" />
-            </div>
+						<ProfilePhotoUpload
+							avatarUrl={user?.avatar_url}
+							firstName={user?.first_name}
+							lastName={user?.last_name}
+							onUpload={uploadAvatar}
+						/>
           </div>
           <div className="flex-1 space-y-4">
 						<div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">

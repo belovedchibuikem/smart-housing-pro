@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useState } from "react"
-import { fetchUserProfile, updateUserProfile, type UpdateUserProfilePayload } from "@/lib/api/user-profile"
+import { fetchUserProfile, updateUserProfile, uploadProfileAvatar, type UpdateUserProfilePayload } from "@/lib/api/user-profile"
 import type { Member, User } from "@/lib/types/user"
 
 interface UseMemberProfileResult {
@@ -11,6 +11,7 @@ interface UseMemberProfileResult {
 	error: string | null
 	refresh: () => void
 	updateProfile: (payload: UpdateUserProfilePayload) => Promise<void>
+	uploadAvatar: (file: File) => Promise<void>
 }
 
 export function useMemberProfile(): UseMemberProfileResult {
@@ -80,6 +81,38 @@ export function useMemberProfile(): UseMemberProfileResult {
 		[],
 	)
 
+	const syncUserToStorage = useCallback((nextUser: User) => {
+		if (typeof window === "undefined") return
+		try {
+			const raw = localStorage.getItem("user_data")
+			if (raw) {
+				const prev = JSON.parse(raw) as { id?: string; member?: unknown }
+				if (prev?.id === nextUser.id) {
+					localStorage.setItem(
+						"user_data",
+						JSON.stringify({
+							...prev,
+							...nextUser,
+							member: nextUser.member ?? prev.member,
+						}),
+					)
+				}
+			}
+		} catch {
+			/* ignore */
+		}
+	}, [])
+
+	const uploadAvatar = useCallback(
+		async (file: File) => {
+			const response = await uploadProfileAvatar(file)
+			setUser(response.user)
+			setMember(response.user.member ?? null)
+			syncUserToStorage(response.user)
+		},
+		[syncUserToStorage],
+	)
+
 	return {
 		user,
 		member,
@@ -87,6 +120,7 @@ export function useMemberProfile(): UseMemberProfileResult {
 		error,
 		refresh,
 		updateProfile,
+		uploadAvatar,
 	}
 }
 

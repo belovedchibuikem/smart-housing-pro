@@ -93,3 +93,20 @@ export async function uploadMemberKycDocument(type: string, file: File) {
 	})
 }
 
+export type UploadAvatarResponse = {
+	success: boolean
+	message: string
+	avatar_url: string
+	user: User
+}
+
+export async function uploadProfileAvatar(file: File): Promise<UploadAvatarResponse> {
+	const formData = new FormData()
+	formData.append("avatar", file)
+
+	return apiFetch<UploadAvatarResponse>("/user/profile/avatar", {
+		method: "POST",
+		body: formData,
+		headers: {},
+	})
+}

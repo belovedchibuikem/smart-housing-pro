@@ -14,6 +14,7 @@ import { LandDocuments } from "@/components/properties/land-documents"
 import { LandPaymentTab } from "@/components/lands/land-payment-tab"
 import { LandPaymentJourney } from "@/components/lands/land-payment-journey"
 import { SimilarLands, type SimilarLandItem } from "@/components/lands/similar-lands"
+import { LandFinancials } from "@/components/lands/land-financials"
 import {
   apiFetch,
   getLandDetail,
@@ -161,28 +162,12 @@ export default function TenantLandDetailPage() {
 
       <PropertyGallery images={galleryImages} />
 
-      {hasAccess && activeSubscription && (
-        <div className="grid gap-4 rounded-lg border border-emerald-200 bg-emerald-50/50 p-4 sm:grid-cols-3">
-          <div>
-            <p className="text-xs text-muted-foreground">Total cost</p>
-            <p className="text-lg font-bold">₦{activeSubscription.total_cost.toLocaleString()}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Paid</p>
-            <p className="text-lg font-bold">₦{activeSubscription.amount_paid.toLocaleString()}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Outstanding</p>
-            <p className="text-lg font-bold text-emerald-700">
-              ₦{activeSubscription.outstanding_balance.toLocaleString()}
-            </p>
-          </div>
-        </div>
-      )}
-
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="flex flex-wrap h-auto">
+        <TabsList className="flex h-auto flex-wrap">
           <TabsTrigger value="details">Land Details</TabsTrigger>
+          <TabsTrigger value="overview" disabled={!hasAccess}>
+            Financial Overview
+          </TabsTrigger>
           <TabsTrigger value="payments" disabled={!hasAccess}>
             Payments
           </TabsTrigger>
@@ -195,6 +180,16 @@ export default function TenantLandDetailPage() {
 
         <TabsContent value="details">
           <LandDetailsTab land={detailsProps} />
+        </TabsContent>
+
+        <TabsContent value="overview">
+          {hasAccess && activeSubscription ? (
+            <LandFinancials subscription={activeSubscription} />
+          ) : (
+            <div className="rounded-lg border p-6 text-sm text-muted-foreground">
+              Financial overview is available after your expression of interest is approved.
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="payments">

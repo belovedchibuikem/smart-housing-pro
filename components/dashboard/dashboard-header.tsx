@@ -1,21 +1,13 @@
 "use client"
 
-import { User, Menu } from "lucide-react"
+import { Menu } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import Link from "next/link"
-import { handleLogout } from "@/lib/auth/auth-utils"
 import { useWhiteLabelSettings } from "@/lib/hooks/use-white-label"
 import { UserNotificationBell } from "./user-notification-bell"
 import { SubscriptionAlertBanner } from "./subscription-alert-banner"
 import { resolveStorageUrl } from "@/lib/api/config"
+import { MemberAccountMenu } from "./member-account-menu"
 
 interface DashboardHeaderProps {
   mobileMenuOpen: boolean
@@ -57,30 +49,7 @@ export function DashboardHeader({ mobileMenuOpen, setMobileMenuOpen }: Dashboard
           <UserNotificationBell />
 
           {/* User Menu */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <User className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem asChild>
-                <Link href="/dashboard/profile">Profile</Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/dashboard/settings">Settings</Link>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                className="text-destructive cursor-pointer"
-                onClick={() => handleLogout()}
-              >
-                Logout
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <MemberAccountMenu />
         </div>
       </div>
     </header>
