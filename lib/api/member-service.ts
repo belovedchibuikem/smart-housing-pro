@@ -444,6 +444,30 @@ export class MemberService {
       body: reason ? { reason } : undefined
     })
   }
+
+  /** Download member details as Excel (.xlsx). Honors the same filters as the members list. */
+  static async exportMembersExcel(params?: {
+    search?: string
+    status?: string
+    kyc_status?: string
+  }): Promise<void> {
+    const query = new URLSearchParams()
+    if (params?.search) query.set('search', params.search)
+    if (params?.status && params.status !== 'all') query.set('status', params.status)
+    if (params?.kyc_status && params.kyc_status !== 'all') query.set('kyc_status', params.kyc_status)
+
+    const qs = query.toString()
+    const blob = await apiFetchBlob(`/admin/members/export${qs ? `?${qs}` : ''}`)
+    const filename = `members_${new Date().toISOString().slice(0, 10)}.xlsx`
+    const url = window.URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = filename
+    document.body.appendChild(anchor)
+    anchor.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(anchor)
+  }
 }
 
 

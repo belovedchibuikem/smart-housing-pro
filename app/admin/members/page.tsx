@@ -11,7 +11,7 @@ import { usePageLoading } from "@/hooks/use-loading"
 import { useMemberStats } from "@/lib/hooks/use-members"
 import { apiFetch } from "@/lib/api/client"
 import { cn } from "@/lib/utils"
-import { Search, UserPlus, Upload, Eye, Edit, MoreHorizontal, Users, Phone, Mail, Calendar, Shield } from "lucide-react"
+import { Search, UserPlus, Upload, Eye, Edit, MoreHorizontal, Users, Phone, Mail, Calendar, Shield, Download } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +19,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
+import { MemberService } from "@/lib/api/member-service"
+import { useToast } from "@/hooks/use-toast"
 
 interface Member {
 	id: string
@@ -62,7 +64,9 @@ export default function AdminMembersPage() {
 	const [total, setTotal] = useState(0)
 	const [perPage] = useState(15)
 	const [lastPage, setLastPage] = useState(1)
+	const [exporting, setExporting] = useState(false)
 	const { stats } = useMemberStats()
+	const { toast } = useToast()
 
 	console.log('Component state:', { members: members.length, total, isLoading, error })
 
@@ -119,6 +123,29 @@ export default function AdminMembersPage() {
 		return <Badge variant="outline">Not Submitted</Badge>
 	}
 
+	const handleExport = async () => {
+		setExporting(true)
+		try {
+			await MemberService.exportMembersExcel({
+				search: query.trim() || undefined,
+				status: statusFilter,
+				kyc_status: listTab === 'kyc_review' ? 'review' : kycFilter,
+			})
+			toast({
+				title: 'Export completed',
+				description: 'Member details have been downloaded as Excel.',
+			})
+		} catch (error: unknown) {
+			toast({
+				title: 'Export failed',
+				description: error instanceof Error ? error.message : 'Could not export members.',
+				variant: 'destructive',
+			})
+		} finally {
+			setExporting(false)
+		}
+	}
+
 	return (
 		<div className="space-y-6">
 			{/* Header */}
@@ -128,6 +155,12 @@ export default function AdminMembersPage() {
 					<p className="text-muted-foreground mt-1">Manage cooperative members and their information</p>
 				</div>
 				<div className="flex gap-2">
+					<Can permission="export_members">
+						<Button variant="outline" onClick={handleExport} disabled={exporting}>
+							<Download className="h-4 w-4 mr-2" />
+							{exporting ? 'Exporting…' : 'Export Excel'}
+						</Button>
+					</Can>
 					<Can permission="bulk_upload_members|create_members">
 						<Button variant="outline" onClick={() => window.location.href = '/admin/bulk-upload/members'}>
 							<Upload className="h-4 w-4 mr-2" />
