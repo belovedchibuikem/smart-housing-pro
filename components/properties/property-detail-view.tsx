@@ -13,6 +13,8 @@ import {
   isLandListing,
   type PublicPropertyListing,
 } from "@/lib/api/public-properties"
+import { PropertyTypePriceRow } from "@/components/properties/property-type-price-row"
+import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
 
 interface PropertyDetailViewProps {
   property: PublicPropertyListing
@@ -76,22 +78,10 @@ export function PropertyDetailView({ property }: PropertyDetailViewProps) {
                       <p className="text-sm text-muted-foreground mt-1">Code: {property.land_code}</p>
                     )}
                   </div>
-                  <div className="grid grid-cols-1 gap-0 overflow-hidden rounded-xl border bg-muted/30 sm:grid-cols-2">
-                    <div className="flex flex-col justify-center gap-1 border-b p-5 sm:border-b-0 sm:border-r">
-                      <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Property Type
-                      </div>
-                      <div className="text-xl font-bold capitalize">
-                        {isLand ? "Land" : property.type || "House"}
-                      </div>
-                    </div>
-                    <div className="flex flex-col justify-center gap-1 p-5 sm:items-end sm:text-right">
-                      <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                        Property Price
-                      </div>
-                      <div className="text-3xl font-bold text-primary">{formatPropertyPrice(property.price)}</div>
-                    </div>
-                  </div>
+                  <PropertyTypePriceRow
+                    typeLabel={getPropertyTypeLabel(property)}
+                    price={formatPropertyPrice(property.price)}
+                  />
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-6 border-y">

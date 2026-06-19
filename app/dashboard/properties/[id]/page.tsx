@@ -221,6 +221,10 @@ export default function PropertyDetailPage() {
       id: propertyId,
       title: property.title,
       type: property.type,
+      property_type:
+        ("property_type" in property ? (property as AvailableProperty).property_type : null) ??
+        activeHouse?.property_type ??
+        null,
       status: property.status,
       location: property.location,
       size,

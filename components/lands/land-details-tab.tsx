@@ -5,6 +5,7 @@ import { MapPin, Ruler, CalendarDays } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { PropertyTypePriceRow } from "@/components/properties/property-type-price-row"
 
 type LandDetailsTabProps = {
   land?: {
@@ -85,16 +86,11 @@ export function LandDetailsTab({ land }: LandDetailsTabProps) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-0 overflow-hidden rounded-xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/80 via-background to-background shadow-sm sm:grid-cols-2">
-            <div className="flex flex-col justify-center gap-1 border-b border-emerald-100 p-5 sm:border-b-0 sm:border-r">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Property Type</span>
-              <span className="text-xl font-bold capitalize text-foreground">Land</span>
-            </div>
-            <div className="flex flex-col justify-center gap-1 p-5 sm:items-end sm:text-right">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Property Price</span>
-              <span className="text-2xl font-bold text-emerald-700">{formatCurrency(Number(land.cost ?? 0))}</span>
-            </div>
-          </div>
+          <PropertyTypePriceRow
+            variant="emerald"
+            typeLabel="Land"
+            price={formatCurrency(Number(land.cost ?? 0))}
+          />
 
           <div className="grid gap-4 rounded-lg border border-emerald-100 bg-emerald-50/40 p-4 md:grid-cols-2">
             <div className="flex flex-col gap-1">

@@ -1,17 +1,20 @@
 "use client"
 
 import Link from "next/link"
-import { MapPin, Home, Ruler, BedDouble, CalendarDays } from "lucide-react"
+import { MapPin, Ruler, BedDouble, CalendarDays } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { PropertyTypePriceRow } from "@/components/properties/property-type-price-row"
+import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
 
 type PropertyDetailsTabProps = {
   property?: {
     id?: string
     title?: string
     type?: string
+    property_type?: string | null
     status?: string
     location?: string
     size?: number | string | null
@@ -69,6 +72,7 @@ export function PropertyDetailsTab({ property }: PropertyDetailsTabProps) {
     (property.acceptingInterest === false && property.slotsAvailable !== null && property.slotsAvailable !== undefined)
   const canExpressInterest = property.canExpressInterest ?? (!hasPendingInterest && !slotsFull)
   const subscribeDisabled = !canExpressInterest
+  const typeLabel = getPropertyTypeLabel(property)
 
   return (
     <div className="space-y-6">
@@ -89,19 +93,11 @@ export function PropertyDetailsTab({ property }: PropertyDetailsTabProps) {
             </Badge>
           </div>
 
-          <div className="grid grid-cols-1 gap-0 overflow-hidden rounded-xl border border-amber-200/80 bg-gradient-to-br from-amber-50/80 via-background to-background shadow-sm sm:grid-cols-2">
-            <div className="flex flex-col justify-center gap-1 border-b border-amber-100 p-5 sm:border-b-0 sm:border-r">
-              <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                <Home className="h-4 w-4 text-amber-500" />
-                Property Type
-              </span>
-              <span className="text-xl font-bold capitalize text-foreground">{property.type ?? "—"}</span>
-            </div>
-            <div className="flex flex-col justify-center gap-1 p-5 sm:items-end sm:text-right">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Property Price</span>
-              <span className="text-2xl font-bold text-amber-600">{formatCurrency(property.price)}</span>
-            </div>
-          </div>
+          <PropertyTypePriceRow
+            variant="amber"
+            typeLabel={typeLabel}
+            price={formatCurrency(property.price)}
+          />
 
           <div className="grid gap-4 rounded-lg border border-amber-100 bg-amber-50/40 p-4 md:grid-cols-3">
             <div className="flex flex-col gap-1">

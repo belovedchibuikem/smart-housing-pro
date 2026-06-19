@@ -2,6 +2,7 @@ export interface PublicPropertyListing {
   id: string
   name: string
   type: string
+  property_type?: string | null
   listing_kind: "house" | "land_parcel" | "land_legacy"
   location: string
   price: number

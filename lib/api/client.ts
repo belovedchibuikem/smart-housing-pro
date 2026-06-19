@@ -451,6 +451,7 @@ export interface AvailableProperty {
 	title: string
 	description?: string | null
 	type: string
+	property_type?: string | null
 	location: string
 	price: number
 	size?: number | null
@@ -481,6 +482,7 @@ export interface MemberHouse {
 	property_id?: string
 	title: string
 	type: string
+	property_type?: string | null
 	location: string
 	price: number
 	description?: string | null

@@ -8,6 +8,8 @@ import Image from "next/image"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { AvailableProperty } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
+import { PropertyTypePriceRow } from "@/components/properties/property-type-price-row"
+import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
 
 type PropertyListingsProps = {
 	properties: AvailableProperty[]
@@ -19,9 +21,7 @@ function formatCurrency(amount: number) {
 }
 
 function typeLabel(property: AvailableProperty) {
-	const kind = property.listing_kind
-	if (kind === "land_parcel" || kind === "land_legacy") return "Land"
-	return property.type?.replace(/_/g, " ") || "House"
+	return getPropertyTypeLabel(property)
 }
 
 function kindLabel(property: AvailableProperty) {
@@ -146,16 +146,13 @@ export function PropertyListings({ properties, loading }: PropertyListingsProps)
 									) : null}
             </div>
 
-								<div className="grid grid-cols-2 gap-0 overflow-hidden rounded-lg border bg-muted/30">
-									<div className="flex flex-col gap-0.5 border-r p-3">
-										<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Type</p>
-										<p className="text-sm font-semibold capitalize">{typeLabel(property)}</p>
-									</div>
-									<div className="flex flex-col gap-0.5 p-3 text-right">
-										<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Price</p>
-										<p className="text-lg font-bold text-primary">{formatCurrency(property.price)}</p>
-									</div>
-            </div>
+								<PropertyTypePriceRow
+									size="compact"
+									typeLabel={typeLabel(property)}
+									priceHeading="Price"
+									typeHeading="Type"
+									price={formatCurrency(property.price)}
+								/>
 
             <Link href={detailHref(property)}>
 									<Button className="w-full" variant={property.accepting_interest === false ? "secondary" : "default"}>

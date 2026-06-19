@@ -26,6 +26,8 @@ import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { PropertyDocuments } from "@/components/properties/property-documents"
+import { PropertyTypePriceRow } from "@/components/properties/property-type-price-row"
+import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
 
 interface PropertyAllocation {
   id: string
@@ -470,24 +472,11 @@ export default function PropertyDetailPage() {
                   </p>
                 </div>
               )}
-              <div className="grid grid-cols-1 gap-0 overflow-hidden rounded-xl border bg-muted/30 sm:grid-cols-2">
-                <div className="flex flex-col justify-center gap-1 border-b p-5 sm:border-b-0 sm:border-r">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Property Type
-                  </label>
-                  <p className="text-xl font-semibold capitalize">
-                    {property.type || property.property_type || "Not specified"}
-                  </p>
-                </div>
-                <div className="flex flex-col justify-center gap-1 p-5 sm:items-end sm:text-right">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Property Value
-                  </label>
-                  <p className="text-3xl font-bold text-primary">
-                    ₦{Number(property.price ?? 0).toLocaleString()}
-                  </p>
-                </div>
-              </div>
+              <PropertyTypePriceRow
+                typeLabel={getPropertyTypeLabel(property, "Not specified")}
+                priceHeading="Property Value"
+                price={`₦${Number(property.price ?? 0).toLocaleString()}`}
+              />
             </CardContent>
           </Card>
 

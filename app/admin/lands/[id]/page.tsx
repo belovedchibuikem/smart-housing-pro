@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { LandDocuments } from "@/components/properties/land-documents"
+import { PropertyTypePriceRow } from "@/components/properties/property-type-price-row"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
@@ -117,22 +118,15 @@ export default function AdminLandDetailPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-0 overflow-hidden rounded-xl border bg-muted/30 sm:grid-cols-2">
-          <div className="flex flex-col justify-center gap-1 border-b p-5 sm:border-b-0 sm:border-r">
-            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Property Type</div>
-            <div className="text-xl font-bold capitalize">Land</div>
-          </div>
-          <div className="flex flex-col justify-center gap-1 p-5 sm:items-end sm:text-right">
-            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Property Price</div>
-            <div className="text-2xl font-bold text-primary">{money(land.cost)}</div>
-            {land.cost_includes_infrastructure ? (
-              <Badge className="mt-2 bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Incl. infrastructure</Badge>
-            ) : (
-              <Badge variant="outline" className="mt-2 font-normal">
-                Infrastructure excl.
-              </Badge>
-            )}
-          </div>
+        <PropertyTypePriceRow typeLabel="Land" priceHeading="Property Price" price={money(land.cost)} />
+        <div className="flex justify-end">
+          {land.cost_includes_infrastructure ? (
+            <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Incl. infrastructure</Badge>
+          ) : (
+            <Badge variant="outline" className="font-normal">
+              Infrastructure excl.
+            </Badge>
+          )}
         </div>
       </div>
       <div className="flex justify-end">
