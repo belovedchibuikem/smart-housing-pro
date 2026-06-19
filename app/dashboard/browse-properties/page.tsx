@@ -55,6 +55,7 @@ export default function BrowsePropertiesPage() {
 				const formatted = (response.properties ?? []).map((property) => ({
 					...property,
 					property_type: property.property_type ?? null,
+					type_label: property.type_label ?? null,
 					price: Number(property.price ?? 0),
 					size: property.size !== undefined && property.size !== null ? Number(property.size) : undefined,
 					bedrooms: property.bedrooms ?? undefined,

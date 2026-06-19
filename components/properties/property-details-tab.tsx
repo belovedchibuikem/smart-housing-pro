@@ -15,6 +15,7 @@ type PropertyDetailsTabProps = {
     title?: string
     type?: string
     property_type?: string | null
+    type_label?: string | null
     status?: string
     location?: string
     size?: number | string | null

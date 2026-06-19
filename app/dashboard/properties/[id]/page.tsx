@@ -18,6 +18,7 @@ import {
   type MemberHouse,
   type AvailableProperty,
 } from "@/lib/api/client"
+import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
 
 export default function PropertyDetailPage() {
   const params = useParams<{ id: string }>()
@@ -221,10 +222,10 @@ export default function PropertyDetailPage() {
       id: propertyId,
       title: property.title,
       type: property.type,
-      property_type:
-        ("property_type" in property ? (property as AvailableProperty).property_type : null) ??
-        activeHouse?.property_type ??
-        null,
+      property_type: "property_type" in property ? (property as AvailableProperty).property_type ?? null : null,
+      type_label:
+        ("type_label" in property ? (property as AvailableProperty).type_label : null) ??
+        getPropertyTypeLabel(property as AvailableProperty),
       status: property.status,
       location: property.location,
       size,

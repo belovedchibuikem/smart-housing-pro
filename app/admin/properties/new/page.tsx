@@ -27,6 +27,7 @@ export default function NewPropertyPage() {
     title: "",
     description: "",
     type: "house",
+    property_type_label: "",
     location: "",
     address: "",
     city: "",
@@ -157,7 +158,7 @@ export default function NewPropertyPage() {
         title: formData.title,
         description: formData.description || "",
         type: formData.type,
-        property_type: formData.type,
+        property_type: formData.property_type_label.trim() || formData.type,
         location: formData.location,
         address: formData.address || formData.location,
         city: formData.city || "",
@@ -273,6 +274,19 @@ export default function NewPropertyPage() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="property_type_label">Property Type Label</Label>
+            <Input
+              id="property_type_label"
+              placeholder="e.g., 2 BDR Semi-detached Bungalow"
+              value={formData.property_type_label}
+              onChange={(e) => setFormData({ ...formData, property_type_label: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Full descriptive type shown to members. Category above is used for filtering.
+            </p>
           </div>
 
           <div className="space-y-2">

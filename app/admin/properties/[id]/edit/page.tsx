@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
+import { isPropertyCategorySlug } from "@/lib/properties/property-type-label"
 
 interface PropertyImage {
   id?: string
@@ -36,6 +37,7 @@ export default function EditPropertyPage() {
     title: "",
     description: "",
     type: "house",
+    property_type_label: "",
     location: "",
     address: "",
     city: "",
@@ -64,10 +66,12 @@ export default function EditPropertyPage() {
           const property = response.data
           const featuresArray = Array.isArray(property.features) ? property.features : []
 
+          const rawPropertyType = property.property_type?.toString?.() ?? ""
           setFormData({
             title: property.title || "",
             description: property.description || "",
-            type: property.type || property.property_type || "house",
+            type: property.type || "house",
+            property_type_label: isPropertyCategorySlug(rawPropertyType) ? "" : rawPropertyType,
             location: property.location || "",
             address: property.address || "",
             city: property.city || "",
@@ -227,7 +231,7 @@ export default function EditPropertyPage() {
         title: formData.title,
         description: formData.description || "",
         type: formData.type,
-        property_type: formData.type,
+        property_type: formData.property_type_label.trim() || formData.type,
         location: formData.location,
         address: formData.address || formData.location,
         city: formData.city || "",
@@ -384,6 +388,19 @@ export default function EditPropertyPage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="property_type_label">Property Type Label</Label>
+              <Input
+                id="property_type_label"
+                placeholder="e.g., 2 BDR Semi-detached Bungalow"
+                value={formData.property_type_label}
+                onChange={(e) => setFormData({ ...formData, property_type_label: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Full descriptive type shown to members. Category above is used for filtering.
+              </p>
             </div>
 
             <div className="space-y-2">
