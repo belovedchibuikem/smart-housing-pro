@@ -745,6 +745,7 @@ export interface PendingPlanInterest {
 export interface MemberPropertiesSummary {
 	total_properties: number
 	houses_owned: number
+	subscribed_houses?: number
 	lands_owned?: number
 	total_paid: number
 	current_value: number

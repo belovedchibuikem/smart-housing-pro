@@ -1,5 +1,6 @@
 import { resolveStorageUrl } from "@/lib/api/config"
 import type { WhiteLabelSettings } from "@/lib/context/white-label-context"
+import { applyPwaMetaTags } from "@/lib/pwa/apply-pwa-meta"
 
 export function applyPublicBranding(settings: WhiteLabelSettings) {
   if (typeof document === "undefined") return
@@ -30,6 +31,8 @@ export function applyPublicBranding(settings: WhiteLabelSettings) {
   if (settings.company_name) {
     document.title = settings.company_name
   }
+
+  applyPwaMetaTags(settings)
 
   const faviconHref = resolveStorageUrl(settings.favicon_url)
   if (faviconHref) {

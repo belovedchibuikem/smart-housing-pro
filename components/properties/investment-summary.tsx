@@ -34,19 +34,24 @@ export function PropertiesSummary({ summary, loading, propertyType = "house" }: 
 	const data = summary ?? {
 		total_properties: 0,
 		houses_owned: 0,
+		subscribed_houses: 0,
 		lands_owned: 0,
 		total_paid: 0,
 		current_value: 0,
 		predictive_value: 0,
 	}
 
-	const totalOwned = isLand ? (data.lands_owned ?? 0) : data.houses_owned
+	const totalOwned = isLand
+		? (data.lands_owned ?? 0)
+		: (data.subscribed_houses ?? data.houses_owned)
 
   const stats = [
     {
 			title: isLand ? "Total Lands" : "Total Houses",
 			value: totalOwned,
-			description: `${data.total_properties} total ${isLand ? "lands" : "properties"} expressed`,
+			description: isLand
+				? `${data.total_properties} total land expressions`
+				: `${data.subscribed_houses ?? data.houses_owned} subscribed · ${data.total_properties} total expressed`,
 			icon: isLand ? MapPinned : Home,
 		},
 		{

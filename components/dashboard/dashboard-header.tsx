@@ -8,6 +8,7 @@ import { UserNotificationBell } from "./user-notification-bell"
 import { SubscriptionAlertBanner } from "./subscription-alert-banner"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { MemberAccountMenu } from "./member-account-menu"
+import { InstallAppButton } from "@/components/pwa/install-app-banner"
 
 interface DashboardHeaderProps {
   mobileMenuOpen: boolean
@@ -45,6 +46,7 @@ export function DashboardHeader({ mobileMenuOpen, setMobileMenuOpen }: Dashboard
         </div>
 
         <div className="flex items-center gap-2">
+          <InstallAppButton className="hidden md:inline-flex" />
           {/* Notifications */}
           <UserNotificationBell />
 

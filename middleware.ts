@@ -42,12 +42,16 @@ export async function middleware(request: NextRequest) {
 
   console.log("[Middleware] hostname:", hostname, "pathname:", pathname, "devTenant:", devTenant)
 
-  // Skip middleware for static files and API routes
+  // Skip middleware for static files, PWA assets, and API routes
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
     pathname.startsWith("/static") ||
-    pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js)$/)
+    pathname.startsWith("/pwa/") ||
+    pathname === "/manifest.webmanifest" ||
+    pathname === "/sw.js" ||
+    pathname === "/offline.html" ||
+    pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js|webmanifest)$/)
   ) {
     return NextResponse.next()
   }

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Offline</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        display: grid;
+        place-items: center;
+        min-height: 100vh;
+        margin: 0;
+        background: #f8fafc;
+        color: #0f172a;
+        padding: 24px;
+        text-align: center;
+      }
+      .card {
+        max-width: 420px;
+        background: white;
+        border-radius: 16px;
+        padding: 32px 24px;
+        box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      }
+      h1 { margin: 0 0 8px; font-size: 1.5rem; }
+      p { margin: 0 0 20px; color: #475569; line-height: 1.5; }
+      button {
+        border: 0;
+        border-radius: 999px;
+        background: #276254;
+        color: white;
+        padding: 12px 20px;
+        font-size: 1rem;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>You are offline</h1>
+      <p>Check your internet connection, then try again. Cached pages may still be available when you reconnect.</p>
+      <button type="button" onclick="window.location.reload()">Try again</button>
+    </div>
+  </body>
+</html>
