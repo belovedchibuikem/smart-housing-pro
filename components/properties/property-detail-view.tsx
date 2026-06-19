@@ -66,22 +66,32 @@ export function PropertyDetailView({ property }: PropertyDetailViewProps) {
             <Card>
               <CardContent className="p-6 space-y-6">
                 <div>
-                  <div className="flex items-start justify-between mb-4 gap-4">
-                    <div>
-                      <h1 className="text-3xl font-bold mb-2">{property.name}</h1>
-                      <div className="flex items-center text-muted-foreground">
-                        <MapPin className="h-4 w-4 mr-1 shrink-0" />
-                        {property.location}
-                      </div>
-                      {property.land_code && (
-                        <p className="text-sm text-muted-foreground mt-1">Code: {property.land_code}</p>
-                      )}
+                  <div className="mb-4">
+                    <h1 className="text-3xl font-bold mb-2">{property.name}</h1>
+                    <div className="flex items-center text-muted-foreground">
+                      <MapPin className="h-4 w-4 mr-1 shrink-0" />
+                      {property.location}
                     </div>
-                    <Badge variant="secondary" className="capitalize shrink-0">
-                      {isLand ? "land" : property.type || "house"}
-                    </Badge>
+                    {property.land_code && (
+                      <p className="text-sm text-muted-foreground mt-1">Code: {property.land_code}</p>
+                    )}
                   </div>
-                  <div className="text-3xl font-bold text-primary">{formatPropertyPrice(property.price)}</div>
+                  <div className="grid grid-cols-1 gap-0 overflow-hidden rounded-xl border bg-muted/30 sm:grid-cols-2">
+                    <div className="flex flex-col justify-center gap-1 border-b p-5 sm:border-b-0 sm:border-r">
+                      <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Property Type
+                      </div>
+                      <div className="text-xl font-bold capitalize">
+                        {isLand ? "Land" : property.type || "House"}
+                      </div>
+                    </div>
+                    <div className="flex flex-col justify-center gap-1 p-5 sm:items-end sm:text-right">
+                      <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Property Price
+                      </div>
+                      <div className="text-3xl font-bold text-primary">{formatPropertyPrice(property.price)}</div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-6 border-y">
@@ -113,10 +123,6 @@ export function PropertyDetailView({ property }: PropertyDetailViewProps) {
                       </div>
                     </div>
                   )}
-                  <div>
-                    <div className="text-sm text-muted-foreground mb-1">Type</div>
-                    <div className="font-semibold capitalize">{isLand ? "Land" : "House"}</div>
-                  </div>
                 </div>
 
                 {property.description && (

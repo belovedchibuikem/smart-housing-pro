@@ -84,22 +84,26 @@ export function PropertyDetailsTab({ property }: PropertyDetailsTabProps) {
                 </p>
               )}
             </div>
-            <div className="flex flex-col items-start gap-2 md:items-end">
-              <p className="text-2xl font-bold text-amber-600">{formatCurrency(property.price)}</p>
-              <Badge variant="secondary" className="bg-amber-100 text-amber-700 capitalize">
-                {statusLabel}
-              </Badge>
+            <Badge variant="secondary" className="bg-amber-100 text-amber-700 capitalize shrink-0">
+              {statusLabel}
+            </Badge>
+          </div>
+
+          <div className="grid grid-cols-1 gap-0 overflow-hidden rounded-xl border border-amber-200/80 bg-gradient-to-br from-amber-50/80 via-background to-background shadow-sm sm:grid-cols-2">
+            <div className="flex flex-col justify-center gap-1 border-b border-amber-100 p-5 sm:border-b-0 sm:border-r">
+              <span className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <Home className="h-4 w-4 text-amber-500" />
+                Property Type
+              </span>
+              <span className="text-xl font-bold capitalize text-foreground">{property.type ?? "—"}</span>
+            </div>
+            <div className="flex flex-col justify-center gap-1 p-5 sm:items-end sm:text-right">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Property Price</span>
+              <span className="text-2xl font-bold text-amber-600">{formatCurrency(property.price)}</span>
             </div>
           </div>
 
-          <div className="grid gap-4 rounded-lg border border-amber-100 bg-amber-50/40 p-4 md:grid-cols-4">
-            <div className="flex flex-col gap-1">
-              <span className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
-                <Home className="h-4 w-4 text-amber-500" />
-                Type
-              </span>
-              <span className="text-sm font-semibold capitalize">{property.type ?? "—"}</span>
-            </div>
+          <div className="grid gap-4 rounded-lg border border-amber-100 bg-amber-50/40 p-4 md:grid-cols-3">
             <div className="flex flex-col gap-1">
               <span className="flex items-center gap-2 text-xs font-semibold uppercase text-muted-foreground">
                 <Ruler className="h-4 w-4 text-amber-500" />

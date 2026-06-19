@@ -18,6 +18,12 @@ function formatCurrency(amount: number) {
 	return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 }).format(amount)
 }
 
+function typeLabel(property: AvailableProperty) {
+	const kind = property.listing_kind
+	if (kind === "land_parcel" || kind === "land_legacy") return "Land"
+	return property.type?.replace(/_/g, " ") || "House"
+}
+
 function kindLabel(property: AvailableProperty) {
 	if (property.listing_kind === "land_parcel" || property.listing_kind === "land_legacy") {
 		return "🌍 Land"
@@ -140,9 +146,15 @@ export function PropertyListings({ properties, loading }: PropertyListingsProps)
 									) : null}
             </div>
 
-								<div className="space-y-1">
-									<p className="text-sm text-muted-foreground">Property Amount</p>
-									<p className="text-2xl font-semibold text-primary">{formatCurrency(property.price)}</p>
+								<div className="grid grid-cols-2 gap-0 overflow-hidden rounded-lg border bg-muted/30">
+									<div className="flex flex-col gap-0.5 border-r p-3">
+										<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Type</p>
+										<p className="text-sm font-semibold capitalize">{typeLabel(property)}</p>
+									</div>
+									<div className="flex flex-col gap-0.5 p-3 text-right">
+										<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Price</p>
+										<p className="text-lg font-bold text-primary">{formatCurrency(property.price)}</p>
+									</div>
             </div>
 
             <Link href={detailHref(property)}>

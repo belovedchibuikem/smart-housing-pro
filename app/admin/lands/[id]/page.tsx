@@ -104,11 +104,11 @@ export default function AdminLandDetailPage() {
         All land parcels
       </Link>
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="space-y-4">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">🌍 Land</Badge>
             <span className="font-mono text-sm text-muted-foreground">{land.land_code}</span>
+            {land.status ? <Badge className="capitalize">{land.status.replace(/_/g, " ")}</Badge> : null}
           </div>
           <h1 className="text-3xl font-bold">{land.land_title}</h1>
           <p className="text-muted-foreground flex items-center gap-2 text-sm">
@@ -116,16 +116,23 @@ export default function AdminLandDetailPage() {
             {land.location || [land.city, land.state].filter(Boolean).join(", ") || "—"}
           </p>
         </div>
-        <div className="text-left sm:text-right">
-          <div className="text-sm text-muted-foreground">Land cost</div>
-          <div className="text-2xl font-bold text-primary">{money(land.cost)}</div>
-          {land.cost_includes_infrastructure ? (
-            <Badge className="mt-2 bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Incl. infrastructure</Badge>
-          ) : (
-            <Badge variant="outline" className="mt-2 font-normal">
-              Infrastructure excl.
-            </Badge>
-          )}
+
+        <div className="grid grid-cols-1 gap-0 overflow-hidden rounded-xl border bg-muted/30 sm:grid-cols-2">
+          <div className="flex flex-col justify-center gap-1 border-b p-5 sm:border-b-0 sm:border-r">
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Property Type</div>
+            <div className="text-xl font-bold capitalize">Land</div>
+          </div>
+          <div className="flex flex-col justify-center gap-1 p-5 sm:items-end sm:text-right">
+            <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Property Price</div>
+            <div className="text-2xl font-bold text-primary">{money(land.cost)}</div>
+            {land.cost_includes_infrastructure ? (
+              <Badge className="mt-2 bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Incl. infrastructure</Badge>
+            ) : (
+              <Badge variant="outline" className="mt-2 font-normal">
+                Infrastructure excl.
+              </Badge>
+            )}
+          </div>
         </div>
       </div>
       <div className="flex justify-end">

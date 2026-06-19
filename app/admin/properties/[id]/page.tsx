@@ -446,7 +446,7 @@ export default function PropertyDetailPage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Price Information</CardTitle>
+              <CardTitle>Price & Type</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {(property.total_slots != null || property.slots_used != null) && (
@@ -470,17 +470,23 @@ export default function PropertyDetailPage() {
                   </p>
                 </div>
               )}
-              <div>
-                <label className="text-sm text-muted-foreground">Property Value</label>
-                <p className="text-3xl font-bold">
-                  ₦{Number(property.price ?? 0).toLocaleString()}
-                </p>
-              </div>
-              <div>
-                <label className="text-sm text-muted-foreground">Property Type</label>
-                <p className="text-xl font-semibold capitalize">
-                  {property.type || property.property_type || "Not specified"}
-                </p>
+              <div className="grid grid-cols-1 gap-0 overflow-hidden rounded-xl border bg-muted/30 sm:grid-cols-2">
+                <div className="flex flex-col justify-center gap-1 border-b p-5 sm:border-b-0 sm:border-r">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Property Type
+                  </label>
+                  <p className="text-xl font-semibold capitalize">
+                    {property.type || property.property_type || "Not specified"}
+                  </p>
+                </div>
+                <div className="flex flex-col justify-center gap-1 p-5 sm:items-end sm:text-right">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Property Value
+                  </label>
+                  <p className="text-3xl font-bold text-primary">
+                    ₦{Number(property.price ?? 0).toLocaleString()}
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
