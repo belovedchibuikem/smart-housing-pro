@@ -45,24 +45,28 @@ function trimShortName(name: string, max = 12): string {
   return cleaned.slice(0, max).trim()
 }
 
+function toAbsoluteUrl(origin: string, href: string): string {
+  return href.startsWith("/") ? `${origin}${href}` : href
+}
+
 function pickIconUrl(
   origin: string,
   whiteLabel?: WhiteLabelPayload | null,
   saas?: SaasBrandingPayload | null,
 ): string {
-  const favicon = resolveStorageUrl(whiteLabel?.favicon_url)
-  if (favicon) return favicon.startsWith("/") ? `${origin}${favicon}` : favicon
-
   const logo = resolveStorageUrl(whiteLabel?.logo_url)
-  if (logo) return logo.startsWith("/") ? `${origin}${logo}` : logo
+  if (logo) return toAbsoluteUrl(origin, logo)
+
+  const favicon = resolveStorageUrl(whiteLabel?.favicon_url)
+  if (favicon) return toAbsoluteUrl(origin, favicon)
 
   const saasIcon = resolveStorageUrl(saas?.icon_url ?? undefined)
-  if (saasIcon) return saasIcon.startsWith("/") ? `${origin}${saasIcon}` : saasIcon
+  if (saasIcon) return toAbsoluteUrl(origin, saasIcon)
 
   const saasLogo = resolveStorageUrl(saas?.logo_url ?? undefined)
-  if (saasLogo) return saasLogo.startsWith("/") ? `${origin}${saasLogo}` : saasLogo
+  if (saasLogo) return toAbsoluteUrl(origin, saasLogo)
 
-  return `${origin}${DEFAULT_BRANDING.iconUrl}`
+  return toAbsoluteUrl(origin, DEFAULT_BRANDING.iconUrl)
 }
 
 async function fetchWhiteLabel(request: NextRequest): Promise<WhiteLabelPayload | null> {
@@ -165,12 +169,6 @@ export function buildWebManifest(branding: PwaBranding, origin: string) {
         sizes: "512x512",
         type: "image/png",
         purpose: "maskable",
-      },
-      {
-        src: branding.iconUrl.startsWith("http") ? branding.iconUrl : `${origin}${branding.iconUrl}`,
-        sizes: "512x512",
-        type: "image/svg+xml",
-        purpose: "any",
       },
     ],
     shortcuts: [

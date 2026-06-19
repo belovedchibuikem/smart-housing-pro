@@ -16,6 +16,7 @@ import { apiFetch } from "@/lib/api/client"
 import { Can } from "@/components/admin/can-permission"
 import { SearchableSelect, membersToSearchableOptions, propertiesToSearchableOptions } from "@/components/ui/searchable-select"
 import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
+import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
 
 interface Member {
   id: string
@@ -29,11 +30,16 @@ interface Member {
   staff_id?: string
 }
 
-interface Property {
+interface PropertyOption {
   id: string
   title: string
-  location: string
-  type: string
+  location?: string
+  type?: string
+  property_type?: string
+  type_label?: string
+  price?: number
+  total_slots?: number | null
+  slots_available?: number | null
 }
 
 export default function NewAllotteePage() {
@@ -41,21 +47,21 @@ export default function NewAllotteePage() {
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
   const [members, setMembers] = useState<Member[]>([])
-  const [properties, setProperties] = useState<Property[]>([])
+  const [properties, setProperties] = useState<PropertyOption[]>([])
   const [loadingData, setLoadingData] = useState(true)
-  
+
   const [formData, setFormData] = useState({
     property_id: "",
     member_id: "",
     allocation_date: "",
     status: "completed",
+    slots_assigned: "1",
     notes: "",
   })
 
   useEffect(() => {
-    // Set default date only on client side to avoid hydration mismatch
-    if (typeof window !== 'undefined' && !formData.allocation_date) {
-      setFormData(prev => ({ ...prev, allocation_date: new Date().toISOString().split('T')[0] }))
+    if (typeof window !== "undefined" && !formData.allocation_date) {
+      setFormData((prev) => ({ ...prev, allocation_date: new Date().toISOString().split("T")[0] }))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -70,7 +76,7 @@ export default function NewAllotteePage() {
     try {
       const response = await apiFetch<{ success: boolean }>("/admin/members?per_page=1000")
       setMembers(normalizeAdminMembersList(response) as Member[])
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to load members",
@@ -83,11 +89,12 @@ export default function NewAllotteePage() {
 
   const fetchProperties = async () => {
     try {
-      const response = await apiFetch<{ success: boolean; data: any[] }>("/admin/properties?per_page=1000")
+      const response = await apiFetch<{ success: boolean; data: PropertyOption[] }>("/admin/properties?per_page=1000")
       if (response.success) {
-        setProperties(response.data || [])
+        const houses = (response.data || []).filter((property) => property.type !== "land")
+        setProperties(houses)
       }
-    } catch (error) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to load properties",
@@ -96,12 +103,37 @@ export default function NewAllotteePage() {
     }
   }
 
+  const selectedProperty = useMemo(
+    () => properties.find((property) => property.id === formData.property_id) ?? null,
+    [properties, formData.property_id]
+  )
+
+  const maxAssignableSlots = useMemo(() => {
+    if (!selectedProperty) return 1
+    if (selectedProperty.total_slots == null) return 99
+    return Math.max(1, selectedProperty.slots_available ?? selectedProperty.total_slots ?? 1)
+  }, [selectedProperty])
+
+  const slotOptions = useMemo(() => {
+    const count = Math.min(maxAssignableSlots, 20)
+    return Array.from({ length: count }, (_, index) => index + 1)
+  }, [maxAssignableSlots])
+
   const memberOptions = useMemo(() => membersToSearchableOptions(members), [members])
-  const propertyOptions = useMemo(() => propertiesToSearchableOptions(properties), [properties])
+  const propertyOptions = useMemo(
+    () =>
+      propertiesToSearchableOptions(
+        properties.map((property) => ({
+          ...property,
+          type_label: property.type_label || getPropertyTypeLabel(property),
+        }))
+      ),
+    [properties]
+  )
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!formData.property_id || !formData.member_id) {
       toast({
         title: "Validation Error",
@@ -111,9 +143,22 @@ export default function NewAllotteePage() {
       return
     }
 
+    const slotsAssigned = Math.max(1, parseInt(formData.slots_assigned, 10) || 1)
+    if (selectedProperty?.total_slots != null && slotsAssigned > maxAssignableSlots) {
+      toast({
+        title: "Validation Error",
+        description: `Only ${maxAssignableSlots} slot(s) available on this property.`,
+        variant: "destructive",
+      })
+      return
+    }
+
     setLoading(true)
     try {
-      const response = await createPropertyAllottee(formData)
+      const response = await createPropertyAllottee({
+        ...formData,
+        slots_assigned: slotsAssigned,
+      })
       if (response.success) {
         toast({
           title: "Success",
@@ -121,10 +166,10 @@ export default function NewAllotteePage() {
         })
         router.push("/admin/property-management/allottees")
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error?.message || "Failed to create property allocation",
+        description: error instanceof Error ? error.message : "Failed to create property allocation",
         variant: "destructive",
       })
     } finally {
@@ -142,7 +187,9 @@ export default function NewAllotteePage() {
         </Link>
         <div>
           <h1 className="text-3xl font-bold">Assign House to Member</h1>
-          <p className="text-muted-foreground mt-1">Post a house or building to a member so they can view it on their dashboard</p>
+          <p className="text-muted-foreground mt-1">
+            Post a house or building to a member so they can view it on their dashboard
+          </p>
         </div>
       </div>
 
@@ -178,16 +225,50 @@ export default function NewAllotteePage() {
                   </Label>
                   <SearchableSelect
                     value={formData.property_id}
-                    onValueChange={(value) => setFormData({ ...formData, property_id: value })}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, property_id: value, slots_assigned: "1" })
+                    }
                     options={propertyOptions}
                     placeholder="Select a property"
-                    searchPlaceholder="Search by title or location…"
+                    searchPlaceholder="Search by title, type, location, price…"
                     emptyText="No properties match your search."
                   />
+                  {selectedProperty ? (
+                    <p className="text-xs text-muted-foreground">
+                      {getPropertyTypeLabel(selectedProperty)} · ₦
+                      {Number(selectedProperty.price ?? 0).toLocaleString()}
+                      {selectedProperty.total_slots != null
+                        ? ` · ${selectedProperty.slots_available ?? 0} of ${selectedProperty.total_slots} slots free`
+                        : " · Unlimited slots"}
+                    </p>
+                  ) : null}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="slots_assigned">
+                    Slots to assign <span className="text-red-500">*</span>
+                  </Label>
+                  <Select
+                    value={formData.slots_assigned}
+                    onValueChange={(value) => setFormData({ ...formData, slots_assigned: value })}
+                  >
+                    <SelectTrigger id="slots_assigned">
+                      <SelectValue placeholder="Select slots" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {slotOptions.map((slot) => (
+                        <SelectItem key={slot} value={String(slot)}>
+                          {slot} slot{slot === 1 ? "" : "s"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    Each slot is one unit subscription on this listing.
+                  </p>
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="allocation_date">
                     Allocation Date <span className="text-red-500">*</span>
@@ -253,4 +334,3 @@ export default function NewAllotteePage() {
     </div>
   )
 }
-

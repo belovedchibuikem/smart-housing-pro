@@ -33,10 +33,6 @@ export function applyPwaMetaTags(settings: WhiteLabelSettings | null, fallbackTh
 
   const companyName = settings?.company_name || "Smart Housing"
   const themeColor = settings?.primary_color || fallbackThemeColor
-  const favicon = resolveStorageUrl(settings?.favicon_url)
-  const logo = resolveStorageUrl(settings?.logo_url)
-  const iconHref = favicon || logo || "/branding/smarthousing-icon.svg"
-
   document.title = companyName
 
   upsertMeta("application-name", companyName)
@@ -48,6 +44,12 @@ export function applyPwaMetaTags(settings: WhiteLabelSettings | null, fallbackTh
   upsertMeta("format-detection", "telephone=no")
 
   upsertLink("manifest", "/manifest.webmanifest")
-  upsertLink("icon", iconHref)
-  upsertLink("apple-touch-icon", iconHref, { sizes: "180x180" })
+  upsertLink("icon", "/pwa/icon/32", { sizes: "32x32" })
+  upsertLink("icon", "/pwa/icon/192", { sizes: "192x192" })
+  upsertLink("apple-touch-icon", "/pwa/icon/180", { sizes: "180x180" })
+
+  const favicon = resolveStorageUrl(settings?.favicon_url)
+  if (favicon) {
+    upsertLink("shortcut icon", favicon)
+  }
 }

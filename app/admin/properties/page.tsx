@@ -689,7 +689,15 @@ export default function AdminPropertiesPage() {
                               {property.status || "N/A"}
                             </Badge>
                           </div>
-                          <div className="text-sm text-muted-foreground">{property.allocations?.length ?? 0} subscriber(s)</div>
+                          <div className="text-sm text-muted-foreground">
+                            {property.subscribers_count ?? property.slots_used ?? property.allocations?.length ?? 0}{" "}
+                            subscriber(s)
+                            {property.slots_used != null && property.total_slots != null ? (
+                              <span className="block text-xs">
+                                {property.slots_used} of {property.total_slots} slots used
+                              </span>
+                            ) : null}
+                          </div>
                           <div className="flex gap-2">
                             <Button
                               variant="outline"

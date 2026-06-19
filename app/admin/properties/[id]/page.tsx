@@ -32,6 +32,7 @@ import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
 interface PropertyAllocation {
   id: string
   status?: string
+  slots_assigned?: number
   amount_paid?: number
   member?: {
     id: string
@@ -74,6 +75,7 @@ interface PropertyDetail {
   total_slots?: number | null
   slots_used?: number | null
   slots_available?: number | null
+  subscribers_count?: number | null
   images?: PropertyImage[]
   allocations?: PropertyAllocation[]
 }
@@ -385,8 +387,11 @@ export default function PropertyDetailPage() {
             <TabsContent value="subscriptions" className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Property Allocations</CardTitle>
-                  <CardDescription>Members who have subscribed to this property</CardDescription>
+                  <CardTitle>Property Subscribers</CardTitle>
+                  <CardDescription>
+                    {property.subscribers_count ?? allocations.length} member(s) subscribed
+                    {property.slots_used != null ? ` · ${property.slots_used} slot(s) used` : ""}
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {allocations.length === 0 ? (
@@ -397,6 +402,7 @@ export default function PropertyDetailPage() {
                       <TableRow>
                         <TableHead>Member</TableHead>
                           <TableHead>Membership ID</TableHead>
+                          <TableHead className="text-right">Slots</TableHead>
                           <TableHead className="text-right">Amount Paid</TableHead>
                           <TableHead>Status</TableHead>
                         <TableHead>Date</TableHead>
@@ -410,6 +416,7 @@ export default function PropertyDetailPage() {
                             <TableRow key={allocation.id}>
                               <TableCell className="font-medium">{memberName}</TableCell>
                               <TableCell>{membershipId}</TableCell>
+                              <TableCell className="text-right">{allocation.slots_assigned ?? 1}</TableCell>
                               <TableCell className="text-right">
                                 ₦{Number(allocation.amount_paid ?? 0).toLocaleString()}
                               </TableCell>
@@ -451,24 +458,23 @@ export default function PropertyDetailPage() {
               <CardTitle>Price & Type</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {(property.total_slots != null || property.slots_used != null) && (
+              {(property.subscribers_count != null || property.total_slots != null || property.slots_used != null) && (
                 <div>
-                  <label className="text-sm text-muted-foreground">Slots</label>
+                  <label className="text-sm text-muted-foreground">Subscribers / slots</label>
                   <p className="text-lg font-semibold">
+                    {property.subscribers_count ?? 0} subscriber(s)
                     {property.total_slots != null ? (
                       <>
-                        {property.slots_available ?? "—"} available of {property.total_slots}
-                        {property.slots_used != null && (
-                          <span className="text-muted-foreground font-normal text-sm block">
-                            {property.slots_used} approved
-                          </span>
-                        )}
+                        <span className="text-muted-foreground font-normal text-sm block">
+                          {property.slots_available ?? "—"} available of {property.total_slots}
+                          {property.slots_used != null ? ` · ${property.slots_used} slot(s) used` : ""}
+                        </span>
                       </>
-                    ) : (
-                      <>
-                        {property.slots_used ?? 0} approved (unlimited capacity)
-                      </>
-                    )}
+                    ) : property.slots_used != null ? (
+                      <span className="text-muted-foreground font-normal text-sm block">
+                        {property.slots_used} slot(s) used (unlimited capacity)
+                      </span>
+                    ) : null}
                   </p>
                 </div>
               )}

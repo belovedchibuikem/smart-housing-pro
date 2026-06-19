@@ -57,6 +57,7 @@
     "react-is": "^18.3.1",
     "react-resizable-panels": "^2.1.7",
     "recharts": "latest",
+    "sharp": "^0.35.1",
     "signature_pad": "^4.1.7",
     "sonner": "latest",
     "tailwind-merge": "^2.5.5",

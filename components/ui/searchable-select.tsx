@@ -181,12 +181,40 @@ export function usersToSearchableOptions(
 
 /** Properties / generic list with id + title + optional location */
 export function propertiesToSearchableOptions(
-	properties: Array<{ id: string; title?: string; location?: string }>
+	properties: Array<{
+		id: string
+		title?: string
+		location?: string
+		type?: string
+		property_type?: string
+		type_label?: string
+		price?: number | string
+		total_slots?: number | null
+		slots_available?: number | null
+	}>
 ): SearchableSelectOption[] {
-	return properties.map((p) => ({
-		value: p.id,
-		label: p.title || "Property",
-		description: p.location || undefined,
-		searchText: [p.title, p.location, p.id].filter(Boolean).join(" "),
-	}))
+	const formatPrice = (value?: number | string) => {
+		const amount = Number(value ?? 0)
+		if (!Number.isFinite(amount) || amount <= 0) return ""
+		if (Math.abs(amount) >= 1_000_000) return `₦${(amount / 1_000_000).toFixed(1)}M`
+		return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(amount)
+	}
+
+	return properties.map((p) => {
+		const typeLabel = p.type_label || p.property_type || p.type || "House"
+		const priceLabel = formatPrice(p.price)
+		const slotsLabel =
+			p.total_slots != null
+				? `${p.slots_available ?? 0} of ${p.total_slots} slots free`
+				: "Unlimited slots"
+
+		return {
+			value: p.id,
+			label: [p.title || "Property", typeLabel, priceLabel].filter(Boolean).join(" · "),
+			description: [p.location, slotsLabel].filter(Boolean).join(" · "),
+			searchText: [p.title, p.location, typeLabel, priceLabel, p.property_type, p.type, p.id]
+				.filter(Boolean)
+				.join(" "),
+		}
+	})
 }
