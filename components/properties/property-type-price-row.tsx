@@ -16,17 +16,17 @@ type PropertyTypePriceRowProps = {
 const variantStyles = {
 	default: {
 		wrapper: "border bg-muted/30",
-		typeDivider: "sm:border-r",
+		typeDivider: "border-r",
 		price: "text-primary",
 	},
 	amber: {
 		wrapper: "border border-amber-200/80 bg-gradient-to-br from-amber-50/80 via-background to-background shadow-sm",
-		typeDivider: "border-amber-100 sm:border-r",
+		typeDivider: "border-amber-100 border-r",
 		price: "text-amber-600",
 	},
 	emerald: {
 		wrapper: "border border-emerald-200/80 bg-gradient-to-br from-emerald-50/80 via-background to-background shadow-sm",
-		typeDivider: "border-emerald-100 sm:border-r",
+		typeDivider: "border-emerald-100 border-r",
 		price: "text-emerald-700",
 	},
 } as const
@@ -48,27 +48,29 @@ export function PropertyTypePriceRow({
 	return (
 		<div
 			className={cn(
-				"grid gap-0 overflow-hidden rounded-xl",
+				"grid min-w-0 gap-0 overflow-hidden rounded-lg",
 				alwaysSplit
-					? "grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]"
-					: "grid-cols-1 sm:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]",
+					? "grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]"
+					: "grid-cols-1 sm:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]",
 				styles.wrapper,
 				className,
 			)}
 		>
 			<div
 				className={cn(
-					"flex min-w-0 flex-col justify-center gap-1 p-4",
-					isCompact ? "sm:p-3" : "sm:p-5",
-					alwaysSplit ? "border-r" : "border-b sm:border-b-0",
-					styles.typeDivider,
+					"flex min-w-0 flex-col items-start justify-start gap-0.5",
+					isCompact ? "px-2.5 py-2 sm:px-3 sm:py-2.5" : "px-3 py-2.5 sm:px-3.5 sm:py-3",
+					alwaysSplit ? styles.typeDivider : "border-b sm:border-b-0 sm:border-r",
 				)}
 			>
-				<span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{typeHeading}</span>
+				<span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sm:text-[11px]">
+					{typeHeading}
+				</span>
 				<span
+					title={typeLabel}
 					className={cn(
-						"break-words font-bold leading-snug text-foreground",
-						isCompact ? "text-sm sm:text-base" : "text-base sm:text-lg",
+						"line-clamp-2 w-full font-semibold leading-4 text-foreground",
+						isCompact ? "text-[11px] sm:text-xs" : "text-xs sm:text-[13px] sm:leading-5",
 					)}
 				>
 					{typeLabel}
@@ -76,15 +78,17 @@ export function PropertyTypePriceRow({
 			</div>
 			<div
 				className={cn(
-					"flex min-w-0 flex-col justify-center gap-1 p-4 sm:items-end sm:text-right",
-					isCompact ? "sm:p-3" : "sm:p-5",
+					"flex min-w-0 flex-col items-end justify-start gap-0.5 text-right",
+					isCompact ? "px-2.5 py-2 sm:px-3 sm:py-2.5" : "px-3 py-2.5 sm:px-3.5 sm:py-3",
 				)}
 			>
-				<span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{priceHeading}</span>
+				<span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground sm:text-[11px]">
+					{priceHeading}
+				</span>
 				<div
 					className={cn(
-						"break-words font-bold leading-tight",
-						isCompact ? "text-lg" : "text-xl sm:text-2xl",
+						"max-w-full font-bold tabular-nums leading-tight whitespace-nowrap",
+						isCompact ? "text-sm" : "text-base sm:text-lg",
 						styles.price,
 					)}
 				>
