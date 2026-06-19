@@ -1,11 +1,13 @@
 /* Smart Housing PWA service worker */
-const CACHE_VERSION = "smart-housing-v1"
+const CACHE_VERSION = "smart-housing-v2"
 const STATIC_CACHE = `${CACHE_VERSION}-static`
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`
 
 const PRECACHE_URLS = [
   "/offline.html",
   "/branding/smarthousing-icon.svg",
+  "/pwa/icon-192.png",
+  "/pwa/icon-512.png",
   "/placeholder.svg",
 ]
 

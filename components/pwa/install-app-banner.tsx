@@ -47,24 +47,24 @@ export function InstallAppBanner() {
     setIosMode(ios && !pwa?.canInstall)
 
     if (pwa?.canInstall) {
-      const timer = window.setTimeout(() => setVisible(true), 1200)
+      const timer = window.setTimeout(() => setVisible(true), 800)
       return () => window.clearTimeout(timer)
     }
 
     if (ios) {
-      const timer = window.setTimeout(() => setVisible(true), 2000)
+      const timer = window.setTimeout(() => setVisible(true), 1500)
       return () => window.clearTimeout(timer)
     }
 
     setVisible(false)
-  }, [pwa?.canInstall])
+  }, [pwa?.canInstall, pwa?.isStandalone])
 
   if (!visible || isStandaloneDisplayMode()) {
     return null
   }
 
   const logo = getLogo()
-  const logoSrc = logo ? resolveStorageUrl(logo) : "/branding/smarthousing-icon.svg"
+  const logoSrc = logo ? resolveStorageUrl(logo) : "/pwa/icon/192"
   const appName = getCompanyName()
 
   const handleInstall = async () => {
@@ -74,8 +74,6 @@ export function InstallAppBanner() {
   }
 
   const handleDismiss = () => {
-    const until = Date.now() + 7 * 24 * 60 * 60 * 1000
-    localStorage.setItem(DISMISS_KEY, String(until))
     pwa?.dismissInstallPrompt()
     setVisible(false)
   }

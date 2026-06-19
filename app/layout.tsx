@@ -1,5 +1,6 @@
 import type React from "react"
 import type { Metadata, Viewport } from "next"
+import Script from "next/script"
 import { Inter } from "next/font/google"
 import "./globals.css"
 import { TenantProvider } from "@/lib/tenant/tenant-context"
@@ -31,8 +32,11 @@ export const metadata: Metadata = {
     telephone: false,
   },
   icons: {
-    icon: [{ url: "/branding/smarthousing-icon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/branding/smarthousing-icon.svg" }],
+    icon: [
+      { url: "/pwa/icon/32", sizes: "32x32", type: "image/png" },
+      { url: "/pwa/icon/192", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/pwa/icon/180", sizes: "180x180", type: "image/png" }],
   },
 }
 
@@ -43,7 +47,6 @@ export const viewport: Viewport = {
   ],
   width: "device-width",
   initialScale: 1,
-  maximumScale: 5,
   viewportFit: "cover",
 }
 
@@ -55,6 +58,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <body className="font-sans antialiased">
+        <Script id="pwa-install-prompt-capture" strategy="beforeInteractive">
+          {`window.__deferredPwaInstallPrompt=null;window.addEventListener("beforeinstallprompt",function(e){e.preventDefault();window.__deferredPwaInstallPrompt=e;window.dispatchEvent(new Event("pwa-installprompt-ready"));});window.addEventListener("appinstalled",function(){window.__deferredPwaInstallPrompt=null;window.dispatchEvent(new Event("pwa-installprompt-ready"));});`}
+        </Script>
         <TenantProvider>
           <TenantSettingsProvider>
             <WhiteLabelProvider>

@@ -131,6 +131,15 @@ body {
 
 html {
   -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+@layer utilities {
+  .select-none {
+    -webkit-user-select: none;
+    user-select: none;
+  }
 }
 
 @media (display-mode: standalone), (display-mode: minimal-ui) {

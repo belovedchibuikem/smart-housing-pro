@@ -3,13 +3,16 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react"
 import { useWhiteLabel } from "@/lib/context/white-label-context"
 import { applyPwaMetaTags } from "@/lib/pwa/apply-pwa-meta"
+import {
+  getDeferredInstallPrompt,
+  initInstallPromptCapture,
+  subscribeInstallPrompt,
+  type BeforeInstallPromptEvent,
+} from "@/lib/pwa/install-prompt-store"
 import { useServiceWorker } from "@/lib/pwa/register-service-worker"
 import { InstallAppBanner } from "@/components/pwa/install-app-banner"
 
-type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>
-  userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>
-}
+initInstallPromptCapture()
 
 type PwaContextValue = {
   canInstall: boolean
@@ -34,7 +37,9 @@ function isStandaloneDisplayMode() {
 
 export function PwaProvider({ children }: { children: ReactNode }) {
   const { settings } = useWhiteLabel()
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(() =>
+    typeof window === "undefined" ? null : getDeferredInstallPrompt(),
+  )
   const [isInstalled, setIsInstalled] = useState(false)
   const [isStandalone, setIsStandalone] = useState(false)
 
@@ -45,32 +50,24 @@ export function PwaProvider({ children }: { children: ReactNode }) {
     setIsStandalone(isStandaloneDisplayMode())
     setIsInstalled(isStandaloneDisplayMode())
 
-    const onBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault()
-      setDeferredPrompt(event as BeforeInstallPromptEvent)
-    }
-
-    const onAppInstalled = () => {
-      setDeferredPrompt(null)
-      setIsInstalled(true)
-      setIsStandalone(true)
-    }
-
-    window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt)
-    window.addEventListener("appinstalled", onAppInstalled)
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt)
-      window.removeEventListener("appinstalled", onAppInstalled)
-    }
+    return subscribeInstallPrompt((event) => {
+      setDeferredPrompt(event)
+      if (!event && isStandaloneDisplayMode()) {
+        setIsInstalled(true)
+        setIsStandalone(true)
+      }
+    })
   }, [settings])
 
   const promptInstall = useCallback(async () => {
-    if (!deferredPrompt) return false
-    await deferredPrompt.prompt()
-    const choice = await deferredPrompt.userChoice
+    const prompt = deferredPrompt ?? getDeferredInstallPrompt()
+    if (!prompt) return false
+    await prompt.prompt()
+    const choice = await prompt.userChoice
     if (choice.outcome === "accepted") {
       setDeferredPrompt(null)
+      setIsInstalled(true)
+      setIsStandalone(true)
       return true
     }
     return false
@@ -79,7 +76,6 @@ export function PwaProvider({ children }: { children: ReactNode }) {
   const dismissInstallPrompt = useCallback(() => {
     const until = Date.now() + 7 * 24 * 60 * 60 * 1000
     localStorage.setItem(DISMISS_KEY, String(until))
-    setDeferredPrompt(null)
   }, [])
 
   const value = useMemo<PwaContextValue>(
