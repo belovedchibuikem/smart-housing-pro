@@ -1,10 +1,10 @@
-/* Smart Housing PWA service worker */
-const CACHE_VERSION = "smart-housing-v2"
+/* Smart Housing PWA service worker — Next.js App Router compatible */
+const CACHE_VERSION = "smart-housing-v3"
 const STATIC_CACHE = `${CACHE_VERSION}-static`
-const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`
+const OFFLINE_URL = "/offline.html"
 
 const PRECACHE_URLS = [
-  "/offline.html",
+  OFFLINE_URL,
   "/branding/smarthousing-icon.svg",
   "/pwa/icon-192.png",
   "/pwa/icon-512.png",
@@ -19,65 +19,63 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key.startsWith("smart-housing-") && key !== STATIC_CACHE && key !== RUNTIME_CACHE)
-          .map((key) => caches.delete(key)),
-      ),
-    ).then(() => self.clients.claim()),
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((key) => key.startsWith("smart-housing-") && key !== STATIC_CACHE)
+            .map((key) => caches.delete(key)),
+        ),
+      )
+      .then(() => self.clients.claim()),
   )
 })
 
 function isNavigationRequest(request) {
-  return request.mode === "navigate" || (request.method === "GET" && request.headers.get("accept")?.includes("text/html"))
+  return (
+    request.mode === "navigate" ||
+    (request.method === "GET" && request.headers.get("accept")?.includes("text/html"))
+  )
 }
 
-function isApiRequest(url) {
-  return url.pathname.startsWith("/api/") || url.pathname.includes("/storage/")
+function shouldBypassServiceWorker(request, url) {
+  if (request.method !== "GET") return true
+  if (url.origin !== self.location.origin) return true
+
+  if (url.pathname.startsWith("/api/") || url.pathname.includes("/storage/")) return true
+  if (url.pathname.startsWith("/_next/")) return true
+  if (url.pathname.startsWith("/pwa/")) return true
+  if (url.pathname.endsWith("/manifest.webmanifest")) return true
+
+  if (request.headers.get("RSC") === "1") return true
+  if (request.headers.get("Next-Router-Prefetch") === "1") return true
+  if (request.headers.get("Next-Router-State-Tree")) return true
+  if (request.headers.get("Purpose") === "prefetch") return true
+
+  return false
+}
+
+async function offlineFallback() {
+  const offline = await caches.match(OFFLINE_URL)
+  if (offline) return offline
+  return new Response("You are offline. Please check your connection and try again.", {
+    status: 503,
+    statusText: "Offline",
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  })
 }
 
 self.addEventListener("fetch", (event) => {
   const { request } = event
-  if (request.method !== "GET") return
-
   const url = new URL(request.url)
-  if (url.origin !== self.location.origin) return
-  if (isApiRequest(url)) return
 
-  if (isNavigationRequest(request)) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            const copy = response.clone()
-            caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy))
-          }
-          return response
-        })
-        .catch(async () => {
-          const cached = await caches.match(request)
-          if (cached) return cached
-          const offline = await caches.match("/offline.html")
-          if (offline) return offline
-          return new Response("Offline", { status: 503, statusText: "Offline" })
-        }),
-    )
-    return
-  }
+  if (shouldBypassServiceWorker(request, url)) return
+
+  if (!isNavigationRequest(request)) return
 
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached
-      return fetch(request)
-        .then((response) => {
-          if (!response.ok) return response
-          const copy = response.clone()
-          caches.open(RUNTIME_CACHE).then((cache) => cache.put(request, copy))
-          return response
-        })
-        .catch(() => cached)
-    }),
+    fetch(request).catch(() => offlineFallback()),
   )
 })
 

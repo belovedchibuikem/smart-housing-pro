@@ -10,6 +10,7 @@ import type { AvailableProperty } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { PropertyTypePriceRow } from "@/components/properties/property-type-price-row"
 import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
+import { toDisplayText } from "@/lib/utils/display-text"
 
 type PropertyListingsProps = {
 	properties: AvailableProperty[]
@@ -102,7 +103,7 @@ export function PropertyListings({ properties, loading }: PropertyListingsProps)
 									) : null}
 								</div>
 								<div className="absolute right-3 top-3 flex flex-col items-end gap-1">
-									<Badge className="capitalize">{property.status.replace("_", " ")}</Badge>
+									<Badge className="capitalize">{toDisplayText(property.status, "available").replace("_", " ")}</Badge>
 									{property.total_slots != null && property.slots_available != null && (
 										<Badge variant="secondary" className="text-xs font-normal">
 											{property.slots_available} slot{property.slots_available === 1 ? "" : "s"} left
@@ -112,10 +113,10 @@ export function PropertyListings({ properties, loading }: PropertyListingsProps)
           </div>
 							<div className="space-y-4 p-6">
             <div>
-              <h3 className="text-xl font-bold mb-1">{property.title}</h3>
+              <h3 className="text-xl font-bold mb-1">{toDisplayText(property.title, "Untitled listing")}</h3>
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
                 <MapPin className="h-4 w-4" />
-                {property.location}
+                {toDisplayText(property.location, toDisplayText([property.city, property.state].filter(Boolean).join(", ")))}
               </div>
             </div>
 

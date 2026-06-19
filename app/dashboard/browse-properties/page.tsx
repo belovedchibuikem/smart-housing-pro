@@ -17,6 +17,7 @@ import {
 	type AvailableProperty,
 	type BrowsePropertiesPagination,
 } from "@/lib/api/client"
+import { toDisplayText } from "@/lib/utils/display-text"
 
 export default function BrowsePropertiesPage() {
 	const { toast } = useToast()
@@ -54,6 +55,12 @@ export default function BrowsePropertiesPage() {
 				})
 				const formatted = (response.properties ?? []).map((property) => ({
 					...property,
+					title: toDisplayText(property.title, "Untitled listing"),
+					location: toDisplayText(
+						property.location,
+						toDisplayText([property.city, property.state].filter(Boolean).join(", ")),
+					),
+					status: toDisplayText(property.status, "available"),
 					property_type: property.property_type ?? null,
 					type_label: property.type_label ?? null,
 					price: Number(property.price ?? 0),
