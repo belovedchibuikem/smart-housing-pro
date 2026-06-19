@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { MapPin, Calendar, Home, Clock, CheckCircle2, TrendingUp, MapPinned } from "lucide-react"
-import type { MemberHouse } from "@/lib/api/client"
+import { PropertyTypePriceRow } from "@/components/properties/property-type-price-row"
+import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { useToast } from "@/hooks/use-toast"
 
@@ -157,11 +158,16 @@ export function MyProperties({ properties, loading, propertyType = "house" }: My
 										</div>
 									</div>
 
-									<div className="grid gap-4 lg:grid-cols-4">
-										<div>
-											<p className="text-xs uppercase tracking-wide text-muted-foreground">{isLand ? "Land Value" : "House Value"}</p>
-											<p className="text-lg font-semibold">{formatCurrency(property.price)}</p>
-										</div>
+									<PropertyTypePriceRow
+										variant="amber"
+										size="compact"
+										splitOnMobile
+										typeLabel={getPropertyTypeLabel(property, isLand ? "Land" : "—")}
+										priceHeading={isLand ? "Land Value" : "House Value"}
+										price={formatCurrency(property.price)}
+									/>
+
+									<div className="grid gap-4 lg:grid-cols-3">
 										<div>
 											<p className="text-xs uppercase tracking-wide text-muted-foreground">Total Paid</p>
 											<p className="text-lg font-semibold text-green-600">{formatCurrency(property.total_paid)}</p>

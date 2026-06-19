@@ -17,6 +17,8 @@ import {
   propertyDetailPath,
   type PublicPropertyListing,
 } from "@/lib/api/public-properties"
+import { PropertyTypePriceRow } from "@/components/properties/property-type-price-row"
+import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
 
 export default function PropertiesPage() {
   const [properties, setProperties] = useState<PublicPropertyListing[]>([])
@@ -162,15 +164,15 @@ export default function PropertiesPage() {
                     fill
                     className="object-cover group-hover:scale-110 transition-transform duration-300"
                   />
-                  <Badge className="absolute top-3 left-3 bg-background/90 text-foreground capitalize">
-                    {property.type}
+                  <Badge className="absolute top-3 left-3 max-w-[85%] truncate bg-background/90 text-foreground capitalize">
+                    {getPropertyTypeLabel(property)}
                   </Badge>
                 </div>
                 <CardContent className="p-4 space-y-3">
                   <h3 className="font-semibold text-lg line-clamp-1">{property.name}</h3>
                   <div className="flex items-center text-sm text-muted-foreground">
-                    <MapPin className="h-4 w-4 mr-1" />
-                    {property.location}
+                    <MapPin className="h-4 w-4 mr-1 shrink-0" />
+                    <span className="line-clamp-1">{property.location}</span>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center text-muted-foreground">
@@ -183,7 +185,14 @@ export default function PropertiesPage() {
                       </div>
                     )}
                   </div>
-                  <div className="text-2xl font-bold text-primary">{formatPropertyPrice(property.price)}</div>
+                  <PropertyTypePriceRow
+                    size="compact"
+                    splitOnMobile
+                    typeLabel={getPropertyTypeLabel(property)}
+                    typeHeading="Type"
+                    priceHeading="Price"
+                    price={formatPropertyPrice(property.price)}
+                  />
                 </CardContent>
                 <CardFooter className="p-4 pt-0">
                   <Link href={propertyDetailPath(property)} className="w-full">

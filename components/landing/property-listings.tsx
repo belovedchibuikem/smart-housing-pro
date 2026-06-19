@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge"
 import { MapPin, Home, Maximize } from "lucide-react"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { formatPropertyPrice, propertyDetailPath, type PublicPropertyListing } from "@/lib/api/public-properties"
+import { PropertyTypePriceRow } from "@/components/properties/property-type-price-row"
+import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
 
 interface PropertyListingsProps {
   properties?: PublicPropertyListing[]
@@ -50,13 +52,15 @@ export function PropertyListings({ properties = [], config }: PropertyListingsPr
                   fill
                   className="object-cover group-hover:scale-110 transition-transform duration-300"
                 />
-                <Badge className="absolute top-3 left-3 bg-background/90 text-foreground">{property.type}</Badge>
+                <Badge className="absolute top-3 left-3 max-w-[85%] truncate bg-background/90 text-foreground">
+                  {getPropertyTypeLabel(property)}
+                </Badge>
               </div>
               <CardContent className="p-4 space-y-3">
                 <h3 className="font-semibold text-lg line-clamp-1">{property.name}</h3>
                 <div className="flex items-center text-sm text-muted-foreground">
-                  <MapPin className="h-4 w-4 mr-1" />
-                  {property.location}
+                  <MapPin className="h-4 w-4 mr-1 shrink-0" />
+                  <span className="line-clamp-1">{property.location}</span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <div className="flex items-center text-muted-foreground">
@@ -69,7 +73,14 @@ export function PropertyListings({ properties = [], config }: PropertyListingsPr
                     </div>
                   )}
                 </div>
-                <div className="text-2xl font-bold text-primary">{formatPrice(property.price)}</div>
+                <PropertyTypePriceRow
+                  size="compact"
+                  splitOnMobile
+                  typeLabel={getPropertyTypeLabel(property)}
+                  typeHeading="Type"
+                  priceHeading="Price"
+                  price={formatPrice(property.price)}
+                />
               </CardContent>
               <CardFooter className="p-4 pt-0 flex gap-2">
                 <Link href={propertyDetailPath(property)} className="flex-1">

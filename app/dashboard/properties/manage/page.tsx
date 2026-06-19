@@ -23,6 +23,8 @@ import {
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 import { getMemberProperties, getPropertyPaymentSetup, getPropertyDocuments, type MemberHouse, type PropertyPaymentSetup, type PropertyPaymentHistoryEntry } from "@/lib/api/client"
+import { PropertyTypePriceRow } from "@/components/properties/property-type-price-row"
+import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
 
 function formatCurrency(amount: number | null | undefined) {
   if (!amount || Number.isNaN(amount)) return "₦0"
@@ -198,22 +200,23 @@ export default function MyPropertyPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
+          <PropertyTypePriceRow
+            variant="amber"
+            size="compact"
+            splitOnMobile
+            typeLabel={getPropertyTypeLabel(property, isHouse ? "—" : "Land")}
+            priceHeading="Purchase Price"
+            price={formatCurrency(property.price)}
+          />
+
           {/* Property Details */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Type</p>
-              <p className="font-semibold">{property.type || "—"}</p>
-            </div>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {property.size && (
               <div>
                 <p className="text-sm text-muted-foreground">Size</p>
-                <p className="font-semibold">{property.size} {isHouse ? "sqm" : "sqm"}</p>
+                <p className="font-semibold">{property.size} sqm</p>
               </div>
             )}
-            <div>
-              <p className="text-sm text-muted-foreground">Purchase Price</p>
-              <p className="font-semibold">{formatCurrency(property.price)}</p>
-            </div>
             <div>
               <p className="text-sm text-muted-foreground">Current Value</p>
               <p className="font-semibold text-green-600">{formatCurrency(property.current_value || property.price)}</p>

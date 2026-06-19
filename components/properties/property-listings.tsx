@@ -147,7 +147,9 @@ export function PropertyListings({ properties, loading }: PropertyListingsProps)
             </div>
 
 								<PropertyTypePriceRow
+									variant="amber"
 									size="compact"
+									splitOnMobile
 									typeLabel={typeLabel(property)}
 									priceHeading="Price"
 									typeHeading="Type"

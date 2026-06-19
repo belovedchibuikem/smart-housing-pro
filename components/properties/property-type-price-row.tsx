@@ -9,6 +9,7 @@ type PropertyTypePriceRowProps = {
 	typeHeading?: string
 	variant?: "default" | "amber" | "emerald"
 	size?: "default" | "compact"
+	splitOnMobile?: boolean
 	className?: string
 }
 
@@ -37,23 +38,29 @@ export function PropertyTypePriceRow({
 	typeHeading = "Property Type",
 	variant = "default",
 	size = "default",
+	splitOnMobile = false,
 	className,
 }: PropertyTypePriceRowProps) {
 	const styles = variantStyles[variant]
 	const isCompact = size === "compact"
+	const alwaysSplit = splitOnMobile || isCompact
 
 	return (
 		<div
 			className={cn(
-				"grid grid-cols-1 gap-0 overflow-hidden rounded-xl sm:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]",
+				"grid gap-0 overflow-hidden rounded-xl",
+				alwaysSplit
+					? "grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]"
+					: "grid-cols-1 sm:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]",
 				styles.wrapper,
 				className,
 			)}
 		>
 			<div
 				className={cn(
-					"flex min-w-0 flex-col justify-center gap-1 border-b p-4 sm:border-b-0",
+					"flex min-w-0 flex-col justify-center gap-1 p-4",
 					isCompact ? "sm:p-3" : "sm:p-5",
+					alwaysSplit ? "border-r" : "border-b sm:border-b-0",
 					styles.typeDivider,
 				)}
 			>
