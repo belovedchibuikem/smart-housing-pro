@@ -18,16 +18,26 @@ import {
   generatePropertySubscriptionCertificate,
   fetchAdminPropertyStatistics,
   recalculateAdminPropertyStatistics,
+  getPropertyLocationFilterOptions,
   type AdminPropertyStatistics,
 } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
+import { PropertyLocationFilters } from "@/components/admin/property-location-filters"
+import { LocationOverviewPanel } from "@/components/admin/location-overview-panel"
+import {
+  appendLocationFilters,
+  locationFiltersFromSearchParams,
+  type LocationFilterOptions,
+  type PropertyLocationFilterValues,
+} from "@/lib/properties/location-filters"
 
 interface Property {
   id: string
   title?: string
   description?: string
   address?: string
+  location?: string
   city?: string
   state?: string
   type?: string
@@ -65,7 +75,13 @@ export default function AdminPropertiesPage() {
   const [pendingPayments, setPendingPayments] = useState<any[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [paymentFilter, setPaymentFilter] = useState("all")
-  const [listingSegment, setListingSegment] = useState<"houses" | "land">("houses")
+  const [listingSegment, setListingSegment] = useState<"houses" | "land">(
+    searchParams.get("segment") === "land" ? "land" : "houses"
+  )
+  const [locationFilters, setLocationFilters] = useState<PropertyLocationFilterValues>(() =>
+    locationFiltersFromSearchParams(searchParams)
+  )
+  const [filterOptions, setFilterOptions] = useState<LocationFilterOptions | null>(null)
   const [landParcels, setLandParcels] = useState<LandParcel[]>([])
   const [propertyStats, setPropertyStats] = useState<AdminPropertyStatistics | null>(null)
   const [housePaginationTotal, setHousePaginationTotal] = useState(0)
@@ -79,11 +95,6 @@ export default function AdminPropertiesPage() {
         if (r.success && r.data) setPropertyStats(r.data)
       })
       .catch(() => setPropertyStats(null))
-  }, [])
-
-  useEffect(() => {
-    fetchSubscriptions()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -114,19 +125,55 @@ export default function AdminPropertiesPage() {
   }, [flash, searchParamsString])
 
   useEffect(() => {
+    getPropertyLocationFilterOptions()
+      .then((r) => {
+        if (r.success && r.data) setFilterOptions(r.data)
+      })
+      .catch(() => setFilterOptions(null))
+  }, [])
+
+  useEffect(() => {
+    setLocationFilters(locationFiltersFromSearchParams(searchParams))
+    if (searchParams.get("segment") === "land") {
+      setListingSegment("land")
+    } else if (searchParams.get("segment") === "houses") {
+      setListingSegment("houses")
+    }
+  }, [searchParamsString])
+
+  const syncLocationFiltersToUrl = (filters: PropertyLocationFilterValues, segment = listingSegment) => {
+    const params = new URLSearchParams()
+    appendLocationFilters(params, filters)
+    if (segment === "land") params.set("segment", "land")
+    const qs = params.toString()
+    router.replace(qs ? `/admin/properties?${qs}` : "/admin/properties", { scroll: false })
+  }
+
+  const handleLocationFiltersChange = (filters: PropertyLocationFilterValues) => {
+    setLocationFilters(filters)
+    syncLocationFiltersToUrl(filters)
+  }
+
+  useEffect(() => {
     if (listingSegment === "houses") {
       void fetchProperties()
     } else {
       void fetchLandParcels()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, listingSegment])
+  }, [searchQuery, listingSegment, locationFilters])
+
+  useEffect(() => {
+    void fetchSubscriptions()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locationFilters])
 
   const fetchLandParcels = async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams()
       if (searchQuery) params.append("search", searchQuery)
+      appendLocationFilters(params, locationFilters)
       params.append("per_page", "100")
       const response = await apiFetch<{
         success: boolean
@@ -153,6 +200,8 @@ export default function AdminPropertiesPage() {
       setLoading(true)
       const params = new URLSearchParams()
       if (searchQuery) params.append('search', searchQuery)
+      appendLocationFilters(params, locationFilters)
+      params.append('per_page', '100')
       const response = await apiFetch<{
         success: boolean
         data: Property[]
@@ -175,8 +224,13 @@ export default function AdminPropertiesPage() {
 
   const fetchSubscriptions = async () => {
     try {
-      // Fetch subscriptions from dedicated endpoint
-      const response = await getPropertySubscriptions({ per_page: 100 })
+      const response = await getPropertySubscriptions({
+        per_page: 100,
+        location: locationFilters.location || undefined,
+        city: locationFilters.city || undefined,
+        state: locationFilters.state || undefined,
+        estate_id: locationFilters.estateId || undefined,
+      })
       if (response.success && response.data) {
         const subs = response.data.map((sub) => ({
           id: sub.id,
@@ -482,6 +536,8 @@ export default function AdminPropertiesPage() {
         </Card>
       </div>
 
+      <LocationOverviewPanel onApplyFilters={handleLocationFiltersChange} />
+
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <Card>
           <CardContent className="p-6">
@@ -526,6 +582,13 @@ export default function AdminPropertiesPage() {
         </TabsList>
 
         <TabsContent value="properties" className="space-y-4">
+          <PropertyLocationFilters
+            filters={locationFilters}
+            options={filterOptions}
+            loading={loading}
+            onChange={handleLocationFiltersChange}
+          />
+
           <Card>
             <CardHeader>
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -536,7 +599,10 @@ export default function AdminPropertiesPage() {
                       size="sm"
                       variant={listingSegment === "houses" ? "default" : "outline"}
                       className={listingSegment === "houses" ? "" : "bg-transparent"}
-                      onClick={() => setListingSegment("houses")}
+                      onClick={() => {
+                        setListingSegment("houses")
+                        syncLocationFiltersToUrl(locationFilters, "houses")
+                      }}
                     >
                       🏡 Houses / Buildings
                     </Button>
@@ -545,7 +611,10 @@ export default function AdminPropertiesPage() {
                       size="sm"
                       variant={listingSegment === "land" ? "default" : "outline"}
                       className={listingSegment === "land" ? "" : "bg-transparent"}
-                      onClick={() => setListingSegment("land")}
+                      onClick={() => {
+                        setListingSegment("land")
+                        syncLocationFiltersToUrl(locationFilters, "land")
+                      }}
                     >
                       🌍 Land parcels
                     </Button>
@@ -607,7 +676,9 @@ export default function AdminPropertiesPage() {
                             <div className="font-semibold">{property.title || "Untitled property"}</div>
                             <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
                               <MapPin className="h-3 w-3" />
-                              {property.address || property.city || property.state || "No location"}
+                              {[property.location, property.city, property.state, property.address]
+                                .filter(Boolean)
+                                .join(", ") || "No location"}
                             </div>
                           </div>
                           <div className="flex items-center justify-between gap-3">
@@ -735,6 +806,13 @@ export default function AdminPropertiesPage() {
         </TabsContent>
 
         <TabsContent value="subscriptions" className="space-y-4">
+          <PropertyLocationFilters
+            filters={locationFilters}
+            options={filterOptions}
+            onChange={handleLocationFiltersChange}
+            showStatus={false}
+          />
+
           <Card>
             <CardHeader>
               <CardTitle>Property Subscriptions</CardTitle>

@@ -1137,6 +1137,10 @@ export async function getPropertySubscriptions(params?: {
 	property_id?: string
 	member_id?: string
 	search?: string
+	location?: string
+	city?: string
+	state?: string
+	estate_id?: string
 	page?: number
 	per_page?: number
 }) {
@@ -1145,6 +1149,10 @@ export async function getPropertySubscriptions(params?: {
 	if (params?.property_id) queryParams.append("property_id", params.property_id)
 	if (params?.member_id) queryParams.append("member_id", params.member_id)
 	if (params?.search) queryParams.append("search", params.search)
+	if (params?.location) queryParams.append("location", params.location)
+	if (params?.city) queryParams.append("city", params.city)
+	if (params?.state) queryParams.append("state", params.state)
+	if (params?.estate_id) queryParams.append("estate_id", params.estate_id)
 	if (params?.page) queryParams.append("page", params.page.toString())
 	if (params?.per_page) queryParams.append("per_page", params.per_page.toString())
 
@@ -2133,6 +2141,25 @@ export async function getPropertyEstates(params?: { search?: string }) {
 	const query = new URLSearchParams()
 	if (params?.search) query.set("search", params.search)
 	return apiFetch<{ success: boolean; data: any[] }>(`/admin/property-management/estates?${query.toString()}`, { method: "GET" })
+}
+
+export async function getPropertyLocationFilterOptions() {
+	return apiFetch<{ success: boolean; data: import("@/lib/properties/location-filters").LocationFilterOptions }>(
+		"/admin/properties/location-options",
+		{ method: "GET" }
+	)
+}
+
+export async function getPropertyLocationOverview(params?: { search?: string }) {
+	const query = new URLSearchParams()
+	if (params?.search) query.set("search", params.search)
+	return apiFetch<{
+		success: boolean
+		data: {
+			summary: import("@/lib/properties/location-filters").LocationOverviewSummary
+			locations: import("@/lib/properties/location-filters").LocationOverviewRow[]
+		}
+	}>(`/admin/properties/location-overview?${query.toString()}`, { method: "GET" })
 }
 
 export async function getPropertyEstateStats() {
