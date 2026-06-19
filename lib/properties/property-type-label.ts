@@ -1,3 +1,5 @@
+import { toOptionalString } from "@/lib/utils/display-text"
+
 export type PropertyTypeSource = {
 	property_type?: string | null
 	type?: string | null
@@ -24,16 +26,16 @@ function titleCase(value: string): string {
 export function getPropertyTypeLabel(source?: PropertyTypeSource | null, fallback = "—"): string {
 	if (!source) return fallback
 
-	const resolved = source.type_label?.trim()
+	const resolved = toOptionalString(source.type_label)
 	if (resolved) return resolved
 
-	const fullType = source.property_type?.trim()
+	const fullType = toOptionalString(source.property_type)
 	if (fullType && !isCategorySlug(fullType)) return fullType
 
-	const listingKind = source.listing_kind?.toLowerCase()
+	const listingKind = toOptionalString(source.listing_kind)?.toLowerCase()
 	if (listingKind === "land_parcel" || listingKind === "land_legacy") return "Land"
 
-	const category = source.type?.trim()
+	const category = toOptionalString(source.type)
 	if (!category) return fallback
 	if (category.toLowerCase() === "land") return "Land"
 

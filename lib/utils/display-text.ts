@@ -24,3 +24,30 @@ export function toDisplayText(value: unknown, fallback = "—"): string {
 	}
 	return fallback
 }
+
+export function hasDisplayValue(value: unknown): boolean {
+	if (value == null) return false
+	if (typeof value === "string") return value.trim() !== ""
+	if (typeof value === "number") return Number.isFinite(value) && value !== 0 ? true : value === 0
+	if (typeof value === "boolean") return value
+	if (typeof value === "object") {
+		if (Array.isArray(value)) return value.length > 0
+		return Object.keys(value as object).length > 0 && toDisplayText(value, "") !== "—"
+	}
+	return false
+}
+
+export function toOptionalNumber(value: unknown): number | undefined {
+	if (value == null || value === "") return undefined
+	if (typeof value === "number") return Number.isFinite(value) ? value : undefined
+	if (typeof value === "string") {
+		const parsed = Number(value)
+		return Number.isFinite(parsed) ? parsed : undefined
+	}
+	return undefined
+}
+
+export function toOptionalString(value: unknown): string | undefined {
+	const text = toDisplayText(value, "")
+	return text === "—" || text === "" ? undefined : text
+}

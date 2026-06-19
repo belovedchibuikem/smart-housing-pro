@@ -10,7 +10,7 @@ import type { AvailableProperty } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { PropertyTypePriceRow } from "@/components/properties/property-type-price-row"
 import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
-import { toDisplayText } from "@/lib/utils/display-text"
+import { toDisplayText, hasDisplayValue } from "@/lib/utils/display-text"
 
 type PropertyListingsProps = {
 	properties: AvailableProperty[]
@@ -96,19 +96,19 @@ export function PropertyListings({ properties, loading }: PropertyListingsProps)
 									<Badge variant="outline" className="bg-background/90 text-foreground">
 										{kindLabel(property)}
 									</Badge>
-									{property.land_code ? (
+									{hasDisplayValue(property.land_code) ? (
 										<Badge variant="secondary" className="text-xs font-mono">
-											{property.land_code}
+											{toDisplayText(property.land_code)}
 										</Badge>
 									) : null}
 								</div>
 								<div className="absolute right-3 top-3 flex flex-col items-end gap-1">
 									<Badge className="capitalize">{toDisplayText(property.status, "available").replace("_", " ")}</Badge>
-									{property.total_slots != null && property.slots_available != null && (
+									{property.total_slots != null && property.slots_available != null ? (
 										<Badge variant="secondary" className="text-xs font-normal">
 											{property.slots_available} slot{property.slots_available === 1 ? "" : "s"} left
 										</Badge>
-									)}
+									) : null}
 								</div>
           </div>
 							<div className="space-y-4 p-6">
@@ -121,25 +121,25 @@ export function PropertyListings({ properties, loading }: PropertyListingsProps)
             </div>
 
 								<div className="flex flex-wrap items-center gap-4 text-sm">
-									{property.land_size_label ? (
+									{hasDisplayValue(property.land_size_label) ? (
 										<div className="flex items-center gap-1 text-muted-foreground">
 											<Square className="h-4 w-4" />
-											<span>{property.land_size_label}</span>
+											<span>{toDisplayText(property.land_size_label)}</span>
 										</div>
 									) : null}
-									{property.bedrooms ? (
+									{hasDisplayValue(property.bedrooms) ? (
               <div className="flex items-center gap-1">
                 <Bed className="h-4 w-4 text-muted-foreground" />
                 <span>{property.bedrooms} Beds</span>
               </div>
 									) : null}
-									{property.bathrooms ? (
+									{hasDisplayValue(property.bathrooms) ? (
               <div className="flex items-center gap-1">
                 <Bath className="h-4 w-4 text-muted-foreground" />
                 <span>{property.bathrooms} Baths</span>
               </div>
 									) : null}
-									{property.size ? (
+									{hasDisplayValue(property.size) ? (
               <div className="flex items-center gap-1">
                 <Square className="h-4 w-4 text-muted-foreground" />
 											<span>{property.size} m²</span>

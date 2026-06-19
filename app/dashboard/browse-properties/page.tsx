@@ -13,11 +13,14 @@ import {
 } from "@/components/properties/browse-property-filters"
 import { Pagination } from "@/components/ui/pagination"
 import {
+	normalizeAvailableProperty,
+	normalizeBrowsePagination,
+} from "@/lib/properties/normalize-listing"
+import {
 	getAvailableProperties,
 	type AvailableProperty,
 	type BrowsePropertiesPagination,
 } from "@/lib/api/client"
-import { toDisplayText } from "@/lib/utils/display-text"
 
 export default function BrowsePropertiesPage() {
 	const { toast } = useToast()
@@ -53,27 +56,11 @@ export default function BrowsePropertiesPage() {
 					page: activePage,
 					...activeFilters,
 				})
-				const formatted = (response.properties ?? []).map((property) => ({
-					...property,
-					title: toDisplayText(property.title, "Untitled listing"),
-					location: toDisplayText(
-						property.location,
-						toDisplayText([property.city, property.state].filter(Boolean).join(", ")),
-					),
-					status: toDisplayText(property.status, "available"),
-					property_type: property.property_type ?? null,
-					type_label: property.type_label ?? null,
-					price: Number(property.price ?? 0),
-					size: property.size !== undefined && property.size !== null ? Number(property.size) : undefined,
-					bedrooms: property.bedrooms ?? undefined,
-					bathrooms: property.bathrooms ?? undefined,
-					images: (property.images ?? []).map((image) => ({
-						...image,
-						url: image.url ?? (image as unknown as { image_url?: string }).image_url ?? "",
-					})),
-				}))
+				const formatted = (response.properties ?? []).map((property) =>
+					normalizeAvailableProperty(property as AvailableProperty),
+				)
 				setAvailableProperties(formatted)
-				setPagination(response.pagination ?? null)
+				setPagination(normalizeBrowsePagination(response.pagination))
 			} catch (error: unknown) {
 				const message = error instanceof Error ? error.message : "Unable to load listings"
 				toast({
