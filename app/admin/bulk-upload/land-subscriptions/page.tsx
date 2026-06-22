@@ -126,7 +126,10 @@ export default function BulkLandSubscriptionsPage() {
     <div className="space-y-6 p-6">
       <div>
         <h1 className="text-3xl font-bold">Bulk land subscriptions</h1>
-        <p className="text-muted-foreground mt-1">Assign existing members to parcels using member identifier and Land ID</p>
+        <p className="text-muted-foreground mt-1">
+          Assign existing members to parcels using member identifier and Land ID — copy Land ID from Admin → Land parcels
+          or Property management (land tab).
+        </p>
       </div>
       <Card>
         <CardHeader>

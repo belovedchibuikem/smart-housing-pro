@@ -31,6 +31,7 @@ import {
   type LocationFilterOptions,
   type PropertyLocationFilterValues,
 } from "@/lib/properties/location-filters"
+import { CopyableId } from "@/components/admin/copyable-id"
 
 interface Property {
   id: string
@@ -624,8 +625,8 @@ export default function AdminPropertiesPage() {
                   </CardTitle>
                   <CardDescription>
                     {listingSegment === "houses"
-                      ? "New uploads exclude land-type rows — use the Land tab or Land menu for parcels."
-                      : "Managed under Land — IDs are stable for subscriptions and payments."}
+                      ? "New uploads exclude land-type rows — copy Property ID from each card for subscriber CSV import."
+                      : "Managed under Land — copy Land ID from each card for subscription CSV import."}
                   </CardDescription>
                 </div>
                 <div className="relative w-full min-w-[200px] max-w-xs lg:max-w-sm">
@@ -681,6 +682,11 @@ export default function AdminPropertiesPage() {
                                 .join(", ") || "No location"}
                             </div>
                           </div>
+                          <CopyableId
+                            label="Property ID"
+                            value={property.id}
+                            hint="Paste into subscriber CSV as Property ID"
+                          />
                           <div className="flex items-center justify-between gap-3">
                             <div className="text-lg font-bold text-primary">
                               ₦{((property.price || 0) / 1000000).toFixed(1)}M
@@ -758,8 +764,13 @@ export default function AdminPropertiesPage() {
                           {land.land_size ? (
                             <span className="text-xs text-muted-foreground">{land.land_size}</span>
                           ) : null}
-                          <span className="ml-auto font-mono text-xs text-muted-foreground">{land.land_code || "—"}</span>
                         </div>
+                        <CopyableId
+                          label="Land ID"
+                          value={land.land_code}
+                          hint="Paste into subscription CSV as land_id"
+                          truncate={false}
+                        />
                         <div>
                           <div className="font-semibold leading-snug">{land.land_title || "Untitled land"}</div>
                           <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">

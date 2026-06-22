@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
+import { CopyableId } from "@/components/admin/copyable-id"
 
 interface LandRow {
   id: string
@@ -117,9 +118,14 @@ export default function AdminLandsListPage() {
                     <Badge variant="secondary" className="font-normal">
                       🌍 Land
                     </Badge>
-                    <span className="ml-auto font-mono text-xs text-muted-foreground">{land.land_code || "—"}</span>
                   </div>
                   <CardContent className="space-y-3 p-4">
+                    <CopyableId
+                      label="Land ID"
+                      value={land.land_code}
+                      hint="Paste into subscription CSV as land_id"
+                      truncate={false}
+                    />
                     <div>
                       <div className="text-lg font-semibold leading-snug">{land.land_title || "Untitled land"}</div>
                       <div className="mt-1 text-sm text-muted-foreground">{land.location || "—"}</div>

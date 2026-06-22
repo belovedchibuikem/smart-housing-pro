@@ -106,7 +106,8 @@ export default function BulkUploadPropertySubscribersPage() {
           <div className="space-y-2">
             <h3 className="font-medium">Step 2: Fill property and member identifiers</h3>
             <p className="text-sm text-muted-foreground">
-              Copy the property UUID from Admin → Property detail. Member must exist (match by Member ID, staff ID, IPPIS, or email).
+              Copy the Property ID from Admin → Property management (house listings) using the copy button on each card.
+              Member must exist (match by Member ID, staff ID, IPPIS, or email).
             </p>
           </div>
           <div className="border-2 border-dashed rounded-lg p-8 text-center">
