@@ -2480,6 +2480,7 @@ export interface AllotteeInfo {
 		type: string
 		estate: string
 		unit: string
+		unit_address?: string | null
 		allocation_date: string | null
 		status: string
 	}>

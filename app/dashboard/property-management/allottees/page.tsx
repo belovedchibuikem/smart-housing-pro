@@ -150,7 +150,7 @@ export default function AllotteeStatusPage() {
                   </div>
                   <div className="text-sm text-muted-foreground space-y-1">
                     <div>Estate: {property.estate}</div>
-                    <div>Unit: {property.unit}</div>
+                    <div>Unit: {property.unit_address || property.unit}</div>
                     {property.allocation_date && (
                       <div className="flex items-center gap-2">
                         <Clock className="h-4 w-4" />
