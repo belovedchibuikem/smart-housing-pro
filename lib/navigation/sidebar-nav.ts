@@ -81,14 +81,6 @@ export function scrollSidebarToActiveItem(container: HTMLElement | null) {
     const activeEl = container.querySelector<HTMLElement>('[data-nav-active="true"]')
     if (!activeEl) return
 
-    const containerRect = container.getBoundingClientRect()
-    const activeRect = activeEl.getBoundingClientRect()
-    const padding = 16
-
-    if (activeRect.top < containerRect.top + padding) {
-      container.scrollTop -= containerRect.top + padding - activeRect.top
-    } else if (activeRect.bottom > containerRect.bottom - padding) {
-      container.scrollTop += activeRect.bottom - containerRect.bottom + padding
-    }
+    activeEl.scrollIntoView({ block: "nearest", behavior: "auto" })
   })
 }

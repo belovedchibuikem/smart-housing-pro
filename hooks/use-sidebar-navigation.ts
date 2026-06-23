@@ -10,9 +10,23 @@ import {
 
 type SidebarNavMode = "flat" | "nested"
 
+function mergeOpenMenuKeys(prev: string[], activeKeys: string[]): string[] {
+  if (activeKeys.length === 0) return prev
+  const next = Array.from(new Set([...prev, ...activeKeys]))
+  if (next.length === prev.length && next.every((key) => prev.includes(key))) {
+    return prev
+  }
+  return next
+}
+
 export function useSidebarNavigation(items: SidebarNavItem[], pathname: string, mode: SidebarNavMode = "flat") {
   const [openMenus, setOpenMenus] = useState<string[]>([])
   const asideRef = useRef<HTMLElement | null>(null)
+  const pendingScrollPathRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    pendingScrollPathRef.current = pathname
+  }, [pathname])
 
   useEffect(() => {
     if (items.length === 0) return
@@ -22,13 +36,21 @@ export function useSidebarNavigation(items: SidebarNavItem[], pathname: string, 
         ? collectNestedActiveMenuKeys(items, pathname)
         : collectFlatActiveMenuKeys(items, pathname)
 
-    if (activeKeys.length === 0) return
-    setOpenMenus((prev) => Array.from(new Set([...prev, ...activeKeys])))
+    setOpenMenus((prev) => mergeOpenMenuKeys(prev, activeKeys))
   }, [pathname, items, mode])
 
+  // Auto-scroll only once after route navigation (not on manual scroll or incidental re-renders).
   useEffect(() => {
-    scrollSidebarToActiveItem(asideRef.current)
-  }, [pathname, openMenus, items])
+    if (pendingScrollPathRef.current !== pathname) return
+
+    const frame = requestAnimationFrame(() => {
+      if (pendingScrollPathRef.current !== pathname) return
+      scrollSidebarToActiveItem(asideRef.current)
+      pendingScrollPathRef.current = null
+    })
+
+    return () => cancelAnimationFrame(frame)
+  }, [pathname, openMenus])
 
   const toggleMenu = useCallback((menuKey: string) => {
     setOpenMenus((prev) => (prev.includes(menuKey) ? prev.filter((key) => key !== menuKey) : [...prev, menuKey]))
