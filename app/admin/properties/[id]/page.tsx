@@ -27,6 +27,7 @@ import { apiFetch } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { PropertyDocuments } from "@/components/properties/property-documents"
 import { PropertyTypePriceRow } from "@/components/properties/property-type-price-row"
+import { PropertyOwnershipPanel } from "@/components/admin/property-ownership-panel"
 import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
 
 interface PropertyAllocation {
@@ -306,6 +307,7 @@ export default function PropertyDetailPage() {
           <Tabs defaultValue="details" className="space-y-6">
             <TabsList>
               <TabsTrigger value="details">Details</TabsTrigger>
+              <TabsTrigger value="ownership">Ownership</TabsTrigger>
               <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
               <TabsTrigger value="documents">Documents</TabsTrigger>
             </TabsList>
@@ -382,6 +384,10 @@ export default function PropertyDetailPage() {
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="ownership" className="space-y-6">
+              <PropertyOwnershipPanel assetType="house" assetId={property.id} />
             </TabsContent>
 
             <TabsContent value="subscriptions" className="space-y-6">

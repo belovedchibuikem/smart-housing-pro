@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, Mail, Phone, MapPin, Calendar, CheckCircle, XCircle, AlertCircle, Upload, Download, Eye, Trash2, RefreshCw, User, Building, FileText, DollarSign, Pencil, Undo2 } from "lucide-react"
+import { ArrowLeft, Mail, Phone, MapPin, Calendar, CheckCircle, XCircle, AlertCircle, Upload, Download, Eye, Trash2, RefreshCw, User, Building, FileText, DollarSign, Pencil, Undo2, Home } from "lucide-react"
 import Link from "next/link"
 import {
   Dialog,
@@ -30,6 +30,7 @@ import {
 import { getAdminRefundMemberSummary } from "@/lib/api/client"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useTenantPermissions } from "@/components/admin/can-permission"
+import { MemberPropertiesSection } from "@/components/admin/member-properties-section"
 
 const currencyFormatter = new Intl.NumberFormat("en-NG", {
   style: "currency",
@@ -411,7 +412,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="personal" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-5">
           <TabsTrigger value="personal" className="flex items-center gap-2">
             <User className="h-4 w-4" />
             Personal Info
@@ -419,6 +420,10 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
           <TabsTrigger value="employment" className="flex items-center gap-2">
             <Building className="h-4 w-4" />
             Employment
+          </TabsTrigger>
+          <TabsTrigger value="properties" className="flex items-center gap-2">
+            <Home className="h-4 w-4" />
+            Properties
           </TabsTrigger>
           <TabsTrigger value="documents" className="flex items-center gap-2">
             <FileText className="h-4 w-4" />
@@ -579,6 +584,10 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="properties" className="space-y-6">
+          <MemberPropertiesSection memberId={id} />
         </TabsContent>
 
         {/* Documents Tab */}

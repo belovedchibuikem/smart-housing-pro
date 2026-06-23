@@ -7,6 +7,8 @@ import { ArrowLeft, Loader2, MapPinned, Pencil } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { PropertyOwnershipPanel } from "@/components/admin/property-ownership-panel"
 import { LandDocuments } from "@/components/properties/land-documents"
 import { PropertyTypePriceRow } from "@/components/properties/property-type-price-row"
 import { useToast } from "@/hooks/use-toast"
@@ -138,6 +140,14 @@ export default function AdminLandDetailPage() {
         </Button>
       </div>
 
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="ownership">Ownership</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle>Description</CardTitle>
@@ -207,8 +217,16 @@ export default function AdminLandDetailPage() {
           <Link href="/admin/bulk-upload/land-subscriptions">Bulk subscribe members</Link>
         </Button>
       </div>
+        </TabsContent>
 
-      <LandDocuments landId={land.id} />
+        <TabsContent value="ownership" className="space-y-6">
+          <PropertyOwnershipPanel assetType="land" assetId={land.id} />
+        </TabsContent>
+
+        <TabsContent value="documents" className="space-y-6">
+          <LandDocuments landId={land.id} />
+        </TabsContent>
+      </Tabs>
     </div>
   )
 }

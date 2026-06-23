@@ -1486,6 +1486,184 @@ export async function getAdminRefundMemberSummary(memberId: string) {
 	}>(`/admin/refund-member/${memberId}`, { method: "GET" })
 }
 
+export interface MemberPropertyHolding {
+	holding_id: string
+	asset_type: "house" | "land"
+	asset_id: string
+	title: string
+	type_label: string
+	identifier: string
+	estate_location?: string | null
+	status: string
+	allocation_date?: string | null
+	bedrooms?: number | null
+	bathrooms?: number | null
+	size?: number | string | null
+	land_size?: string | null
+	hand_number?: number | null
+	hand_label?: string | null
+	is_original_owner?: boolean
+}
+
+export interface MemberOwnershipHistoryEntry {
+	sequence: number | null
+	label: string
+	hand_label?: string | null
+	hand_number?: number | null
+	event_type: string
+	owner_name: string
+	member_id?: string | null
+	member_number?: string | null
+	effective_date?: string | null
+	ended_date?: string | null
+	status?: string | null
+	allocation_status?: string | null
+	transfer_type?: string | null
+	is_current?: boolean
+	is_original?: boolean
+}
+
+export interface PropertyOwnershipSummary {
+	total_owner_periods: number
+	total_transfers: number
+	ownership_changes: number
+	current_owner_count: number
+	original_owner?: {
+		owner_name: string
+		member_id?: string | null
+		member_number?: string | null
+		started_date?: string | null
+	} | null
+	first_allocation_date?: string | null
+	latest_change_date?: string | null
+}
+
+export interface PropertyOwnershipOwnerEntry {
+	entry_type: "owner"
+	sequence: number
+	hand_number: number
+	hand_label: string
+	label: string
+	is_original: boolean
+	is_current: boolean
+	owner_name: string
+	member_id?: string | null
+	member_number?: string | null
+	staff_id?: string | null
+	ippis_number?: string | null
+	email?: string | null
+	phone?: string | null
+	started_date?: string | null
+	ended_date?: string | null
+	tenure_days?: number | null
+	allocation_id?: string | null
+	subscription_id?: string | null
+	allocation_status?: string | null
+	unit_address?: string | null
+	slots_assigned?: number | null
+	allocated_land_size?: string | null
+	notes?: string | null
+	rejection_reason?: string | null
+}
+
+export interface PropertyOwnershipTransferEntry {
+	entry_type: "transfer"
+	transfer_id?: string
+	event_type: "transfer"
+	transfer_type?: string | null
+	from_owner_name?: string | null
+	from_member_id?: string | null
+	from_member_number?: string | null
+	to_owner_name?: string | null
+	to_contact?: string | null
+	to_email?: string | null
+	effective_date?: string | null
+	status?: string | null
+	reason?: string | null
+}
+
+export interface PropertyOwnershipReallocationEntry {
+	entry_type: "reallocation"
+	event_type: "reallocation"
+	from_owner_name?: string | null
+	from_member_id?: string | null
+	to_owner_name?: string | null
+	to_member_id?: string | null
+	effective_date?: string | null
+	metadata?: Record<string, unknown>
+}
+
+export type PropertyOwnershipTimelineEntry =
+	| PropertyOwnershipOwnerEntry
+	| PropertyOwnershipTransferEntry
+	| PropertyOwnershipReallocationEntry
+
+export interface PropertyOwnershipDetail {
+	asset_type: "house" | "land"
+	asset: Record<string, unknown>
+	summary: PropertyOwnershipSummary
+	current_owners: PropertyOwnershipOwnerEntry[]
+	timeline: PropertyOwnershipTimelineEntry[]
+	allocations_register?: Array<Record<string, unknown>>
+	subscriptions_register?: Array<Record<string, unknown>>
+}
+
+export async function getAdminPropertyOwnership(propertyId: string) {
+	return apiFetch<{ success: boolean; data: PropertyOwnershipDetail }>(
+		`/admin/properties/${propertyId}/ownership`,
+		{ method: "GET" },
+	)
+}
+
+export async function getAdminLandOwnership(landId: string) {
+	return apiFetch<{ success: boolean; data: PropertyOwnershipDetail }>(
+		`/admin/lands/${landId}/ownership`,
+		{ method: "GET" },
+	)
+}
+
+export interface MemberOwnershipAssetDetail {
+	id: string
+	title?: string | null
+	type_label?: string | null
+	location?: string | null
+	estate_location?: string | null
+	city?: string | null
+	state?: string | null
+	bedrooms?: number | null
+	bathrooms?: number | null
+	size?: number | string | null
+	unit_address?: string | null
+	allocation_date?: string | null
+	allocation_status?: string | null
+	land_code?: string | null
+	land_size?: string | null
+	status?: string | null
+}
+
+export async function getMemberPropertyHoldings(memberId: string) {
+	return apiFetch<{
+		success: boolean
+		data: { holdings: MemberPropertyHolding[] }
+	}>(`/admin/members/${memberId}/property-holdings`, { method: "GET" })
+}
+
+export async function getMemberOwnershipHistory(
+	memberId: string,
+	assetType: "house" | "land",
+	assetId: string,
+) {
+	const params = new URLSearchParams({ asset_type: assetType, asset_id: assetId })
+	return apiFetch<{
+		success: boolean
+		data: {
+			asset_type: string
+			asset: MemberOwnershipAssetDetail
+			ownership_history: MemberOwnershipHistoryEntry[]
+		}
+	}>(`/admin/members/${memberId}/ownership-history?${params.toString()}`, { method: "GET" })
+}
+
 export interface CreateRefundPayload {
 	member_id: string
 	source: "wallet" | "contribution" | "investment_return" | "equity_wallet"
