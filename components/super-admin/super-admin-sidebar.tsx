@@ -125,7 +125,7 @@ interface SuperAdminSidebarProps {
 export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAdminSidebarProps) {
   const pathname = usePathname()
   const [pendingBadges, setPendingBadges] = useState<SuperAdminPendingBadgeCounts | null>(null)
-  const { toggleMenu, isMenuOpen, asideRef } = useSidebarNavigation(navItems, pathname, "flat")
+  const { toggleMenu, isMenuOpen } = useSidebarNavigation(navItems, pathname, "flat")
 
   useEffect(() => {
     let cancelled = false
@@ -266,7 +266,6 @@ export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAd
       )}
 
       <aside
-        ref={asideRef}
         className={cn(
           "fixed lg:static inset-y-0 left-0 z-50 w-64 border-r bg-card/95 backdrop-blur-sm transition-transform duration-300 lg:translate-x-0",
           "lg:block min-h-[calc(100vh-73px)] mt-[73px] lg:mt-0 overflow-y-auto",

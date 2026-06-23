@@ -417,7 +417,7 @@ export function AdminSidebar({
     ? subscriptionFiltered
     : filterAdminNavByModules(subscriptionFiltered, enabledModules)
 
-  const { toggleMenu, isMenuOpen, asideRef } = useSidebarNavigation(filteredNavItems, pathname, "flat")
+  const { toggleMenu, isMenuOpen } = useSidebarNavigation(filteredNavItems, pathname, "flat")
 
   const renderNavItem = (item: NavItem) => {
     const Icon = item.icon
@@ -510,7 +510,6 @@ export function AdminSidebar({
       )}
 
       <aside
-        ref={asideRef}
         className={cn(
           "fixed lg:static inset-y-0 left-0 z-50 w-64 border-r bg-card/95 backdrop-blur-sm transition-transform duration-300 lg:translate-x-0",
           "lg:block min-h-[calc(100vh-73px)] mt-[73px] lg:mt-0 overflow-y-auto",

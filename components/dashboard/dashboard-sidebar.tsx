@@ -273,7 +273,7 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
     [subscriptionFiltered, enabledModules],
   )
 
-  const { toggleMenu, isMenuOpen, asideRef } = useSidebarNavigation(filteredNavItems, pathname, "nested")
+  const { toggleMenu, isMenuOpen } = useSidebarNavigation(filteredNavItems, pathname, "nested")
 
   const renderNavItem = (item: NavItem, level = 0, menuKey = item.label) => {
     const Icon = item.icon
@@ -340,7 +340,6 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
       )}
 
       <aside
-        ref={asideRef}
         className={cn(
           "fixed lg:static inset-y-0 left-0 z-50 w-64 border-r bg-card/95 backdrop-blur-sm transition-transform duration-300 lg:translate-x-0",
           "lg:block min-h-[calc(100vh-73px)] mt-[73px] lg:mt-0 overflow-y-auto",

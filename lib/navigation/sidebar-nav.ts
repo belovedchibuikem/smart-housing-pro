@@ -73,14 +73,3 @@ export function collectNestedActiveMenuKeys(
 
   return keys
 }
-
-export function scrollSidebarToActiveItem(container: HTMLElement | null) {
-  if (!container) return
-
-  requestAnimationFrame(() => {
-    const activeEl = container.querySelector<HTMLElement>('[data-nav-active="true"]')
-    if (!activeEl) return
-
-    activeEl.scrollIntoView({ block: "nearest", behavior: "auto" })
-  })
-}
