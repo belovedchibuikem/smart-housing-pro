@@ -73,9 +73,9 @@ export function AdminRoutePermissionGate({ children }: { children: React.ReactNo
             return
           }
         } catch {
-          setAllowed(false)
+          // Subscription metadata unavailable — allow route if permission check already passed.
+          setAllowed(true)
           setReady(true)
-          router.replace("/admin/subscriptions")
           return
         }
       }
@@ -96,7 +96,12 @@ export function AdminRoutePermissionGate({ children }: { children: React.ReactNo
   }
 
   if (!allowed) {
-    return null
+    return (
+      <div className="flex min-h-[50vh] flex-col items-center justify-center gap-3 text-center text-muted-foreground">
+        <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
+        <p>Redirecting…</p>
+      </div>
+    )
   }
 
   return <>{children}</>

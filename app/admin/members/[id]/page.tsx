@@ -1,6 +1,7 @@
 "use client"
 
-import { use, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
+import { useParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -41,8 +42,9 @@ const currencyFormatter = new Intl.NumberFormat("en-NG", {
 
 const formatCurrency = (value?: number) => currencyFormatter.format(value ?? 0)
 
-export default function MemberDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params)
+export default function MemberDetailPage() {
+  const params = useParams()
+  const id = typeof params?.id === "string" ? params.id : Array.isArray(params?.id) ? params.id[0] : ""
   const { can } = useTenantPermissions()
   
   // State management
@@ -77,6 +79,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   
   // Load member data
   useEffect(() => {
+    if (!id) return
     loadMemberData()
   }, [id])
 
@@ -276,6 +279,24 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
       console.error("Error uploading document:", error)
       toast.error("Failed to upload document")
     }
+  }
+
+  if (!id) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Link href="/admin/members">
+            <Button variant="outline" size="icon">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div className="flex-1">
+            <h1 className="text-3xl font-bold">Invalid member link</h1>
+            <p className="text-muted-foreground">No member ID was provided in the URL.</p>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (loading) {
