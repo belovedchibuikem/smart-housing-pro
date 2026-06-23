@@ -50,6 +50,8 @@ import { useState, useEffect, useMemo } from "react"
 import { apiFetch, getMemberCurrentSubscription } from "@/lib/api/client"
 import { filterMemberNavByModules } from "@/lib/modules/filter-nav-by-modules"
 import { useI18n } from "@/lib/i18n/i18n-provider"
+import { useSidebarNavigation } from "@/hooks/use-sidebar-navigation"
+import { itemMatchesPathname, pathnameMatchesHref } from "@/lib/navigation/sidebar-nav"
 
 interface NavItem {
   href?: string
@@ -220,7 +222,6 @@ interface DashboardSidebarProps {
 export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: DashboardSidebarProps) {
   const pathname = usePathname()
   const { t } = useI18n()
-  const [openMenus, setOpenMenus] = useState<string[]>([])
   const [hasActiveSubscription, setHasActiveSubscription] = useState<boolean | null>(null)
   const [enabledModules, setEnabledModules] = useState<string[] | null>(null)
 
@@ -246,48 +247,10 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
     checkSubscription()
   }, [])
 
-  const toggleMenu = (menuKey: string) => {
-    setOpenMenus((prev) => (prev.includes(menuKey) ? prev.filter((item) => item !== menuKey) : [...prev, menuKey]))
-  }
+  const hrefMatchesCurrentLocation = (href: string) => pathnameMatchesHref(pathname, href)
 
-  const isMenuOpen = (menuKey: string) => openMenus.includes(menuKey)
+  const itemMatchesLocation = (item: NavItem): boolean => itemMatchesPathname(item, pathname)
 
-  const hrefMatchesCurrentLocation = (href: string) => {
-    const [path, queryString] = href.split("?")
-    const pathMatches = pathname === path || pathname.startsWith(`${path}/`)
-    if (!pathMatches) return false
-    if (!queryString || typeof window === "undefined") return pathMatches
-    const expected = new URLSearchParams(queryString)
-    const current = new URLSearchParams(window.location.search)
-    for (const [key, value] of expected.entries()) {
-      if (current.get(key) !== value) return false
-    }
-    return true
-  }
-
-  const itemMatchesLocation = (item: NavItem): boolean => {
-    if (item.href && hrefMatchesCurrentLocation(item.href)) return true
-    return item.subItems?.some((sub) => itemMatchesLocation(sub)) ?? false
-  }
-
-  const collectOpenMenuKeys = (items: NavItem[], parentKey = ""): string[] => {
-    const keys: string[] = []
-    for (const item of items) {
-      const menuKey = parentKey ? `${parentKey}/${item.label}` : item.label
-      if (item.subItems?.length) {
-        const childKeys = collectOpenMenuKeys(item.subItems, menuKey)
-        if (itemMatchesLocation(item)) {
-          keys.push(menuKey, ...childKeys)
-        } else if (childKeys.length > 0) {
-          keys.push(menuKey, ...childKeys)
-        }
-      }
-    }
-    return keys
-  }
-
-  // Filter nav items based on subscription status
-  // Always show subscription menu, hide others if no active subscription
   const subscriptionFiltered = useMemo(
     () =>
       navItems.filter((item) => {
@@ -310,12 +273,7 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
     [subscriptionFiltered, enabledModules],
   )
 
-  useEffect(() => {
-    if (filteredNavItems.length === 0) return
-    const activeKeys = collectOpenMenuKeys(filteredNavItems)
-    if (activeKeys.length === 0) return
-    setOpenMenus((prev) => Array.from(new Set([...prev, ...activeKeys])))
-  }, [pathname, filteredNavItems])
+  const { toggleMenu, isMenuOpen, asideRef } = useSidebarNavigation(filteredNavItems, pathname, "nested")
 
   const renderNavItem = (item: NavItem, level = 0, menuKey = item.label) => {
     const Icon = item.icon
@@ -329,6 +287,7 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
         <div key={menuKey}>
           <button
             type="button"
+            data-nav-active={hasActiveChild && !isOpen ? "true" : undefined}
             onClick={() => toggleMenu(menuKey)}
             className={cn(
               "flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors",
@@ -358,6 +317,7 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
       <Link
         key={menuKey}
         href={item.href!}
+        data-nav-active={isActive ? "true" : undefined}
         onClick={() => setMobileMenuOpen(false)}
         className={cn(
           "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors",
@@ -380,6 +340,7 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
       )}
 
       <aside
+        ref={asideRef}
         className={cn(
           "fixed lg:static inset-y-0 left-0 z-50 w-64 border-r bg-card/95 backdrop-blur-sm transition-transform duration-300 lg:translate-x-0",
           "lg:block min-h-[calc(100vh-73px)] mt-[73px] lg:mt-0 overflow-y-auto",

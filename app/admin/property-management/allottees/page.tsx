@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
+import { formatMemberDisplayIdentifier } from "@/hooks/use-sidebar-navigation"
 
 interface Allottee {
   id: string
@@ -34,7 +35,10 @@ interface Allottee {
   member: {
     id: string
     name: string
-    member_id: string
+    member_id?: string | null
+    member_number?: string | null
+    staff_id?: string | null
+    ippis_number?: string | null
     email: string
   } | null
   allocation_date: string
@@ -251,13 +255,17 @@ export default function ManageAllotteesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {allottees.map((allottee) => (
+                {allottees.map((allottee) => {
+                  const memberIdentifier = formatMemberDisplayIdentifier(allottee.member)
+                  return (
                   <TableRow key={allottee.id}>
                     <TableCell>
                       {allottee.member ? (
                         <div>
                           <div className="font-medium">{allottee.member.name}</div>
-                          <div className="text-sm text-muted-foreground">{allottee.member.member_id}</div>
+                          {memberIdentifier ? (
+                            <div className="text-sm text-muted-foreground">{memberIdentifier}</div>
+                          ) : null}
                           <div className="text-sm text-muted-foreground">{allottee.member.email}</div>
                         </div>
                       ) : (
@@ -303,7 +311,7 @@ export default function ManageAllotteesPage() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                )})}
               </TableBody>
             </Table>
           )}
@@ -324,8 +332,10 @@ export default function ManageAllotteesPage() {
                   <p className="text-sm text-muted-foreground">{selectedAllottee.member?.name || '—'}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Member ID</p>
-                  <p className="text-sm text-muted-foreground">{selectedAllottee.member?.member_id || '—'}</p>
+                  <p className="text-sm font-medium">Member identifier</p>
+                  <p className="text-sm text-muted-foreground">
+                    {formatMemberDisplayIdentifier(selectedAllottee.member) ?? "—"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm font-medium">Email</p>

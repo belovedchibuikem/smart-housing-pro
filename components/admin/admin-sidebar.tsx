@@ -49,6 +49,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useState, useEffect } from "react"
 import type { UserRole } from "@/lib/roles"
+import { useSidebarNavigation } from "@/hooks/use-sidebar-navigation"
+import { itemMatchesPathname } from "@/lib/navigation/sidebar-nav"
 import {
   getPermissionFilteredNavItems,
   isTenantSuperAdminContext,
@@ -311,7 +313,6 @@ export function AdminSidebar({
   roleNames = [],
 }: AdminSidebarProps) {
   const pathname = usePathname()
-  const [openMenus, setOpenMenus] = useState<string[]>([])
   const [hasActiveSubscription, setHasActiveSubscription] = useState<boolean | null>(null)
   const [enabledModules, setEnabledModules] = useState<string[] | null>(null)
   const [pendingBadges, setPendingBadges] = useState<AdminPendingBadgeCounts | null>(null)
@@ -362,12 +363,6 @@ export function AdminSidebar({
     checkSubscription()
   }, [])
 
-  const toggleMenu = (label: string) => {
-    setOpenMenus((prev) => (prev.includes(label) ? prev.filter((item) => item !== label) : [...prev, label]))
-  }
-
-  const isMenuOpen = (label: string) => openMenus.includes(label)
-
   const isCoreAdminNavItem = (item: NavItem): boolean => {
     if (item.href) {
       const normalized = item.href.split("?")[0].replace(/\/$/, "")
@@ -400,11 +395,36 @@ export function AdminSidebar({
     })
   }
 
+  const roleSlug = String(userRole || "member").toLowerCase().replace(/-/g, "_")
+
+  // Permission-based nav matches /api/admin/* checks; super_admin sees all. Otherwise require Spatie permission slugs (no legacy route-only fallback).
+  const superAdmin = isTenantSuperAdminContext(roleNames, roleSlug)
+  const roleFilteredItems = superAdmin
+    ? navItems
+    : permissions.length > 0
+      ? getPermissionFilteredNavItems(
+          permissions,
+          roleNames.length ? roleNames : [],
+          navItems,
+          roleSlug,
+        )
+      : MINIMAL_STAFF_NAV
+  const subscriptionFiltered = filterBySubscription(roleFilteredItems)
+  const shouldSkipModuleFilter =
+    enabledModules === null ||
+    (hasActiveSubscription === true && enabledModules.length === 0)
+  const filteredNavItems = shouldSkipModuleFilter
+    ? subscriptionFiltered
+    : filterAdminNavByModules(subscriptionFiltered, enabledModules)
+
+  const { toggleMenu, isMenuOpen, asideRef } = useSidebarNavigation(filteredNavItems, pathname, "flat")
+
   const renderNavItem = (item: NavItem) => {
     const Icon = item.icon
     const hasSubItems = item.subItems && item.subItems.length > 0
     const isOpen = isMenuOpen(item.label)
     const isActive = item.href ? pathname === item.href || pathname.startsWith(item.href + "/") : false
+    const hasActiveChild = hasSubItems && item.subItems!.some((sub) => itemMatchesPathname(sub, pathname))
 
     if (hasSubItems) {
       return (
@@ -412,7 +432,10 @@ export function AdminSidebar({
           <div className="flex items-center gap-1">
             <div
               className={cn(
-                "flex items-center flex-1 gap-3 px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground",
+                "flex flex-1 items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors",
+                hasActiveChild
+                  ? "bg-primary/10 text-foreground"
+                  : "text-muted-foreground",
               )}
             >
               <Icon className="h-5 w-5 shrink-0" />
@@ -421,7 +444,8 @@ export function AdminSidebar({
             <button
               type="button"
               onClick={() => toggleMenu(item.label)}
-              className="p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-expanded={isOpen}
             >
               {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             </button>
@@ -436,9 +460,10 @@ export function AdminSidebar({
                   <Link
                     key={subItem.href}
                     href={subItem.href!}
+                    data-nav-active={isSubActive ? "true" : undefined}
                     onClick={() => setMobileMenuOpen(false)}
                     className={cn(
-                      "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-colors",
+                      "flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-medium transition-colors",
                       isSubActive
                         ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -462,9 +487,10 @@ export function AdminSidebar({
       <Link
         key={item.href}
         href={item.href!}
+        data-nav-active={isActive ? "true" : undefined}
         onClick={() => setMobileMenuOpen(false)}
         className={cn(
-          "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
+          "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors",
           isActive
             ? "bg-primary text-primary-foreground"
             : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -477,28 +503,6 @@ export function AdminSidebar({
     )
   }
 
-  const roleSlug = String(userRole || "member").toLowerCase().replace(/-/g, "_")
-
-  // Permission-based nav matches /api/admin/* checks; super_admin sees all. Otherwise require Spatie permission slugs (no legacy route-only fallback).
-  const superAdmin = isTenantSuperAdminContext(roleNames, roleSlug)
-  const roleFilteredItems = superAdmin
-    ? navItems
-    : permissions.length > 0
-      ? getPermissionFilteredNavItems(
-          permissions,
-          roleNames.length ? roleNames : [],
-          navItems,
-          roleSlug,
-        )
-      : MINIMAL_STAFF_NAV
-  const subscriptionFiltered = filterBySubscription(roleFilteredItems)
-  const shouldSkipModuleFilter =
-    enabledModules === null ||
-    (hasActiveSubscription === true && enabledModules.length === 0)
-  const filteredNavItems = shouldSkipModuleFilter
-    ? subscriptionFiltered
-    : filterAdminNavByModules(subscriptionFiltered, enabledModules)
-
   return (
     <>
       {mobileMenuOpen && (
@@ -506,6 +510,7 @@ export function AdminSidebar({
       )}
 
       <aside
+        ref={asideRef}
         className={cn(
           "fixed lg:static inset-y-0 left-0 z-50 w-64 border-r bg-card/95 backdrop-blur-sm transition-transform duration-300 lg:translate-x-0",
           "lg:block min-h-[calc(100vh-73px)] mt-[73px] lg:mt-0 overflow-y-auto",

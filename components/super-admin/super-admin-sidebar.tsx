@@ -35,6 +35,8 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useState, useEffect } from "react"
 import { getSuperAdminPendingBadges, type SuperAdminPendingBadgeCounts } from "@/lib/api/client"
+import { useSidebarNavigation } from "@/hooks/use-sidebar-navigation"
+import { itemMatchesPathname } from "@/lib/navigation/sidebar-nav"
 
 const SUPER_ADMIN_BADGE_BY_HREF: Partial<Record<string, keyof SuperAdminPendingBadgeCounts>> = {
   "/super-admin/payment-approvals": "platform_payment_approvals_pending",
@@ -122,8 +124,8 @@ interface SuperAdminSidebarProps {
 
 export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAdminSidebarProps) {
   const pathname = usePathname()
-  const [openMenus, setOpenMenus] = useState<string[]>([])
   const [pendingBadges, setPendingBadges] = useState<SuperAdminPendingBadgeCounts | null>(null)
+  const { toggleMenu, isMenuOpen, asideRef } = useSidebarNavigation(navItems, pathname, "flat")
 
   useEffect(() => {
     let cancelled = false
@@ -153,28 +155,6 @@ export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAd
     return typeof n === "number" && n > 0 ? n : 0
   }
 
-  const toggleMenu = (label: string) => {
-    setOpenMenus((prev) => (prev.includes(label) ? prev.filter((item) => item !== label) : [...prev, label]))
-  }
-
-  const isMenuOpen = (label: string) => openMenus.includes(label)
-
-  // Auto-open parent menus when a child is active
-  useEffect(() => {
-    navItems.forEach((item) => {
-      if (item.subItems && item.subItems.length > 0) {
-        const hasActiveChild = item.subItems.some((subItem) => {
-          if (!subItem.href) return false
-          if (pathname === subItem.href) return true
-          return pathname.startsWith(subItem.href + "/")
-        })
-        if (hasActiveChild && !openMenus.includes(item.label)) {
-          setOpenMenus((prev) => [...prev, item.label])
-        }
-      }
-    })
-  }, [pathname, openMenus])
-
   const renderNavItem = (item: NavItem) => {
     const Icon = item.icon
     const hasSubItems = item.subItems && item.subItems.length > 0
@@ -196,12 +176,7 @@ export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAd
       return pathname.startsWith(item.href + "/")
     })() : false
 
-    // Check if any sub-item is active for parent menu highlighting
-    const hasActiveSubItem = hasSubItems && item.subItems?.some((subItem) => {
-      if (!subItem.href) return false
-      if (pathname === subItem.href) return true
-      return pathname.startsWith(subItem.href + "/")
-    })
+    const hasActiveSubItem = hasSubItems && item.subItems?.some((subItem) => itemMatchesPathname(subItem, pathname))
 
     if (hasSubItems) {
       return (
@@ -241,6 +216,7 @@ export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAd
                   <Link
                     key={subItem.href}
                     href={subItem.href!}
+                    data-nav-active={isSubActive ? "true" : undefined}
                     onClick={() => setMobileMenuOpen(false)}
                     className={cn(
                       "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-colors",
@@ -248,7 +224,6 @@ export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAd
                         ? "bg-primary text-primary-foreground"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
-                    title={`${subItem.label} - ${isSubActive ? 'ACTIVE' : 'inactive'} (${pathname})`}
                   >
                     <SubIcon className="h-4 w-4 shrink-0" />
                     <span className="flex-1 truncate">{subItem.label}</span>
@@ -268,6 +243,7 @@ export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAd
       <Link
         key={item.href}
         href={item.href!}
+        data-nav-active={isActive ? "true" : undefined}
         onClick={() => setMobileMenuOpen(false)}
         className={cn(
           "flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
@@ -275,7 +251,6 @@ export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAd
             ? "bg-primary text-primary-foreground"
             : "text-muted-foreground hover:bg-muted hover:text-foreground",
         )}
-        title={`${item.label} - ${isActive ? 'ACTIVE' : 'inactive'} (${pathname})`}
       >
         <Icon className="h-5 w-5 shrink-0" />
         <span className="flex-1 truncate">{item.label}</span>
@@ -291,6 +266,7 @@ export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAd
       )}
 
       <aside
+        ref={asideRef}
         className={cn(
           "fixed lg:static inset-y-0 left-0 z-50 w-64 border-r bg-card/95 backdrop-blur-sm transition-transform duration-300 lg:translate-x-0",
           "lg:block min-h-[calc(100vh-73px)] mt-[73px] lg:mt-0 overflow-y-auto",
