@@ -17,6 +17,8 @@ import {
 } from "@/lib/api/client"
 import { Loader2, Trash2, Upload, FileText } from "lucide-react"
 
+const ALL_MEMBERS_VALUE = "__all_members__"
+
 const documentTypeOptions = [
 	{ value: "eoi", label: "Expression of Interest" },
 	{ value: "payment_proof", label: "Payment Proof" },
@@ -49,7 +51,7 @@ export function PropertyDocuments({
 	const [file, setFile] = useState<File | null>(null)
 	const [title, setTitle] = useState("")
 	const [documentType, setDocumentType] = useState<string>("other")
-	const [selectedMember, setSelectedMember] = useState<string>(memberId ?? "")
+	const [selectedMember, setSelectedMember] = useState<string>(memberId ?? ALL_MEMBERS_VALUE)
 
 	useEffect(() => {
 		void loadDocuments()
@@ -90,7 +92,7 @@ export function PropertyDocuments({
 			setUploading(true)
 			const formData = new FormData()
 			formData.append("property_id", propertyId)
-			if (role === "admin" && selectedMember) {
+			if (role === "admin" && selectedMember && selectedMember !== ALL_MEMBERS_VALUE) {
 				formData.append("member_id", selectedMember)
 			}
 			formData.append("title", title.trim() || file.name)
@@ -162,7 +164,11 @@ export function PropertyDocuments({
 	}
 
 	const sortedDocuments = useMemo(() => {
-		return [...documents].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+		return [...documents].sort((a, b) => {
+			const aTime = a.created_at ? new Date(a.created_at).getTime() : 0
+			const bTime = b.created_at ? new Date(b.created_at).getTime() : 0
+			return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime)
+		})
 	}, [documents])
 
 	const renderUploaderInfo = (document: PropertyDocument) => {
@@ -219,9 +225,9 @@ export function PropertyDocuments({
 										<SelectTrigger id="member-select">
 											<SelectValue placeholder="Select member" />
 										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="">All Members</SelectItem>
-											{memberOptions.map((option) => (
+									<SelectContent>
+										<SelectItem value={ALL_MEMBERS_VALUE}>All Members</SelectItem>
+										{memberOptions.map((option) => (
 												<SelectItem key={option.id} value={option.id}>
 													{option.label}
 												</SelectItem>
