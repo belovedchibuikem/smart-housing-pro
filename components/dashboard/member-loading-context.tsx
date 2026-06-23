@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, ReactNode, useEffect, useState } from 'react'
+import { createContext, useContext, ReactNode, useState } from 'react'
 import { usePathname } from 'next/navigation'
 import { UniversalLoader } from '@/components/loading'
 
@@ -18,7 +18,7 @@ interface MemberLoadingProviderProps {
 }
 
 export function MemberLoadingProvider({ children }: MemberLoadingProviderProps) {
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const pathname = usePathname()
 
   // Determine loading type based on route
@@ -45,18 +45,6 @@ export function MemberLoadingProvider({ children }: MemberLoadingProviderProps) 
   }
 
   const loadingType = getLoadingType(pathname)
-
-  useEffect(() => {
-    // Reset loading state when route changes
-    setIsLoading(true)
-    
-    // Simulate loading delay
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 200)
-
-    return () => clearTimeout(timer)
-  }, [pathname])
 
   const setLoading = (loading: boolean) => setIsLoading(loading)
   const startLoading = () => setIsLoading(true)

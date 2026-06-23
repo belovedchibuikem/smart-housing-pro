@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useLayoutEffect, useState } from "react"
+import { useLayoutEffect, useRef, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { getUserData } from "@/lib/auth/auth-utils"
@@ -15,6 +15,36 @@ import type { AuthUser } from "@/lib/auth/types"
 import { hasModuleAccess, resolveAdminHrefModule } from "@/lib/modules/module-config"
 import { getCurrentSubscription } from "@/lib/api/client"
 
+/** Cached for the session so every route change does not re-hit the API. */
+let cachedEnabledModules: string[] | null = null
+let modulesFetchPromise: Promise<string[]> | null = null
+
+async function loadEnabledModules(): Promise<string[]> {
+  if (cachedEnabledModules !== null) {
+    return cachedEnabledModules
+  }
+  if (!modulesFetchPromise) {
+    modulesFetchPromise = getCurrentSubscription()
+      .then((res) => {
+        cachedEnabledModules = res.enabled_modules ?? []
+        return cachedEnabledModules
+      })
+      .catch(() => {
+        cachedEnabledModules = []
+        return cachedEnabledModules
+      })
+      .finally(() => {
+        modulesFetchPromise = null
+      })
+  }
+  return modulesFetchPromise
+}
+
+function normalizeAdminPath(pathname: string | null): string {
+  const raw = pathname || "/admin"
+  return raw.length > 1 && raw.endsWith("/") ? raw.slice(0, -1) : raw
+}
+
 /**
  * Blocks direct URL access to admin routes when the user lacks matching Spatie permissions.
  * Backend still enforces /api/admin/*. Super admins bypass. Legacy sessions with no permission
@@ -25,15 +55,25 @@ export function AdminRoutePermissionGate({ children }: { children: React.ReactNo
   const router = useRouter()
   const [ready, setReady] = useState(false)
   const [allowed, setAllowed] = useState(true)
+  const hasInitializedRef = useRef(false)
+  const checkGenerationRef = useRef(0)
 
   useLayoutEffect(() => {
-    setReady(false)
+    const generation = ++checkGenerationRef.current
+    const normalized = normalizeAdminPath(pathname)
+
+    // Only show the full-page gate on the first check — keep content mounted on later navigations.
+    if (!hasInitializedRef.current) {
+      setReady(false)
+    }
 
     const run = async () => {
       const user = getUserData() as AuthUser | null
       if (!user) {
+        if (generation !== checkGenerationRef.current) return
         setAllowed(false)
         setReady(true)
+        hasInitializedRef.current = true
         router.replace("/login")
         return
       }
@@ -42,20 +82,21 @@ export function AdminRoutePermissionGate({ children }: { children: React.ReactNo
       const roles = Array.isArray(user.roles) ? (user.roles as string[]) : []
       const legacyRole = getRoleSlug(user)
 
-      const raw = pathname || "/admin"
-      const normalized = raw.length > 1 && raw.endsWith("/") ? raw.slice(0, -1) : raw
-
       if (!isTenantSuperAdminContext(roles, legacyRole)) {
         if (perms.length === 0) {
           if (!isLegacyStaffFallbackPath(normalized)) {
+            if (generation !== checkGenerationRef.current) return
             setAllowed(false)
             setReady(true)
+            hasInitializedRef.current = true
             router.replace("/unauthorized")
             return
           }
         } else if (!userHasPermissionForAdminHref(normalized, perms)) {
+          if (generation !== checkGenerationRef.current) return
           setAllowed(false)
           setReady(true)
+          hasInitializedRef.current = true
           router.replace("/unauthorized")
           return
         }
@@ -64,24 +105,29 @@ export function AdminRoutePermissionGate({ children }: { children: React.ReactNo
       const requiredModule = resolveAdminHrefModule(normalized)
       if (requiredModule) {
         try {
-          const subRes = await getCurrentSubscription()
-          const enabled = subRes.enabled_modules ?? []
+          const enabled = await loadEnabledModules()
+          if (generation !== checkGenerationRef.current) return
           if (!hasModuleAccess(enabled, requiredModule)) {
             setAllowed(false)
             setReady(true)
+            hasInitializedRef.current = true
             router.replace(`/admin/subscriptions?upgrade_module=${encodeURIComponent(requiredModule)}`)
             return
           }
         } catch {
-          // Subscription metadata unavailable — allow route if permission check already passed.
+          if (generation !== checkGenerationRef.current) return
+          // Subscription metadata unavailable — allow route if permission check passed.
           setAllowed(true)
           setReady(true)
+          hasInitializedRef.current = true
           return
         }
       }
 
+      if (generation !== checkGenerationRef.current) return
       setAllowed(true)
       setReady(true)
+      hasInitializedRef.current = true
     }
 
     void run()
