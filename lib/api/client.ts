@@ -486,6 +486,8 @@ export interface MemberHouse {
 	property_type?: string | null
 	type_label?: string | null
 	location: string
+	property_location?: string | null
+	unit_address?: string | null
 	price: number
 	description?: string | null
 	features?: string[] | null

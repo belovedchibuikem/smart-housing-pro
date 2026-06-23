@@ -56,6 +56,7 @@ export default function NewAllotteePage() {
     allocation_date: "",
     status: "completed",
     slots_assigned: "1",
+    unit_address: "",
     notes: "",
   })
 
@@ -301,6 +302,19 @@ export default function NewAllotteePage() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="unit_address">House / block address</Label>
+                <Input
+                  id="unit_address"
+                  placeholder="e.g. C17A, Jagua Crescent, 3rd Avenue"
+                  value={formData.unit_address}
+                  onChange={(e) => setFormData({ ...formData, unit_address: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Optional. Shown to the member instead of the general property location once subscribed.
+                </p>
               </div>
 
               <div className="space-y-2">

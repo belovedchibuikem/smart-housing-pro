@@ -131,7 +131,7 @@ export function MyProperties({ properties, loading, propertyType = "house" }: My
 											<h3 className="text-2xl font-semibold">{property.title}</h3>
 											<div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
 												<MapPin className="h-4 w-4" />
-												{property.location}
+												{property.unit_address || property.location}
 											</div>
 										</div>
 										<div className="flex flex-wrap items-center gap-2">

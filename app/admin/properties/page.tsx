@@ -32,6 +32,7 @@ import {
   type PropertyLocationFilterValues,
 } from "@/lib/properties/location-filters"
 import { CopyableId } from "@/components/admin/copyable-id"
+import { formatPropertyTypeAndPrice, getPropertyTypeLabel } from "@/lib/properties/property-type-label"
 
 interface Property {
   id: string
@@ -43,8 +44,12 @@ interface Property {
   state?: string
   type?: string
   property_type?: string
+  type_label?: string | null
   price?: number
   status?: string
+  subscribers_count?: number
+  slots_used?: number | null
+  total_slots?: number | null
   images?: Array<{ url: string }>
   allocations?: Array<{ member: unknown }>
 }
@@ -665,21 +670,18 @@ export default function AdminPropertiesPage() {
                           className="h-48 w-full object-cover"
                         />
                         <CardContent className="space-y-3 p-4">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Badge variant="outline" className="font-normal">
-                              🏡 House / Building
-                            </Badge>
-                            {property.type ? (
-                              <span className="text-xs capitalize text-muted-foreground">{property.type}</span>
-                            ) : null}
-                          </div>
+                          <Badge variant="outline" className="font-normal w-fit">
+                            🏡 House / Building
+                          </Badge>
                           <div>
-                            <div className="font-semibold">{property.title || "Untitled property"}</div>
-                            <div className="mt-1 flex items-center gap-1 text-sm text-muted-foreground">
-                              <MapPin className="h-3 w-3" />
-                              {[property.location, property.city, property.state, property.address]
-                                .filter(Boolean)
-                                .join(", ") || "No location"}
+                            <div className="font-semibold leading-snug">{property.title || "Untitled property"}</div>
+                            <div className="mt-1 flex items-start gap-1 text-sm text-muted-foreground">
+                              <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                              <span className="line-clamp-2">
+                                {[property.location, property.city, property.state, property.address]
+                                  .filter(Boolean)
+                                  .join(", ") || "No location"}
+                              </span>
                             </div>
                           </div>
                           <CopyableId
@@ -687,11 +689,27 @@ export default function AdminPropertiesPage() {
                             value={property.id}
                             hint="Paste into subscriber CSV as Property ID"
                           />
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="text-lg font-bold text-primary">
-                              ₦{((property.price || 0) / 1000000).toFixed(1)}M
-                            </div>
-                            <Badge variant={property.status === "available" ? "default" : "secondary"}>
+                          <div className="flex items-start justify-between gap-3 border-t pt-3">
+                            <p
+                              className="min-w-0 flex-1 text-sm font-semibold leading-snug sm:text-base"
+                              title={formatPropertyTypeAndPrice(property, property.price)}
+                            >
+                              <span className="text-foreground">
+                                {getPropertyTypeLabel(property, "Property")}
+                              </span>
+                              <span className="mx-1.5 font-normal text-muted-foreground">@</span>
+                              <span className="font-bold text-primary tabular-nums">
+                                {new Intl.NumberFormat("en-NG", {
+                                  style: "currency",
+                                  currency: "NGN",
+                                  maximumFractionDigits: 0,
+                                }).format(property.price || 0)}
+                              </span>
+                            </p>
+                            <Badge
+                              variant={property.status === "available" ? "default" : "secondary"}
+                              className="shrink-0 capitalize"
+                            >
                               {property.status || "N/A"}
                             </Badge>
                           </div>

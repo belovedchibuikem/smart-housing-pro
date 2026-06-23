@@ -122,7 +122,7 @@ export function MyHouses({ houses, loading }: MyHousesProps) {
 											<h3 className="text-2xl font-semibold">{house.title}</h3>
 											<div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
 												<MapPin className="h-4 w-4" />
-												{house.location}
+												{house.unit_address || house.location}
 											</div>
 										</div>
 										<div className="flex flex-wrap items-center gap-2">

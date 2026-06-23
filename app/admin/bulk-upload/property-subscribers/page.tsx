@@ -107,6 +107,7 @@ export default function BulkUploadPropertySubscribersPage() {
             <h3 className="font-medium">Step 2: Fill property and member identifiers</h3>
             <p className="text-sm text-muted-foreground">
               Copy the Property ID from Admin → Property management (house listings) using the copy button on each card.
+              Optionally add a House/Block Address column (e.g. C17A, Jagua Crescent, 3rd Avenue) for the member&apos;s unit.
               Member must exist (match by Member ID, staff ID, IPPIS, or email).
             </p>
           </div>

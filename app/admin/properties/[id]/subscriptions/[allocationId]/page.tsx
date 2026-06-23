@@ -18,6 +18,7 @@ interface SubscriptionDetail {
     member_id: string
     status: string
     allocation_date: string | null
+    unit_address?: string | null
     notes: string | null
     created_at: string
   }
@@ -25,6 +26,8 @@ interface SubscriptionDetail {
     id: string
     title: string
     address: string
+    property_location?: string | null
+    unit_address?: string | null
     city: string | null
     state: string | null
     price: number
@@ -239,11 +242,19 @@ export default function SubscriptionDetailPage() {
                   <div className="font-medium">{data.property.title}</div>
                 </div>
                 <div>
-                  <div className="text-sm text-muted-foreground">Address</div>
+                  <div className="text-sm text-muted-foreground">
+                    {data.allocation.unit_address || data.property.unit_address
+                      ? "House / block address"
+                      : "Address"}
+                  </div>
                   <div className="font-medium">{data.property.address}</div>
-                  {(data.property.city || data.property.state) && (
+                  {(data.property.property_location || data.property.city || data.property.state) && (
                     <div className="text-sm text-muted-foreground">
-                      {[data.property.city, data.property.state].filter(Boolean).join(', ')}
+                      {data.allocation.unit_address || data.property.unit_address ? (
+                        <>Estate location: {data.property.property_location || [data.property.city, data.property.state].filter(Boolean).join(", ")}</>
+                      ) : (
+                        [data.property.city, data.property.state].filter(Boolean).join(", ")
+                      )}
                     </div>
                   )}
                 </div>

@@ -45,3 +45,18 @@ export function getPropertyTypeLabel(source?: PropertyTypeSource | null, fallbac
 export function isPropertyCategorySlug(value?: string | null): boolean {
 	return isCategorySlug(value)
 }
+
+export function formatPropertyTypeAndPrice(
+	source: PropertyTypeSource | null | undefined,
+	price: number | string | null | undefined,
+): string {
+	const typeLabel = getPropertyTypeLabel(source, "Property")
+	const amount = Number(price ?? 0) || 0
+	const priceText = new Intl.NumberFormat("en-NG", {
+		style: "currency",
+		currency: "NGN",
+		maximumFractionDigits: 0,
+	}).format(amount)
+
+	return `${typeLabel} @ ${priceText}`
+}

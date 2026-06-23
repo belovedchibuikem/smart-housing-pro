@@ -62,6 +62,7 @@ export default function EditAllotteePage() {
     member_id: "",
     allocation_date: "",
     status: "pending",
+    unit_address: "",
     notes: "",
   })
 
@@ -85,6 +86,7 @@ export default function EditAllotteePage() {
           member_id: allottee.member?.id || "",
           allocation_date: allottee.allocation_date ? allottee.allocation_date.split('T')[0] : "",
           status: allottee.status || "pending",
+          unit_address: allottee.unit_address || "",
           notes: allottee.notes || "",
         })
       }
@@ -242,6 +244,19 @@ export default function EditAllotteePage() {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="unit_address">House / block address</Label>
+              <Input
+                id="unit_address"
+                placeholder="e.g. C17A, Jagua Crescent, 3rd Avenue"
+                value={formData.unit_address}
+                onChange={(e) => setFormData({ ...formData, unit_address: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                Optional. Shown to the member instead of the general property location.
+              </p>
             </div>
 
             <div className="space-y-2">

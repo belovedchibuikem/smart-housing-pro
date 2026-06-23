@@ -39,6 +39,7 @@ interface Allottee {
   } | null
   allocation_date: string
   status: string
+  unit_address?: string | null
   notes?: string
   rejection_reason?: string
   created_at: string
@@ -266,7 +267,14 @@ export default function ManageAllotteesPage() {
                     <TableCell>
                       <div>
                         <div className="font-medium">{allottee.property.title}</div>
-                        <div className="text-sm text-muted-foreground">{allottee.property.location}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {allottee.unit_address || allottee.property.location}
+                        </div>
+                        {allottee.unit_address ? (
+                          <div className="text-xs text-muted-foreground">
+                            Estate: {allottee.property.location}
+                          </div>
+                        ) : null}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -328,7 +336,11 @@ export default function ManageAllotteesPage() {
                   <p className="text-sm text-muted-foreground">{selectedAllottee.property.title}</p>
                 </div>
                 <div>
-                  <p className="text-sm font-medium">Location</p>
+                  <p className="text-sm font-medium">House / block address</p>
+                  <p className="text-sm text-muted-foreground">{selectedAllottee.unit_address || "—"}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Property location</p>
                   <p className="text-sm text-muted-foreground">{selectedAllottee.property.location}</p>
                 </div>
                 <div>
