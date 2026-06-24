@@ -46,7 +46,7 @@ export function DashboardHeader({ mobileMenuOpen, setMobileMenuOpen }: Dashboard
         </div>
 
         <div className="flex items-center gap-2">
-          <InstallAppButton className="hidden md:inline-flex" />
+          <InstallAppButton className="inline-flex" />
           {/* Notifications */}
           <UserNotificationBell />
 

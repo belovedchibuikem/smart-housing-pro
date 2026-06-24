@@ -1,11 +1,17 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { usePathname } from "next/navigation"
 import { Download, Share, Smartphone, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useWhiteLabelSettings } from "@/lib/hooks/use-white-label"
 import { useOptionalPwa } from "@/components/pwa/pwa-provider"
 import { resolveStorageUrl } from "@/lib/api/config"
+import {
+  isAndroidPhone,
+  isMemberDashboardRoute,
+  openAndroidPlayStore,
+} from "@/lib/pwa/mobile-app-store"
 
 const DISMISS_KEY = "pwa-install-dismissed-until"
 
@@ -32,17 +38,32 @@ function isStandaloneDisplayMode() {
 }
 
 export function InstallAppBanner() {
+  const pathname = usePathname()
   const pwa = useOptionalPwa()
   const { getCompanyName, getLogo } = useWhiteLabelSettings()
   const [visible, setVisible] = useState(false)
   const [iosMode, setIosMode] = useState(false)
+  const [playStoreMode, setPlayStoreMode] = useState(false)
+
+  const memberOnAndroidPhone =
+    isMemberDashboardRoute(pathname) && isAndroidPhone()
 
   useEffect(() => {
     if (isStandaloneDisplayMode() || isDismissedRecently()) {
       setVisible(false)
+      setPlayStoreMode(false)
+      setIosMode(false)
       return
     }
 
+    if (memberOnAndroidPhone) {
+      setPlayStoreMode(true)
+      setIosMode(false)
+      const timer = window.setTimeout(() => setVisible(true), 800)
+      return () => window.clearTimeout(timer)
+    }
+
+    setPlayStoreMode(false)
     const ios = isIosDevice()
     setIosMode(ios && !pwa?.canInstall)
 
@@ -57,7 +78,7 @@ export function InstallAppBanner() {
     }
 
     setVisible(false)
-  }, [pwa?.canInstall, pwa?.isStandalone])
+  }, [memberOnAndroidPhone, pathname, pwa?.canInstall, pwa?.isStandalone])
 
   if (!visible || isStandaloneDisplayMode()) {
     return null
@@ -68,6 +89,11 @@ export function InstallAppBanner() {
   const appName = getCompanyName()
 
   const handleInstall = async () => {
+    if (playStoreMode) {
+      openAndroidPlayStore()
+      setVisible(false)
+      return
+    }
     if (!pwa?.canInstall) return
     const installed = await pwa.promptInstall()
     if (installed) setVisible(false)
@@ -89,11 +115,15 @@ export function InstallAppBanner() {
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <p className="font-semibold leading-tight">Install {appName}</p>
+              <p className="font-semibold leading-tight">
+                {playStoreMode ? `Get ${appName} on Google Play` : `Install ${appName}`}
+              </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {iosMode
-                  ? "On iPhone/iPad: tap Share, then “Add to Home Screen” for app-like access with your cooperative logo."
-                  : "Add to your home screen or desktop for quick access — works like a native app."}
+                {playStoreMode
+                  ? "Install the official Android app for faster access, notifications, and the best mobile experience."
+                  : iosMode
+                    ? "On iPhone/iPad: tap Share, then “Add to Home Screen” for app-like access with your cooperative logo."
+                    : "Add to your home screen or desktop for quick access — works like a native app."}
               </p>
             </div>
             <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={handleDismiss}>
@@ -101,7 +131,12 @@ export function InstallAppBanner() {
             </Button>
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
-            {pwa?.canInstall ? (
+            {playStoreMode ? (
+              <Button type="button" size="sm" onClick={handleInstall}>
+                <Download className="mr-2 h-4 w-4" />
+                Get it on Google Play
+              </Button>
+            ) : pwa?.canInstall ? (
               <Button type="button" size="sm" onClick={handleInstall}>
                 <Download className="mr-2 h-4 w-4" />
                 Install app
@@ -118,7 +153,7 @@ export function InstallAppBanner() {
           </div>
           <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
             <Smartphone className="h-3.5 w-3.5" />
-            Available on phone, tablet, and desktop browsers
+            {playStoreMode ? "Opens Google Play to install the app" : "Available on phone, tablet, and desktop browsers"}
           </p>
         </div>
       </div>
@@ -135,10 +170,33 @@ export function InstallAppButton({
   size?: "default" | "sm" | "lg" | "icon"
   className?: string
 }) {
+  const pathname = usePathname()
   const pwa = useOptionalPwa()
   const { getCompanyName } = useWhiteLabelSettings()
 
-  if (!pwa?.canInstall || pwa.isStandalone) {
+  const memberOnAndroidPhone =
+    isMemberDashboardRoute(pathname) && isAndroidPhone()
+
+  if (pwa?.isStandalone) {
+    return null
+  }
+
+  if (memberOnAndroidPhone) {
+    return (
+      <Button
+        type="button"
+        variant={variant}
+        size={size}
+        className={className}
+        onClick={() => openAndroidPlayStore()}
+      >
+        <Download className="mr-2 h-4 w-4" />
+        Get app
+      </Button>
+    )
+  }
+
+  if (!pwa?.canInstall) {
     return null
   }
 
