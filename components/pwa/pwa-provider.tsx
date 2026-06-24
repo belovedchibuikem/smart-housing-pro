@@ -11,6 +11,7 @@ import {
 } from "@/lib/pwa/install-prompt-store"
 import { useServiceWorker } from "@/lib/pwa/register-service-worker"
 import { InstallAppBanner } from "@/components/pwa/install-app-banner"
+import { isAndroidDevice, isDesktopBrowser } from "@/lib/pwa/mobile-app-store"
 
 initInstallPromptCapture()
 
@@ -60,6 +61,7 @@ export function PwaProvider({ children }: { children: ReactNode }) {
   }, [settings])
 
   const promptInstall = useCallback(async () => {
+    if (isAndroidDevice() || !isDesktopBrowser()) return false
     const prompt = deferredPrompt ?? getDeferredInstallPrompt()
     if (!prompt) return false
     await prompt.prompt()
@@ -80,7 +82,7 @@ export function PwaProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<PwaContextValue>(
     () => ({
-      canInstall: Boolean(deferredPrompt) && !isInstalled,
+      canInstall: Boolean(deferredPrompt) && !isInstalled && isDesktopBrowser() && !isAndroidDevice(),
       isInstalled,
       isStandalone,
       promptInstall,

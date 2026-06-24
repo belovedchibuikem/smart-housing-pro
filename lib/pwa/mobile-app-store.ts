@@ -2,15 +2,28 @@
 export const DEFAULT_ANDROID_PLAY_STORE_URL =
   "https://play.google.com/store/apps/details?id=com.smartlogix.smarthousing&pcampaignid=web_share"
 
-export function isMemberDashboardRoute(pathname: string | null | undefined): boolean {
-  if (!pathname) return false
-  return pathname === "/dashboard" || pathname.startsWith("/dashboard/")
+/** Routes where install prompts are disabled (platform admin / marketing). */
+export function isInstallPromptRoute(pathname: string | null | undefined): boolean {
+  if (!pathname) return true
+  if (pathname.startsWith("/super-admin")) return false
+  if (pathname.startsWith("/saas")) return false
+  return true
 }
 
-export function isAndroidPhone(): boolean {
+export function isAndroidDevice(): boolean {
+  if (typeof window === "undefined") return false
+  return /android/i.test(window.navigator.userAgent)
+}
+
+/** Desktop browsers eligible for PWA install (not Android / iOS mobile). */
+export function isDesktopBrowser(): boolean {
   if (typeof window === "undefined") return false
   const ua = window.navigator.userAgent.toLowerCase()
-  return ua.includes("android") && ua.includes("mobile")
+  if (ua.includes("android")) return false
+  if (/iphone|ipad|ipod/i.test(ua)) return false
+  // Phones using mobile UA on uncommon desktop browsers are excluded from PWA prompt.
+  if (ua.includes("mobile") && !ua.includes("ipad")) return false
+  return true
 }
 
 export function openAndroidPlayStore(url: string = DEFAULT_ANDROID_PLAY_STORE_URL): void {

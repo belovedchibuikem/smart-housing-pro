@@ -8,8 +8,8 @@ import { useWhiteLabelSettings } from "@/lib/hooks/use-white-label"
 import { useOptionalPwa } from "@/components/pwa/pwa-provider"
 import { resolveStorageUrl } from "@/lib/api/config"
 import {
-  isAndroidPhone,
-  isMemberDashboardRoute,
+  isAndroidDevice,
+  isInstallPromptRoute,
   openAndroidPlayStore,
 } from "@/lib/pwa/mobile-app-store"
 
@@ -45,18 +45,18 @@ export function InstallAppBanner() {
   const [iosMode, setIosMode] = useState(false)
   const [playStoreMode, setPlayStoreMode] = useState(false)
 
-  const memberOnAndroidPhone =
-    isMemberDashboardRoute(pathname) && isAndroidPhone()
+  const showOnRoute = isInstallPromptRoute(pathname)
+  const androidDevice = isAndroidDevice()
 
   useEffect(() => {
-    if (isStandaloneDisplayMode() || isDismissedRecently()) {
+    if (!showOnRoute || isStandaloneDisplayMode() || isDismissedRecently()) {
       setVisible(false)
       setPlayStoreMode(false)
       setIosMode(false)
       return
     }
 
-    if (memberOnAndroidPhone) {
+    if (androidDevice) {
       setPlayStoreMode(true)
       setIosMode(false)
       const timer = window.setTimeout(() => setVisible(true), 800)
@@ -78,7 +78,7 @@ export function InstallAppBanner() {
     }
 
     setVisible(false)
-  }, [memberOnAndroidPhone, pathname, pwa?.canInstall, pwa?.isStandalone])
+  }, [androidDevice, showOnRoute, pwa?.canInstall, pwa?.isStandalone])
 
   if (!visible || isStandaloneDisplayMode()) {
     return null
@@ -123,7 +123,7 @@ export function InstallAppBanner() {
                   ? "Install the official Android app for faster access, notifications, and the best mobile experience."
                   : iosMode
                     ? "On iPhone/iPad: tap Share, then “Add to Home Screen” for app-like access with your cooperative logo."
-                    : "Add to your home screen or desktop for quick access — works like a native app."}
+                    : "Install on your desktop for quick access from your taskbar — works like a native app."}
               </p>
             </div>
             <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={handleDismiss}>
@@ -153,7 +153,9 @@ export function InstallAppBanner() {
           </div>
           <p className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
             <Smartphone className="h-3.5 w-3.5" />
-            {playStoreMode ? "Opens Google Play to install the app" : "Available on phone, tablet, and desktop browsers"}
+            {playStoreMode
+              ? "Opens Google Play to install the app"
+              : "Desktop: install as PWA · iPhone/iPad: Add to Home Screen"}
           </p>
         </div>
       </div>
@@ -174,14 +176,11 @@ export function InstallAppButton({
   const pwa = useOptionalPwa()
   const { getCompanyName } = useWhiteLabelSettings()
 
-  const memberOnAndroidPhone =
-    isMemberDashboardRoute(pathname) && isAndroidPhone()
-
-  if (pwa?.isStandalone) {
+  if (!isInstallPromptRoute(pathname) || pwa?.isStandalone) {
     return null
   }
 
-  if (memberOnAndroidPhone) {
+  if (isAndroidDevice()) {
     return (
       <Button
         type="button"
