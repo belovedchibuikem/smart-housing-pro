@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { apiFetch } from "@/lib/api/client"
 import { formatNaira } from "@/lib/properties/pricing"
+import { formatCompactNaira } from "@/lib/utils/currency"
 
 type SubscriptionRow = {
   allocation_id: string
@@ -97,7 +98,7 @@ export function PropertyAnalyticsPanel({ propertyId }: { propertyId: string }) {
               <TrendingUp className="h-4 w-4" /> Expected from subscribers
             </CardDescription>
             <CardTitle className="text-xl tabular-nums">
-              {formatNaira(summary.expected_from_subscriptions)}
+              {formatCompactNaira(summary.expected_from_subscriptions)}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -107,7 +108,7 @@ export function PropertyAnalyticsPanel({ propertyId }: { propertyId: string }) {
               <Wallet className="h-4 w-4" /> Collected
             </CardDescription>
             <CardTitle className="text-xl tabular-nums text-green-600">
-              {formatNaira(summary.amount_collected)}
+              {formatCompactNaira(summary.amount_collected)}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -117,7 +118,7 @@ export function PropertyAnalyticsPanel({ propertyId }: { propertyId: string }) {
               <AlertCircle className="h-4 w-4" /> Outstanding
             </CardDescription>
             <CardTitle className="text-xl tabular-nums text-orange-600">
-              {formatNaira(summary.outstanding)}
+              {formatCompactNaira(summary.outstanding)}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -129,7 +130,7 @@ export function PropertyAnalyticsPanel({ propertyId }: { propertyId: string }) {
             <CardTitle className="text-xl">{data.subscriber_count}</CardTitle>
             <p className="text-xs text-muted-foreground">
               {summary.unassigned_slots} slot(s) unassigned ·{" "}
-              {formatNaira(summary.unassigned_slot_value)} potential
+              {formatCompactNaira(summary.unassigned_slot_value)} potential
             </p>
           </CardHeader>
         </Card>

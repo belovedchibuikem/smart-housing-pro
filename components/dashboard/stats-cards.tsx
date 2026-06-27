@@ -3,7 +3,7 @@
 import { Card } from "@/components/ui/card"
 import { Wallet, TrendingUp, Home, ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
-import { DASHBOARD_CARD_MODULES } from "@/lib/modules/module-config"
+import { formatCompactNaira } from "@/lib/utils/currency"
 
 interface DashboardData {
   wallet_balance: number
@@ -34,12 +34,7 @@ function formatCurrency(amount: number): string {
 }
 
 function formatCompactCurrency(amount: number): string {
-  if (amount >= 1000000) {
-    return `₦${(amount / 1000000).toFixed(1)}M`
-  } else if (amount >= 1000) {
-    return `₦${(amount / 1000).toFixed(1)}K`
-  }
-  return formatCurrency(amount)
+  return formatCompactNaira(amount)
 }
 
 export function StatsCards({ data, loading, enabledModules }: StatsCardsProps) {

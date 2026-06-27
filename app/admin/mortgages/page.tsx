@@ -12,6 +12,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
+import { formatCompactNaira } from "@/lib/utils/currency"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
 
 interface Mortgage {
@@ -188,7 +189,7 @@ export default function AdminMortgagesPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Value</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₦{(stats.totalValue / 1000000).toFixed(1)}M</div>
+            <div className="text-2xl font-bold">{formatCompactNaira(stats.totalValue)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -271,7 +272,7 @@ export default function AdminMortgagesPage() {
                       <TableCell>
                         {mortgage.property?.title || mortgage.property?.address || '—'}
                       </TableCell>
-                      <TableCell className="text-right">₦{(mortgage.loan_amount / 1000000).toFixed(1)}M</TableCell>
+                      <TableCell className="text-right">{formatCompactNaira(mortgage.loan_amount)}</TableCell>
                       <TableCell className="text-right">₦{(mortgage.monthly_payment / 1000).toFixed(0)}K</TableCell>
                       <TableCell>{mortgage.tenure_years} years</TableCell>
                     <TableCell>

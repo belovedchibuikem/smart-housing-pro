@@ -11,6 +11,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { getInvestmentPlans, getInvestmentPlanStats, deleteInvestmentPlan, toggleInvestmentPlanStatus } from "@/lib/api/client"
+import { formatCompactNaira } from "@/lib/utils/currency"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -196,7 +197,7 @@ export default function AdminInvestmentPlansPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Investments</p>
-              <p className="text-2xl font-bold mt-2">₦{(stats.total_invested / 1000000).toFixed(1)}M</p>
+              <p className="text-2xl font-bold mt-2">{formatCompactNaira(stats.total_invested)}</p>
             </div>
             <DollarSign className="h-8 w-8 text-muted-foreground" />
           </div>

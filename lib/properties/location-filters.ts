@@ -27,6 +27,14 @@ export type LocationFilterOptions = {
   }>
 }
 
+export type LocationOverviewAssetBreakdown = {
+  portfolio_value: number
+  expected_revenue: number
+  amount_collected: number
+  outstanding: number
+  subscriptions?: number
+}
+
 export type LocationOverviewRow = {
   id: string
   name: string
@@ -44,11 +52,19 @@ export type LocationOverviewRow = {
   portfolio_value: number
   land_value: number
   total_value: number
+  expected_subscription_revenue: number
+  land_expected_revenue: number
   amount_collected: number
+  land_amount_collected: number
   outstanding_balance: number
+  house_outstanding: number
+  land_outstanding: number
   collection_rate: number
+  land_subscriptions: number
   maintenance_open: number
   maintenance_total: number
+  houses: LocationOverviewAssetBreakdown
+  land: LocationOverviewAssetBreakdown
 }
 
 export type LocationOverviewSummary = {
@@ -60,6 +76,8 @@ export type LocationOverviewSummary = {
   amount_collected: number
   outstanding_balance: number
   open_maintenance: number
+  houses: LocationOverviewAssetBreakdown
+  land: LocationOverviewAssetBreakdown
 }
 
 export function locationFiltersFromSearchParams(params: URLSearchParams): PropertyLocationFilterValues {
@@ -90,12 +108,10 @@ export function appendLocationFilters(params: URLSearchParams, filters: Property
   if (filters.status && filters.status !== "all") params.set("status", filters.status)
 }
 
+import { formatCompactNaira, formatNairaAmount } from "@/lib/utils/currency"
+
 export function formatNaira(value: number | undefined | null, compact = false) {
-  const n = value ?? 0
-  if (!Number.isFinite(n)) return "₦0"
-  if (compact && Math.abs(n) >= 1_000_000) return `₦${(n / 1_000_000).toFixed(1)}M`
-  if (compact && Math.abs(n) >= 1_000) return `₦${(n / 1_000).toFixed(0)}K`
-  return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(n)
+  return formatNairaAmount(value, { compact })
 }
 
 export function buildPropertiesFilterHref(filters: PropertyLocationFilterValues, segment: "houses" | "land" = "houses") {

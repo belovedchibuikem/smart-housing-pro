@@ -12,6 +12,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { getStatutoryCharges, getStatutoryChargeStats, deleteStatutoryCharge, approveStatutoryCharge, rejectStatutoryCharge } from "@/lib/api/client"
+import { formatCompactNaira } from "@/lib/utils/currency"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -213,7 +214,7 @@ export default function StatutoryChargesPage() {
           <Card>
             <CardHeader className="pb-3">
               <CardDescription>Total Charges</CardDescription>
-              <CardTitle className="text-3xl">₦{(stats.total_charges / 1000000).toFixed(1)}M</CardTitle>
+              <CardTitle className="text-3xl">{formatCompactNaira(stats.total_charges)}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-xs text-muted-foreground">Across all members</p>

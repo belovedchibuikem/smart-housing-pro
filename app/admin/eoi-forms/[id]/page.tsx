@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch, approveEoiForm, rejectEoiForm, getApiBaseUrl, getAuthToken, getTenantSlug } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
+import { formatCompactNaira } from "@/lib/utils/currency"
 
 interface EoiFormDetail {
   id: string
@@ -321,7 +322,7 @@ export default function EoiFormDetailPage({ params }: { params: Promise<{ id: st
             {eoiForm.property?.price && (
               <div>
                 <div className="text-sm text-muted-foreground">Price</div>
-                <div className="font-medium">₦{(eoiForm.property.price / 1000000).toFixed(1)}M</div>
+                <div className="font-medium">{formatCompactNaira(eoiForm.property.price)}</div>
               </div>
             )}
             {eoiForm.property_snapshot?.size && (

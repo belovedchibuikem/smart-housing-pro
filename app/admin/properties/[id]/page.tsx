@@ -31,6 +31,7 @@ import { PropertyPriceBreakdown } from "@/components/properties/property-price-b
 import { PropertyAnalyticsPanel } from "@/components/admin/property-analytics-panel"
 import { PropertyOwnershipPanel } from "@/components/admin/property-ownership-panel"
 import { formatNaira } from "@/lib/properties/pricing"
+import { formatCompactNaira } from "@/lib/utils/currency"
 import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
 
 interface PropertyAllocation {
@@ -340,7 +341,7 @@ export default function PropertyDetailPage() {
                       <div className="rounded-lg border p-4">
                         <div className="text-sm text-muted-foreground">Listed value</div>
                         <div className="text-2xl font-bold text-primary">
-                          ₦{(Number(property.price || 0) / 1000000).toFixed(1)}M
+                          {formatCompactNaira(Number(property.price || 0))}
                         </div>
                       </div>
                     </div>

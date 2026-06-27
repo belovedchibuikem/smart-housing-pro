@@ -4,6 +4,7 @@ import * as React from "react"
 import { Check, ChevronsUpDown, Search } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { formatCompactNaira } from "@/lib/utils/currency"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -196,8 +197,7 @@ export function propertiesToSearchableOptions(
 	const formatPrice = (value?: number | string) => {
 		const amount = Number(value ?? 0)
 		if (!Number.isFinite(amount) || amount <= 0) return ""
-		if (Math.abs(amount) >= 1_000_000) return `₦${(amount / 1_000_000).toFixed(1)}M`
-		return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(amount)
+		return formatCompactNaira(amount)
 	}
 
 	return properties.map((p) => {

@@ -34,6 +34,7 @@ import {
 import { CopyableId } from "@/components/admin/copyable-id"
 import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
 import { formatNaira, perSlotAmount, totalListingCost } from "@/lib/properties/pricing"
+import { formatCompactNaira, formatHouseLandCompact } from "@/lib/utils/currency"
 
 interface Property {
   id: string
@@ -421,12 +422,6 @@ export default function AdminPropertiesPage() {
     completed: subscriptions.filter((s) => s.status === "Completed").length,
   }
 
-  const formatCurrencyApprox = (n: number | undefined) => {
-    if (n === undefined || n === null || !Number.isFinite(n)) return "₦0"
-    if (Math.abs(n) >= 1_000_000) return `₦${(n / 1_000_000).toFixed(1)}M`
-    return new Intl.NumberFormat("en-NG", { maximumFractionDigits: 0 }).format(n)
-  }
-
 
   return (
     <div className="space-y-6">
@@ -531,9 +526,11 @@ export default function AdminPropertiesPage() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="text-sm text-muted-foreground">Portfolio costs</div>
-                <div className="text-lg font-bold whitespace-nowrap md:whitespace-normal">
-                  Houses {formatCurrencyApprox(propertyStats?.total_house_cost)} · Land{" "}
-                  {formatCurrencyApprox(propertyStats?.total_land_cost)}
+                <div className="text-sm font-bold leading-snug">
+                  {formatHouseLandCompact(
+                    propertyStats?.total_house_cost,
+                    propertyStats?.total_land_cost,
+                  )}
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">DB sums (exc. legacy land rows counted separately)</div>
               </div>
@@ -801,7 +798,10 @@ export default function AdminPropertiesPage() {
                         </div>
                         <div className="flex items-center justify-between gap-3">
                           <div className="text-lg font-bold text-primary">
-                            ₦{((Number(land.cost || 0) || 0) / 1000000).toFixed(1)}M
+                            {formatCompactNaira(Number(land.cost || 0))}
+                            {(land.total_slots ?? 0) > 1 ? (
+                              <span className="block text-xs font-normal text-muted-foreground">/slot</span>
+                            ) : null}
                           </div>
                           <Badge variant={land.status === "available" ? "default" : "secondary"}>
                             {land.status || "N/A"}

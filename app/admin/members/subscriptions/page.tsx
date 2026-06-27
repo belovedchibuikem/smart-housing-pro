@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { apiFetch, apiFetchBlob } from "@/lib/api/client"
 import { formatNaira } from "@/lib/properties/pricing"
+import { formatCompactNaira } from "@/lib/utils/currency"
 import { useToast } from "@/hooks/use-toast"
 
 type SubscriptionRow = {
@@ -196,13 +197,13 @@ export default function MemberAssetSubscriptionsPage() {
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>Collected</CardDescription>
-              <CardTitle className="text-green-600 tabular-nums">{formatNaira(summary.amount_paid)}</CardTitle>
+              <CardTitle className="text-green-600 tabular-nums">{formatCompactNaira(summary.amount_paid)}</CardTitle>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>Outstanding</CardDescription>
-              <CardTitle className="text-orange-600 tabular-nums">{formatNaira(summary.outstanding)}</CardTitle>
+              <CardTitle className="text-orange-600 tabular-nums">{formatCompactNaira(summary.outstanding)}</CardTitle>
             </CardHeader>
           </Card>
         </div>
