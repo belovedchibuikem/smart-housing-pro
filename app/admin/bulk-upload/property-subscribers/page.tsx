@@ -16,7 +16,8 @@ const PREVIEW_COLUMNS = [
   { key: "property_id", label: "Property ID", aliases: ["Property ID", "property_id", "PropertyID"] },
   { key: "member_id", label: "Member ID", aliases: ["Member ID", "member_id", "Member Number", "member_number", "MemberNumber", "MemberID"] },
   { key: "staff_id", label: "Staff ID", aliases: ["Staff ID", "staff_id", "StaffID"] },
-  { key: "email", label: "Email", aliases: ["Email", "email"] },
+  { key: "ippis", label: "IPPIS", aliases: ["IPPIS Number", "ippis_number", "IPPIS", "ippis"] },
+  { key: "email", label: "Email (optional)", aliases: ["Email", "email"] },
   { key: "allocation_date", label: "Allocation Date", aliases: ["Allocation Date (YYYY-MM-DD)", "Allocation Date", "allocation_date"] },
   { key: "unit_address", label: "House/Block Address", aliases: ["House/Block Address (optional)", "House/Block Address", "House Block Address", "unit_address", "Unit Address"] },
   { key: "description", label: "Description", aliases: ["description", "Description", "Notes", "notes"] },
@@ -91,13 +92,13 @@ export default function BulkUploadPropertySubscribersPage() {
         const propertyId = getCell(row, PREVIEW_COLUMNS[0].aliases)
         const memberId = getCell(row, PREVIEW_COLUMNS[1].aliases)
         const staffId = getCell(row, PREVIEW_COLUMNS[2].aliases)
-        const email = getCell(row, PREVIEW_COLUMNS[3].aliases)
+        const ippis = getCell(row, PREVIEW_COLUMNS[3].aliases)
 
         if (!propertyId) {
           localErrs.push(`Row ${line}: Property ID is required`)
         }
-        if (!memberId && !staffId && !email) {
-          localErrs.push(`Row ${line}: Provide at least one member identifier (Member ID, Staff ID, or Email)`)
+        if (!memberId && !staffId && !ippis) {
+          localErrs.push(`Row ${line}: Provide at least one member identifier (Member ID, Staff ID, or IPPIS)`)
         }
       })
 
@@ -200,7 +201,7 @@ export default function BulkUploadPropertySubscribersPage() {
             <p className="text-sm text-muted-foreground">
               Copy the Property ID from Admin → Property management (house listings) using the copy button on each card.
               Optionally add a House/Block Address column (e.g. C17A, Jagua Crescent, 3rd Avenue) for the member&apos;s
-              unit. Member must exist (match by Member ID, staff ID, IPPIS, or email).
+              unit. Member must exist — provide at least one of Member ID, Staff ID, or IPPIS (email is optional).
             </p>
           </div>
           <div className="rounded-lg border-2 border-dashed p-8 text-center">
