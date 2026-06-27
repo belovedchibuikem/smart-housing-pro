@@ -32,7 +32,8 @@ import {
   type PropertyLocationFilterValues,
 } from "@/lib/properties/location-filters"
 import { CopyableId } from "@/components/admin/copyable-id"
-import { formatPropertyTypeAndPrice, getPropertyTypeLabel } from "@/lib/properties/property-type-label"
+import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
+import { formatNaira, perSlotAmount, totalListingCost } from "@/lib/properties/pricing"
 
 interface Property {
   id: string
@@ -692,19 +693,21 @@ export default function AdminPropertiesPage() {
                           <div className="flex items-start justify-between gap-3 border-t pt-3">
                             <p
                               className="min-w-0 flex-1 text-sm font-semibold leading-snug sm:text-base"
-                              title={formatPropertyTypeAndPrice(property, property.price)}
+                              title={`${getPropertyTypeLabel(property, "Property")} @ ${formatNaira(perSlotAmount(property))}/slot`}
                             >
                               <span className="text-foreground">
                                 {getPropertyTypeLabel(property, "Property")}
                               </span>
                               <span className="mx-1.5 font-normal text-muted-foreground">@</span>
                               <span className="font-bold text-primary tabular-nums">
-                                {new Intl.NumberFormat("en-NG", {
-                                  style: "currency",
-                                  currency: "NGN",
-                                  maximumFractionDigits: 0,
-                                }).format(property.price || 0)}
+                                {formatNaira(perSlotAmount(property))}
+                                <span className="text-xs font-normal text-muted-foreground">/slot</span>
                               </span>
+                              {(property.total_slots ?? 0) > 1 && (
+                                <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                                  {formatNaira(totalListingCost(property))} total ({property.total_slots} slots)
+                                </span>
+                              )}
                             </p>
                             <Badge
                               variant={property.status === "available" ? "default" : "secondary"}

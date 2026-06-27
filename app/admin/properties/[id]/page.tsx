@@ -27,7 +27,10 @@ import { apiFetch } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { PropertyDocuments } from "@/components/properties/property-documents"
 import { PropertyTypePriceRow } from "@/components/properties/property-type-price-row"
+import { PropertyPriceBreakdown } from "@/components/properties/property-price-breakdown"
+import { PropertyAnalyticsPanel } from "@/components/admin/property-analytics-panel"
 import { PropertyOwnershipPanel } from "@/components/admin/property-ownership-panel"
+import { formatNaira } from "@/lib/properties/pricing"
 import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
 
 interface PropertyAllocation {
@@ -35,6 +38,8 @@ interface PropertyAllocation {
   status?: string
   slots_assigned?: number
   amount_paid?: number
+  outstanding?: number
+  subscription_cost?: number
   member?: {
     id: string
     member_id?: string | null
@@ -66,6 +71,8 @@ interface PropertyDetail {
   city?: string
   state?: string
   price?: number
+  price_per_slot?: number
+  total_listing_cost?: number
   size?: number
   bedrooms?: number
   bathrooms?: number
@@ -308,6 +315,7 @@ export default function PropertyDetailPage() {
             <TabsList>
               <TabsTrigger value="details">Details</TabsTrigger>
               <TabsTrigger value="ownership">Ownership</TabsTrigger>
+              <TabsTrigger value="analytics">Analytics</TabsTrigger>
               <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
               <TabsTrigger value="documents">Documents</TabsTrigger>
             </TabsList>
@@ -390,6 +398,10 @@ export default function PropertyDetailPage() {
               <PropertyOwnershipPanel assetType="house" assetId={property.id} />
             </TabsContent>
 
+            <TabsContent value="analytics" className="space-y-6">
+              {propertyId && <PropertyAnalyticsPanel propertyId={propertyId} />}
+            </TabsContent>
+
             <TabsContent value="subscriptions" className="space-y-6">
               <Card>
                 <CardHeader>
@@ -409,7 +421,9 @@ export default function PropertyDetailPage() {
                         <TableHead>Member</TableHead>
                           <TableHead>Membership ID</TableHead>
                           <TableHead className="text-right">Slots</TableHead>
+                          <TableHead className="text-right">Total cost</TableHead>
                           <TableHead className="text-right">Amount Paid</TableHead>
+                          <TableHead className="text-right">Outstanding</TableHead>
                           <TableHead>Status</TableHead>
                         <TableHead>Date</TableHead>
                       </TableRow>
@@ -423,8 +437,14 @@ export default function PropertyDetailPage() {
                               <TableCell className="font-medium">{memberName}</TableCell>
                               <TableCell>{membershipId}</TableCell>
                               <TableCell className="text-right">{allocation.slots_assigned ?? 1}</TableCell>
-                              <TableCell className="text-right">
-                                ₦{Number(allocation.amount_paid ?? 0).toLocaleString()}
+                              <TableCell className="text-right tabular-nums">
+                                {formatNaira(Number(allocation.subscription_cost ?? 0))}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums text-green-600">
+                                {formatNaira(Number(allocation.amount_paid ?? 0))}
+                              </TableCell>
+                              <TableCell className="text-right tabular-nums text-orange-600">
+                                {formatNaira(Number(allocation.outstanding ?? 0))}
                               </TableCell>
                           <TableCell>
                                 <Badge variant={allocation.status === "completed" ? "default" : "secondary"}>
@@ -484,10 +504,18 @@ export default function PropertyDetailPage() {
                   </p>
                 </div>
               )}
+              <PropertyPriceBreakdown
+                source={{
+                  price: property.price,
+                  price_per_slot: property.price_per_slot,
+                  total_slots: property.total_slots,
+                  total_listing_cost: property.total_listing_cost,
+                }}
+              />
               <PropertyTypePriceRow
                 typeLabel={getPropertyTypeLabel(property, "Not specified")}
-                priceHeading="Property Value"
-                price={`₦${Number(property.price ?? 0).toLocaleString()}`}
+                priceHeading="Per slot"
+                price={formatNaira(Number(property.price_per_slot ?? property.price ?? 0))}
               />
             </CardContent>
           </Card>

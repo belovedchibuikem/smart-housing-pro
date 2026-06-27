@@ -101,6 +101,7 @@ const navItems: NavItem[] = [
     icon: Users,
     subItems: [
       { href: "/admin/members", label: "All Members", icon: Users },
+      { href: "/admin/members/subscriptions", label: "Property & Land Subscriptions", icon: Home },
       { href: "/admin/members/new", label: "Add Member", icon: UserPlus },
       { href: "/admin/member-subscriptions/bulk", label: "Bulk Member Subscriptions", icon: Package },
       { href: "/admin/bulk-upload/members", label: "Bulk Upload", icon: Upload },

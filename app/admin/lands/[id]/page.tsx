@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { PropertyOwnershipPanel } from "@/components/admin/property-ownership-panel"
 import { LandDocuments } from "@/components/properties/land-documents"
 import { PropertyTypePriceRow } from "@/components/properties/property-type-price-row"
+import { PropertyPriceBreakdown } from "@/components/properties/property-price-breakdown"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
@@ -22,6 +23,9 @@ interface LandDetail {
   land_description?: string | null
   land_size?: string | null
   cost?: number | string | null
+  total_slots?: number | null
+  price_per_slot?: number | null
+  total_listing_cost?: number | null
   cost_includes_infrastructure?: boolean
   suitable_for?: string | null
   infrastructure_plan?: string[] | null
@@ -120,7 +124,16 @@ export default function AdminLandDetailPage() {
           </p>
         </div>
 
-        <PropertyTypePriceRow typeLabel="Land" priceHeading="Property Price" price={money(land.cost)} />
+        <PropertyPriceBreakdown
+          source={{
+            cost: land.cost,
+            price_per_slot: land.price_per_slot,
+            total_slots: land.total_slots,
+            total_listing_cost: land.total_listing_cost,
+          }}
+          variant="emerald"
+        />
+        <PropertyTypePriceRow typeLabel="Land" priceHeading="Cost per slot" price={money(land.price_per_slot ?? land.cost)} />
         <div className="flex justify-end">
           {land.cost_includes_infrastructure ? (
             <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Incl. infrastructure</Badge>
