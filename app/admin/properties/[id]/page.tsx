@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Download,
   Search,
+  Image as ImageIcon,
 } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,6 +24,7 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
@@ -146,6 +148,16 @@ export default function PropertyDetailPage() {
   const [isViewerOpen, setIsViewerOpen] = useState(false)
   const [subscriberSearch, setSubscriberSearch] = useState("")
 
+  const features = useMemo(() => {
+    return Array.isArray(property?.features) ? property.features : []
+  }, [property?.features])
+
+  const isLandLegacy = property?.type === "land"
+
+  const allocations = useMemo(() => {
+    return Array.isArray(property?.allocations) ? property.allocations : []
+  }, [property?.allocations])
+
   const getMemberStaffId = (allocation: PropertyAllocation) =>
     allocation.member?.member_number?.trim() ||
     allocation.member?.staff_id?.trim() ||
@@ -212,15 +224,6 @@ export default function PropertyDetailPage() {
     toast({ title: "Export downloaded", description: `${filteredAllocations.length} subscriber(s) exported.` })
   }
 
-  const features = useMemo(() => {
-    return Array.isArray(property?.features) ? property.features : []
-  }, [property?.features])
-
-  const isLandLegacy = property?.type === "land"
-
-  const allocations = useMemo(() => {
-    return Array.isArray(property?.allocations) ? property.allocations : []
-  }, [property?.allocations])
 
   const documentMemberOptions = useMemo(
     () =>
