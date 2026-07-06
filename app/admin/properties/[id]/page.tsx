@@ -13,7 +13,8 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
-  Image as ImageIcon,
+  Download,
+  Search,
 } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -21,7 +22,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
@@ -43,7 +44,7 @@ interface PropertyAllocation {
   subscription_cost?: number
   member?: {
     id: string
-    member_id?: string | null
+    member_number?: string | null
     staff_id?: string | null
     user?: {
       first_name?: string | null
@@ -143,6 +144,73 @@ export default function PropertyDetailPage() {
 
   const [activeIndex, setActiveIndex] = useState(0)
   const [isViewerOpen, setIsViewerOpen] = useState(false)
+  const [subscriberSearch, setSubscriberSearch] = useState("")
+
+  const getMemberStaffId = (allocation: PropertyAllocation) =>
+    allocation.member?.member_number?.trim() ||
+    allocation.member?.staff_id?.trim() ||
+    "—"
+
+  const getMemberName = (allocation: PropertyAllocation) =>
+    `${allocation.member?.user?.first_name ?? ""} ${allocation.member?.user?.last_name ?? ""}`.trim() ||
+    "Unknown Member"
+
+  const filteredAllocations = useMemo(() => {
+    const q = subscriberSearch.trim().toLowerCase()
+    if (!q) return allocations
+    return allocations.filter((allocation) => {
+      const name = getMemberName(allocation).toLowerCase()
+      const staffId = getMemberStaffId(allocation).toLowerCase()
+      const email = allocation.member?.user?.email?.toLowerCase() ?? ""
+      return name.includes(q) || staffId.includes(q) || email.includes(q)
+    })
+  }, [allocations, subscriberSearch])
+
+  const exportSubscribersCsv = () => {
+    if (!property?.id || filteredAllocations.length === 0) return
+
+    const escapeCsv = (value: string | number) => {
+      const str = String(value ?? "")
+      if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+        return `"${str.replace(/"/g, '""')}"`
+      }
+      return str
+    }
+
+    const headers = [
+      "Property ID",
+      "Member Name",
+      "Staff ID",
+      "Slots",
+      "Total Cost",
+      "Amount Paid",
+      "Balance",
+      "Status",
+      "Subscription Date",
+    ]
+
+    const rows = filteredAllocations.map((allocation) => [
+      property.id,
+      getMemberName(allocation),
+      getMemberStaffId(allocation),
+      String(allocation.slots_assigned ?? 1),
+      String(allocation.subscription_cost ?? 0),
+      String(allocation.amount_paid ?? 0),
+      String(allocation.outstanding ?? 0),
+      allocation.status ?? "",
+      allocation.created_at ? new Date(allocation.created_at).toISOString().slice(0, 10) : "",
+    ])
+
+    const csv = [headers, ...rows].map((row) => row.map(escapeCsv).join(",")).join("\n")
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" })
+    const url = window.URL.createObjectURL(blob)
+    const anchor = document.createElement("a")
+    anchor.href = url
+    anchor.download = `property_subscribers_${property.id.slice(0, 8)}_${new Date().toISOString().slice(0, 10)}.csv`
+    anchor.click()
+    window.URL.revokeObjectURL(url)
+    toast({ title: "Export downloaded", description: `${filteredAllocations.length} subscriber(s) exported.` })
+  }
 
   const features = useMemo(() => {
     return Array.isArray(property?.features) ? property.features : []
@@ -162,7 +230,8 @@ export default function PropertyDetailPage() {
           id: allocation.member!.id,
           label:
             `${allocation.member?.user?.first_name ?? ""} ${allocation.member?.user?.last_name ?? ""}`.trim() ||
-            allocation.member?.member_id ||
+            allocation.member?.member_number ||
+            allocation.member?.staff_id ||
             "Member",
         })),
     [allocations],
@@ -406,21 +475,48 @@ export default function PropertyDetailPage() {
             <TabsContent value="subscriptions" className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Property Subscribers</CardTitle>
-                  <CardDescription>
-                    {property.subscribers_count ?? allocations.length} member(s) subscribed
-                    {property.slots_used != null ? ` · ${property.slots_used} slot(s) used` : ""}
-                  </CardDescription>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <CardTitle>Property Subscribers</CardTitle>
+                      <CardDescription>
+                        {property.subscribers_count ?? allocations.length} member(s) subscribed
+                        {property.slots_used != null ? ` · ${property.slots_used} slot(s) used` : ""}
+                        {subscriberSearch.trim() ? ` · ${filteredAllocations.length} shown` : ""}
+                      </CardDescription>
+                    </div>
+                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+                      <div className="relative w-full sm:w-64">
+                        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          placeholder="Search name or staff ID…"
+                          value={subscriberSearch}
+                          onChange={(e) => setSubscriberSearch(e.target.value)}
+                          className="pl-9"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={exportSubscribersCsv}
+                        disabled={filteredAllocations.length === 0}
+                      >
+                        <Download className="mr-2 h-4 w-4" />
+                        Export CSV
+                      </Button>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   {allocations.length === 0 ? (
                     <p className="text-center text-muted-foreground py-6">No allocations recorded for this property yet.</p>
+                  ) : filteredAllocations.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-6">No subscribers match your search.</p>
                   ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Member</TableHead>
-                          <TableHead>Membership ID</TableHead>
+                          <TableHead>Staff ID</TableHead>
                           <TableHead className="text-right">Slots</TableHead>
                           <TableHead className="text-right">Total cost</TableHead>
                           <TableHead className="text-right">Amount Paid</TableHead>
@@ -430,13 +526,10 @@ export default function PropertyDetailPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {allocations.map((allocation) => {
-                          const memberName = `${allocation.member?.user?.first_name ?? ""} ${allocation.member?.user?.last_name ?? ""}`.trim() || "Unknown Member"
-                          const membershipId = allocation.member?.member_id || allocation.member?.staff_id || "—"
-                          return (
+                        {filteredAllocations.map((allocation) => (
                             <TableRow key={allocation.id}>
-                              <TableCell className="font-medium">{memberName}</TableCell>
-                              <TableCell>{membershipId}</TableCell>
+                              <TableCell className="font-medium">{getMemberName(allocation)}</TableCell>
+                              <TableCell className="font-mono text-sm">{getMemberStaffId(allocation)}</TableCell>
                               <TableCell className="text-right">{allocation.slots_assigned ?? 1}</TableCell>
                               <TableCell className="text-right tabular-nums">
                                 {formatNaira(Number(allocation.subscription_cost ?? 0))}
@@ -458,8 +551,7 @@ export default function PropertyDetailPage() {
                                   : "—"}
                           </TableCell>
                         </TableRow>
-                          )
-                        })}
+                        ))}
                     </TableBody>
                   </Table>
                   )}
