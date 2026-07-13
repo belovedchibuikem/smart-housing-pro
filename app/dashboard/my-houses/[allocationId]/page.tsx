@@ -4,15 +4,17 @@ import { useCallback, useEffect, useState, type ChangeEvent } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import {
-	getMemberLandSubscriptionDetail,
-	submitLandRepayment,
-	uploadLandDeed,
+	getMemberHouseAccount,
+	submitHouseAccountRepayment,
+	uploadHouseAccountDeed,
+	type MemberHouseAccount,
 } from "@/lib/api/client"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Progress } from "@/components/ui/progress"
 import {
 	Table,
 	TableBody,
@@ -25,11 +27,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowLeft, Loader2, Upload } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
-export default function MemberLandAccountPage() {
+export default function MemberHouseAccountPage() {
 	const params = useParams()
-	const subscriptionId = typeof params?.subscriptionId === "string" ? params.subscriptionId : ""
+	const allocationId = typeof params?.allocationId === "string" ? params.allocationId : ""
 	const { toast } = useToast()
-	const [row, setRow] = useState<Record<string, unknown> | null>(null)
+	const [row, setRow] = useState<MemberHouseAccount | null>(null)
 	const [amount, setAmount] = useState("")
 	const [paymentDate, setPaymentDate] = useState("")
 	const [description, setDescription] = useState("")
@@ -38,12 +40,12 @@ export default function MemberLandAccountPage() {
 	const [uploadingDeed, setUploadingDeed] = useState(false)
 
 	const load = useCallback(async () => {
-		if (!subscriptionId) return
-		const r = await getMemberLandSubscriptionDetail(subscriptionId)
+		if (!allocationId) return
+		const r = await getMemberHouseAccount(allocationId)
 		if (r.success && r.data) {
-			setRow(r.data as Record<string, unknown>)
+			setRow(r.data)
 		}
-	}, [subscriptionId])
+	}, [allocationId])
 
 	useEffect(() => {
 		void load()
@@ -57,7 +59,7 @@ export default function MemberLandAccountPage() {
 		}
 		setSubmitting(true)
 		try {
-			const res = await submitLandRepayment(subscriptionId, {
+			const res = await submitHouseAccountRepayment(allocationId, {
 				amount: value,
 				payment_date: paymentDate || undefined,
 				description: description || undefined,
@@ -87,7 +89,7 @@ export default function MemberLandAccountPage() {
 		try {
 			const form = new FormData()
 			form.append("file", deedFile)
-			const res = await uploadLandDeed(subscriptionId, form)
+			const res = await uploadHouseAccountDeed(allocationId, form)
 			toast({ title: res.message || "Deed uploaded" })
 			setDeedFile(null)
 			await load()
@@ -102,53 +104,76 @@ export default function MemberLandAccountPage() {
 		}
 	}
 
-	if (!subscriptionId || !row) {
-		return <div className="p-8 text-muted-foreground">Loading land account…</div>
+	if (!allocationId || !row) {
+		return <div className="p-8 text-muted-foreground">Loading house account…</div>
 	}
 
-	const land = (row.land as Record<string, unknown>) || {}
-	const payments =
-		(row.payments as Array<{ id: string; amount: unknown; paid_on?: string; description?: string | null }>) ||
-		[]
-
-	const salePrice = Number(row.sale_price ?? row.total_cost ?? 0)
+	const property = row.property
+	const title = row.property_title ?? row.title ?? property?.title ?? "House"
+	const payments = row.payments ?? []
+	const timeline = row.timeline ?? []
+	const salePrice = Number(row.sale_price ?? 0)
 	const paid = Number(row.amount_paid ?? 0)
-	const out = Number(row.outstanding_balance ?? row.outstanding ?? 0)
+	const out = Number(row.outstanding ?? 0)
+	const progress = Math.min(100, Math.max(0, Number(row.payment_progress_percent ?? 0)))
 	const tenureStatus = String(row.tenure_status ?? "—")
+	const slotLabel = row.slot_label || row.unit_address
 	const ownerSequence = row.owner_sequence
+	const propertyId = row.property_id ?? property?.id
 
 	return (
 		<div className="mx-auto max-w-4xl space-y-6 py-8">
 			<Button asChild variant="ghost" size="sm">
-				<Link href="/dashboard/browse-properties?listing=land">
-					<ArrowLeft className="mr-2 h-4 w-4" /> Back to land portfolio
+				<Link href="/dashboard/my-property">
+					<ArrowLeft className="mr-2 h-4 w-4" /> Back to my houses
 				</Link>
 			</Button>
 
 			<div className="flex flex-wrap items-start justify-between gap-4">
 				<div>
-					<Badge className="mb-2">🌍 Land account</Badge>
-					<h1 className="text-3xl font-bold">{String(land.land_title ?? "Land")}</h1>
-					<p className="font-mono text-muted-foreground">{String(land.land_code ?? "")}</p>
-					<p className="mt-2 text-sm text-muted-foreground">
-						Allocated: {String(row.allocated_land_size ?? "—")}
-					</p>
-					{row.slot_label != null && String(row.slot_label).length > 0 && (
-						<p className="mt-1 text-sm font-medium">
-							Slot: {String(row.slot_label)}
-							{row.slot_number != null ? ` (#${String(row.slot_number)})` : ""}
+					<Badge className="mb-2">🏠 House account</Badge>
+					<h1 className="text-3xl font-bold">{title}</h1>
+					{property?.location && (
+						<p className="text-muted-foreground">{String(property.location)}</p>
+					)}
+					{slotLabel && (
+						<p className="mt-2 text-sm font-medium">
+							Slot: {slotLabel}
+							{row.slot_number != null ? ` (#${row.slot_number})` : ""}
 						</p>
 					)}
 					<div className="mt-2 flex flex-wrap gap-2">
 						<Badge variant="outline" className="capitalize">
 							Tenure: {tenureStatus.replace(/_/g, " ")}
 						</Badge>
+						{row.payment_status && (
+							<Badge variant="secondary" className="capitalize">
+								{String(row.payment_status).replace(/_/g, " ")}
+							</Badge>
+						)}
 						{ownerSequence != null && (
 							<Badge variant="secondary">Owner #{String(ownerSequence)}</Badge>
 						)}
 					</div>
 				</div>
+				{propertyId && (
+					<Button asChild variant="outline" size="sm">
+						<Link href={`/dashboard/properties/${propertyId}`}>Property details</Link>
+					</Button>
+				)}
 			</div>
+
+			<Card>
+				<CardHeader className="pb-2">
+					<div className="flex items-center justify-between text-sm">
+						<CardTitle className="text-sm font-medium text-muted-foreground">Payment progress</CardTitle>
+						<span className="font-semibold">{progress.toFixed(0)}%</span>
+					</div>
+				</CardHeader>
+				<CardContent>
+					<Progress value={progress} className="h-2" />
+				</CardContent>
+			</Card>
 
 			<div className="grid gap-4 md:grid-cols-4">
 				<Card>
@@ -183,13 +208,13 @@ export default function MemberLandAccountPage() {
 				<Card>
 					<CardHeader>
 						<CardTitle>Record repayment</CardTitle>
-						<CardDescription>Submit a land repayment against this subscription.</CardDescription>
+						<CardDescription>Submit a repayment against this house slot account.</CardDescription>
 					</CardHeader>
 					<CardContent className="grid gap-4 md:grid-cols-2">
 						<div className="space-y-2">
-							<Label htmlFor="land-repay-amount">Amount</Label>
+							<Label htmlFor="house-repay-amount">Amount</Label>
 							<Input
-								id="land-repay-amount"
+								id="house-repay-amount"
 								type="number"
 								min={0.01}
 								step="0.01"
@@ -199,18 +224,18 @@ export default function MemberLandAccountPage() {
 							/>
 						</div>
 						<div className="space-y-2">
-							<Label htmlFor="land-repay-date">Payment date (optional)</Label>
+							<Label htmlFor="house-repay-date">Payment date (optional)</Label>
 							<Input
-								id="land-repay-date"
+								id="house-repay-date"
 								type="date"
 								value={paymentDate}
 								onChange={(e) => setPaymentDate(e.target.value)}
 							/>
 						</div>
 						<div className="space-y-2 md:col-span-2">
-							<Label htmlFor="land-repay-desc">Description (optional)</Label>
+							<Label htmlFor="house-repay-desc">Description (optional)</Label>
 							<Textarea
-								id="land-repay-desc"
+								id="house-repay-desc"
 								rows={2}
 								value={description}
 								onChange={(e) => setDescription(e.target.value)}
@@ -230,26 +255,44 @@ export default function MemberLandAccountPage() {
 			<Card>
 				<CardHeader>
 					<CardTitle>Deed of Assignment</CardTitle>
-					<CardDescription>Upload your land deed if it is not already on file.</CardDescription>
+					<CardDescription>Upload your house deed if it is not already on file.</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-3">
-					<div className="space-y-2">
-						<Label htmlFor="land-deed-file">Deed file (PDF or image)</Label>
-						<Input
-							id="land-deed-file"
-							type="file"
-							accept=".pdf,image/jpeg,image/png,image/jpg"
-							onChange={(e: ChangeEvent<HTMLInputElement>) => setDeedFile(e.target.files?.[0] ?? null)}
-						/>
-					</div>
-					<Button variant="outline" onClick={handleDeedUpload} disabled={uploadingDeed || !deedFile}>
-						{uploadingDeed ? (
-							<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-						) : (
-							<Upload className="mr-2 h-4 w-4" />
-						)}
-						Upload deed
-					</Button>
+					{row.deed ? (
+						<div className="flex flex-wrap items-center gap-3">
+							<Badge>Deed on file</Badge>
+							<span className="text-sm capitalize text-muted-foreground">
+								Status: {String(row.deed.status).replace(/_/g, " ")}
+							</span>
+							{row.deed.file_url && (
+								<Button asChild variant="outline" size="sm">
+									<a href={row.deed.file_url} target="_blank" rel="noreferrer">
+										View deed
+									</a>
+								</Button>
+							)}
+						</div>
+					) : (
+						<>
+							<div className="space-y-2">
+								<Label htmlFor="house-deed-file">Deed file (PDF or image)</Label>
+								<Input
+									id="house-deed-file"
+									type="file"
+									accept=".pdf,image/jpeg,image/png,image/jpg"
+									onChange={(e: ChangeEvent<HTMLInputElement>) => setDeedFile(e.target.files?.[0] ?? null)}
+								/>
+							</div>
+							<Button variant="outline" onClick={handleDeedUpload} disabled={uploadingDeed || !deedFile}>
+								{uploadingDeed ? (
+									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+								) : (
+									<Upload className="mr-2 h-4 w-4" />
+								)}
+								Upload deed
+							</Button>
+						</>
+					)}
 				</CardContent>
 			</Card>
 
@@ -281,6 +324,61 @@ export default function MemberLandAccountPage() {
 										<TableCell>{p.description ?? "—"}</TableCell>
 									</TableRow>
 								))
+							)}
+						</TableBody>
+					</Table>
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>Ownership timeline</CardTitle>
+					<CardDescription>Events for this slot / allocation.</CardDescription>
+				</CardHeader>
+				<CardContent className="overflow-x-auto">
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>When</TableHead>
+								<TableHead>Event</TableHead>
+								<TableHead>Notes</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{timeline.length === 0 ? (
+								<TableRow>
+									<TableCell colSpan={3} className="text-muted-foreground">
+										No timeline events yet.
+									</TableCell>
+								</TableRow>
+							) : (
+								timeline.map((event, index) => {
+									const key =
+										String(event.id ?? `${event.event_type ?? "event"}-${index}`)
+									const when =
+										String(
+											event.occurred_at ??
+												event.created_at ??
+												event.date ??
+												"—",
+										)
+									const label = String(
+										event.label ??
+											event.event_type ??
+											event.type ??
+											"Event",
+									).replace(/_/g, " ")
+									const notes = String(
+										event.notes ?? event.description ?? event.summary ?? "—",
+									)
+									return (
+										<TableRow key={key}>
+											<TableCell>{when}</TableCell>
+											<TableCell className="capitalize">{label}</TableCell>
+											<TableCell>{notes}</TableCell>
+										</TableRow>
+									)
+								})
 							)}
 						</TableBody>
 					</Table>

@@ -10,24 +10,39 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
-import { apiFetch } from "@/lib/api/client"
+import { apiFetch, getPropertyAllottee } from "@/lib/api/client"
 import { Can } from "@/components/admin/can-permission"
 
 type TenureSummary = {
   sale_price: number
   amount_paid: number
   outstanding: number
+  payment_progress_percent?: number | null
+  payment_status?: string | null
   tenure_status: string
   owner_sequence: number | null
   owner_label: string | null
   deed_ready: boolean
   allocation: {
     id: string
+    property_slot_id?: string | null
+    slot_number?: number | null
+    slot_label?: string | null
+    unit_address?: string | null
     property?: { title?: string }
     member?: { user?: { first_name?: string; last_name?: string }; member_number?: string }
   }
   payments?: Array<{ id: string; amount: number; paid_at?: string; source?: string; reference?: string }>
   documents?: Array<{ id: string; document_type: string; status: string; file_path?: string }>
+}
+
+type AllotteeSlotMeta = {
+  property_slot_id?: string | null
+  slot_number?: number | null
+  slot_label?: string | null
+  payment_progress_percent?: number | null
+  payment_status?: string | null
+  outstanding?: number | null
 }
 
 export default function AllotteeTenurePage() {
@@ -36,6 +51,7 @@ export default function AllotteeTenurePage() {
   const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [summary, setSummary] = useState<TenureSummary | null>(null)
+  const [slotMeta, setSlotMeta] = useState<AllotteeSlotMeta | null>(null)
   const [repayAmount, setRepayAmount] = useState("")
   const [repayDesc, setRepayDesc] = useState("")
   const [busy, setBusy] = useState(false)
@@ -45,10 +61,23 @@ export default function AllotteeTenurePage() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await apiFetch<{ success: boolean; data: TenureSummary }>(
-        `/admin/property-management/tenures/houses/${allotteeId}`
-      )
-      if (res.success) setSummary(res.data)
+      const [tenureRes, allotteeRes] = await Promise.all([
+        apiFetch<{ success: boolean; data: TenureSummary }>(
+          `/admin/property-management/tenures/houses/${allotteeId}`
+        ),
+        getPropertyAllottee(allotteeId).catch(() => null),
+      ])
+      if (tenureRes.success) setSummary(tenureRes.data)
+      if (allotteeRes?.success && allotteeRes.data) {
+        setSlotMeta({
+          property_slot_id: allotteeRes.data.property_slot_id,
+          slot_number: allotteeRes.data.slot_number,
+          slot_label: allotteeRes.data.slot_label,
+          payment_progress_percent: allotteeRes.data.payment_progress_percent,
+          payment_status: allotteeRes.data.payment_status,
+          outstanding: allotteeRes.data.outstanding,
+        })
+      }
     } catch (e) {
       toast({
         title: "Error",
@@ -169,6 +198,26 @@ export default function AllotteeTenurePage() {
     .filter(Boolean)
     .join(" ")
 
+  const slotLabel =
+    slotMeta?.slot_label ||
+    summary.allocation?.slot_label ||
+    (slotMeta?.slot_number != null
+      ? `Slot #${slotMeta.slot_number}`
+      : summary.allocation?.slot_number != null
+        ? `Slot #${summary.allocation.slot_number}`
+        : summary.allocation?.unit_address || null)
+  const progressPercent =
+    slotMeta?.payment_progress_percent != null
+      ? Math.round(Number(slotMeta.payment_progress_percent))
+      : summary.payment_progress_percent != null
+        ? Math.round(Number(summary.payment_progress_percent))
+        : summary.sale_price > 0
+          ? Math.round((Number(summary.amount_paid) / Number(summary.sale_price)) * 100)
+          : null
+  const paymentStatus = slotMeta?.payment_status ?? summary.payment_status
+  const outstanding =
+    slotMeta?.outstanding != null ? Number(slotMeta.outstanding) : Number(summary.outstanding)
+
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center gap-4">
@@ -180,12 +229,21 @@ export default function AllotteeTenurePage() {
         <div>
           <h1 className="text-3xl font-bold">House tenure & ownership</h1>
           <p className="text-muted-foreground mt-1">
-            {summary.allocation?.property?.title ?? "Property"} · {memberName || "Member"}
+            {summary.allocation?.property?.title ?? "Property"}
+            {slotLabel ? ` · ${slotLabel}` : ""}
+            {" · "}
+            {memberName || "Member"}
           </p>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardDescription>Slot</CardDescription>
+            <CardTitle className="text-lg">{slotLabel || "—"}</CardTitle>
+          </CardHeader>
+        </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Sale price</CardDescription>
@@ -201,15 +259,19 @@ export default function AllotteeTenurePage() {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Outstanding</CardDescription>
-            <CardTitle>₦{Number(summary.outstanding).toLocaleString()}</CardTitle>
+            <CardTitle>₦{outstanding.toLocaleString()}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>Tenure / owner</CardDescription>
+            <CardDescription>Progress / tenure</CardDescription>
             <CardTitle className="text-lg capitalize">
-              {summary.tenure_status}
-              {summary.owner_label ? ` · ${summary.owner_label}` : ""}
+              {progressPercent != null ? `${progressPercent}%` : "—"}
+              {paymentStatus ? ` · ${paymentStatus.replace(/_/g, " ")}` : ""}
+              <span className="mt-1 block text-sm font-normal text-muted-foreground capitalize">
+                {summary.tenure_status}
+                {summary.owner_label ? ` · ${summary.owner_label}` : ""}
+              </span>
             </CardTitle>
           </CardHeader>
         </Card>

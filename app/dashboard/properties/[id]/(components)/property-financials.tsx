@@ -11,12 +11,15 @@ import { Loader2, TrendingUp, CreditCard, Calendar, Percent, Upload } from "luci
 import {
   getPropertyPaymentSetup,
   getPropertyTenure,
+  getMemberHouseAccount,
   uploadPropertyDeed,
+  uploadHouseAccountDeed,
   type PropertyPaymentSetup,
   type MemberPropertyTenure,
   type MemberHouse,
 } from "@/lib/api/client"
 import { useToast } from "@/hooks/use-toast"
+import Link from "next/link"
 
 type PropertyFinancialsProps = {
   house?: MemberHouse | null
@@ -36,19 +39,32 @@ export function PropertyFinancials({ house }: PropertyFinancialsProps) {
   const [uploadingDeed, setUploadingDeed] = useState(false)
 
   const propertyId = house?.property_id ?? house?.id
+  const allocationId = house?.allocation_id ?? null
 
   const load = useCallback(async () => {
     if (!propertyId) return
     setLoading(true)
     try {
-      const [setupRes, tenureRes] = await Promise.allSettled([
-        getPropertyPaymentSetup(propertyId),
-        getPropertyTenure(propertyId),
-      ])
+      const setupPromise = getPropertyPaymentSetup(propertyId)
+      const tenurePromise = allocationId
+        ? getMemberHouseAccount(allocationId).then((res) =>
+            res.success && res.data
+              ? { success: true as const, data: res.data as unknown as MemberPropertyTenure }
+              : { success: false as const },
+          )
+        : getPropertyTenure(propertyId)
+
+      const [setupRes, tenureRes] = await Promise.allSettled([setupPromise, tenurePromise])
       if (setupRes.status === "fulfilled" && setupRes.value.success) {
         setPaymentSetup(setupRes.value.data)
       }
-      if (tenureRes.status === "fulfilled" && tenureRes.value.success) {
+      if (
+        tenureRes.status === "fulfilled" &&
+        tenureRes.value &&
+        "success" in tenureRes.value &&
+        tenureRes.value.success &&
+        "data" in tenureRes.value
+      ) {
         setTenure(tenureRes.value.data)
       } else {
         setTenure(null)
@@ -58,7 +74,7 @@ export function PropertyFinancials({ house }: PropertyFinancialsProps) {
     } finally {
       setLoading(false)
     }
-  }, [propertyId])
+  }, [propertyId, allocationId])
 
   useEffect(() => {
     void load()
@@ -69,11 +85,14 @@ export function PropertyFinancials({ house }: PropertyFinancialsProps) {
       toast({ title: "Select a deed file first", variant: "destructive" })
       return
     }
+    const deedAllocationId = allocationId ?? tenure?.allocation_id
     setUploadingDeed(true)
     try {
       const form = new FormData()
       form.append("file", deedFile)
-      const res = await uploadPropertyDeed(propertyId, form)
+      const res = deedAllocationId
+        ? await uploadHouseAccountDeed(deedAllocationId, form)
+        : await uploadPropertyDeed(propertyId, form)
       toast({ title: res.message || "Deed uploaded" })
       setDeedFile(null)
       await load()
@@ -97,9 +116,12 @@ export function PropertyFinancials({ house }: PropertyFinancialsProps) {
     paymentSetup?.property?.balance ??
     Math.max(0, salePrice - totalPaid)
   const progress =
+    tenure?.payment_progress_percent ??
     paymentSetup?.property?.progress ??
     (salePrice > 0 ? (totalPaid / salePrice) * 100 : 0)
   const tenureStatus = tenure?.tenure_status ?? house.tenure_status ?? null
+  const accountAllocationId = allocationId ?? tenure?.allocation_id
+  const slotLabel = tenure?.slot_label ?? house.slot_label
   const ledgerTotalPaid = paymentSetup?.ledger_total_paid ?? 0
   const paymentHistory = paymentSetup?.payment_history ?? []
   const ledgerEntries = paymentSetup?.ledger_entries ?? []
@@ -181,6 +203,18 @@ export function PropertyFinancials({ house }: PropertyFinancialsProps) {
             </div>
           ) : (
             <div className="space-y-6">
+              {(accountAllocationId || slotLabel) && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {slotLabel && (
+                    <Badge variant="outline">Slot: {slotLabel}</Badge>
+                  )}
+                  {accountAllocationId && (
+                    <Button asChild size="sm" variant="secondary">
+                      <Link href={`/dashboard/my-houses/${accountAllocationId}`}>Open house account</Link>
+                    </Button>
+                  )}
+                </div>
+              )}
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Payment Progress</span>

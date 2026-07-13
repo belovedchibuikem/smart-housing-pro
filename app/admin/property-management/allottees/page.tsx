@@ -44,6 +44,14 @@ interface Allottee {
   allocation_date: string
   status: string
   unit_address?: string | null
+  property_slot_id?: string | null
+  slot_number?: number | null
+  slot_label?: string | null
+  sale_price?: number | null
+  amount_paid?: number | null
+  outstanding?: number | null
+  payment_progress_percent?: number | null
+  payment_status?: string | null
   notes?: string
   rejection_reason?: string
   created_at: string
@@ -127,6 +135,23 @@ export default function ManageAllotteesPage() {
   const handleViewDetails = (allottee: Allottee) => {
     setSelectedAllottee(allottee)
     setShowDetailsDialog(true)
+  }
+
+  const formatMoney = (value?: number | null) =>
+    value == null ? "—" : `₦${Number(value).toLocaleString()}`
+
+  const formatProgress = (allottee: Allottee) => {
+    const percent =
+      allottee.payment_progress_percent != null
+        ? Math.round(Number(allottee.payment_progress_percent))
+        : null
+    return {
+      percent,
+      paid: formatMoney(allottee.amount_paid),
+      sale: formatMoney(allottee.sale_price),
+      outstanding: formatMoney(allottee.outstanding),
+      status: allottee.payment_status,
+    }
   }
 
   const getStatusBadgeVariant = (status: string) => {
@@ -248,7 +273,8 @@ export default function ManageAllotteesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Member</TableHead>
-                  <TableHead>Property</TableHead>
+                  <TableHead>Property / Slot</TableHead>
+                  <TableHead>Payment progress</TableHead>
                   <TableHead>Allocation Date</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -257,6 +283,10 @@ export default function ManageAllotteesPage() {
               <TableBody>
                 {allottees.map((allottee) => {
                   const memberIdentifier = formatMemberDisplayIdentifier(allottee.member)
+                  const progress = formatProgress(allottee)
+                  const slotText =
+                    allottee.slot_label ||
+                    (allottee.slot_number != null ? `Slot #${allottee.slot_number}` : null)
                   return (
                   <TableRow key={allottee.id}>
                     <TableCell>
@@ -275,6 +305,9 @@ export default function ManageAllotteesPage() {
                     <TableCell>
                       <div>
                         <div className="font-medium">{allottee.property.title}</div>
+                        {slotText ? (
+                          <div className="text-sm text-muted-foreground">{slotText}</div>
+                        ) : null}
                         <div className="text-sm text-muted-foreground">
                           {allottee.unit_address || allottee.property.location}
                         </div>
@@ -283,6 +316,24 @@ export default function ManageAllotteesPage() {
                             Estate: {allottee.property.location}
                           </div>
                         ) : null}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="space-y-0.5 text-sm">
+                        <div className="font-medium">
+                          {progress.percent != null ? `${progress.percent}%` : "—"}
+                          {progress.status ? (
+                            <span className="ml-1 text-xs capitalize text-muted-foreground">
+                              ({progress.status.replace(/_/g, " ")})
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Paid {progress.paid} / Sale {progress.sale}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Outstanding {progress.outstanding}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -349,6 +400,33 @@ export default function ManageAllotteesPage() {
                 <div>
                   <p className="text-sm font-medium">Property</p>
                   <p className="text-sm text-muted-foreground">{selectedAllottee.property.title}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Slot</p>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedAllottee.slot_label ||
+                      (selectedAllottee.slot_number != null
+                        ? `Slot #${selectedAllottee.slot_number}`
+                        : "—")}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Payment progress</p>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedAllottee.payment_progress_percent != null
+                      ? `${Math.round(Number(selectedAllottee.payment_progress_percent))}%`
+                      : "—"}
+                    {selectedAllottee.payment_status
+                      ? ` · ${selectedAllottee.payment_status.replace(/_/g, " ")}`
+                      : ""}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium">Paid / Sale / Outstanding</p>
+                  <p className="text-sm text-muted-foreground">
+                    {formatMoney(selectedAllottee.amount_paid)} / {formatMoney(selectedAllottee.sale_price)} /{" "}
+                    {formatMoney(selectedAllottee.outstanding)}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm font-medium">House / block address</p>

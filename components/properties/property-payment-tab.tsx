@@ -38,6 +38,7 @@ import type {
 import {
 	getPropertyPaymentSetup,
 	getPropertyTenure,
+	getMemberHouseAccount,
 	submitPropertyPayment,
 	approveMortgageSchedule,
 	approveInternalMortgageSchedule,
@@ -134,9 +135,18 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 		try {
 			setLoading(true)
 			setError(null)
+			const allocationId = house?.allocation_id
 			const [response, tenureRes] = await Promise.all([
 				getPropertyPaymentSetup(propertyId),
-				getPropertyTenure(propertyId).catch(() => null),
+				allocationId
+					? getMemberHouseAccount(allocationId)
+							.then((r) =>
+								r.success && r.data
+									? { success: true as const, data: r.data as unknown as MemberPropertyTenure }
+									: null,
+							)
+							.catch(() => null)
+					: getPropertyTenure(propertyId).catch(() => null),
 			])
 			if (!response.success) {
 				setSetup(null)
@@ -155,7 +165,7 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 		} finally {
 			setLoading(false)
 		}
-	}, [propertyId])
+	}, [propertyId, house?.allocation_id])
 
 	useEffect(() => {
 		void fetchSetup()

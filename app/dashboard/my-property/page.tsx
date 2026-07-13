@@ -44,6 +44,12 @@ function MyLandAccounts({ rows, loading }: { rows: MemberLandSubscriptionRow[]; 
 								</Badge>
 								<h3 className="text-lg font-semibold">{row.land_title ?? "Land parcel"}</h3>
 								<p className="font-mono text-sm text-muted-foreground">{row.land_code}</p>
+								{row.slot_label && (
+									<p className="mt-1 text-sm font-medium">
+										Slot: {row.slot_label}
+										{row.slot_number != null ? ` (#${row.slot_number})` : ""}
+									</p>
+								)}
 							</div>
 							<Link href={`/dashboard/my-lands/${row.subscription_id}`}>
 								<Button size="sm" variant="secondary">

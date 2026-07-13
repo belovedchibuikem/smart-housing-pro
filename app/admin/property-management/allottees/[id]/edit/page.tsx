@@ -57,6 +57,9 @@ export default function EditAllotteePage() {
     setMounted(true)
   }, [])
   
+  const [slotLabel, setSlotLabel] = useState<string | null>(null)
+  const [slotNumber, setSlotNumber] = useState<number | null>(null)
+
   const [formData, setFormData] = useState({
     property_id: "",
     member_id: "",
@@ -83,6 +86,12 @@ export default function EditAllotteePage() {
       const response = await getPropertyAllottee(allotteeId)
       if (response.success && response.data) {
         const allottee = response.data
+        setSlotLabel(allottee.slot_label ?? null)
+        setSlotNumber(
+          allottee.slot_number != null && allottee.slot_number !== ""
+            ? Number(allottee.slot_number)
+            : null
+        )
         setFormData({
           property_id: allottee.property?.id || "",
           member_id: allottee.member?.id || "",
@@ -229,7 +238,24 @@ export default function EditAllotteePage() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Slot</Label>
+                <Input
+                  value={
+                    slotLabel
+                      ? slotNumber != null
+                        ? `${slotLabel} (#${slotNumber})`
+                        : slotLabel
+                      : "—"
+                  }
+                  disabled
+                  readOnly
+                />
+                <p className="text-xs text-muted-foreground">
+                  Slot is fixed for this allotment (one slot per allocation).
+                </p>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="allocation_date">
                   Allocation Date <span className="text-red-500">*</span>

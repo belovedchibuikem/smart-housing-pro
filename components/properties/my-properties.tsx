@@ -26,6 +26,11 @@ function formatCurrency(amount: number) {
 	return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 }).format(amount)
 }
 
+function allocationIdOf(property: MemberHouse): string | null {
+	const id = property.allocation_id ?? (property.property_id && property.id !== property.property_id ? property.id : null)
+	return id || null
+}
+
 export function MyProperties({ properties, loading, propertyType = "house" }: MyPropertiesProps) {
 	const hasData = properties.length > 0
 	const router = useRouter()
@@ -33,13 +38,15 @@ export function MyProperties({ properties, loading, propertyType = "house" }: My
 
 	const isLand = propertyType === "land"
 	const propertyLabel = isLand ? "land" : "house"
-	const propertyLabelPlural = isLand ? "lands" : "houses"
 	const PropertyIcon = isLand ? MapPinned : Home
 
 	const handleContinuePayment = useCallback(
 		(property: MemberHouse) => {
 			const isApproved = property.interest_status === "approved"
-			const progressValue = property.progress ?? 0
+			const progressValue =
+				property.payment_progress_percent ?? property.progress ?? 0
+			const allocationId = allocationIdOf(property)
+			const propertyId = property.property_id ?? property.id
 
 			if (!isApproved) {
 				toast({
@@ -57,9 +64,14 @@ export function MyProperties({ properties, loading, propertyType = "house" }: My
 				return
 			}
 
-			router.push(`/dashboard/properties/${property.property_id ?? property.id}?tab=payments`)
+			if (!isLand && allocationId) {
+				router.push(`/dashboard/my-houses/${allocationId}`)
+				return
+			}
+
+			router.push(`/dashboard/properties/${propertyId}?tab=payments`)
 		},
-		[router, toast, propertyLabel],
+		[router, toast, propertyLabel, isLand],
 	)
 
 	const content = useMemo(() => {
@@ -102,15 +114,24 @@ export function MyProperties({ properties, loading, propertyType = "house" }: My
 			<div className="space-y-6">
 				{properties.map((property) => {
 					const propertyId = property.property_id ?? property.id
-					const rowKey = property.interest_id ?? property.id
+					const allocationId = allocationIdOf(property)
+					const rowKey = allocationId ?? property.interest_id ?? property.id
 					const raw =
 						property.images?.find((image) => image.is_primary)?.url || property.images?.[0]?.url
 					const primaryImage = (raw && resolveStorageUrl(raw)) || "/placeholder.svg"
 
-					const progress = Math.min(100, Math.max(0, property.progress ?? 0))
+					const progress = Math.min(
+						100,
+						Math.max(0, property.payment_progress_percent ?? property.progress ?? 0),
+					)
 					const progressLabel = `${progress.toFixed(0)}% paid`
 					const isApproved = property.interest_status === "approved"
 					const isPaidInFull = progress >= 100
+					const slotLabel = property.slot_label || property.unit_address
+					const accountHref =
+						!isLand && allocationId
+							? `/dashboard/my-houses/${allocationId}`
+							: `/dashboard/properties/${propertyId}`
 
 					return (
 						<Card key={rowKey} className="overflow-hidden">
@@ -134,6 +155,12 @@ export function MyProperties({ properties, loading, propertyType = "house" }: My
 												<MapPin className="h-4 w-4" />
 												{property.unit_address || property.location}
 											</div>
+											{slotLabel && (
+												<p className="mt-1 text-sm font-medium text-foreground">
+													Slot: {slotLabel}
+													{property.slot_number != null ? ` (#${property.slot_number})` : ""}
+												</p>
+											)}
 										</div>
 										<div className="flex flex-wrap items-center gap-2">
 											{property.interest_status && (
@@ -154,6 +181,11 @@ export function MyProperties({ properties, loading, propertyType = "house" }: My
 											{property.allocation_status && (
 												<Badge variant="outline" className="capitalize">
 													Allocation {property.allocation_status}
+												</Badge>
+											)}
+											{property.payment_status && (
+												<Badge variant="secondary" className="capitalize">
+													{property.payment_status.replace(/_/g, " ")}
 												</Badge>
 											)}
 										</div>
@@ -239,11 +271,18 @@ export function MyProperties({ properties, loading, propertyType = "house" }: My
 									</div>
 
 									<div className="flex flex-wrap gap-2 border-t pt-4">
-										<Link href={`/dashboard/properties/${propertyId}`}>
+										<Link href={accountHref}>
 											<Button size="sm" variant="outline">
-												View Details
+												{!isLand && allocationId ? "View house account" : "View Details"}
 											</Button>
 										</Link>
+										{!isLand && allocationId && (
+											<Link href={`/dashboard/properties/${propertyId}`}>
+												<Button size="sm" variant="ghost">
+													Property details
+												</Button>
+											</Link>
+										)}
 										<Button
 											size="sm"
 											variant="outline"
@@ -274,4 +313,3 @@ export function MyProperties({ properties, loading, propertyType = "house" }: My
 
 	return content
 }
-

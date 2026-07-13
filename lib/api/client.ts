@@ -481,6 +481,10 @@ export interface AvailableProperty {
 export interface MemberHouse {
 	id: string
 	property_id?: string
+	allocation_id?: string | null
+	property_slot_id?: string | null
+	slot_number?: number | string | null
+	slot_label?: string | null
 	title: string
 	type: string
 	property_type?: string | null
@@ -512,6 +516,8 @@ export interface MemberHouse {
 	sale_price?: number | null
 	amount_paid?: number | null
 	outstanding?: number | null
+	payment_progress_percent?: number | null
+	payment_status?: string | null
 	tenure_status?: string | null
 	owner_sequence?: number | null
 	images: PropertyImage[]
@@ -520,9 +526,14 @@ export interface MemberHouse {
 export interface MemberPropertyTenure {
 	allocation_id: string
 	property_id: string
+	property_slot_id?: string | null
+	slot_number?: number | string | null
+	slot_label?: string | null
 	sale_price: number
 	amount_paid: number
 	outstanding: number
+	payment_progress_percent?: number | null
+	payment_status?: string | null
 	tenure_status: string | null
 	owner_sequence: number | null
 	sold_at?: string | null
@@ -533,6 +544,47 @@ export interface MemberPropertyTenure {
 		file_url?: string | null
 		transfer_date?: string | null
 	} | null
+	timeline?: Array<Record<string, unknown>>
+}
+
+export interface MemberHouseAccount {
+	allocation_id: string
+	id?: string
+	property_id: string
+	property_slot_id?: string | null
+	slot_number?: number | string | null
+	slot_label?: string | null
+	unit_address?: string | null
+	title?: string | null
+	property_title?: string | null
+	location?: string | null
+	status?: string | null
+	sale_price: number
+	amount_paid: number
+	outstanding: number
+	payment_progress_percent: number
+	payment_status?: string | null
+	tenure_status?: string | null
+	owner_sequence?: number | null
+	allocation_date?: string | null
+	sold_at?: string | null
+	property?: {
+		id: string
+		title?: string | null
+		location?: string | null
+		address?: string | null
+		type?: string | null
+		price?: number | null
+		images?: PropertyImage[]
+	} | null
+	payments?: Array<{ id: string; amount: number; paid_on?: string | null; description?: string | null }>
+	deed?: {
+		id: string
+		status: string
+		file_url?: string | null
+		transfer_date?: string | null
+	} | null
+	timeline?: Array<Record<string, unknown>>
 }
 
 export interface PropertyPaymentHistoryEntry {
@@ -931,6 +983,9 @@ export async function getMemberProperties(type?: string) {
 export interface MemberLandSubscriptionRow {
 	subscription_id: string
 	land_id: string
+	land_slot_id?: string | null
+	slot_number?: number | string | null
+	slot_label?: string | null
 	land_code?: string | null
 	land_title?: string | null
 	land_size?: string | null
@@ -954,14 +1009,67 @@ export async function getMemberLandSubscriptionDetail(subscriptionId: string) {
 	})
 }
 
-export async function getPropertyTenure(propertyId: string) {
-	return apiFetch<{ success: boolean; data: MemberPropertyTenure; message?: string }>(
-		`/properties/${propertyId}/tenure`,
+export async function getMemberHouseAccounts() {
+	return apiFetch<{ success: boolean; data: MemberHouseAccount[] }>(`/my-house-accounts`, { method: "GET" })
+}
+
+export async function getMemberHouseAccount(allocationId: string) {
+	return apiFetch<{ success: boolean; data: MemberHouseAccount }>(`/my-house-accounts/${allocationId}`, {
+		method: "GET",
+	})
+}
+
+export async function getMemberHouseAccountTimeline(allocationId: string) {
+	return apiFetch<{ success: boolean; data: Array<Record<string, unknown>> }>(
+		`/my-house-accounts/${allocationId}/timeline`,
 		{ method: "GET" },
 	)
 }
 
-export async function uploadPropertyDeed(propertyId: string, body: FormData) {
+export async function submitHouseAccountRepayment(
+	allocationId: string,
+	payload: { amount: number; payment_date?: string; description?: string; source?: string; reference?: string },
+) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		data: {
+			transaction?: unknown
+			allocation_id: string
+			sale_price: number
+			amount_paid: number
+			outstanding: number
+			payment_progress_percent?: number
+			payment_status?: string
+			tenure_status: string
+		}
+	}>(`/my-house-accounts/${allocationId}/repayments`, {
+		method: "POST",
+		body: payload,
+	})
+}
+
+export async function uploadHouseAccountDeed(allocationId: string, body: FormData) {
+	return apiFetch<{ success: boolean; message: string; data: { document: unknown; file_url?: string } }>(
+		`/my-house-accounts/${allocationId}/deed`,
+		{ method: "POST", body, headers: {} },
+	)
+}
+
+export async function getPropertyTenure(propertyId: string, allocationId?: string) {
+	const qs = allocationId ? `?allocation_id=${encodeURIComponent(allocationId)}` : ""
+	return apiFetch<{
+		success: boolean
+		data: MemberPropertyTenure
+		message?: string
+		code?: string
+	}>(`/properties/${propertyId}/tenure${qs}`, { method: "GET" })
+}
+
+export async function uploadPropertyDeed(propertyId: string, body: FormData, allocationId?: string) {
+	if (allocationId && !body.has("allocation_id")) {
+		body.append("allocation_id", allocationId)
+	}
 	return apiFetch<{ success: boolean; message: string; data: { document: unknown; file_url?: string } }>(
 		`/properties/${propertyId}/deed`,
 		{ method: "POST", body, headers: {} },
@@ -981,6 +1089,9 @@ export async function submitLandRepayment(
 			amount_paid: number
 			outstanding: number
 			tenure_status: string
+			land_slot_id?: string | null
+			slot_number?: number | string | null
+			slot_label?: string | null
 		}
 	}>(`/my-lands/${subscriptionId}/repayments`, {
 		method: "POST",
@@ -1685,6 +1796,83 @@ export async function getAdminPropertyOwnership(propertyId: string) {
 export async function getAdminLandOwnership(landId: string) {
 	return apiFetch<{ success: boolean; data: PropertyOwnershipDetail }>(
 		`/admin/lands/${landId}/ownership`,
+		{ method: "GET" },
+	)
+}
+
+export interface AssetSlotSummary {
+	id: string
+	property_id?: string
+	land_id?: string
+	slot_number: number
+	label: string
+	status: string
+	current_allocation_id?: string | null
+	current_subscription_id?: string | null
+	current_member?: {
+		id: string
+		name: string
+		member_number?: string | null
+	} | null
+	tenure_status?: string | null
+	sale_price?: number | null
+	amount_paid?: number | null
+	outstanding?: number | null
+	payment_progress_percent?: number | null
+	payment_status?: string | null
+}
+
+export interface AssetSlotsListResponse {
+	property_id?: string
+	land_id?: string
+	total_slots?: number | null
+	slots_available?: number | null
+	slots: AssetSlotSummary[]
+}
+
+export interface AssetSlotOwnershipDetail {
+	slot: AssetSlotSummary
+	current_tenure?: (Record<string, unknown> & {
+		allocation_id?: string
+		subscription_id?: string
+		member_id?: string
+		tenure_status?: string
+		owner_sequence?: number | null
+		status?: string
+		sale_price?: number
+		amount_paid?: number
+		outstanding?: number
+		payment_progress_percent?: number
+		payment_status?: string
+	}) | null
+	owner_periods: PropertyOwnershipOwnerEntry[]
+	timeline: PropertyOwnershipTimelineEntry[]
+}
+
+export async function getAdminPropertySlots(propertyId: string) {
+	return apiFetch<{ success: boolean; data: AssetSlotsListResponse }>(
+		`/admin/properties/${propertyId}/slots`,
+		{ method: "GET" },
+	)
+}
+
+export async function getAdminPropertySlotOwnership(slotId: string) {
+	return apiFetch<{ success: boolean; data: AssetSlotOwnershipDetail }>(
+		`/admin/property-slots/${slotId}/ownership`,
+		{ method: "GET" },
+	)
+}
+
+export async function getAdminLandSlots(landId: string) {
+	return apiFetch<{ success: boolean; data: AssetSlotsListResponse }>(
+		`/admin/lands/${landId}/slots`,
+		{ method: "GET" },
+	)
+}
+
+export async function getAdminLandSlotOwnership(slotId: string) {
+	return apiFetch<{ success: boolean; data: AssetSlotOwnershipDetail }>(
+		`/admin/land-slots/${slotId}/ownership`,
 		{ method: "GET" },
 	)
 }

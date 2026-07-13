@@ -11,7 +11,11 @@ import { ArrowLeft, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
-import { createPropertyAllottee } from "@/lib/api/client"
+import {
+  createPropertyAllottee,
+  getAdminPropertySlots,
+  type AssetSlotSummary,
+} from "@/lib/api/client"
 import { apiFetch } from "@/lib/api/client"
 import { Can } from "@/components/admin/can-permission"
 import { SearchableSelect, membersToSearchableOptions, propertiesToSearchableOptions } from "@/components/ui/searchable-select"
@@ -49,13 +53,15 @@ export default function NewAllotteePage() {
   const [members, setMembers] = useState<Member[]>([])
   const [properties, setProperties] = useState<PropertyOption[]>([])
   const [loadingData, setLoadingData] = useState(true)
+  const [slots, setSlots] = useState<AssetSlotSummary[]>([])
+  const [loadingSlots, setLoadingSlots] = useState(false)
 
   const [formData, setFormData] = useState({
     property_id: "",
     member_id: "",
+    property_slot_id: "",
     allocation_date: "",
     status: "completed",
-    slots_assigned: "1",
     sale_price: "",
     amount_paid: "",
     unit_address: "",
@@ -74,6 +80,40 @@ export default function NewAllotteePage() {
     fetchProperties()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => {
+    if (!formData.property_id) {
+      setSlots([])
+      return
+    }
+
+    let cancelled = false
+    const loadSlots = async () => {
+      setLoadingSlots(true)
+      try {
+        const response = await getAdminPropertySlots(formData.property_id)
+        if (!cancelled && response.success) {
+          setSlots(response.data.slots ?? [])
+        }
+      } catch {
+        if (!cancelled) {
+          setSlots([])
+          toast({
+            title: "Error",
+            description: "Failed to load property slots",
+            variant: "destructive",
+          })
+        }
+      } finally {
+        if (!cancelled) setLoadingSlots(false)
+      }
+    }
+
+    void loadSlots()
+    return () => {
+      cancelled = true
+    }
+  }, [formData.property_id, toast])
 
   const fetchMembers = async () => {
     try {
@@ -111,16 +151,15 @@ export default function NewAllotteePage() {
     [properties, formData.property_id]
   )
 
-  const maxAssignableSlots = useMemo(() => {
-    if (!selectedProperty) return 1
-    if (selectedProperty.total_slots == null) return 99
-    return Math.max(1, selectedProperty.slots_available ?? selectedProperty.total_slots ?? 1)
-  }, [selectedProperty])
+  const availableSlots = useMemo(
+    () => slots.filter((slot) => slot.status === "available" && !slot.current_allocation_id),
+    [slots]
+  )
 
-  const slotOptions = useMemo(() => {
-    const count = Math.min(maxAssignableSlots, 20)
-    return Array.from({ length: count }, (_, index) => index + 1)
-  }, [maxAssignableSlots])
+  const selectedSlot = useMemo(
+    () => slots.find((slot) => slot.id === formData.property_slot_id) ?? null,
+    [slots, formData.property_slot_id]
+  )
 
   const memberOptions = useMemo(() => membersToSearchableOptions(members), [members])
   const propertyOptions = useMemo(
@@ -146,16 +185,6 @@ export default function NewAllotteePage() {
       return
     }
 
-    const slotsAssigned = Math.max(1, parseInt(formData.slots_assigned, 10) || 1)
-    if (selectedProperty?.total_slots != null && slotsAssigned > maxAssignableSlots) {
-      toast({
-        title: "Validation Error",
-        description: `Only ${maxAssignableSlots} slot(s) available on this property.`,
-        variant: "destructive",
-      })
-      return
-    }
-
     setLoading(true)
     try {
       const payload: Record<string, unknown> = {
@@ -163,7 +192,8 @@ export default function NewAllotteePage() {
         member_id: formData.member_id,
         allocation_date: formData.allocation_date,
         status: formData.status,
-        slots_assigned: slotsAssigned,
+        slots_assigned: 1,
+        property_slot_id: formData.property_slot_id || undefined,
         unit_address: formData.unit_address || undefined,
         notes: formData.notes || undefined,
       }
@@ -203,7 +233,7 @@ export default function NewAllotteePage() {
         <div>
           <h1 className="text-3xl font-bold">Assign House to Member</h1>
           <p className="text-muted-foreground mt-1">
-            Post a house or building to a member so they can view it on their dashboard
+            Assign one property slot to a member so they can view it on their dashboard
           </p>
         </div>
       </div>
@@ -217,7 +247,7 @@ export default function NewAllotteePage() {
           <Card>
             <CardHeader>
               <CardTitle>Allocation Information</CardTitle>
-              <CardDescription>Creates an approved subscription and completed allocation for the member</CardDescription>
+              <CardDescription>Creates an approved subscription and completed allocation for one slot</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -241,7 +271,7 @@ export default function NewAllotteePage() {
                   <SearchableSelect
                     value={formData.property_id}
                     onValueChange={(value) =>
-                      setFormData({ ...formData, property_id: value, slots_assigned: "1" })
+                      setFormData({ ...formData, property_id: value, property_slot_id: "" })
                     }
                     options={propertyOptions}
                     placeholder="Select a property"
@@ -262,26 +292,44 @@ export default function NewAllotteePage() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="slots_assigned">
-                    Slots to assign <span className="text-red-500">*</span>
-                  </Label>
+                  <Label htmlFor="property_slot_id">Slot</Label>
                   <Select
-                    value={formData.slots_assigned}
-                    onValueChange={(value) => setFormData({ ...formData, slots_assigned: value })}
+                    value={formData.property_slot_id || undefined}
+                    onValueChange={(value) => {
+                      const slot = slots.find((item) => item.id === value)
+                      setFormData({
+                        ...formData,
+                        property_slot_id: value,
+                        unit_address: formData.unit_address || slot?.label || "",
+                      })
+                    }}
+                    disabled={!formData.property_id || loadingSlots || availableSlots.length === 0}
                   >
-                    <SelectTrigger id="slots_assigned">
-                      <SelectValue placeholder="Select slots" />
+                    <SelectTrigger id="property_slot_id">
+                      <SelectValue
+                        placeholder={
+                          loadingSlots
+                            ? "Loading slots…"
+                            : !formData.property_id
+                              ? "Select a property first"
+                              : availableSlots.length === 0
+                                ? "No free slots"
+                                : "Auto-assign next free slot"
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
-                      {slotOptions.map((slot) => (
-                        <SelectItem key={slot} value={String(slot)}>
-                          {slot} slot{slot === 1 ? "" : "s"}
+                      {availableSlots.map((slot) => (
+                        <SelectItem key={slot.id} value={slot.id}>
+                          {slot.label}
+                          {slot.slot_number ? ` (#${slot.slot_number})` : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-muted-foreground">
-                    Each slot is one unit subscription on this listing.
+                    One allottee per slot. Leave blank to claim the next free slot automatically.
+                    {selectedSlot ? ` Selected: ${selectedSlot.label}.` : ""}
                   </p>
                 </div>
                 <div className="space-y-2">
@@ -326,7 +374,7 @@ export default function NewAllotteePage() {
                     type="number"
                     min="0"
                     step="0.01"
-                    placeholder="Defaults to listing price × slots"
+                    placeholder="Defaults to listing price"
                     value={formData.sale_price}
                     onChange={(e) => setFormData({ ...formData, sale_price: e.target.value })}
                   />
@@ -354,7 +402,7 @@ export default function NewAllotteePage() {
                   onChange={(e) => setFormData({ ...formData, unit_address: e.target.value })}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Optional. Shown to the member instead of the general property location once subscribed.
+                  Optional. Defaults to the selected slot label when left blank.
                 </p>
               </div>
 

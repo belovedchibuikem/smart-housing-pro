@@ -22,7 +22,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast } from "sonner"
 import {
   getAdminLandOwnership,
+  getAdminLandSlotOwnership,
+  getAdminLandSlots,
   getAdminPropertyOwnership,
+  getAdminPropertySlotOwnership,
+  getAdminPropertySlots,
+  type AssetSlotOwnershipDetail,
+  type AssetSlotSummary,
   type PropertyOwnershipDetail,
   type PropertyOwnershipOwnerEntry,
   type PropertyOwnershipTimelineEntry,
@@ -39,6 +45,11 @@ function formatDate(value?: string | null) {
   return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString()
 }
 
+function formatMoney(value?: number | null) {
+  if (value == null) return "—"
+  return `₦${Number(value).toLocaleString()}`
+}
+
 function formatTenure(days?: number | null, isCurrent?: boolean) {
   if (days == null) return isCurrent ? "Ongoing" : "—"
   if (days === 0) return isCurrent ? "Less than 1 day (ongoing)" : "Less than 1 day"
@@ -52,7 +63,10 @@ function statusVariant(status?: string | null) {
     case "approved":
     case "subscribed":
     case "active":
+    case "held":
+    case "sold":
       return "default" as const
+    case "available":
     case "pending":
       return "secondary" as const
     case "rejected":
@@ -70,9 +84,11 @@ function HandBadge({ entry }: { entry: PropertyOwnershipOwnerEntry }) {
       {entry.is_original ? (
         <Badge className="text-[10px]">Original owner</Badge>
       ) : null}
-      <Badge variant="outline" className="text-[10px] font-normal">
-        {entry.hand_label}
-      </Badge>
+      {entry.hand_label ? (
+        <Badge variant="outline" className="text-[10px] font-normal">
+          {entry.hand_label}
+        </Badge>
+      ) : null}
       {entry.is_current ? (
         <Badge variant="default" className="text-[10px]">
           Current
@@ -239,36 +255,151 @@ function TransferTimelineCard({ entry }: { entry: Extract<PropertyOwnershipTimel
   )
 }
 
-export function PropertyOwnershipPanel({ assetType, assetId }: PropertyOwnershipPanelProps) {
-  const [detail, setDetail] = useState<PropertyOwnershipDetail | null>(null)
-  const [loading, setLoading] = useState(true)
+function TimelineList({ timeline }: { timeline: PropertyOwnershipTimelineEntry[] }) {
+  if (timeline.length === 0) {
+    return (
+      <div className="rounded-lg border border-dashed py-10 text-center text-muted-foreground">
+        No ownership history recorded for this slot yet.
+      </div>
+    )
+  }
 
-  const load = useCallback(async () => {
+  return (
+    <div className="relative space-y-4">
+      {timeline.map((entry, index) => {
+        const isOwnerLike =
+          entry.entry_type === "owner" || (entry as { entry_type?: string }).entry_type === "sold"
+        return (
+          <div key={`${entry.entry_type}-${index}`} className="relative pl-8">
+            {index < timeline.length - 1 ? (
+              <span className="absolute left-[11px] top-8 h-[calc(100%+8px)] w-px bg-border" />
+            ) : null}
+            <span
+              className={`absolute left-0 top-3 h-[22px] w-[22px] rounded-full border-2 ${
+                isOwnerLike && "is_current" in entry && entry.is_current
+                  ? "border-primary bg-primary"
+                  : entry.entry_type === "transfer"
+                    ? "border-amber-500 bg-amber-100 dark:bg-amber-950"
+                    : "border-muted-foreground/40 bg-background"
+              }`}
+            />
+            {isOwnerLike ? (
+              <OwnerTimelineCard entry={entry as PropertyOwnershipOwnerEntry} />
+            ) : entry.entry_type === "reallocation" ? (
+              <ReallocationTimelineCard entry={entry} />
+            ) : (
+              <TransferTimelineCard entry={entry as Extract<PropertyOwnershipTimelineEntry, { entry_type: "transfer" }>} />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+export function PropertyOwnershipPanel({ assetType, assetId }: PropertyOwnershipPanelProps) {
+  const [slots, setSlots] = useState<AssetSlotSummary[]>([])
+  const [slotsMeta, setSlotsMeta] = useState<{ total?: number | null; available?: number | null }>({})
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null)
+  const [slotOwnership, setSlotOwnership] = useState<AssetSlotOwnershipDetail | null>(null)
+  const [legacyDetail, setLegacyDetail] = useState<PropertyOwnershipDetail | null>(null)
+  const [loadingSlots, setLoadingSlots] = useState(true)
+  const [loadingOwnership, setLoadingOwnership] = useState(false)
+
+  const loadSlots = useCallback(async () => {
     try {
-      setLoading(true)
+      setLoadingSlots(true)
       const response =
         assetType === "house"
-          ? await getAdminPropertyOwnership(assetId)
-          : await getAdminLandOwnership(assetId)
+          ? await getAdminPropertySlots(assetId)
+          : await getAdminLandSlots(assetId)
 
       if (response.success) {
-        setDetail(response.data)
+        const list = response.data.slots ?? []
+        setSlots(list)
+        setSlotsMeta({
+          total: response.data.total_slots,
+          available: response.data.slots_available,
+        })
+        setSelectedSlotId((prev) => {
+          if (prev && list.some((slot) => slot.id === prev)) return prev
+          const preferred =
+            list.find((slot) => slot.status === "held" || slot.status === "sold") ?? list[0] ?? null
+          return preferred?.id ?? null
+        })
+        if (list.length === 0) {
+          // Fall back to asset-level ownership when no slots inventory exists
+          try {
+            const legacy =
+              assetType === "house"
+                ? await getAdminPropertyOwnership(assetId)
+                : await getAdminLandOwnership(assetId)
+            if (legacy.success) setLegacyDetail(legacy.data)
+          } catch {
+            setLegacyDetail(null)
+          }
+        } else {
+          setLegacyDetail(null)
+        }
       }
     } catch {
-      toast.error("Failed to load ownership history")
-      setDetail(null)
+      toast.error("Failed to load slots")
+      setSlots([])
+      try {
+        const legacy =
+          assetType === "house"
+            ? await getAdminPropertyOwnership(assetId)
+            : await getAdminLandOwnership(assetId)
+        if (legacy.success) setLegacyDetail(legacy.data)
+      } catch {
+        toast.error("Failed to load ownership history")
+        setLegacyDetail(null)
+      }
     } finally {
-      setLoading(false)
+      setLoadingSlots(false)
     }
   }, [assetId, assetType])
 
   useEffect(() => {
-    void load()
-  }, [load])
+    void loadSlots()
+  }, [loadSlots])
+
+  useEffect(() => {
+    if (!selectedSlotId) {
+      setSlotOwnership(null)
+      return
+    }
+
+    let cancelled = false
+    const loadOwnership = async () => {
+      try {
+        setLoadingOwnership(true)
+        const response =
+          assetType === "house"
+            ? await getAdminPropertySlotOwnership(selectedSlotId)
+            : await getAdminLandSlotOwnership(selectedSlotId)
+        if (!cancelled && response.success) {
+          setSlotOwnership(response.data)
+        }
+      } catch {
+        if (!cancelled) {
+          toast.error("Failed to load slot ownership")
+          setSlotOwnership(null)
+        }
+      } finally {
+        if (!cancelled) setLoadingOwnership(false)
+      }
+    }
+
+    void loadOwnership()
+    return () => {
+      cancelled = true
+    }
+  }, [assetType, selectedSlotId])
 
   const Icon = assetType === "land" ? LandPlot : Home
 
-  if (loading) {
+  if (loadingSlots) {
     return (
       <Card>
         <CardHeader>
@@ -287,7 +418,157 @@ export function PropertyOwnershipPanel({ assetType, assetId }: PropertyOwnership
     )
   }
 
-  if (!detail) {
+  // Legacy asset-level view when no slots
+  if (slots.length === 0 && legacyDetail) {
+    const { summary, timeline, current_owners } = legacyDetail
+    const register = legacyDetail.allocations_register ?? legacyDetail.subscriptions_register ?? []
+
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Icon className="h-5 w-5" />
+              Ownership overview
+            </CardTitle>
+            <CardDescription>
+              Complete ownership chain for this {assetType === "land" ? "land parcel" : "property"}.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-lg border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">Total owner periods</p>
+                <p className="text-2xl font-bold">{summary.total_owner_periods}</p>
+              </div>
+              <div className="rounded-lg border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">Ownership changes</p>
+                <p className="text-2xl font-bold">{summary.ownership_changes}</p>
+              </div>
+              <div className="rounded-lg border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">Recorded transfers</p>
+                <p className="text-2xl font-bold">{summary.total_transfers}</p>
+              </div>
+              <div className="rounded-lg border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground">Current owner(s)</p>
+                <p className="text-2xl font-bold">{summary.current_owner_count}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {current_owners.length > 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <User className="h-4 w-4" />
+                Current owner{current_owners.length > 1 ? "s" : ""}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {current_owners.map((owner) => (
+                <div
+                  key={owner.allocation_id ?? owner.subscription_id ?? owner.member_id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3"
+                >
+                  <div>
+                    <HandBadge entry={owner} />
+                    <p className="mt-1 font-semibold">{owner.owner_name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Since {formatDate(owner.started_date)}
+                      {owner.member_number ? ` · ${owner.member_number}` : ""}
+                    </p>
+                  </div>
+                  {owner.member_id ? (
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={`/admin/members/${owner.member_id}`}>Member record</Link>
+                    </Button>
+                  ) : null}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        ) : null}
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Ownership timeline
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <TimelineList timeline={timeline} />
+          </CardContent>
+        </Card>
+
+        {register.length > 0 ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Users className="h-4 w-4" />
+                {assetType === "house" ? "Allocation register" : "Subscription register"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Owner</TableHead>
+                    <TableHead>Member ID</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    {assetType === "house" ? <TableHead>Unit address</TableHead> : <TableHead>Size</TableHead>}
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {register.map((row) => {
+                    const memberId = typeof row.member_id === "string" ? row.member_id : null
+                    const date =
+                      (typeof row.allocation_date === "string" ? row.allocation_date : null) ??
+                      (typeof row.subscribed_at === "string" ? row.subscribed_at : null)
+                    return (
+                      <TableRow key={String(row.id)}>
+                        <TableCell className="font-medium">{String(row.owner_name ?? "—")}</TableCell>
+                        <TableCell>{String(row.member_number ?? "—")}</TableCell>
+                        <TableCell>{formatDate(date)}</TableCell>
+                        <TableCell>
+                          {row.status ? (
+                            <Badge variant={statusVariant(String(row.status))} className="capitalize">
+                              {String(row.status).replace(/_/g, " ")}
+                            </Badge>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {assetType === "house"
+                            ? String(row.unit_address ?? "—")
+                            : String(row.allocated_land_size ?? "—")}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {memberId ? (
+                            <Button variant="ghost" size="sm" asChild>
+                              <Link href={`/admin/members/${memberId}`}>View</Link>
+                            </Button>
+                          ) : (
+                            "—"
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        ) : null}
+      </div>
+    )
+  }
+
+  if (slots.length === 0) {
     return (
       <Card>
         <CardContent className="py-10 text-center text-muted-foreground">
@@ -297,8 +578,9 @@ export function PropertyOwnershipPanel({ assetType, assetId }: PropertyOwnership
     )
   }
 
-  const { summary, timeline, current_owners } = detail
-  const register = detail.allocations_register ?? detail.subscriptions_register ?? []
+  const selectedSlot = slots.find((slot) => slot.id === selectedSlotId) ?? null
+  const currentOwners = (slotOwnership?.owner_periods ?? []).filter((period) => period.is_current)
+  const timeline = (slotOwnership?.timeline ?? []) as PropertyOwnershipTimelineEntry[]
 
   return (
     <div className="space-y-6">
@@ -306,198 +588,202 @@ export function PropertyOwnershipPanel({ assetType, assetId }: PropertyOwnership
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Icon className="h-5 w-5" />
-            Ownership overview
+            Slot inventory
           </CardTitle>
           <CardDescription>
-            Complete ownership chain for this {assetType === "land" ? "land parcel" : "property"} — all past and
-            present allottees, transfers, and tenure periods.
+            Ownership is tracked per slot. Select a slot to view its tenure timeline.
+            {slotsMeta.total != null
+              ? ` ${slotsMeta.available ?? 0} of ${slotsMeta.total} slots available.`
+              : ""}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div className="rounded-lg border bg-muted/30 p-4">
-              <p className="text-xs text-muted-foreground">Total owner periods</p>
-              <p className="text-2xl font-bold">{summary.total_owner_periods}</p>
-            </div>
-            <div className="rounded-lg border bg-muted/30 p-4">
-              <p className="text-xs text-muted-foreground">Ownership changes</p>
-              <p className="text-2xl font-bold">{summary.ownership_changes}</p>
-            </div>
-            <div className="rounded-lg border bg-muted/30 p-4">
-              <p className="text-xs text-muted-foreground">Recorded transfers</p>
-              <p className="text-2xl font-bold">{summary.total_transfers}</p>
-            </div>
-            <div className="rounded-lg border bg-muted/30 p-4">
-              <p className="text-xs text-muted-foreground">Current owner(s)</p>
-              <p className="text-2xl font-bold">{summary.current_owner_count}</p>
-            </div>
-          </div>
-
-          {summary.original_owner ? (
-            <div className="mt-4 rounded-lg border p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Original allottee</p>
-              <div className="mt-1 flex flex-wrap items-center gap-2">
-                <Badge>Original owner (1st-hand)</Badge>
-                <span className="font-semibold">{summary.original_owner.owner_name}</span>
-                {summary.original_owner.member_number ? (
-                  <span className="text-sm text-muted-foreground">
-                    ({summary.original_owner.member_number})
-                  </span>
-                ) : null}
-                <span className="text-sm text-muted-foreground">
-                  · First allocated {formatDate(summary.first_allocation_date)}
-                </span>
-                {summary.original_owner.member_id ? (
-                  <Button variant="link" size="sm" className="h-auto p-0" asChild>
-                    <Link href={`/admin/members/${summary.original_owner.member_id}`}>View profile</Link>
-                  </Button>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
+        <CardContent className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Slot</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Current allottee</TableHead>
+                <TableHead>Payment</TableHead>
+                <TableHead className="text-right">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {slots.map((slot) => {
+                const progress =
+                  slot.payment_progress_percent != null
+                    ? Math.round(Number(slot.payment_progress_percent))
+                    : null
+                const isSelected = slot.id === selectedSlotId
+                return (
+                  <TableRow
+                    key={slot.id}
+                    className={isSelected ? "bg-primary/5" : undefined}
+                    data-state={isSelected ? "selected" : undefined}
+                  >
+                    <TableCell>
+                      <div className="font-medium">{slot.label}</div>
+                      <div className="text-xs text-muted-foreground">#{slot.slot_number}</div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={statusVariant(slot.status)} className="capitalize">
+                        {slot.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {slot.current_member ? (
+                        <div>
+                          <div className="font-medium">{slot.current_member.name}</div>
+                          {slot.current_member.member_number ? (
+                            <div className="text-xs text-muted-foreground">
+                              {slot.current_member.member_number}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">Vacant</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {slot.current_member ? (
+                        <div className="text-sm">
+                          <div className="font-medium">{progress != null ? `${progress}%` : "—"}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Paid {formatMoney(slot.amount_paid)} · Out {formatMoney(slot.outstanding)}
+                          </div>
+                        </div>
+                      ) : (
+                        "—"
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="sm"
+                        variant={isSelected ? "default" : "outline"}
+                        onClick={() => setSelectedSlotId(slot.id)}
+                      >
+                        {isSelected ? "Selected" : "View history"}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
 
-      {current_owners.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <User className="h-4 w-4" />
-              Current owner{current_owners.length > 1 ? "s" : ""}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {current_owners.map((owner) => (
-              <div
-                key={owner.allocation_id ?? owner.subscription_id ?? owner.member_id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3"
-              >
-                <div>
-                  <HandBadge entry={owner} />
-                  <p className="mt-1 font-semibold">{owner.owner_name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    Since {formatDate(owner.started_date)}
-                    {owner.member_number ? ` · ${owner.member_number}` : ""}
-                  </p>
+      {selectedSlot ? (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <User className="h-4 w-4" />
+                {selectedSlot.label}
+                <Badge variant="outline" className="capitalize font-normal">
+                  #{selectedSlot.slot_number}
+                </Badge>
+              </CardTitle>
+              <CardDescription>
+                Current tenure and payment for this slot.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingOwnership ? (
+                <Skeleton className="h-24 w-full" />
+              ) : slotOwnership?.current_tenure ? (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <div className="rounded-lg border bg-muted/30 p-4">
+                    <p className="text-xs text-muted-foreground">Sale price</p>
+                    <p className="text-xl font-bold">
+                      {formatMoney(
+                        (slotOwnership.current_tenure.sale_price as number | undefined) ??
+                          selectedSlot.sale_price
+                      )}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border bg-muted/30 p-4">
+                    <p className="text-xs text-muted-foreground">Amount paid</p>
+                    <p className="text-xl font-bold">
+                      {formatMoney(
+                        (slotOwnership.current_tenure.amount_paid as number | undefined) ??
+                          selectedSlot.amount_paid
+                      )}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border bg-muted/30 p-4">
+                    <p className="text-xs text-muted-foreground">Outstanding</p>
+                    <p className="text-xl font-bold">
+                      {formatMoney(
+                        (slotOwnership.current_tenure.outstanding as number | undefined) ??
+                          selectedSlot.outstanding
+                      )}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border bg-muted/30 p-4">
+                    <p className="text-xs text-muted-foreground">Progress</p>
+                    <p className="text-xl font-bold">
+                      {Math.round(
+                        Number(
+                          slotOwnership.current_tenure.payment_progress_percent ??
+                            selectedSlot.payment_progress_percent ??
+                            0
+                        )
+                      )}
+                      %
+                    </p>
+                  </div>
                 </div>
-                {owner.member_id ? (
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/admin/members/${owner.member_id}`}>Member record</Link>
-                  </Button>
-                ) : null}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      ) : null}
+              ) : (
+                <p className="text-sm text-muted-foreground">This slot is currently vacant.</p>
+              )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <History className="h-5 w-5" />
-            Ownership timeline
-          </CardTitle>
-          <CardDescription>
-            Chronological chain from first allottee to present. Transfer events are shown between owner periods.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {timeline.length === 0 ? (
-            <div className="rounded-lg border border-dashed py-10 text-center text-muted-foreground">
-              No ownership history recorded for this asset yet.
-            </div>
-          ) : (
-            <div className="relative space-y-4">
-              {timeline.map((entry, index) => (
-                <div key={`${entry.entry_type}-${index}`} className="relative pl-8">
-                  {index < timeline.length - 1 ? (
-                    <span className="absolute left-[11px] top-8 h-[calc(100%+8px)] w-px bg-border" />
-                  ) : null}
-                  <span
-                    className={`absolute left-0 top-3 h-[22px] w-[22px] rounded-full border-2 ${
-                      entry.entry_type === "owner" && entry.is_current
-                        ? "border-primary bg-primary"
-                        : entry.entry_type === "transfer"
-                          ? "border-amber-500 bg-amber-100 dark:bg-amber-950"
-                          : "border-muted-foreground/40 bg-background"
-                    }`}
-                  />
-                  {entry.entry_type === "owner" ? (
-                    <OwnerTimelineCard entry={entry} />
-                  ) : entry.entry_type === "reallocation" ? (
-                    <ReallocationTimelineCard entry={entry} />
-                  ) : (
-                    <TransferTimelineCard entry={entry} />
-                  )}
+              {currentOwners.length > 0 ? (
+                <div className="mt-4 space-y-3">
+                  {currentOwners.map((owner) => (
+                    <div
+                      key={owner.allocation_id ?? owner.subscription_id ?? owner.member_id}
+                      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3"
+                    >
+                      <div>
+                        <HandBadge entry={owner} />
+                        <p className="mt-1 font-semibold">{owner.owner_name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Since {formatDate(owner.started_date)}
+                          {owner.member_number ? ` · ${owner.member_number}` : ""}
+                        </p>
+                      </div>
+                      {owner.member_id ? (
+                        <Button variant="outline" size="sm" asChild>
+                          <Link href={`/admin/members/${owner.member_id}`}>Member record</Link>
+                        </Button>
+                      ) : null}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              ) : null}
+            </CardContent>
+          </Card>
 
-      {register.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Users className="h-4 w-4" />
-              {assetType === "house" ? "Allocation register" : "Subscription register"}
-            </CardTitle>
-            <CardDescription>All recorded {assetType === "house" ? "allocation" : "subscription"} rows in the system.</CardDescription>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Owner</TableHead>
-                  <TableHead>Member ID</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Status</TableHead>
-                  {assetType === "house" ? <TableHead>Unit address</TableHead> : <TableHead>Size</TableHead>}
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {register.map((row) => {
-                  const memberId = typeof row.member_id === "string" ? row.member_id : null
-                  const date =
-                    (typeof row.allocation_date === "string" ? row.allocation_date : null) ??
-                    (typeof row.subscribed_at === "string" ? row.subscribed_at : null)
-                  return (
-                    <TableRow key={String(row.id)}>
-                      <TableCell className="font-medium">{String(row.owner_name ?? "—")}</TableCell>
-                      <TableCell>{String(row.member_number ?? "—")}</TableCell>
-                      <TableCell>{formatDate(date)}</TableCell>
-                      <TableCell>
-                        {row.status ? (
-                          <Badge variant={statusVariant(String(row.status))} className="capitalize">
-                            {String(row.status).replace(/_/g, " ")}
-                          </Badge>
-                        ) : (
-                          "—"
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {assetType === "house"
-                          ? String(row.unit_address ?? "—")
-                          : String(row.allocated_land_size ?? "—")}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {memberId ? (
-                          <Button variant="ghost" size="sm" asChild>
-                            <Link href={`/admin/members/${memberId}`}>View</Link>
-                          </Button>
-                        ) : (
-                          "—"
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-5 w-5" />
+                Slot ownership timeline
+              </CardTitle>
+              <CardDescription>
+                Chronological chain for {selectedSlot.label} only.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingOwnership ? (
+                <Skeleton className="h-40 w-full" />
+              ) : (
+                <TimelineList timeline={timeline} />
+              )}
+            </CardContent>
+          </Card>
+        </>
       ) : null}
     </div>
   )
