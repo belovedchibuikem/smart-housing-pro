@@ -26,6 +26,7 @@ import {
 import { Progress } from "@/components/ui/progress"
 import type {
 	MemberHouse,
+	MemberPropertyTenure,
 	PropertyPaymentSetup,
 	PropertyLedgerEntry,
 	PropertyPaymentHistoryEntry,
@@ -34,7 +35,13 @@ import type {
 	RepaymentSchedule,
 	RepaymentScheduleEntry,
 } from "@/lib/api/client"
-import { getPropertyPaymentSetup, submitPropertyPayment, approveMortgageSchedule, approveInternalMortgageSchedule } from "@/lib/api/client"
+import {
+	getPropertyPaymentSetup,
+	getPropertyTenure,
+	submitPropertyPayment,
+	approveMortgageSchedule,
+	approveInternalMortgageSchedule,
+} from "@/lib/api/client"
 import { useToast } from "@/hooks/use-toast"
 
 type PropertyPaymentTabProps = {
@@ -94,6 +101,7 @@ const formatDate = (value?: string | null) => {
 
 export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProps) {
 	const [setup, setSetup] = useState<PropertyPaymentSetup | null>(null)
+	const [tenure, setTenure] = useState<MemberPropertyTenure | null>(null)
 	const [paymentMethod, setPaymentMethod] = useState<string>("")
 	const [fundingType, setFundingType] = useState<"single" | "mixed">("single")
 	const [loading, setLoading] = useState<boolean>(true)
@@ -126,13 +134,21 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 		try {
 			setLoading(true)
 			setError(null)
-			const response = await getPropertyPaymentSetup(propertyId)
+			const [response, tenureRes] = await Promise.all([
+				getPropertyPaymentSetup(propertyId),
+				getPropertyTenure(propertyId).catch(() => null),
+			])
 			if (!response.success) {
 				setSetup(null)
 				setError(response.message ?? "Unable to load payment setup for this property.")
 				return
 			}
 			setSetup(response.data)
+			if (tenureRes?.success) {
+				setTenure(tenureRes.data)
+			} else {
+				setTenure(null)
+			}
 		} catch (err: any) {
 			setSetup(null)
 			setError(err?.message ?? "Failed to load payment setup.")
@@ -158,8 +174,19 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 			}
 		: null)
 
-	const progressValue = propertySummary ? Math.min(100, Math.max(0, propertySummary.progress ?? 0)) : 0
-	const balance = propertySummary?.balance ?? Math.max(0, (house?.price ?? 0) - (house?.total_paid ?? 0))
+	const salePrice = tenure?.sale_price ?? propertySummary?.price ?? house?.price ?? 0
+	const amountPaid = tenure?.amount_paid ?? propertySummary?.total_paid ?? house?.total_paid ?? 0
+	const balance =
+		tenure?.outstanding ??
+		propertySummary?.balance ??
+		Math.max(0, salePrice - amountPaid)
+	const progressValue = propertySummary
+		? Math.min(100, Math.max(0, propertySummary.progress ?? 0))
+		: salePrice > 0
+			? Math.min(100, (amountPaid / salePrice) * 100)
+			: 0
+	const tenureStatus =
+		tenure?.tenure_status ?? house?.tenure_status ?? propertySummary?.status ?? "pending"
 	const equityWalletBalance = setup?.equity_wallet.balance ?? 0
 	const paymentHistory = setup?.payment_history ?? []
 	const paymentPlan = setup?.payment_plan ?? null
@@ -779,22 +806,25 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 				<CardContent className="space-y-6">
 					<div className="grid grid-cols-1 gap-4 md:grid-cols-4">
 						<div className="rounded-lg border p-4">
-							<div className="text-xs uppercase text-muted-foreground">Total Price</div>
-							<div className="text-2xl font-bold">{formatCurrency(propertySummary.price)}</div>
+							<div className="text-xs uppercase text-muted-foreground">Sale price</div>
+							<div className="text-2xl font-bold">{formatCurrency(salePrice)}</div>
 						</div>
 						<div className="rounded-lg border p-4">
 							<div className="text-xs uppercase text-muted-foreground">Amount Paid</div>
-							<div className="text-2xl font-bold text-green-600">{formatCurrency(propertySummary.total_paid)}</div>
+							<div className="text-2xl font-bold text-green-600">{formatCurrency(amountPaid)}</div>
 						</div>
 						<div className="rounded-lg border p-4">
-							<div className="text-xs uppercase text-muted-foreground">Balance</div>
+							<div className="text-xs uppercase text-muted-foreground">Outstanding</div>
 							<div className="text-2xl font-bold text-orange-600">{formatCurrency(balance)}</div>
 						</div>
 						<div className="rounded-lg border p-4">
-							<div className="text-xs uppercase text-muted-foreground">Interest Status</div>
+							<div className="text-xs uppercase text-muted-foreground">Tenure status</div>
 							<div className="text-lg font-semibold capitalize">
-								{propertySummary.status?.replace(/_/g, " ") ?? "Pending"}
+								{String(tenureStatus).replace(/_/g, " ")}
 							</div>
+							{tenure?.owner_sequence != null && (
+								<div className="text-xs text-muted-foreground mt-1">Owner #{tenure.owner_sequence}</div>
+							)}
 						</div>
 					</div>
 

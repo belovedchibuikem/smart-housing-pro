@@ -9,10 +9,11 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
-import { MapPin, Calendar, Home, Clock, CheckCircle2, TrendingUp, MapPinned } from "lucide-react"
+import { MapPin, Calendar, Home, Clock, CheckCircle2, MapPinned } from "lucide-react"
 import { PropertyTypePriceRow } from "@/components/properties/property-type-price-row"
 import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
 import { resolveStorageUrl } from "@/lib/api/config"
+import type { MemberHouse } from "@/lib/api/client"
 import { useToast } from "@/hooks/use-toast"
 
 type MyPropertiesProps = {
@@ -169,21 +170,37 @@ export function MyProperties({ properties, loading, propertyType = "house" }: My
 
 									<div className="grid gap-4 lg:grid-cols-3">
 										<div>
-											<p className="text-xs uppercase tracking-wide text-muted-foreground">Total Paid</p>
-											<p className="text-lg font-semibold text-green-600">{formatCurrency(property.total_paid)}</p>
+											<p className="text-xs uppercase tracking-wide text-muted-foreground">
+												{property.sale_price != null ? "Sale price" : "Property value"}
+											</p>
+											<p className="text-lg font-semibold">
+												{formatCurrency(Number(property.sale_price ?? property.price))}
+											</p>
 										</div>
 										<div>
-											<p className="text-xs uppercase tracking-wide text-muted-foreground">Current Value</p>
-											<p className="text-lg font-semibold text-primary">{formatCurrency(property.current_value)}</p>
+											<p className="text-xs uppercase tracking-wide text-muted-foreground">Amount paid</p>
+											<p className="text-lg font-semibold text-green-600">
+												{formatCurrency(Number(property.amount_paid ?? property.total_paid))}
+											</p>
 										</div>
 										<div>
-											<p className="text-xs uppercase tracking-wide text-muted-foreground">Predictive Value</p>
-											<p className="text-lg font-semibold text-primary/80 flex items-center gap-2">
-												<TrendingUp className="h-4 w-4" />
-												{formatCurrency(property.predictive_value)}
+											<p className="text-xs uppercase tracking-wide text-muted-foreground">
+												{property.outstanding != null || property.tenure_status
+													? "Outstanding"
+													: "Current Value"}
+											</p>
+											<p className="text-lg font-semibold text-primary">
+												{property.outstanding != null
+													? formatCurrency(Number(property.outstanding))
+													: formatCurrency(property.current_value)}
 											</p>
 										</div>
 									</div>
+									{property.tenure_status && (
+										<Badge variant="outline" className="capitalize">
+											Tenure: {property.tenure_status.replace(/_/g, " ")}
+										</Badge>
+									)}
 
 									<div className="space-y-2">
 										<div className="flex items-center justify-between text-sm">

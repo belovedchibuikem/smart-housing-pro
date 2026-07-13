@@ -295,7 +295,12 @@ export default function ManageAllotteesPage() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleViewDetails(allottee)}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Tenure & ownership"
+                          onClick={() => router.push(`/admin/property-management/allottees/${allottee.id}`)}
+                        >
                           <Eye className="h-4 w-4" />
                         </Button>
                         {can("manage_property_allottees|approve_allotments") && (

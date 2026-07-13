@@ -64,6 +64,8 @@ export default function EditAllotteePage() {
     status: "pending",
     unit_address: "",
     notes: "",
+    sale_price: "",
+    amount_paid: "",
   })
 
   useEffect(() => {
@@ -88,6 +90,8 @@ export default function EditAllotteePage() {
           status: allottee.status || "pending",
           unit_address: allottee.unit_address || "",
           notes: allottee.notes || "",
+          sale_price: allottee.sale_price != null ? String(allottee.sale_price) : "",
+          amount_paid: allottee.amount_paid != null ? String(allottee.amount_paid) : "",
         })
       }
     } catch (error: any) {
@@ -135,7 +139,20 @@ export default function EditAllotteePage() {
 
     setLoading(true)
     try {
-      const response = await updatePropertyAllottee(allotteeId, formData)
+      const payload: Record<string, unknown> = {
+        member_id: formData.member_id,
+        allocation_date: formData.allocation_date,
+        status: formData.status,
+        unit_address: formData.unit_address || undefined,
+        notes: formData.notes || undefined,
+      }
+      if (formData.sale_price.trim() !== "") {
+        payload.sale_price = Number(formData.sale_price)
+      }
+      if (formData.amount_paid.trim() !== "") {
+        payload.amount_paid = Number(formData.amount_paid)
+      }
+      const response = await updatePropertyAllottee(allotteeId, payload)
       if (response.success) {
         toast({
           title: "Success",
@@ -243,6 +260,34 @@ export default function EditAllotteePage() {
                     <SelectItem value="rejected">Rejected</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="sale_price">New sale price (on reallocation)</Label>
+                <Input
+                  id="sale_price"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.sale_price}
+                  onChange={(e) => setFormData({ ...formData, sale_price: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Used when changing the allottee. Prior owner payments stay on their sealed tenure.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="amount_paid">Opening amount paid (new tenure)</Label>
+                <Input
+                  id="amount_paid"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.amount_paid}
+                  onChange={(e) => setFormData({ ...formData, amount_paid: e.target.value })}
+                />
               </div>
             </div>
 

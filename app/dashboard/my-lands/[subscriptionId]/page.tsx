@@ -1,11 +1,18 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState, type ChangeEvent } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
-import { getMemberLandSubscriptionDetail } from "@/lib/api/client"
+import {
+	getMemberLandSubscriptionDetail,
+	submitLandRepayment,
+	uploadLandDeed,
+} from "@/lib/api/client"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import {
 	Table,
 	TableBody,
@@ -14,33 +21,101 @@ import {
 	TableHeader,
 	TableRow,
 } from "@/components/ui/table"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ArrowLeft } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { ArrowLeft, Loader2, Upload } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
 
 export default function MemberLandAccountPage() {
 	const params = useParams()
 	const subscriptionId = typeof params?.subscriptionId === "string" ? params.subscriptionId : ""
+	const { toast } = useToast()
 	const [row, setRow] = useState<Record<string, unknown> | null>(null)
+	const [amount, setAmount] = useState("")
+	const [paymentDate, setPaymentDate] = useState("")
+	const [description, setDescription] = useState("")
+	const [submitting, setSubmitting] = useState(false)
+	const [deedFile, setDeedFile] = useState<File | null>(null)
+	const [uploadingDeed, setUploadingDeed] = useState(false)
+
+	const load = useCallback(async () => {
+		if (!subscriptionId) return
+		const r = await getMemberLandSubscriptionDetail(subscriptionId)
+		if (r.success && r.data) {
+			setRow(r.data as Record<string, unknown>)
+		}
+	}, [subscriptionId])
 
 	useEffect(() => {
-		if (!subscriptionId) return
-		void getMemberLandSubscriptionDetail(subscriptionId).then((r) => {
-			if (r.success && r.data) {
-				setRow(r.data as Record<string, unknown>)
-			}
-		})
-	}, [subscriptionId])
+		void load()
+	}, [load])
+
+	const handleRepayment = async () => {
+		const value = Number(amount)
+		if (!Number.isFinite(value) || value <= 0) {
+			toast({ title: "Enter a valid amount", variant: "destructive" })
+			return
+		}
+		setSubmitting(true)
+		try {
+			const res = await submitLandRepayment(subscriptionId, {
+				amount: value,
+				payment_date: paymentDate || undefined,
+				description: description || undefined,
+			})
+			toast({ title: res.message || "Repayment recorded" })
+			setAmount("")
+			setPaymentDate("")
+			setDescription("")
+			await load()
+		} catch (e) {
+			toast({
+				title: "Repayment failed",
+				description: e instanceof Error ? e.message : "Could not record repayment",
+				variant: "destructive",
+			})
+		} finally {
+			setSubmitting(false)
+		}
+	}
+
+	const handleDeedUpload = async () => {
+		if (!deedFile) {
+			toast({ title: "Select a deed file first", variant: "destructive" })
+			return
+		}
+		setUploadingDeed(true)
+		try {
+			const form = new FormData()
+			form.append("file", deedFile)
+			const res = await uploadLandDeed(subscriptionId, form)
+			toast({ title: res.message || "Deed uploaded" })
+			setDeedFile(null)
+			await load()
+		} catch (e) {
+			toast({
+				title: "Upload failed",
+				description: e instanceof Error ? e.message : "Could not upload deed",
+				variant: "destructive",
+			})
+		} finally {
+			setUploadingDeed(false)
+		}
+	}
 
 	if (!subscriptionId || !row) {
 		return <div className="p-8 text-muted-foreground">Loading land account…</div>
 	}
 
 	const land = (row.land as Record<string, unknown>) || {}
-	const payments = (row.payments as Array<{ id: string; amount: unknown; paid_on?: string; description?: string | null }>) || []
+	const payments =
+		(row.payments as Array<{ id: string; amount: unknown; paid_on?: string; description?: string | null }>) ||
+		[]
 
-	const totalCost = Number(row.total_cost ?? 0)
+	const salePrice = Number(row.sale_price ?? row.total_cost ?? 0)
 	const paid = Number(row.amount_paid ?? 0)
-	const out = Number(row.outstanding_balance ?? 0)
+	const out = Number(row.outstanding_balance ?? row.outstanding ?? 0)
+	const tenureStatus = String(row.tenure_status ?? "—")
+	const ownerSequence = row.owner_sequence
 
 	return (
 		<div className="mx-auto max-w-4xl space-y-6 py-8">
@@ -55,16 +130,26 @@ export default function MemberLandAccountPage() {
 					<Badge className="mb-2">🌍 Land account</Badge>
 					<h1 className="text-3xl font-bold">{String(land.land_title ?? "Land")}</h1>
 					<p className="font-mono text-muted-foreground">{String(land.land_code ?? "")}</p>
-					<p className="mt-2 text-sm text-muted-foreground">Allocated: {String(row.allocated_land_size ?? "—")}</p>
+					<p className="mt-2 text-sm text-muted-foreground">
+						Allocated: {String(row.allocated_land_size ?? "—")}
+					</p>
+					<div className="mt-2 flex flex-wrap gap-2">
+						<Badge variant="outline" className="capitalize">
+							Tenure: {tenureStatus.replace(/_/g, " ")}
+						</Badge>
+						{ownerSequence != null && (
+							<Badge variant="secondary">Owner #{String(ownerSequence)}</Badge>
+						)}
+					</div>
 				</div>
 			</div>
 
-			<div className="grid gap-4 md:grid-cols-3">
+			<div className="grid gap-4 md:grid-cols-4">
 				<Card>
 					<CardHeader className="pb-2">
-						<CardTitle className="text-sm font-medium text-muted-foreground">Total cost</CardTitle>
+						<CardTitle className="text-sm font-medium text-muted-foreground">Sale price</CardTitle>
 					</CardHeader>
-					<CardContent className="text-2xl font-bold">₦{totalCost.toLocaleString()}</CardContent>
+					<CardContent className="text-2xl font-bold">₦{salePrice.toLocaleString()}</CardContent>
 				</Card>
 				<Card>
 					<CardHeader className="pb-2">
@@ -78,11 +163,89 @@ export default function MemberLandAccountPage() {
 					</CardHeader>
 					<CardContent className="text-2xl font-semibold text-primary">₦{out.toLocaleString()}</CardContent>
 				</Card>
+				<Card>
+					<CardHeader className="pb-2">
+						<CardTitle className="text-sm font-medium text-muted-foreground">Tenure status</CardTitle>
+					</CardHeader>
+					<CardContent className="text-xl font-semibold capitalize">
+						{tenureStatus.replace(/_/g, " ")}
+					</CardContent>
+				</Card>
 			</div>
 
-			<p className="text-xs text-muted-foreground">
-				Balance is derived from subscriptions and uploaded payments managed by administrators.
-			</p>
+			{out > 0 && (
+				<Card>
+					<CardHeader>
+						<CardTitle>Record repayment</CardTitle>
+						<CardDescription>Submit a land repayment against this subscription.</CardDescription>
+					</CardHeader>
+					<CardContent className="grid gap-4 md:grid-cols-2">
+						<div className="space-y-2">
+							<Label htmlFor="land-repay-amount">Amount</Label>
+							<Input
+								id="land-repay-amount"
+								type="number"
+								min={0.01}
+								step="0.01"
+								value={amount}
+								onChange={(e) => setAmount(e.target.value)}
+								placeholder="0.00"
+							/>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="land-repay-date">Payment date (optional)</Label>
+							<Input
+								id="land-repay-date"
+								type="date"
+								value={paymentDate}
+								onChange={(e) => setPaymentDate(e.target.value)}
+							/>
+						</div>
+						<div className="space-y-2 md:col-span-2">
+							<Label htmlFor="land-repay-desc">Description (optional)</Label>
+							<Textarea
+								id="land-repay-desc"
+								rows={2}
+								value={description}
+								onChange={(e) => setDescription(e.target.value)}
+								placeholder="Bank transfer reference, etc."
+							/>
+						</div>
+						<div className="md:col-span-2">
+							<Button onClick={handleRepayment} disabled={submitting || !amount}>
+								{submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+								Submit repayment
+							</Button>
+						</div>
+					</CardContent>
+				</Card>
+			)}
+
+			<Card>
+				<CardHeader>
+					<CardTitle>Deed of Assignment</CardTitle>
+					<CardDescription>Upload your land deed if it is not already on file.</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-3">
+					<div className="space-y-2">
+						<Label htmlFor="land-deed-file">Deed file (PDF or image)</Label>
+						<Input
+							id="land-deed-file"
+							type="file"
+							accept=".pdf,image/jpeg,image/png,image/jpg"
+							onChange={(e: ChangeEvent<HTMLInputElement>) => setDeedFile(e.target.files?.[0] ?? null)}
+						/>
+					</div>
+					<Button variant="outline" onClick={handleDeedUpload} disabled={uploadingDeed || !deedFile}>
+						{uploadingDeed ? (
+							<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+						) : (
+							<Upload className="mr-2 h-4 w-4" />
+						)}
+						Upload deed
+					</Button>
+				</CardContent>
+			</Card>
 
 			<Card>
 				<CardHeader>

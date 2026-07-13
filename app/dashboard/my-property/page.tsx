@@ -52,10 +52,17 @@ function MyLandAccounts({ rows, loading }: { rows: MemberLandSubscriptionRow[]; 
 							</Link>
 						</div>
 						<p className="text-sm text-muted-foreground">Allocated size: {row.land_size ?? "—"}</p>
+						{row.tenure_status && (
+							<Badge variant="secondary" className="capitalize">
+								Tenure: {String(row.tenure_status).replace(/_/g, " ")}
+							</Badge>
+						)}
 						<div className="grid grid-cols-2 gap-2 text-sm">
 							<div>
-								<p className="text-muted-foreground">Total cost</p>
-								<p className="font-medium">₦{Number(row.total_cost).toLocaleString()}</p>
+								<p className="text-muted-foreground">Sale price</p>
+								<p className="font-medium">
+									₦{Number(row.sale_price ?? row.total_cost).toLocaleString()}
+								</p>
 							</div>
 							<div>
 								<p className="text-muted-foreground">Paid</p>

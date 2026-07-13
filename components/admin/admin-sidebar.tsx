@@ -201,6 +201,7 @@ const navItems: NavItem[] = [
       { href: "/admin/bulk-upload/land-subscriptions", label: "Bulk Land Subscriptions", icon: Upload },
       { href: "/admin/bulk-upload/land-payments", label: "Bulk Land Payments", icon: Upload },
       { href: "/admin/bulk-upload/property-subscribers", label: "Bulk Property Subscribers", icon: Upload },
+      { href: "/admin/bulk-upload/property-payments", label: "Bulk House Repayments", icon: Upload },
     ],
   },
   {

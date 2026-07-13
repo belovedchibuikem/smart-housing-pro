@@ -56,6 +56,8 @@ export default function NewAllotteePage() {
     allocation_date: "",
     status: "completed",
     slots_assigned: "1",
+    sale_price: "",
+    amount_paid: "",
     unit_address: "",
     notes: "",
   })
@@ -156,10 +158,22 @@ export default function NewAllotteePage() {
 
     setLoading(true)
     try {
-      const response = await createPropertyAllottee({
-        ...formData,
+      const payload: Record<string, unknown> = {
+        property_id: formData.property_id,
+        member_id: formData.member_id,
+        allocation_date: formData.allocation_date,
+        status: formData.status,
         slots_assigned: slotsAssigned,
-      })
+        unit_address: formData.unit_address || undefined,
+        notes: formData.notes || undefined,
+      }
+      if (formData.sale_price.trim() !== "") {
+        payload.sale_price = Number(formData.sale_price)
+      }
+      if (formData.amount_paid.trim() !== "") {
+        payload.amount_paid = Number(formData.amount_paid)
+      }
+      const response = await createPropertyAllottee(payload)
       if (response.success) {
         toast({
           title: "Success",
@@ -301,6 +315,33 @@ export default function NewAllotteePage() {
                       <SelectItem value="rejected">Rejected</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="sale_price">Sale price (member repayment total)</Label>
+                  <Input
+                    id="sale_price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="Defaults to listing price × slots"
+                    value={formData.sale_price}
+                    onChange={(e) => setFormData({ ...formData, sale_price: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="amount_paid">Amount already paid (optional)</Label>
+                  <Input
+                    id="amount_paid"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="0"
+                    value={formData.amount_paid}
+                    onChange={(e) => setFormData({ ...formData, amount_paid: e.target.value })}
+                  />
                 </div>
               </div>
 

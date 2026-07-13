@@ -509,7 +509,30 @@ export interface MemberHouse {
 	mortgage_flagged?: boolean | null
 	allocation_status?: string | null
 	allocation_date?: string | null
+	sale_price?: number | null
+	amount_paid?: number | null
+	outstanding?: number | null
+	tenure_status?: string | null
+	owner_sequence?: number | null
 	images: PropertyImage[]
+}
+
+export interface MemberPropertyTenure {
+	allocation_id: string
+	property_id: string
+	sale_price: number
+	amount_paid: number
+	outstanding: number
+	tenure_status: string | null
+	owner_sequence: number | null
+	sold_at?: string | null
+	payments?: Array<Record<string, unknown>>
+	deed?: {
+		id: string
+		status: string
+		file_url?: string | null
+		transfer_date?: string | null
+	} | null
 }
 
 export interface PropertyPaymentHistoryEntry {
@@ -911,9 +934,12 @@ export interface MemberLandSubscriptionRow {
 	land_code?: string | null
 	land_title?: string | null
 	land_size?: string | null
+	sale_price?: number | null
 	total_cost: number
 	amount_paid: number
 	outstanding_balance: number
+	tenure_status?: string | null
+	owner_sequence?: number | null
 	cost_includes_infrastructure?: boolean | null
 	payments?: Array<{ id: string; amount: number; paid_on?: string | null; description?: string | null }>
 }
@@ -926,6 +952,47 @@ export async function getMemberLandSubscriptionDetail(subscriptionId: string) {
 	return apiFetch<{ success: boolean; data: Record<string, unknown> }>(`/my-lands/${subscriptionId}`, {
 		method: "GET",
 	})
+}
+
+export async function getPropertyTenure(propertyId: string) {
+	return apiFetch<{ success: boolean; data: MemberPropertyTenure; message?: string }>(
+		`/properties/${propertyId}/tenure`,
+		{ method: "GET" },
+	)
+}
+
+export async function uploadPropertyDeed(propertyId: string, body: FormData) {
+	return apiFetch<{ success: boolean; message: string; data: { document: unknown; file_url?: string } }>(
+		`/properties/${propertyId}/deed`,
+		{ method: "POST", body, headers: {} },
+	)
+}
+
+export async function submitLandRepayment(
+	subscriptionId: string,
+	payload: { amount: number; payment_date?: string; description?: string },
+) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		data: {
+			payment: unknown
+			sale_price: number
+			amount_paid: number
+			outstanding: number
+			tenure_status: string
+		}
+	}>(`/my-lands/${subscriptionId}/repayments`, {
+		method: "POST",
+		body: payload,
+	})
+}
+
+export async function uploadLandDeed(subscriptionId: string, body: FormData) {
+	return apiFetch<{ success: boolean; message: string; data: { document: unknown; file_url?: string } }>(
+		`/my-lands/${subscriptionId}/deed`,
+		{ method: "POST", body, headers: {} },
+	)
 }
 
 export interface AdminPropertyStatistics {

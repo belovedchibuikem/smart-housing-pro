@@ -1,63 +1,109 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState, type ChangeEvent } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
-import { Loader2, TrendingUp, DollarSign, CreditCard, Calendar, Percent } from "lucide-react"
-import { getPropertyPaymentSetup, type PropertyPaymentSetup } from "@/lib/api/client"
-import type { MemberHouse } from "@/lib/api/client"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Loader2, TrendingUp, CreditCard, Calendar, Percent, Upload } from "lucide-react"
+import {
+  getPropertyPaymentSetup,
+  getPropertyTenure,
+  uploadPropertyDeed,
+  type PropertyPaymentSetup,
+  type MemberPropertyTenure,
+  type MemberHouse,
+} from "@/lib/api/client"
+import { useToast } from "@/hooks/use-toast"
 
 type PropertyFinancialsProps = {
   house?: MemberHouse | null
 }
 
 function formatCurrency(amount: number | undefined | null) {
-  if (!amount || Number.isNaN(amount)) return "₦0"
+  if (amount == null || Number.isNaN(amount)) return "₦0"
   return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 }).format(amount)
 }
 
 export function PropertyFinancials({ house }: PropertyFinancialsProps) {
+  const { toast } = useToast()
   const [paymentSetup, setPaymentSetup] = useState<PropertyPaymentSetup | null>(null)
+  const [tenure, setTenure] = useState<MemberPropertyTenure | null>(null)
   const [loading, setLoading] = useState(false)
+  const [deedFile, setDeedFile] = useState<File | null>(null)
+  const [uploadingDeed, setUploadingDeed] = useState(false)
+
+  const propertyId = house?.property_id ?? house?.id
+
+  const load = useCallback(async () => {
+    if (!propertyId) return
+    setLoading(true)
+    try {
+      const [setupRes, tenureRes] = await Promise.allSettled([
+        getPropertyPaymentSetup(propertyId),
+        getPropertyTenure(propertyId),
+      ])
+      if (setupRes.status === "fulfilled" && setupRes.value.success) {
+        setPaymentSetup(setupRes.value.data)
+      }
+      if (tenureRes.status === "fulfilled" && tenureRes.value.success) {
+        setTenure(tenureRes.value.data)
+      } else {
+        setTenure(null)
+      }
+    } catch (error) {
+      console.error("Failed to load financials:", error)
+    } finally {
+      setLoading(false)
+    }
+  }, [propertyId])
 
   useEffect(() => {
-    if (!house?.id) return
+    void load()
+  }, [load])
 
-    let isMounted = true
-    const fetchPaymentSetup = async () => {
-      try {
-        setLoading(true)
-        const response = await getPropertyPaymentSetup(house.id)
-        if (isMounted && response.success) {
-          setPaymentSetup(response.data)
-        }
-      } catch (error) {
-        console.error("Failed to load payment setup:", error)
-      } finally {
-        if (isMounted) setLoading(false)
-      }
+  const handleDeedUpload = async () => {
+    if (!propertyId || !deedFile) {
+      toast({ title: "Select a deed file first", variant: "destructive" })
+      return
     }
-
-    fetchPaymentSetup()
-
-    return () => {
-      isMounted = false
+    setUploadingDeed(true)
+    try {
+      const form = new FormData()
+      form.append("file", deedFile)
+      const res = await uploadPropertyDeed(propertyId, form)
+      toast({ title: res.message || "Deed uploaded" })
+      setDeedFile(null)
+      await load()
+    } catch (e) {
+      toast({
+        title: "Upload failed",
+        description: e instanceof Error ? e.message : "Could not upload deed",
+        variant: "destructive",
+      })
+    } finally {
+      setUploadingDeed(false)
     }
-  }, [house?.id])
+  }
 
   if (!house) return null
 
-  // Use actual payment data if available, otherwise fall back to house data
-  const totalPaid = paymentSetup?.property?.total_paid ?? house.total_paid ?? 0
-  const propertyPrice = paymentSetup?.property?.price ?? house.price ?? 0
-  const balance = paymentSetup?.property?.balance ?? Math.max(0, propertyPrice - totalPaid)
-  const progress = paymentSetup?.property?.progress ?? (propertyPrice > 0 ? (totalPaid / propertyPrice) * 100 : 0)
+  const salePrice = tenure?.sale_price ?? paymentSetup?.property?.price ?? house.price ?? 0
+  const totalPaid = tenure?.amount_paid ?? paymentSetup?.property?.total_paid ?? house.total_paid ?? 0
+  const balance =
+    tenure?.outstanding ??
+    paymentSetup?.property?.balance ??
+    Math.max(0, salePrice - totalPaid)
+  const progress =
+    paymentSetup?.property?.progress ??
+    (salePrice > 0 ? (totalPaid / salePrice) * 100 : 0)
+  const tenureStatus = tenure?.tenure_status ?? house.tenure_status ?? null
   const ledgerTotalPaid = paymentSetup?.ledger_total_paid ?? 0
   const paymentHistory = paymentSetup?.payment_history ?? []
   const ledgerEntries = paymentSetup?.ledger_entries ?? []
-  
-  // Calculate active payment methods
+
   const activePaymentMethods = new Set<string>()
   paymentHistory.forEach((payment) => {
     if (payment.payment_method && (payment.status === "completed" || payment.status === "success")) {
@@ -70,14 +116,12 @@ export function PropertyFinancials({ house }: PropertyFinancialsProps) {
     }
   })
 
-  // Calculate next payment due (from repayment schedules)
   const repaymentSchedules = paymentSetup?.repayment_schedules ?? {}
   let nextPaymentDue: { amount: number; date: string; type: string } | null = null
-  
-  // Check mortgage schedule
+
   if (repaymentSchedules.mortgage?.schedule) {
     const nextMortgagePayment = repaymentSchedules.mortgage.schedule.find(
-      (entry) => entry.status === "pending" || entry.status === "overdue"
+      (entry) => entry.status === "pending" || entry.status === "overdue",
     )
     if (nextMortgagePayment) {
       nextPaymentDue = {
@@ -88,10 +132,9 @@ export function PropertyFinancials({ house }: PropertyFinancialsProps) {
     }
   }
 
-  // Check loan schedule
   if (!nextPaymentDue && repaymentSchedules.loan?.schedule) {
     const nextLoanPayment = repaymentSchedules.loan.schedule.find(
-      (entry) => entry.status === "pending" || entry.status === "overdue"
+      (entry) => entry.status === "pending" || entry.status === "overdue",
     )
     if (nextLoanPayment) {
       nextPaymentDue = {
@@ -102,10 +145,9 @@ export function PropertyFinancials({ house }: PropertyFinancialsProps) {
     }
   }
 
-  // Check cooperative schedule
   if (!nextPaymentDue && repaymentSchedules.cooperative?.schedule) {
     const nextCoopPayment = repaymentSchedules.cooperative.schedule.find(
-      (entry) => entry.status === "pending" || entry.status === "overdue"
+      (entry) => entry.status === "pending" || entry.status === "overdue",
     )
     if (nextCoopPayment) {
       nextPaymentDue = {
@@ -116,7 +158,6 @@ export function PropertyFinancials({ house }: PropertyFinancialsProps) {
     }
   }
 
-  // Calculate recent payments (last 30 days)
   const thirtyDaysAgo = new Date()
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
   const recentPayments = paymentHistory.filter((payment) => {
@@ -140,7 +181,6 @@ export function PropertyFinancials({ house }: PropertyFinancialsProps) {
             </div>
           ) : (
             <div className="space-y-6">
-              {/* Progress Bar */}
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Payment Progress</span>
@@ -149,14 +189,13 @@ export function PropertyFinancials({ house }: PropertyFinancialsProps) {
                 <Progress value={progress} className="h-2" />
               </div>
 
-              {/* Main Financial Metrics */}
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Property Value</p>
-                  <p className="text-xl font-semibold">{formatCurrency(propertyPrice)}</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Sale price</p>
+                  <p className="text-xl font-semibold">{formatCurrency(salePrice)}</p>
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Total Paid</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Amount paid</p>
                   <p className="text-xl font-semibold text-green-600">{formatCurrency(totalPaid)}</p>
                   {ledgerTotalPaid > 0 && (
                     <p className="text-xs text-muted-foreground mt-1">
@@ -165,16 +204,20 @@ export function PropertyFinancials({ house }: PropertyFinancialsProps) {
                   )}
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Remaining Balance</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Outstanding</p>
                   <p className="text-xl font-semibold text-orange-600">{formatCurrency(balance)}</p>
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Progress</p>
-                  <p className="text-xl font-semibold text-primary">{progress.toFixed(1)}%</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Tenure status</p>
+                  <p className="text-xl font-semibold capitalize">
+                    {tenureStatus ? tenureStatus.replace(/_/g, " ") : "—"}
+                  </p>
+                  {tenure?.owner_sequence != null && (
+                    <p className="text-xs text-muted-foreground mt-1">Owner #{tenure.owner_sequence}</p>
+                  )}
                 </div>
               </div>
 
-              {/* Additional Metrics */}
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 pt-4 border-t">
                 <div>
                   <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1 flex items-center gap-1">
@@ -243,28 +286,75 @@ export function PropertyFinancials({ house }: PropertyFinancialsProps) {
                 </div>
               </div>
 
-              {/* Current Value Cards */}
               {(house.current_value || house.predictive_value) && (
                 <div className="grid gap-6 md:grid-cols-2 pt-4 border-t">
-                  {house.current_value && (
+                  {house.current_value ? (
                     <div>
                       <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Current Value</p>
                       <p className="text-xl font-semibold text-primary">{formatCurrency(house.current_value)}</p>
                     </div>
-                  )}
-                  {house.predictive_value && (
+                  ) : null}
+                  {house.predictive_value ? (
                     <div>
                       <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Predictive Value</p>
                       <p className="text-xl font-semibold text-primary/80">{formatCurrency(house.predictive_value)}</p>
                     </div>
-                  )}
+                  ) : null}
                 </div>
               )}
             </div>
           )}
         </CardContent>
       </Card>
+
+      {tenure && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Deed of Assignment</CardTitle>
+            <CardDescription>
+              Upload your executed deed when available. Required before the cooperative can mark the tenure as sold.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {tenure.deed ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <Badge variant="default">Deed on file</Badge>
+                <span className="text-sm capitalize text-muted-foreground">
+                  Status: {tenure.deed.status?.replace(/_/g, " ")}
+                </span>
+                {tenure.deed.file_url && (
+                  <Button asChild variant="outline" size="sm">
+                    <a href={tenure.deed.file_url} target="_blank" rel="noreferrer">
+                      View deed
+                    </a>
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">No deed uploaded yet for this tenure.</p>
+                <div className="space-y-2">
+                  <Label htmlFor="house-deed-file">Deed file (PDF or image)</Label>
+                  <Input
+                    id="house-deed-file"
+                    type="file"
+                    accept=".pdf,image/jpeg,image/png,image/jpg"
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setDeedFile(e.target.files?.[0] ?? null)}
+                  />
+                </div>
+                <Button onClick={handleDeedUpload} disabled={uploadingDeed || !deedFile}>
+                  {uploadingDeed ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Upload className="mr-2 h-4 w-4" />
+                  )}
+                  Upload deed
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }
-
