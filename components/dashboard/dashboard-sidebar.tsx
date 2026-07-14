@@ -44,6 +44,7 @@ import {
   Landmark,
   Search,
   LayoutGrid,
+  Store,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState, useEffect, useMemo } from "react"
@@ -135,6 +136,8 @@ const navItems: NavItem[] = [
     displayKey: "nav.browseProperties",
     icon: Search,
     subItems: [
+      { href: "/dashboard/market-hub", label: "Market Hub", displayKey: "nav.marketHub", icon: Store },
+      { href: "/dashboard/agent-profile", label: "Agent profile", displayKey: "nav.agentProfile", icon: Users },
       { href: "/dashboard/browse-properties?listing=all", label: "All Listings", displayKey: "nav.allListings", icon: LayoutGrid },
       { href: "/dashboard/browse-properties?listing=house", label: "Browse Houses", displayKey: "nav.browseHouses", icon: Building2 },
       { href: "/dashboard/browse-properties?listing=land", label: "Browse Lands", displayKey: "nav.browseLands", icon: LandPlot },

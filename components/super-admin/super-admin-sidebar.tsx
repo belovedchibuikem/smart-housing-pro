@@ -30,6 +30,7 @@ import {
   Calendar,
   Heart,
   Smartphone,
+  Store,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -65,6 +66,8 @@ interface NavItem {
 const navItems: NavItem[] = [
   { href: "/super-admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/super-admin/businesses", label: "Businesses", icon: Building2 },
+  { href: "/super-admin/marketplace", label: "Marketplace", icon: Store },
+  { href: "/super-admin/marketplace-agents", label: "Agents", icon: Users },
   { href: "/super-admin/modules", label: "Modules", icon: Blocks },
   { 
     label: "Business Subscription", 

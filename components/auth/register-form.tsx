@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ChevronLeft, ChevronRight, Eye, EyeOff } from "lucide-react"
-import { meRequest, registerRequest, setAuthToken } from "@/lib/api/client"
+import { meRequest, registerRequest, setAuthToken, setTenantSlug, getTenantSlug } from "@/lib/api/client"
 import { persistAuthSession } from "@/lib/auth/auth-cookies"
 import type { AuthUser } from "@/lib/auth/types"
 import { OtpVerificationDialog } from "@/components/auth/otp-verification-dialog"
@@ -205,10 +205,22 @@ export function RegisterForm() {
       if (formData.nokEmail) payload.nok_email = formData.nokEmail
       if (formData.nokAddress) payload.nok_address = formData.nokAddress
 
-      const response = await registerRequest(payload)
+      const defaultSlug =
+        getTenantSlug() ||
+        process.env.NEXT_PUBLIC_DEFAULT_MEMBER_TENANT_SLUG ||
+        "smarthousing"
+      if (!getTenantSlug()) {
+        setTenantSlug(defaultSlug)
+      }
+      const response = await registerRequest({
+        ...payload,
+        tenant_slug: defaultSlug,
+      })
       
       if (response.success || response.requires_otp_verification) {
-      setShowOtpDialog(true)
+        const slugFromApi = (response as { tenant_slug?: string }).tenant_slug
+        if (slugFromApi) setTenantSlug(slugFromApi)
+        setShowOtpDialog(true)
       } else {
         throw new Error(response.message || t("register.registrationFailed"))
       }

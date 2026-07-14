@@ -3,6 +3,7 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -43,8 +44,9 @@ function isCustomPackage(pkg: Package): boolean {
 }
 
 export default function OnboardingPage() {
+  const searchParams = useSearchParams()
   // Get platform domain dynamically
-  const [platformDomain, setPlatformDomain] = useState<string>('coophub.com')
+  const [platformDomain, setPlatformDomain] = useState<string>('smarthousing.com.ng')
 
   useEffect(() => {
     // Get platform domain from environment variable or extract from current hostname
@@ -91,6 +93,10 @@ export default function OnboardingPage() {
     contactEmail: "",
     contactPhone: "",
     address: "",
+    vendorType: (searchParams.get("vendor_type") === "landlord" ? "landlord" : "cooperative") as
+      | "cooperative"
+      | "landlord",
+    marketplaceTagline: "",
     // Step 2: Admin Account
     adminFirstName: "",
     adminLastName: "",
@@ -110,7 +116,10 @@ export default function OnboardingPage() {
         const response = await apiFetch<{ success: boolean; packages: Package[] }>("/onboarding/packages")
         if (response.success && response.packages) {
           setPackages(response.packages)
-          const firstSelfServe = response.packages.find((p) => !isCustomPackage(p))
+          const landlordPreferred = response.packages.find((p) => p.slug === "landlord-starter")
+          const firstSelfServe =
+            (searchParams.get("vendor_type") === "landlord" && landlordPreferred) ||
+            response.packages.find((p) => !isCustomPackage(p))
           if (firstSelfServe) {
             setFormData((prev) =>
               prev.selectedPackage ? prev : { ...prev, selectedPackage: firstSelfServe.id },
@@ -226,6 +235,8 @@ export default function OnboardingPage() {
         contact_email: formData.contactEmail,
         contact_phone: formData.contactPhone,
         address: formData.address,
+        vendor_type: formData.vendorType,
+        marketplace_tagline: formData.marketplaceTagline || undefined,
         package_id: formData.selectedPackage,
         payment_method: formData.paymentMethod,
         admin_first_name: formData.adminFirstName,
@@ -370,15 +381,58 @@ export default function OnboardingPage() {
 
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="businessName">Cooperative Name</Label>
+                    <Label>I am joining as</Label>
+                    <Select
+                      value={formData.vendorType}
+                      onValueChange={(v) => {
+                        updateFormData("vendorType", v)
+                        if (v === "landlord") {
+                          const landlordPkg = packages.find((p) => p.slug === "landlord-starter")
+                          if (landlordPkg) updateFormData("selectedPackage", landlordPkg.id)
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cooperative">Housing cooperative / organization</SelectItem>
+                        <SelectItem value="landlord">Independent landlord (list on marketplace)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-sm text-muted-foreground">
+                      Landlords get a vendor profile and can publish verified houses & land on Smart Housing Marketplace.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="businessName">
+                      {formData.vendorType === "landlord" ? "Business / landlord name" : "Cooperative Name"}
+                    </Label>
                     <Input
                       id="businessName"
-                      placeholder="e.g., FRSC Housing Cooperative"
+                      placeholder={
+                        formData.vendorType === "landlord"
+                          ? "e.g., Adeyemi Properties"
+                          : "e.g., FRSC Housing Cooperative"
+                      }
                       value={formData.businessName}
                       onChange={(e) => updateFormData("businessName", e.target.value)}
                       required
                     />
                   </div>
+
+                  {formData.vendorType === "landlord" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="marketplaceTagline">Marketplace tagline (optional)</Label>
+                      <Input
+                        id="marketplaceTagline"
+                        placeholder="e.g., Verified homes in Abuja & Lagos"
+                        value={formData.marketplaceTagline}
+                        onChange={(e) => updateFormData("marketplaceTagline", e.target.value)}
+                      />
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label htmlFor="slug">Subdomain</Label>

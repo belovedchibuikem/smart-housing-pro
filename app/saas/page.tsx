@@ -315,6 +315,12 @@ function SaaSLandingContent({
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
               <Button size="lg" asChild>
+                <Link href="/saas/marketplace">Browse Marketplace</Link>
+              </Button>
+              <Button size="lg" variant="outline" asChild>
+                <Link href="/onboard?vendor_type=landlord">List as Landlord</Link>
+              </Button>
+              <Button size="lg" variant="secondary" asChild>
                 <Link href="/onboard">
                   {heroSection.content?.cta_text || "Start Free Trial"}
                   <ArrowRight className="ml-2 h-4 w-4" />

@@ -15,6 +15,8 @@ import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { isPropertyCategorySlug } from "@/lib/properties/property-type-label"
+import { MarketplacePublishToggle } from "@/components/admin/marketplace-publish-toggle"
+import { RentalUnitsManager } from "@/components/admin/rental-units-manager"
 
 interface PropertyImage {
   id?: string
@@ -49,6 +51,7 @@ export default function EditPropertyPage() {
     features: "",
     status: "available",
     total_slots: "",
+    listing_mode: "sale",
   })
   const [images, setImages] = useState<PropertyImage[]>([])
   const [uploadingImages, setUploadingImages] = useState(false)
@@ -86,6 +89,7 @@ export default function EditPropertyPage() {
               property.total_slots !== null && property.total_slots !== undefined
                 ? String(property.total_slots)
                 : "",
+            listing_mode: property.listing_mode || "sale",
           })
 
           const propertyImages: PropertyImage[] = Array.isArray(property.images)
@@ -238,6 +242,7 @@ export default function EditPropertyPage() {
         state: formData.state || "",
         price: parseFloat(formData.price),
         status: formData.status,
+        listing_mode: formData.listing_mode,
       }
 
       if (formData.size) submitData.size = parseFloat(formData.size)
@@ -345,6 +350,16 @@ export default function EditPropertyPage() {
         <h1 className="text-3xl font-bold">Edit Property</h1>
         <p className="text-muted-foreground mt-1">Update property information</p>
       </div>
+
+      {propertyId && (
+        <MarketplacePublishToggle listingId={propertyId} listingKind="house" />
+      )}
+
+      {propertyId && formData.listing_mode === "rent" && (
+        <div className="mb-6">
+          <RentalUnitsManager propertyId={propertyId} />
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         <Card>
@@ -487,6 +502,21 @@ export default function EditPropertyPage() {
                     <SelectItem value="allocated">Allocated</SelectItem>
                     <SelectItem value="sold">Sold</SelectItem>
                     <SelectItem value="maintenance">Maintenance</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="listing_mode">Listing mode</Label>
+                <Select
+                  value={formData.listing_mode}
+                  onValueChange={(value) => setFormData({ ...formData, listing_mode: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sale">For sale</SelectItem>
+                    <SelectItem value="rent">For rent</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

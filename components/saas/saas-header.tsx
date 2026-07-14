@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Menu, Home, Sparkles, CreditCard, Users, Info, LogIn, Mail } from "lucide-react"
+import { Menu, Home, Sparkles, CreditCard, Users, Info, LogIn, Mail, Store } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { useSaasBranding } from "@/hooks/use-saas-branding"
@@ -14,6 +14,18 @@ export function SaaSHeader() {
   const { branding } = useSaasBranding()
 
   const defaultNavLinks = [
+    {
+      href: "/saas/marketplace/agents",
+      label: "Agents",
+      icon: Users,
+      description: "Verified real-estate agents",
+    },
+    {
+      href: "/saas/marketplace",
+      label: "Marketplace",
+      icon: Store,
+      description: "Browse verified houses and land",
+    },
     {
       href: "/saas#features",
       label: "Features",

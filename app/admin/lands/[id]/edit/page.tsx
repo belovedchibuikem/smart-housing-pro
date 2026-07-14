@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
+import { MarketplacePublishToggle } from "@/components/admin/marketplace-publish-toggle"
 
 function splitToArray(raw: string): string[] {
   return raw
@@ -229,6 +230,8 @@ export default function EditLandPage() {
         <h1 className="text-3xl font-bold">Edit land parcel</h1>
         <p className="text-muted-foreground mt-1">Update details, slots, and images for this land record.</p>
       </div>
+
+      {id && <MarketplacePublishToggle listingId={id} listingKind="land_parcel" />}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <Card>
