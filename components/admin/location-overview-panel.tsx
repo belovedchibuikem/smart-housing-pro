@@ -20,9 +20,11 @@ import { formatCompactNaira, formatHouseLandCompact } from "@/lib/utils/currency
 
 type LocationOverviewPanelProps = {
   onApplyFilters?: (filters: PropertyLocationFilterValues) => void
+  /** Hide the large title block when the parent already provides a section chrome. */
+  hideHeader?: boolean
 }
 
-export function LocationOverviewPanel({ onApplyFilters }: LocationOverviewPanelProps) {
+export function LocationOverviewPanel({ onApplyFilters, hideHeader = false }: LocationOverviewPanelProps) {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [summary, setSummary] = useState<LocationOverviewSummary | null>(null)
@@ -63,15 +65,9 @@ export function LocationOverviewPanel({ onApplyFilters }: LocationOverviewPanelP
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Location & estate overview</h2>
-          <p className="text-sm text-muted-foreground">
-            Accountability snapshot across estates — occupancy, subscriptions, collections, and open maintenance.
-          </p>
-        </div>
-        <div className="relative w-full max-w-xs">
+    <div className="space-y-5">
+      {hideHeader ? (
+        <div className="relative w-full max-w-xs ml-auto">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search locations…"
@@ -80,7 +76,25 @@ export function LocationOverviewPanel({ onApplyFilters }: LocationOverviewPanelP
             className="pl-9"
           />
         </div>
-      </div>
+      ) : (
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold tracking-tight">Location & estate overview</h2>
+            <p className="text-sm text-muted-foreground">
+              Accountability snapshot across estates — occupancy, subscriptions, collections, and open maintenance.
+            </p>
+          </div>
+          <div className="relative w-full max-w-xs">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search locations…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        </div>
+      )}
 
       {summary ? (
         <>
