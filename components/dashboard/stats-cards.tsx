@@ -4,7 +4,14 @@ import { Card } from "@/components/ui/card"
 import { Wallet, TrendingUp, Home, ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatCompactNaira } from "@/lib/utils/currency"
-import { DASHBOARD_CARD_MODULES } from "@/lib/modules/module-config"
+
+/** Maps dashboard stat card titles to tenant module slugs (must stay in sync with module-config). */
+const DASHBOARD_CARD_MODULES: Record<string, string> = {
+  "Total Contributions": "contributions",
+  "Active Loans": "loans",
+  "Total Investments": "investments",
+  "Wallet Balance": "wallet",
+}
 
 interface DashboardData {
   wallet_balance: number
