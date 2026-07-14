@@ -7,7 +7,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { FileText, Search, Download, Eye, Loader2, CheckCircle, XCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { apiFetch, approveEoiForm, rejectEoiForm, getApiBaseUrl, getAuthToken, getTenantSlug } from "@/lib/api/client"
+import {
+  approveEoiForm,
+  rejectEoiForm,
+  getEoiForms,
+  getApiBaseUrl,
+  getAuthToken,
+  getTenantSlug,
+  type EoiFormStats,
+} from "@/lib/api/client"
 import { useRouter } from "next/navigation"
 
 interface EoiForm {
@@ -33,11 +41,45 @@ interface EoiForm {
   mortgage_preferences?: Record<string, unknown> | null
 }
 
+const emptyStats: EoiFormStats = {
+  total: 0,
+  pending: 0,
+  approved: 0,
+  rejected: 0,
+}
+
+async function fetchAllEoiForms(search?: string) {
+  const all: EoiForm[] = []
+  let page = 1
+  let lastPage = 1
+  let stats: EoiFormStats = { ...emptyStats }
+
+  do {
+    const response = await getEoiForms({
+      search: search || undefined,
+      page,
+      per_page: 100,
+    })
+    if (!response.success) {
+      throw new Error("Unable to load EOI forms")
+    }
+    all.push(...(response.data ?? []))
+    if (response.stats) {
+      stats = response.stats
+    }
+    lastPage = response.pagination?.last_page ?? 1
+    page += 1
+  } while (page <= lastPage)
+
+  return { items: all, stats }
+}
+
 export default function EOIFormsPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [eoiForms, setEoiForms] = useState<EoiForm[]>([])
+  const [stats, setStats] = useState<EoiFormStats>(emptyStats)
   const [searchQuery, setSearchQuery] = useState("")
   const [processingId, setProcessingId] = useState<string | null>(null)
 
@@ -49,15 +91,10 @@ export default function EOIFormsPage() {
   const fetchEOIForms = async () => {
     try {
       setLoading(true)
-      const params = new URLSearchParams()
-      if (searchQuery) params.append('search', searchQuery)
-      const response = await apiFetch<{ success: boolean; data: EoiForm[] }>(
-        `/admin/eoi-forms?${params.toString()}`
-      )
-      if (response.success) {
-        setEoiForms(response.data)
-      }
-    } catch (error) {
+      const result = await fetchAllEoiForms(searchQuery)
+      setEoiForms(result.items)
+      setStats(result.stats)
+    } catch {
       toast({
         title: "Error",
         description: "Failed to fetch EOI forms",
@@ -106,12 +143,12 @@ export default function EOIFormsPage() {
       anchor.click()
       document.body.removeChild(anchor)
       window.URL.revokeObjectURL(downloadUrl)
-        
-        toast({
-          title: "Success",
-          description: "EOI form downloaded successfully",
-        })
-    } catch (error) {
+
+      toast({
+        title: "Success",
+        description: "EOI form downloaded successfully",
+      })
+    } catch {
       toast({
         title: "Error",
         description: "Failed to download EOI form",
@@ -166,18 +203,11 @@ export default function EOIFormsPage() {
     }
   }
 
-  const stats = {
-    total: eoiForms.length,
-    pending: eoiForms.filter(f => f.status === 'pending' || f.status === 'under_review').length,
-    approved: eoiForms.filter(f => f.status === 'approved').length,
-    rejected: eoiForms.filter(f => f.status === 'rejected').length,
-  }
-
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Expression of Interest Forms</h1>
-        <p className="text-muted-foreground">Review and manage property subscription applications</p>
+        <h1 className="text-3xl font-bold">House Expression of Interest Forms</h1>
+        <p className="text-muted-foreground">Review and manage house and building subscription applications</p>
       </div>
 
       {/* Stats */}
@@ -212,14 +242,21 @@ export default function EOIFormsPage() {
       <Card>
         <CardHeader>
           <CardTitle>All EOI Forms</CardTitle>
-          <CardDescription>Search and filter expression of interest submissions</CardDescription>
+          <CardDescription>
+            Search and filter expression of interest submissions
+            {!loading && stats.total > 0 && (
+              <span className="block mt-1 text-foreground/80">
+                Showing {eoiForms.length} of {stats.total} submission{stats.total === 1 ? "" : "s"}
+              </span>
+            )}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex gap-4 mb-6">
             <div className="flex-1 relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Search by name, PIN, or property..." 
+              <Input
+                placeholder="Search by name, PIN, or property..."
                 className="pl-10"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -249,10 +286,11 @@ export default function EOIFormsPage() {
                         {form.member?.rank && ` (${form.member.rank})`}
                       </div>
                       <div className="text-sm text-muted-foreground">
-                        PIN: {form.member?.staff_id || form.member?.member_id || '—'} • {form.property?.title || form.property?.address || '—'}
+                        PIN: {form.member?.staff_id || form.member?.member_id || "—"} •{" "}
+                        {form.property?.title || form.property?.address || "—"}
                       </div>
                       <div className="text-xs text-muted-foreground mt-1">
-                        Submitted: {new Date(form.created_at).toLocaleDateString()} • Type: {form.interest_type || 'N/A'}
+                        Submitted: {new Date(form.created_at).toLocaleDateString()} • Type: {form.interest_type || "N/A"}
                       </div>
                     </div>
                   </div>
@@ -278,11 +316,7 @@ export default function EOIFormsPage() {
                     </Button>
                     {(form.status === "pending" || form.status === "under_review") && (
                       <>
-                        <Button
-                          size="sm"
-                          onClick={() => handleApprove(form.id)}
-                          disabled={processingId === form.id}
-                        >
+                        <Button size="sm" onClick={() => handleApprove(form.id)} disabled={processingId === form.id}>
                           {processingId === form.id ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (

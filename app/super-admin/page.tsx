@@ -144,7 +144,7 @@ export default function SuperAdminDashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Card className="p-6">
           <div className="flex items-center gap-4">
             <div className="h-12 w-12 rounded-lg bg-orange-500/10 flex items-center justify-center">
@@ -156,6 +156,21 @@ export default function SuperAdminDashboard() {
             </div>
             <Button variant="outline" size="sm" asChild>
               <Link href="/super-admin/subscriptions?status=past_due">View</Link>
+            </Button>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Building2 className="h-6 w-6 text-primary" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold">Onboard Business</p>
+              <p className="text-sm text-muted-foreground">Create tenant, admin, and package</p>
+            </div>
+            <Button size="sm" asChild>
+              <Link href="/super-admin/businesses/new">Start</Link>
             </Button>
           </div>
         </Card>

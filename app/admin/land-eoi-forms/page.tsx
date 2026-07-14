@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { FileText, Search, Eye, Loader2, CheckCircle, XCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { apiFetch, approveLandEoiForm, rejectLandEoiForm } from "@/lib/api/client"
+import { apiFetch, approveLandEoiForm, rejectLandEoiForm, getLandEoiForms, type EoiFormStats } from "@/lib/api/client"
 import { useRouter } from "next/navigation"
 import { Can } from "@/components/admin/can-permission"
 
@@ -34,11 +34,45 @@ interface LandEoiForm {
   funding_option?: string
 }
 
+const emptyStats: EoiFormStats = {
+  total: 0,
+  pending: 0,
+  approved: 0,
+  rejected: 0,
+}
+
+async function fetchAllLandEoiForms(search?: string) {
+  const all: LandEoiForm[] = []
+  let page = 1
+  let lastPage = 1
+  let stats: EoiFormStats = { ...emptyStats }
+
+  do {
+    const response = await getLandEoiForms({
+      search: search || undefined,
+      page,
+      per_page: 100,
+    })
+    if (!response.success) {
+      throw new Error("Unable to load land EOI forms")
+    }
+    all.push(...(response.data ?? []))
+    if (response.stats) {
+      stats = response.stats
+    }
+    lastPage = response.pagination?.last_page ?? 1
+    page += 1
+  } while (page <= lastPage)
+
+  return { items: all, stats }
+}
+
 export default function LandEOIFormsPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [eoiForms, setEoiForms] = useState<LandEoiForm[]>([])
+  const [stats, setStats] = useState<EoiFormStats>(emptyStats)
   const [searchQuery, setSearchQuery] = useState("")
   const [processingId, setProcessingId] = useState<string | null>(null)
 
@@ -50,14 +84,9 @@ export default function LandEOIFormsPage() {
   const fetchEOIForms = async () => {
     try {
       setLoading(true)
-      const params = new URLSearchParams()
-      if (searchQuery) params.append("search", searchQuery)
-      const response = await apiFetch<{ success: boolean; data: LandEoiForm[] }>(
-        `/admin/land-eoi-forms?${params.toString()}`
-      )
-      if (response.success) {
-        setEoiForms(response.data)
-      }
+      const result = await fetchAllLandEoiForms(searchQuery)
+      setEoiForms(result.items)
+      setStats(result.stats)
     } catch {
       toast({
         title: "Error",
@@ -121,13 +150,6 @@ export default function LandEOIFormsPage() {
     }
   }
 
-  const stats = {
-    total: eoiForms.length,
-    pending: eoiForms.filter((f) => f.status === "pending").length,
-    approved: eoiForms.filter((f) => f.status === "approved").length,
-    rejected: eoiForms.filter((f) => f.status === "rejected").length,
-  }
-
   return (
     <div className="space-y-6">
       <div>
@@ -165,7 +187,14 @@ export default function LandEOIFormsPage() {
       <Card>
         <CardHeader>
           <CardTitle>All Land EOI Forms</CardTitle>
-          <CardDescription>Search and filter land expression of interest submissions</CardDescription>
+          <CardDescription>
+            Search and filter land expression of interest submissions
+            {!loading && stats.total > 0 && (
+              <span className="block mt-1 text-foreground/80">
+                Showing {eoiForms.length} of {stats.total} submission{stats.total === 1 ? "" : "s"}
+              </span>
+            )}
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex gap-4 mb-6">

@@ -26,6 +26,7 @@ interface Business {
   subscription_status: string
   trial_ends_at?: string
   subscription_ends_at?: string
+  members_count?: number
   settings?: any
   subscription?: {
     id: string
@@ -38,13 +39,21 @@ interface Business {
 }
 
 interface BusinessesResponse {
-  businesses: Business[]
+  success?: boolean
+  businesses: Business[] | { data?: Business[] }
   pagination: {
     current_page: number
     last_page: number
     per_page: number
     total: number
   }
+}
+
+function normalizeBusinesses(payload?: BusinessesResponse | null): Business[] {
+  const raw = payload?.businesses
+  if (Array.isArray(raw)) return raw
+  if (raw && Array.isArray(raw.data)) return raw.data
+  return []
 }
 
 export default function BusinessesPage() {
@@ -90,7 +99,7 @@ export default function BusinessesPage() {
 
   if (error) return <div className="p-6 text-red-600">{error}</div>
 
-  const businesses = data?.businesses || []
+  const businesses = normalizeBusinesses(data)
 
   const getStatusBadge = (status: string, subscriptionStatus: string) => {
     if (status === "suspended") {
@@ -133,14 +142,21 @@ export default function BusinessesPage() {
     )
   }
 
-  // Since we're filtering on the API side, we don't need client-side filtering
   const filteredBusinesses = businesses
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold">Businesses</h1>
-        <p className="text-muted-foreground mt-2">Manage all businesses on the platform</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Businesses</h1>
+          <p className="text-muted-foreground mt-2">Manage and onboard tenants on the platform</p>
+        </div>
+        <Button asChild>
+          <Link href="/super-admin/businesses/new">
+            <Building2 className="h-4 w-4 mr-2" />
+            Onboard Business
+          </Link>
+        </Button>
       </div>
 
       {/* Stats */}
@@ -197,7 +213,10 @@ export default function BusinessesPage() {
 
       {/* Businesses List */}
       <div className="space-y-4">
-        {filteredBusinesses.map((business) => (
+        {isLoading && businesses.length === 0 ? (
+          <Card className="p-12 text-center text-muted-foreground">Loading businesses…</Card>
+        ) : (
+          filteredBusinesses.map((business) => (
           <Card key={business.id} className="p-6">
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-4 flex-1">
@@ -219,8 +238,11 @@ export default function BusinessesPage() {
                       <p className="font-medium">{business.package ?? business.subscription?.package ?? "No package"}</p>
                     </div>
                     <div>
-                      <p className="text-muted-foreground">Contact</p>
-                      <p className="font-medium text-sm">{business.contact_email?.trim() ? business.contact_email : "—"}</p>
+                      <p className="text-muted-foreground">Members</p>
+                      <p className="font-medium flex items-center gap-1">
+                        <Users className="h-3 w-3" />
+                        {(business.members_count ?? 0).toLocaleString()}
+                      </p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Joined</p>
@@ -229,6 +251,10 @@ export default function BusinessesPage() {
                         {new Date(business.created_at).toLocaleDateString()}
                       </p>
                     </div>
+                  </div>
+                  <div className="mt-2 text-sm">
+                    <p className="text-muted-foreground">Contact</p>
+                    <p className="font-medium text-sm">{business.contact_email?.trim() ? business.contact_email : "—"}</p>
                   </div>
                   {(business.custom_domain || business.full_domain) && (
                     <div className="mt-2 text-sm">
@@ -256,14 +282,18 @@ export default function BusinessesPage() {
               </div>
             </div>
           </Card>
-        ))}
+          ))
+        )}
       </div>
 
-      {filteredBusinesses.length === 0 && (
+      {!isLoading && filteredBusinesses.length === 0 && (
         <Card className="p-12 text-center">
           <Building2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
           <p className="text-lg font-medium">No businesses found</p>
-          <p className="text-sm text-muted-foreground mt-1">Try adjusting your search or filters</p>
+          <p className="text-sm text-muted-foreground mt-1 mb-4">Onboard a tenant to get started</p>
+          <Button asChild>
+            <Link href="/super-admin/businesses/new">Onboard Business</Link>
+          </Button>
         </Card>
       )}
     </div>

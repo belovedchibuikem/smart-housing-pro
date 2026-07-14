@@ -1174,6 +1174,43 @@ export async function approveEoiForm(id: string) {
 	})
 }
 
+export type EoiFormStats = {
+	total: number
+	pending: number
+	approved: number
+	rejected: number
+}
+
+export async function getEoiForms(params?: { search?: string; status?: string; page?: number; per_page?: number }) {
+	const query = new URLSearchParams()
+	if (params?.search) query.set("search", params.search)
+	if (params?.status) query.set("status", params.status)
+	if (params?.page) query.set("page", String(params.page))
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+
+	return apiFetch<{
+		success: boolean
+		data: any[]
+		stats?: EoiFormStats
+		pagination?: { current_page: number; last_page: number; per_page: number; total: number }
+	}>(`/admin/eoi-forms?${query.toString()}`, { method: "GET" })
+}
+
+export async function getLandEoiForms(params?: { search?: string; status?: string; page?: number; per_page?: number }) {
+	const query = new URLSearchParams()
+	if (params?.search) query.set("search", params.search)
+	if (params?.status) query.set("status", params.status)
+	if (params?.page) query.set("page", String(params.page))
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+
+	return apiFetch<{
+		success: boolean
+		data: any[]
+		stats?: EoiFormStats
+		pagination?: { current_page: number; last_page: number; per_page: number; total: number }
+	}>(`/admin/land-eoi-forms?${query.toString()}`, { method: "GET" })
+}
+
 export async function getPropertyPaymentSetup(propertyId: string, allocationId?: string) {
 	const qs = allocationId ? `?allocation_id=${encodeURIComponent(allocationId)}` : ""
 	return apiFetch<{ success: boolean; data: PropertyPaymentSetup; message?: string }>(
