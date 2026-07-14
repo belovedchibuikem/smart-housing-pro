@@ -117,7 +117,7 @@ export function formatNaira(value: number | undefined | null, compact = false) {
 export function buildPropertiesFilterHref(filters: PropertyLocationFilterValues, segment: "houses" | "land" = "houses") {
   const params = new URLSearchParams()
   appendLocationFilters(params, filters)
-  if (segment === "land") params.set("segment", "land")
+  const base = segment === "land" ? "/admin/lands" : "/admin/properties"
   const qs = params.toString()
-  return qs ? `/admin/properties?${qs}` : "/admin/properties"
+  return qs ? `${base}?${qs}` : base
 }

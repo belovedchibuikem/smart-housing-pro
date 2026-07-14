@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { useParams } from "next/navigation"
+import { useParams, useSearchParams, useRouter } from "next/navigation"
 import { ArrowLeft, Loader2, MapPinned, Pencil } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -46,10 +46,16 @@ interface LandDetail {
 
 export default function AdminLandDetailPage() {
   const params = useParams<{ id: string }>()
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const id = params?.id ?? ""
   const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [land, setLand] = useState<LandDetail | null>(null)
+  const initialTab = ["overview", "ownership", "documents"].includes(searchParams.get("tab") || "")
+    ? (searchParams.get("tab") as string)
+    : "overview"
+  const [activeTab, setActiveTab] = useState(initialTab)
 
   useEffect(() => {
     if (!id) return
@@ -153,7 +159,18 @@ export default function AdminLandDetailPage() {
         </Button>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-6">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          setActiveTab(value)
+          const qs = new URLSearchParams(searchParams.toString())
+          if (value === "overview") qs.delete("tab")
+          else qs.set("tab", value)
+          const next = qs.toString()
+          router.replace(next ? `?${next}` : "?", { scroll: false })
+        }}
+        className="space-y-6"
+      >
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="ownership">Ownership</TabsTrigger>

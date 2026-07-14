@@ -2667,6 +2667,53 @@ export async function createPropertyAllottee(data: any) {
 	return apiFetch<{ success: boolean; message: string; data: any }>("/admin/property-management/allottees", { method: "POST", body: data })
 }
 
+export async function getLandSubscriptions(params?: {
+	search?: string
+	land_id?: string
+	member_id?: string
+	location?: string
+	city?: string
+	state?: string
+	estate_id?: string
+	page?: number
+	per_page?: number
+}) {
+	const query = new URLSearchParams()
+	if (params?.search) query.set("search", params.search)
+	if (params?.land_id) query.set("land_id", params.land_id)
+	if (params?.member_id) query.set("member_id", params.member_id)
+	if (params?.location) query.set("location", params.location)
+	if (params?.city) query.set("city", params.city)
+	if (params?.state) query.set("state", params.state)
+	if (params?.estate_id) query.set("estate_id", params.estate_id)
+	if (params?.page) query.set("page", String(params.page))
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+
+	return apiFetch<{
+		success: boolean
+		data: Array<{
+			id: string
+			subscription_id: string
+			land_id: string
+			member_id: string
+			member_name: string
+			member_number: string
+			land_title: string
+			land_code: string | null
+			land_location: string
+			slot_label: string | null
+			total_price: number
+			amount_paid: number
+			balance: number
+			status: string
+			tenure_status: string | null
+			payment_status: string | null
+			created_at: string | null
+		}>
+		pagination: { current_page: number; last_page: number; per_page: number; total: number }
+	}>(`/admin/land-subscriptions?${query.toString()}`, { method: "GET" })
+}
+
 export async function createLandSubscription(data: {
 	member_id: string
 	land_id: string
