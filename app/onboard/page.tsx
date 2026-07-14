@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -43,7 +43,7 @@ function isCustomPackage(pkg: Package): boolean {
   return Boolean(pkg.custom_pricing || pkg.limits?.custom_pricing)
 }
 
-export default function OnboardingPage() {
+function OnboardingPageContent() {
   const searchParams = useSearchParams()
   // Get platform domain dynamically
   const [platformDomain, setPlatformDomain] = useState<string>('smarthousing.com.ng')
@@ -870,5 +870,19 @@ export default function OnboardingPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-muted/30 flex items-center justify-center p-4">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <OnboardingPageContent />
+    </Suspense>
   )
 }
