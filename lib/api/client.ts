@@ -1229,6 +1229,7 @@ export async function getPropertyPaymentPlans(params?: {
 	status?: string
 	property_id?: string
 	member_id?: string
+	search?: string
 	page?: number
 	per_page?: number
 }) {
@@ -1236,6 +1237,7 @@ export async function getPropertyPaymentPlans(params?: {
 	if (params?.status) query.set("status", params.status)
 	if (params?.property_id) query.set("property_id", params.property_id)
 	if (params?.member_id) query.set("member_id", params.member_id)
+	if (params?.search) query.set("search", params.search)
 	if (params?.page) query.set("page", String(params.page))
 	if (params?.per_page) query.set("per_page", String(params.per_page))
 
@@ -1252,12 +1254,14 @@ export async function getPropertyPaymentPlans(params?: {
 export async function getPendingPropertyPaymentInterests(params?: {
 	property_id?: string
 	member_id?: string
+	search?: string
 	page?: number
 	per_page?: number
 }) {
 	const query = new URLSearchParams()
 	if (params?.property_id) query.set("property_id", params.property_id)
 	if (params?.member_id) query.set("member_id", params.member_id)
+	if (params?.search) query.set("search", params.search)
 	if (params?.page) query.set("page", String(params.page))
 	if (params?.per_page) query.set("per_page", String(params.per_page))
 
@@ -1443,21 +1447,29 @@ export async function generatePropertySubscriptionCertificate(allocationId: stri
 		message: string
 		certificate: {
 			certificate_number: string
+			certificate_type?: "payment_completion" | "ownership" | string
 			issue_date: string
+			organization_name?: string | null
+			organization_tagline?: string | null
+			owner_label?: string | null
 			property: {
 				title: string
-				address: string
-				city: string | null
-				state: string | null
+				address?: string | null
+				unit_address?: string | null
+				slot_label?: string | null
+				city?: string | null
+				state?: string | null
 				price: number
 			}
 			member: {
 				name: string
 				member_id: string
-				email: string | null
+				email?: string | null
 			}
-			allocation_date: string | null
-			completion_date: string
+			amount_paid?: number
+			allocation_date?: string | null
+			sold_at?: string | null
+			completion_date?: string
 		}
 	}>(`/admin/property-subscriptions/${allocationId}/certificate`, {
 		method: "POST",

@@ -21,6 +21,7 @@ import {
   getPropertyLocationFilterOptions,
   type AdminPropertyStatistics,
 } from "@/lib/api/client"
+import { openSubscriptionCertificate } from "@/lib/properties/subscription-certificate"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
 import { PropertyLocationFilters } from "@/components/admin/property-location-filters"
@@ -82,6 +83,9 @@ export default function AdminPropertiesPage() {
   const [subscriptions, setSubscriptions] = useState<any[]>([])
   const [pendingPayments, setPendingPayments] = useState<any[]>([])
   const [searchQuery, setSearchQuery] = useState("")
+  const [subscriptionSearchQuery, setSubscriptionSearchQuery] = useState("")
+  const [issuingCertificateId, setIssuingCertificateId] = useState<string | null>(null)
+  const [loadingSubscriptions, setLoadingSubscriptions] = useState(false)
   const [paymentFilter, setPaymentFilter] = useState("all")
   const [listingSegment, setListingSegment] = useState<"houses" | "land">(
     searchParams.get("segment") === "land" ? "land" : "houses"
@@ -174,7 +178,7 @@ export default function AdminPropertiesPage() {
   useEffect(() => {
     void fetchSubscriptions()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locationFilters])
+  }, [locationFilters, subscriptionSearchQuery])
 
   const fetchLandParcels = async () => {
     try {
@@ -232,8 +236,10 @@ export default function AdminPropertiesPage() {
 
   const fetchSubscriptions = async () => {
     try {
+      setLoadingSubscriptions(true)
       const response = await getPropertySubscriptions({
         per_page: 100,
+        search: subscriptionSearchQuery.trim() || undefined,
         location: locationFilters.location || undefined,
         city: locationFilters.city || undefined,
         state: locationFilters.state || undefined,
@@ -268,6 +274,8 @@ export default function AdminPropertiesPage() {
         description: "Failed to fetch subscriptions",
         variant: "destructive",
       })
+    } finally {
+      setLoadingSubscriptions(false)
     }
   }
 
@@ -361,15 +369,26 @@ export default function AdminPropertiesPage() {
   }
 
   const handleIssueCertificate = async (subscription: any) => {
+    const allocationId = subscription.allocation?.id || subscription.id
+    if (!allocationId) {
+      toast({
+        title: "Error",
+        description: "Unable to identify this subscription allocation.",
+        variant: "destructive",
+      })
+      return
+    }
+
     try {
-      const response = await generatePropertySubscriptionCertificate(subscription.id)
-      
+      setIssuingCertificateId(allocationId)
+      const response = await generatePropertySubscriptionCertificate(allocationId)
+
       if (response.success && response.certificate) {
+        openSubscriptionCertificate(response.certificate)
         toast({
-          title: "Certificate Generated",
-          description: `Certificate ${response.certificate.certificate_number} has been generated successfully.`,
+          title: "Certificate ready",
+          description: `Certificate ${response.certificate.certificate_number} opened for print or save as PDF.`,
         })
-        // Optionally download or show certificate
       } else {
         throw new Error(response.message || 'Failed to generate certificate')
       }
@@ -379,8 +398,13 @@ export default function AdminPropertiesPage() {
         description: error.message || "Failed to generate certificate",
         variant: "destructive",
       })
+    } finally {
+      setIssuingCertificateId(null)
     }
   }
+
+  const canIssueCertificate = (sub: { status?: string; balance?: number; hasCertificate?: boolean }) =>
+    sub.status === "Completed" || (sub.balance ?? 0) <= 0 || sub.hasCertificate === true
 
   const handleVerifyPayment = async (payment: { id: string }, action: "approve" | "reject") => {
     try {
@@ -853,12 +877,32 @@ export default function AdminPropertiesPage() {
             showStatus={false}
           />
 
+          <div className="relative max-w-md">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by member name, ID, property, or address..."
+              value={subscriptionSearchQuery}
+              onChange={(e) => setSubscriptionSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+
           <Card>
             <CardHeader>
               <CardTitle>Property Subscriptions</CardTitle>
               <CardDescription>View and manage all property subscriptions</CardDescription>
             </CardHeader>
             <CardContent>
+              {loadingSubscriptions ? (
+                <div className="flex items-center justify-center py-12 text-muted-foreground">
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Loading subscriptions...
+                </div>
+              ) : subscriptions.length === 0 ? (
+                <div className="py-12 text-center text-muted-foreground">
+                  No subscriptions match your filters.
+                </div>
+              ) : (
               <div className="space-y-4">
                 {subscriptions.map((sub) => (
                   <div key={sub.id} className="p-4 border rounded-lg space-y-3">
@@ -904,14 +948,22 @@ export default function AdminPropertiesPage() {
                         variant="outline" 
                         size="sm"
                         onClick={() => handleIssueCertificate(sub)}
-                        disabled={sub.status !== "Completed"}
+                        disabled={!canIssueCertificate(sub) || issuingCertificateId === (sub.allocation?.id || sub.id)}
                       >
-                        Issue Certificate
+                        {issuingCertificateId === (sub.allocation?.id || sub.id) ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Issuing...
+                          </>
+                        ) : (
+                          "Issue Certificate"
+                        )}
                       </Button>
                     </div>
                   </div>
                 ))}
               </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

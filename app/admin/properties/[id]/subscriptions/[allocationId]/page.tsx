@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { getPropertySubscription, generatePropertySubscriptionCertificate } from "@/lib/api/client"
+import { openSubscriptionCertificate } from "@/lib/properties/subscription-certificate"
 
 interface SubscriptionDetail {
   allocation: {
@@ -81,6 +82,7 @@ export default function SubscriptionDetailPage() {
   const { toast } = useToast()
   const allocationId = params.allocationId as string
   const [loading, setLoading] = useState(true)
+  const [generatingCertificate, setGeneratingCertificate] = useState(false)
   const [data, setData] = useState<SubscriptionDetail | null>(null)
 
   useEffect(() => {
@@ -110,12 +112,14 @@ export default function SubscriptionDetailPage() {
 
   const handleGenerateCertificate = async () => {
     try {
+      setGeneratingCertificate(true)
       const response = await generatePropertySubscriptionCertificate(allocationId)
-      
-      if (response.success) {
+
+      if (response.success && response.certificate) {
+        openSubscriptionCertificate(response.certificate)
         toast({
-          title: "Certificate Generated",
-          description: `Certificate ${response.certificate?.certificate_number || ''} has been generated successfully.`,
+          title: "Certificate ready",
+          description: `Certificate ${response.certificate.certificate_number} opened for print or save as PDF.`,
         })
       } else {
         throw new Error(response.message || 'Failed to generate certificate')
@@ -126,6 +130,8 @@ export default function SubscriptionDetailPage() {
         description: error.message || "Failed to generate certificate",
         variant: "destructive",
       })
+    } finally {
+      setGeneratingCertificate(false)
     }
   }
 
@@ -183,9 +189,18 @@ export default function SubscriptionDetailPage() {
           </div>
         </div>
         {data.payment_summary.balance <= 0 && (
-          <Button onClick={handleGenerateCertificate}>
-            <FileText className="h-4 w-4 mr-2" />
-            Generate Certificate
+          <Button onClick={handleGenerateCertificate} disabled={generatingCertificate}>
+            {generatingCertificate ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Generating...
+              </>
+            ) : (
+              <>
+                <FileText className="h-4 w-4 mr-2" />
+                Generate Certificate
+              </>
+            )}
           </Button>
         )}
       </div>

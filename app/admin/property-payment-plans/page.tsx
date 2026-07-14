@@ -1,12 +1,11 @@
 "use client"
 
-
-
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
@@ -16,62 +15,119 @@ import {
 	type PendingPlanInterest,
 	type PropertyPaymentPlan,
 } from "@/lib/api/client"
+import { MapPin, Calendar, User, ChevronsRight, ClipboardList, Search } from "lucide-react"
+
 const formatCurrency = (amount?: number | null) => {
 	const value = Number.isFinite(amount) ? Number(amount) : 0
 	return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 }).format(value)
 }
 
-import { MapPin, Calendar, User, ChevronsRight, ClipboardList } from "lucide-react"
-
 const skeletonArray = Array.from({ length: 3 })
+
+async function fetchAllPendingInterests(search?: string) {
+	const all: PendingPlanInterest[] = []
+	let page = 1
+	let lastPage = 1
+
+	do {
+		const response = await getPendingPropertyPaymentInterests({
+			per_page: 100,
+			page,
+			search: search || undefined,
+		})
+		if (!response.success) {
+			throw new Error("Unable to load pending interests")
+		}
+		all.push(...(response.data ?? []))
+		lastPage = response.pagination?.last_page ?? 1
+		page += 1
+	} while (page <= lastPage)
+
+	return {
+		items: all,
+		total: all.length,
+	}
+}
+
+async function fetchAllPaymentPlans(search?: string) {
+	const all: PropertyPaymentPlan[] = []
+	let page = 1
+	let lastPage = 1
+	let total = 0
+
+	do {
+		const response = await getPropertyPaymentPlans({
+			per_page: 100,
+			page,
+			search: search || undefined,
+		})
+		if (!response.success) {
+			throw new Error("Unable to load payment plans")
+		}
+		all.push(...(response.data ?? []))
+		total = response.pagination?.total ?? all.length
+		lastPage = response.pagination?.last_page ?? 1
+		page += 1
+	} while (page <= lastPage)
+
+	return {
+		items: all,
+		total: total || all.length,
+	}
+}
 
 export default function PropertyPaymentPlansPage() {
 	const { toast } = useToast()
 	const [pending, setPending] = useState<PendingPlanInterest[]>([])
 	const [plans, setPlans] = useState<PropertyPaymentPlan[]>([])
+	const [pendingTotal, setPendingTotal] = useState(0)
+	const [plansTotal, setPlansTotal] = useState(0)
+	const [searchQuery, setSearchQuery] = useState("")
 	const [loadingPending, setLoadingPending] = useState(true)
 	const [loadingPlans, setLoadingPlans] = useState(true)
 
-	useEffect(() => {
-		const fetchPending = async () => {
-			try {
-				setLoadingPending(true)
-				const response = await getPendingPropertyPaymentInterests({ per_page: 20 })
-				if (response.success) {
-					setPending(response.data ?? [])
-				}
-			} catch (error: any) {
-				toast({
-					title: "Unable to load pending interests",
-					description: error?.message ?? "Please try again later.",
-					variant: "destructive",
-				})
-			} finally {
-				setLoadingPending(false)
-			}
+	const loadPending = useCallback(async (search?: string) => {
+		try {
+			setLoadingPending(true)
+			const result = await fetchAllPendingInterests(search)
+			setPending(result.items)
+			setPendingTotal(result.total)
+		} catch (error: any) {
+			toast({
+				title: "Unable to load pending interests",
+				description: error?.message ?? "Please try again later.",
+				variant: "destructive",
+			})
+		} finally {
+			setLoadingPending(false)
 		}
-
-		const fetchPlans = async () => {
-			try {
-				setLoadingPlans(true)
-				const response = await getPropertyPaymentPlans({ per_page: 20 })
-				if (response.success) {
-					setPlans(response.data ?? [])
-				}
-			} catch (error: any) {
-				toast({
-					title: "Unable to load payment plans",
-					description: error?.message ?? "Please try again later.",
-					variant: "destructive",
-				})
-			} finally {
-				setLoadingPlans(false)
-			}
-		}
-
-		void fetchPending()
-		void fetchPlans()
 	}, [toast])
+
+	const loadPlans = useCallback(async (search?: string) => {
+		try {
+			setLoadingPlans(true)
+			const result = await fetchAllPaymentPlans(search)
+			setPlans(result.items)
+			setPlansTotal(result.total)
+		} catch (error: any) {
+			toast({
+				title: "Unable to load payment plans",
+				description: error?.message ?? "Please try again later.",
+				variant: "destructive",
+			})
+		} finally {
+			setLoadingPlans(false)
+		}
+	}, [toast])
+
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			void loadPending(searchQuery.trim() || undefined)
+			void loadPlans(searchQuery.trim() || undefined)
+		}, 300)
+
+		return () => clearTimeout(timer)
+	}, [searchQuery, loadPending, loadPlans])
 
 	return (
 		<div className="space-y-6">
@@ -90,13 +146,26 @@ export default function PropertyPaymentPlansPage() {
 				</Button>
 			</div>
 
+			<div className="relative max-w-md">
+				<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+				<Input
+					placeholder="Search by member name, ID, or property..."
+					value={searchQuery}
+					onChange={(e) => setSearchQuery(e.target.value)}
+					className="pl-10"
+				/>
+			</div>
+
 			<Tabs defaultValue="pending" className="space-y-6">
 				<TabsList>
 					<TabsTrigger value="pending" className="flex items-center gap-2">
 						Pending Setup
-						<Badge variant="secondary">{pending.length}</Badge>
+						<Badge variant="secondary">{pendingTotal}</Badge>
 					</TabsTrigger>
-					<TabsTrigger value="plans">Existing Plans</TabsTrigger>
+					<TabsTrigger value="plans" className="flex items-center gap-2">
+						Existing Plans
+						<Badge variant="secondary">{plansTotal}</Badge>
+					</TabsTrigger>
 				</TabsList>
 
 				<TabsContent value="pending" className="space-y-4">
@@ -220,6 +289,10 @@ export default function PropertyPaymentPlansPage() {
 									? Object.entries((mixAllocations.percentages ?? {}) as Record<string, number>)
 									: []
 
+								const memberName = plan.member?.user
+									? `${plan.member.user.first_name ?? ""} ${plan.member.user.last_name ?? ""}`.trim()
+									: "Member"
+
 								return (
 									<Card key={`plan-${plan.id}`} className="overflow-hidden">
 										<CardHeader className="border-b bg-muted/40">
@@ -228,6 +301,10 @@ export default function PropertyPaymentPlansPage() {
 												<span>{plan.property?.title ?? "Property"}</span>
 											</CardTitle>
 											<CardDescription className="flex flex-wrap items-center gap-3 text-sm">
+												<span className="flex items-center gap-2">
+													<User className="h-4 w-4" />
+													{memberName}
+												</span>
 												{plan.property?.location && (
 													<span className="flex items-center gap-2">
 														<MapPin className="h-4 w-4" />
@@ -299,5 +376,3 @@ export default function PropertyPaymentPlansPage() {
 		</div>
 	)
 }
-
-
