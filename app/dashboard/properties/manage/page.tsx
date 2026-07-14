@@ -83,49 +83,76 @@ export default function MyPropertyPage() {
     void fetchProperties()
   }, [toast])
 
-  const fetchPropertyDetails = async (propertyId: string) => {
-    if (loadingDetails[propertyId] || properties.find((p) => p.id === propertyId)?.paymentSetup) {
+  const fetchPropertyDetails = async (listingId: string) => {
+    const current = properties.find((p) => p.id === listingId)
+    if (!current || loadingDetails[listingId] || current.paymentSetup) {
       return
     }
 
+    const propertyId = current.property_id ?? current.id
+    const allocationId = current.allocation_id ?? (current.property_id ? current.id : undefined)
+    const isHouse = current.type?.toLowerCase() === "house"
+
     try {
-      setLoadingDetails((prev) => ({ ...prev, [propertyId]: true }))
-      const current = properties.find((p) => p.id === propertyId)
-      const isHouse = current?.type?.toLowerCase() === "house"
+      setLoadingDetails((prev) => ({ ...prev, [listingId]: true }))
       const [paymentSetupResponse, documentsResponse] = await Promise.allSettled([
-        getPropertyPaymentSetup(propertyId),
+        getPropertyPaymentSetup(propertyId, allocationId),
         isHouse ? getPropertyDocuments(propertyId) : Promise.resolve({ success: true, data: [] }),
       ])
 
+      let loadFailed = false
+      let loadMessage: string | undefined
+
       setProperties((prev) =>
         prev.map((prop) => {
-          if (prop.id === propertyId) {
-            const paymentSetup =
-              paymentSetupResponse.status === "fulfilled" && paymentSetupResponse.value.success
-                ? paymentSetupResponse.value.data
-                : null
-            const documents =
-              documentsResponse.status === "fulfilled" && documentsResponse.value.success
-                ? documentsResponse.value.data?.map((doc: any) => ({
-                    id: doc.id,
-                    name: doc.name || doc.title || "Document",
-                    url: doc.url || doc.file_url,
-                  }))
-                : []
-
-            return {
-              ...prop,
-              paymentSetup,
-              documents,
-            }
+          if (prop.id !== listingId) {
+            return prop
           }
-          return prop
+
+          let paymentSetup: PropertyPaymentSetup | null = null
+          if (paymentSetupResponse.status === "fulfilled" && paymentSetupResponse.value.success) {
+            paymentSetup = paymentSetupResponse.value.data
+          } else if (paymentSetupResponse.status === "fulfilled") {
+            loadFailed = true
+            loadMessage = paymentSetupResponse.value.message || "Could not load payment details for this property."
+          } else {
+            loadFailed = true
+            loadMessage = paymentSetupResponse.reason?.message || "Could not load payment details for this property."
+          }
+
+          const documents =
+            documentsResponse.status === "fulfilled" && documentsResponse.value.success
+              ? documentsResponse.value.data?.map((doc: any) => ({
+                  id: doc.id,
+                  name: doc.name || doc.title || "Document",
+                  url: doc.url || doc.file_url,
+                }))
+              : []
+
+          return {
+            ...prop,
+            paymentSetup,
+            documents,
+          }
         }),
       )
-    } catch (error) {
-      console.error(`Error loading details for property ${propertyId}:`, error)
+
+      if (loadFailed) {
+        toast({
+          title: "Unable to load details",
+          description: loadMessage,
+          variant: "destructive",
+        })
+      }
+    } catch (error: any) {
+      console.error(`Error loading details for listing ${listingId}:`, error)
+      toast({
+        title: "Error loading details",
+        description: error?.message || "An error occurred while loading property details.",
+        variant: "destructive",
+      })
     } finally {
-      setLoadingDetails((prev) => ({ ...prev, [propertyId]: false }))
+      setLoadingDetails((prev) => ({ ...prev, [listingId]: false }))
     }
   }
 
@@ -178,6 +205,14 @@ export default function MyPropertyPage() {
         })),
     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
+    const slotLabel = property.slot_label || property.unit_address
+    const propertyId = property.property_id ?? property.id
+    const allocationId = property.allocation_id ?? (property.property_id ? property.id : undefined)
+    const houseAccountHref = allocationId
+      ? `/dashboard/my-houses/${allocationId}`
+      : `/dashboard/properties/${propertyId}`
+    const landAccountHref = `/dashboard/lands/${propertyId}`
+
     return (
       <Card key={property.id}>
         <CardHeader>
@@ -192,6 +227,9 @@ export default function MyPropertyPage() {
                   <MapPin className="h-3 w-3" />
                   {property.location}
                 </CardDescription>
+                {slotLabel ? (
+                  <p className="mt-1 text-xs text-muted-foreground">Block: {slotLabel}</p>
+                ) : null}
               </div>
             </div>
             <Badge variant={isFullyPaid ? "default" : "secondary"}>
@@ -222,6 +260,24 @@ export default function MyPropertyPage() {
               <p className="font-semibold text-green-600">{formatCurrency(property.current_value || property.price)}</p>
             </div>
           </div>
+
+          {/* Payment summary (after Load Details) */}
+          {property.paymentSetup && (
+            <div className="grid gap-4 rounded-lg border bg-muted/30 p-4 md:grid-cols-3">
+              <div>
+                <p className="text-sm text-muted-foreground">Sale price</p>
+                <p className="font-semibold">{formatCurrency(property.paymentSetup.property.price)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Amount paid</p>
+                <p className="font-semibold">{formatCurrency(property.paymentSetup.property.total_paid)}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Outstanding</p>
+                <p className="font-semibold">{formatCurrency(property.paymentSetup.property.balance)}</p>
+              </div>
+            </div>
+          )}
 
           {/* Payment History */}
           {allPayments.length > 0 && (
@@ -276,6 +332,10 @@ export default function MyPropertyPage() {
             </div>
           )}
 
+          {property.paymentSetup && allPayments.length === 0 && (
+            <p className="text-sm text-muted-foreground">No payment transactions recorded for this block yet.</p>
+          )}
+
           {/* Documents */}
           {property.documents && property.documents.length > 0 && (
             <div>
@@ -299,7 +359,7 @@ export default function MyPropertyPage() {
 
           {/* Actions */}
           <div className="flex gap-2 pt-4 border-t">
-            <Link href={isHouse ? `/dashboard/properties/${property.id}` : `/dashboard/lands/${property.id}`}>
+            <Link href={isHouse ? houseAccountHref : landAccountHref}>
               <Button>
                 <Eye className="h-4 w-4 mr-2" />
                 View Full Details

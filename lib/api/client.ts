@@ -1163,10 +1163,14 @@ export async function approveEoiForm(id: string) {
 	})
 }
 
-export async function getPropertyPaymentSetup(propertyId: string) {
-	return apiFetch<{ success: boolean; data: PropertyPaymentSetup; message?: string }>(`/properties/${propertyId}/payment-setup`, {
-		method: "GET",
-	})
+export async function getPropertyPaymentSetup(propertyId: string, allocationId?: string) {
+	const qs = allocationId ? `?allocation_id=${encodeURIComponent(allocationId)}` : ""
+	return apiFetch<{ success: boolean; data: PropertyPaymentSetup; message?: string }>(
+		`/properties/${propertyId}/payment-setup${qs}`,
+		{
+			method: "GET",
+		},
+	)
 }
 
 export async function getPropertyDocuments(propertyId: string, params?: { page?: number; per_page?: number }) {
