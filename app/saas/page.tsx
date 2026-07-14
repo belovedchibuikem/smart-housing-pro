@@ -10,6 +10,11 @@ import { PricingPlanCard, type PricingPlanDisplay } from "@/components/saas/pric
 import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api/client"
 import { marketingFeaturesFromPackage } from "@/lib/subscription/package-modules"
+import {
+  fetchMarketplaceListings,
+  type MarketplaceListing,
+} from "@/lib/api/marketplace"
+import { MarketplaceListingCard } from "@/components/marketplace/listing-card"
 
 /** Central business subscription package (from GET /onboarding/packages) */
 interface OnboardingPackage {
@@ -93,6 +98,7 @@ export default function SaaSLandingPage() {
   const [sections, setSections] = useState<PageSection[]>([])
   const [testimonials, setTestimonials] = useState<any[]>([])
   const [businessPackages, setBusinessPackages] = useState<OnboardingPackage[]>([])
+  const [marketplaceListings, setMarketplaceListings] = useState<MarketplaceListing[]>([])
   useEffect(() => {
     Promise.all([
       apiFetch<{ success: boolean; sections: PageSection[] }>("/public/saas/pages/home").catch(() => ({
@@ -107,7 +113,11 @@ export default function SaaSLandingPage() {
         success: false,
         packages: [],
       })),
-    ]).then(([sectionsRes, testimonialsRes, packagesRes]) => {
+      fetchMarketplaceListings({ sort: "newest", per_page: 6 }).catch(() => ({
+        data: [] as MarketplaceListing[],
+        pagination: { current_page: 1, last_page: 1, per_page: 6, total: 0 },
+      })),
+    ]).then(([sectionsRes, testimonialsRes, packagesRes, listingsRes]) => {
       if (sectionsRes.success) {
         setSections(sectionsRes.sections)
       }
@@ -117,6 +127,7 @@ export default function SaaSLandingPage() {
       if (packagesRes.success && Array.isArray(packagesRes.packages)) {
         setBusinessPackages(packagesRes.packages)
       }
+      setMarketplaceListings(listingsRes.data || [])
     })
   }, [])
 
@@ -126,7 +137,12 @@ export default function SaaSLandingPage() {
       <div className="absolute top-4 right-4 z-50 bg-blue-600/90 text-white px-3 py-1 rounded-full text-xs font-medium shadow-lg backdrop-blur-sm">
         SaaS Platform
       </div>
-      <SaaSLandingContent sections={sections} testimonials={testimonials} businessPackages={businessPackages} />
+      <SaaSLandingContent
+        sections={sections}
+        testimonials={testimonials}
+        businessPackages={businessPackages}
+        marketplaceListings={marketplaceListings}
+      />
     </div>
   )
 }
@@ -235,10 +251,12 @@ function SaaSLandingContent({
   sections,
   testimonials,
   businessPackages,
+  marketplaceListings,
 }: {
   sections: PageSection[]
   testimonials: any[]
   businessPackages: OnboardingPackage[]
+  marketplaceListings: MarketplaceListing[]
 }) {
   // Find sections by type
   const heroSection = sections.find((s) => s.section_type === "hero")
@@ -360,6 +378,35 @@ function SaaSLandingContent({
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* Latest verified marketplace listings from all tenants */}
+      {marketplaceListings.length > 0 && (
+        <section className="container mx-auto px-4 py-20">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-10">
+            <div className="max-w-2xl">
+              <p className="text-sm font-semibold uppercase tracking-wider text-primary mb-2">Marketplace</p>
+              <h2 className="text-3xl md:text-4xl font-bold mb-3">Latest properties from verified vendors</h2>
+              <p className="text-muted-foreground text-lg">
+                Browse houses and land listed by cooperatives and landlords across the platform.
+              </p>
+            </div>
+            <Button asChild variant="outline" size="lg" className="shrink-0">
+              <Link href="/saas/marketplace">
+                View all listings
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
+          </div>
+          <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-6">
+            {marketplaceListings.map((listing) => (
+              <MarketplaceListingCard
+                key={`${listing.tenant_slug}-${listing.listing_kind}-${listing.id}`}
+                listing={listing}
+              />
+            ))}
           </div>
         </section>
       )}
