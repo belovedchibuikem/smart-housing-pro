@@ -1668,6 +1668,10 @@ export interface MemberPropertyHolding {
 	holding_id: string
 	asset_type: "house" | "land"
 	asset_id: string
+	property_slot_id?: string | null
+	land_slot_id?: string | null
+	slot_number?: number | null
+	slot_label?: string | null
 	title: string
 	type_label: string
 	identifier: string
@@ -1907,8 +1911,16 @@ export async function getMemberOwnershipHistory(
 	memberId: string,
 	assetType: "house" | "land",
 	assetId: string,
+	options?: {
+		property_slot_id?: string | null
+		land_slot_id?: string | null
+		holding_id?: string | null
+	},
 ) {
 	const params = new URLSearchParams({ asset_type: assetType, asset_id: assetId })
+	if (options?.property_slot_id) params.set("property_slot_id", options.property_slot_id)
+	if (options?.land_slot_id) params.set("land_slot_id", options.land_slot_id)
+	if (options?.holding_id) params.set("holding_id", options.holding_id)
 	return apiFetch<{
 		success: boolean
 		data: {

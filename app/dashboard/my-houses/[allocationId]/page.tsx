@@ -119,6 +119,8 @@ export default function MemberHouseAccountPage() {
 	const tenureStatus = String(row.tenure_status ?? "—")
 	const slotLabel = row.slot_label || row.unit_address
 	const ownerSequence = row.owner_sequence
+	const isOriginalOwner = row.is_original_owner === true || Number(ownerSequence) === 1
+	const handLabel = row.hand_label as string | undefined
 	const propertyId = row.property_id ?? property?.id
 
 	return (
@@ -151,9 +153,11 @@ export default function MemberHouseAccountPage() {
 								{String(row.payment_status).replace(/_/g, " ")}
 							</Badge>
 						)}
-						{ownerSequence != null && (
-							<Badge variant="secondary">Owner #{String(ownerSequence)}</Badge>
-						)}
+						{isOriginalOwner ? (
+							<Badge variant="secondary">Original owner</Badge>
+						) : handLabel ? (
+							<Badge variant="secondary">{handLabel}</Badge>
+						) : null}
 					</div>
 				</div>
 				{propertyId && (

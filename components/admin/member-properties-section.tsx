@@ -84,7 +84,11 @@ export function MemberPropertiesSection({ memberId }: MemberPropertiesSectionPro
     setOwnershipHistory([])
 
     try {
-      const response = await getMemberOwnershipHistory(memberId, holding.asset_type, holding.asset_id)
+      const response = await getMemberOwnershipHistory(memberId, holding.asset_type, holding.asset_id, {
+        property_slot_id: holding.property_slot_id,
+        land_slot_id: holding.land_slot_id,
+        holding_id: holding.holding_id,
+      })
       if (response.success && response.data) {
         setAssetDetail(response.data.asset)
         setOwnershipHistory(response.data.ownership_history ?? [])
@@ -282,7 +286,7 @@ export function MemberPropertiesSection({ memberId }: MemberPropertiesSectionPro
                             {entry.is_original ? (
                               <Badge className="text-[10px]">Original owner</Badge>
                             ) : null}
-                            {entry.hand_label ? (
+                            {!entry.is_original && entry.hand_label ? (
                               <Badge variant="outline" className="text-[10px] font-normal">
                                 {entry.hand_label}
                               </Badge>

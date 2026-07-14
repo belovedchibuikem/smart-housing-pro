@@ -116,6 +116,8 @@ export default function MemberLandAccountPage() {
 	const out = Number(row.outstanding_balance ?? row.outstanding ?? 0)
 	const tenureStatus = String(row.tenure_status ?? "—")
 	const ownerSequence = row.owner_sequence
+	const isOriginalOwner = row.is_original_owner === true || Number(ownerSequence) === 1
+	const handLabel = row.hand_label as string | undefined
 
 	return (
 		<div className="mx-auto max-w-4xl space-y-6 py-8">
@@ -143,9 +145,11 @@ export default function MemberLandAccountPage() {
 						<Badge variant="outline" className="capitalize">
 							Tenure: {tenureStatus.replace(/_/g, " ")}
 						</Badge>
-						{ownerSequence != null && (
-							<Badge variant="secondary">Owner #{String(ownerSequence)}</Badge>
-						)}
+						{isOriginalOwner ? (
+							<Badge variant="secondary">Original owner</Badge>
+						) : handLabel ? (
+							<Badge variant="secondary">{handLabel}</Badge>
+						) : null}
 					</div>
 				</div>
 			</div>

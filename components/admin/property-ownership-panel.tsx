@@ -84,7 +84,7 @@ function HandBadge({ entry }: { entry: PropertyOwnershipOwnerEntry }) {
       {entry.is_original ? (
         <Badge className="text-[10px]">Original owner</Badge>
       ) : null}
-      {entry.hand_label ? (
+      {!entry.is_original && entry.hand_label ? (
         <Badge variant="outline" className="text-[10px] font-normal">
           {entry.hand_label}
         </Badge>

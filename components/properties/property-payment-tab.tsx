@@ -832,9 +832,11 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 							<div className="text-lg font-semibold capitalize">
 								{String(tenureStatus).replace(/_/g, " ")}
 							</div>
-							{tenure?.owner_sequence != null && (
-								<div className="text-xs text-muted-foreground mt-1">Owner #{tenure.owner_sequence}</div>
-							)}
+							{(tenure?.is_original_owner === true || Number(tenure?.owner_sequence) === 1) ? (
+								<div className="text-xs text-muted-foreground mt-1">Original owner</div>
+							) : tenure?.hand_label ? (
+								<div className="text-xs text-muted-foreground mt-1">{String(tenure.hand_label)}</div>
+							) : null}
 						</div>
 					</div>
 

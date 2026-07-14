@@ -246,9 +246,11 @@ export function PropertyFinancials({ house }: PropertyFinancialsProps) {
                   <p className="text-xl font-semibold capitalize">
                     {tenureStatus ? tenureStatus.replace(/_/g, " ") : "—"}
                   </p>
-                  {tenure?.owner_sequence != null && (
-                    <p className="text-xs text-muted-foreground mt-1">Owner #{tenure.owner_sequence}</p>
-                  )}
+                  {(tenure?.is_original_owner === true || Number(tenure?.owner_sequence) === 1) ? (
+                    <p className="text-xs text-muted-foreground mt-1">Original owner</p>
+                  ) : tenure?.hand_label ? (
+                    <p className="text-xs text-muted-foreground mt-1">{String(tenure.hand_label)}</p>
+                  ) : null}
                 </div>
               </div>
 
