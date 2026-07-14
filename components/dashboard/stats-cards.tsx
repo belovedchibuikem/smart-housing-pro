@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card"
 import { Wallet, TrendingUp, Home, ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatCompactNaira } from "@/lib/utils/currency"
+import { DASHBOARD_CARD_MODULES } from "@/lib/modules/module-config"
 
 interface DashboardData {
   wallet_balance: number
