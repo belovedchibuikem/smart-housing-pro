@@ -50,7 +50,7 @@ interface BusinessesResponse {
 }
 
 function normalizeBusinesses(payload?: BusinessesResponse | null): Business[] {
-  const raw = payload?.businesses
+  const raw = payload?.businesses ?? (payload as any)?.data
   if (Array.isArray(raw)) return raw
   if (raw && Array.isArray(raw.data)) return raw.data
   return []
@@ -61,43 +61,50 @@ export default function BusinessesPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const { isLoading, data, error, loadData } = usePageLoading<BusinessesResponse>()
 
-  // Debounced search
-  const debouncedSearch = useCallback(
-    (() => {
-      let timeoutId: NodeJS.Timeout
-      return (query: string) => {
-        clearTimeout(timeoutId)
-        timeoutId = setTimeout(() => {
-          loadData(async () => {
-            const params = new URLSearchParams()
-            if (query) params.append('search', query)
-            if (statusFilter !== 'all') params.append('subscription_status', statusFilter)
-            
-            const response = await apiFetch<BusinessesResponse>(`/super-admin/businesses?${params.toString()}`)
-            return response
-          })
-        }, 300)
-      }
-    })(),
-    [loadData, statusFilter]
+  const fetchBusinesses = useCallback(
+    async (query: string, status: string) => {
+      const params = new URLSearchParams()
+      if (query.trim()) params.append("search", query.trim())
+      if (status !== "all") params.append("subscription_status", status)
+      const qs = params.toString()
+      return apiFetch<BusinessesResponse>(`/super-admin/businesses${qs ? `?${qs}` : ""}`)
+    },
+    [],
   )
 
   useEffect(() => {
-    debouncedSearch(searchQuery)
-  }, [searchQuery, debouncedSearch])
+    let cancelled = false
+    const timer = setTimeout(() => {
+      loadData(async () => {
+        const response = await fetchBusinesses(searchQuery, statusFilter)
+        if (cancelled) return response
+        return response
+      }).catch(() => {
+        // error state handled by usePageLoading
+      })
+    }, searchQuery ? 300 : 0)
 
-  useEffect(() => {
-    loadData(async () => {
-      const params = new URLSearchParams()
-      if (searchQuery) params.append('search', searchQuery)
-      if (statusFilter !== 'all') params.append('subscription_status', statusFilter)
-      
-      const response = await apiFetch<BusinessesResponse>(`/super-admin/businesses?${params.toString()}`)
-      return response
-    })
-  }, [loadData, statusFilter])
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [searchQuery, statusFilter, fetchBusinesses, loadData])
 
-  if (error) return <div className="p-6 text-red-600">{error}</div>
+  if (error) {
+    return (
+      <div className="space-y-4 p-6">
+        <p className="text-red-600">{error}</p>
+        <Button
+          variant="outline"
+          onClick={() =>
+            loadData(async () => fetchBusinesses(searchQuery, statusFilter)).catch(() => undefined)
+          }
+        >
+          Retry
+        </Button>
+      </div>
+    )
+  }
 
   const businesses = normalizeBusinesses(data)
 

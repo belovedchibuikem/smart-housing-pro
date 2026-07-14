@@ -43,7 +43,6 @@ const SUPER_ADMIN_BADGE_BY_HREF: Partial<Record<string, keyof SuperAdminPendingB
   "/super-admin/subscriptions": "business_subscription_payments_pending",
   "/super-admin/member-subscriptions/list": "member_subscription_payments_pending",
   "/super-admin/domain-requests": "domain_requests_pending",
-  "/super-admin/businesses": "kyc_pending_review",
 }
 
 function SuperPendingBadge({ count }: { count: number }) {
