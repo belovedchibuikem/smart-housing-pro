@@ -394,14 +394,24 @@ export default function AdminPropertiesPage() {
   }
 
   const handleViewSubscriptionPayments = (subscription: any) => {
-    router.push(`/admin/wallets/transactions?member=${subscription.allocation?.member_id}`)
+    const propertyId = subscription.property_id || subscription.allocation?.property_id
+    const allocationId = subscription.allocation?.id || subscription.id
+    if (propertyId && allocationId) {
+      router.push(`/admin/properties/${propertyId}/subscriptions/${allocationId}?tab=payments`)
+      return
+    }
+    toast({
+      title: "Unable to open payments",
+      description: "Could not find the subscription payment history for this member.",
+      variant: "destructive",
+    })
   }
 
   const handleIssueCertificate = async (subscription: any) => {
     const allocationId = subscription.allocation?.id || subscription.id
     if (!allocationId) {
       toast({
-        title: "Error",
+        title: "Cannot issue certificate",
         description: "Unable to identify this subscription allocation.",
         variant: "destructive",
       })
@@ -419,12 +429,16 @@ export default function AdminPropertiesPage() {
           description: `Certificate ${response.certificate.certificate_number} opened for print or save as PDF.`,
         })
       } else {
-        throw new Error(response.message || 'Failed to generate certificate')
+        throw new Error(response.message || "Failed to generate certificate")
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : "Failed to generate certificate"
       toast({
-        title: "Error",
-        description: error.message || "Failed to generate certificate",
+        title: "Cannot issue certificate",
+        description: message,
         variant: "destructive",
       })
     } finally {
@@ -433,7 +447,9 @@ export default function AdminPropertiesPage() {
   }
 
   const canIssueCertificate = (sub: { status?: string; balance?: number; hasCertificate?: boolean }) =>
-    sub.status === "Completed" || (sub.balance ?? 0) <= 0 || sub.hasCertificate === true
+    (sub.status === "Completed" && (sub.balance ?? 0) <= 0.01) ||
+    (sub.balance ?? 0) <= 0 ||
+    sub.hasCertificate === true
 
   const handleVerifyPayment = async (payment: { id: string }, action: "approve" | "reject") => {
     try {

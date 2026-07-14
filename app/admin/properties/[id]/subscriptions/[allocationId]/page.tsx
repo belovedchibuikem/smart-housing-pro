@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { ArrowLeft, Calendar, DollarSign, Home, User, FileText, CheckCircle2, Clock, Loader2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -79,11 +79,23 @@ interface SubscriptionDetail {
 export default function SubscriptionDetailPage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
   const allocationId = params.allocationId as string
+  const initialTab = ["overview", "payments", "schedule"].includes(searchParams.get("tab") || "")
+    ? (searchParams.get("tab") as string)
+    : "overview"
+  const [activeTab, setActiveTab] = useState(initialTab)
   const [loading, setLoading] = useState(true)
   const [generatingCertificate, setGeneratingCertificate] = useState(false)
   const [data, setData] = useState<SubscriptionDetail | null>(null)
+
+  useEffect(() => {
+    const tab = searchParams.get("tab")
+    if (tab && ["overview", "payments", "schedule"].includes(tab)) {
+      setActiveTab(tab)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     fetchSubscriptionDetails()
@@ -124,10 +136,14 @@ export default function SubscriptionDetailPage() {
       } else {
         throw new Error(response.message || 'Failed to generate certificate')
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : "Failed to generate certificate"
       toast({
-        title: "Error",
-        description: error.message || "Failed to generate certificate",
+        title: "Cannot issue certificate",
+        description: message,
         variant: "destructive",
       })
     } finally {
@@ -235,7 +251,21 @@ export default function SubscriptionDetailPage() {
         </Card>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-4">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          setActiveTab(value)
+          const params = new URLSearchParams(searchParams.toString())
+          if (value === "overview") {
+            params.delete("tab")
+          } else {
+            params.set("tab", value)
+          }
+          const qs = params.toString()
+          router.replace(qs ? `?${qs}` : "?", { scroll: false })
+        }}
+        className="space-y-4"
+      >
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="payments">Payment History</TabsTrigger>

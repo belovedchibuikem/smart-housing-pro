@@ -131,7 +131,10 @@ function friendlyNetworkFailureMessage(original: string): string {
 function finalizeUserErrorMessage(message: string, statusFallback: number): string {
 	let m = sanitizeUserFacingMessage(message)
 	if (!m) return defaultMessageForStatus(statusFallback)
-	if (/https?:\/\//i.test(m) || /\b\/api\b/i.test(m)) return defaultMessageForStatus(statusFallback >= 400 ? statusFallback : 503)
+	// Keep readable business messages (do not treat plain text as technical)
+	if (/https?:\/\//i.test(m) || /\/api\/[a-z0-9_\-/.]+/i.test(m)) {
+		return defaultMessageForStatus(statusFallback >= 400 ? statusFallback : 503)
+	}
 	if (looksLikeTechnicalServerMessage(m)) return defaultMessageForStatus(statusFallback >= 500 ? statusFallback : 500)
 	return m
 }
@@ -233,7 +236,11 @@ export async function apiFetch<T = unknown>(
 					data: data || "No response data",
 				})
 
-				throw new Error(extractUserFacingApiError(data, response.status))
+				const userMessage = extractUserFacingApiError(data, response.status)
+				const error = new Error(finalizeUserErrorMessage(userMessage, response.status))
+				;(error as Error & { status?: number; payload?: unknown }).status = response.status
+				;(error as Error & { status?: number; payload?: unknown }).payload = data
+				throw error
 			}
 
 			return (data || {}) as T
@@ -245,6 +252,10 @@ export async function apiFetch<T = unknown>(
 			})
 
 			if (error instanceof Error) {
+				// Preserve already-finalized HTTP errors (include status from non-OK branch)
+				if (typeof (error as Error & { status?: number }).status === "number") {
+					throw error
+				}
 				throw new Error(finalizeUserErrorMessage(error.message, 503))
 			}
 			throw new Error(defaultMessageForStatus(500))
