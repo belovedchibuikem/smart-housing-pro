@@ -1,38 +1,20 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { MarketplaceListingCard } from "@/components/marketplace/listing-card"
 import { MarketplaceFiltersPanel } from "@/components/marketplace/marketplace-filters"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Store } from "lucide-react"
-import {
-  fetchMarketplaceListings,
-  type MarketplaceFilters,
-  type MarketplaceListing,
-} from "@/lib/api/marketplace"
+import { type MarketplaceFilters } from "@/lib/api/marketplace"
+import { useMarketplaceListings } from "@/lib/hooks/use-marketplace-listings"
 
-const defaultFilters: MarketplaceFilters = { sort: "newest", per_page: 24, page: 1 }
+const defaultFilters: Omit<MarketplaceFilters, "page"> = { sort: "newest", per_page: 24 }
 
 export default function MarketHubPage() {
-  const [filters, setFilters] = useState<MarketplaceFilters>(defaultFilters)
-  const [listings, setListings] = useState<MarketplaceListing[]>([])
-  const [pagination, setPagination] = useState({ current_page: 1, last_page: 1, per_page: 24, total: 0 })
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const handle = setTimeout(() => {
-      setLoading(true)
-      fetchMarketplaceListings(filters)
-        .then((result) => {
-          setListings(result.data)
-          setPagination(result.pagination)
-        })
-        .finally(() => setLoading(false))
-    }, 300)
-    return () => clearTimeout(handle)
-  }, [filters])
+  const [filters, setFilters] = useState<Omit<MarketplaceFilters, "page">>(defaultFilters)
+  const { listings, pagination, loading, loadingMore, hasMore, loadMore } = useMarketplaceListings(filters)
 
   return (
     <div className="space-y-6">
@@ -61,7 +43,7 @@ export default function MarketHubPage() {
           onReset={() => setFilters(defaultFilters)}
         />
         <div>
-          {loading ? (
+          {loading && listings.length === 0 ? (
             <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="h-72 rounded-xl bg-muted animate-pulse" />
@@ -79,24 +61,15 @@ export default function MarketHubPage() {
                   <MarketplaceListingCard key={`${listing.tenant_slug}-${listing.id}`} listing={listing} />
                 ))}
               </div>
-              {pagination.last_page > 1 && (
-                <div className="flex justify-center gap-2 mt-8">
-                  <Button
-                    variant="outline"
-                    disabled={pagination.current_page <= 1}
-                    onClick={() => setFilters((p) => ({ ...p, page: (p.page || 1) - 1 }))}
-                  >
-                    Previous
+              <div className="flex justify-center mt-8">
+                {hasMore ? (
+                  <Button onClick={loadMore} disabled={loadingMore} variant="outline">
+                    {loadingMore ? "Loading…" : "Load more"}
                   </Button>
-                  <Button
-                    variant="outline"
-                    disabled={pagination.current_page >= pagination.last_page}
-                    onClick={() => setFilters((p) => ({ ...p, page: (p.page || 1) + 1 }))}
-                  >
-                    Next
-                  </Button>
-                </div>
-              )}
+                ) : (
+                  <p className="text-sm text-muted-foreground">End of results</p>
+                )}
+              </div>
             </>
           )}
         </div>

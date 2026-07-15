@@ -15,6 +15,7 @@ import {
   type MarketplaceListing,
 } from "@/lib/api/marketplace"
 import { MarketplaceListingCard } from "@/components/marketplace/listing-card"
+import { HousingOsLandingSections } from "@/components/saas/housing-os-landing-sections"
 
 /** Central business subscription package (from GET /onboarding/packages) */
 interface OnboardingPackage {
@@ -410,6 +411,8 @@ function SaaSLandingContent({
           </div>
         </section>
       )}
+
+      <HousingOsLandingSections />
 
       {/* Features Section */}
       {featuresSection && (

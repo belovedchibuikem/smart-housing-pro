@@ -12,6 +12,8 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
+import { PropertyLocationPicker } from "@/components/admin/property-location-picker"
+import type { GeoCoordinates } from "@/lib/geo/coordinates"
 
 export default function NewPropertyPage() {
   const router = useRouter()
@@ -22,6 +24,7 @@ export default function NewPropertyPage() {
   const [images, setImages] = useState<Array<{ url: string; preview?: string; name?: string }>>([])
   const [uploadingImages, setUploadingImages] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [coordinates, setCoordinates] = useState<GeoCoordinates>(null)
   
   const [formData, setFormData] = useState({
     title: "",
@@ -182,6 +185,9 @@ export default function NewPropertyPage() {
       }
       if (images.length > 0) {
         submitData.images = images.map((image) => image.url)
+      }
+      if (coordinates) {
+        submitData.coordinates = coordinates
       }
 
       const response = await apiFetch<{ success: boolean; message?: string; data?: any }>(
@@ -344,6 +350,8 @@ export default function NewPropertyPage() {
                 />
               </div>
             </div>
+
+            <PropertyLocationPicker value={coordinates} onChange={setCoordinates} className="pt-2" />
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

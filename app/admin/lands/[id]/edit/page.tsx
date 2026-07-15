@@ -15,6 +15,8 @@ import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { MarketplacePublishToggle } from "@/components/admin/marketplace-publish-toggle"
+import { PropertyLocationPicker } from "@/components/admin/property-location-picker"
+import { parseGeoCoordinates, type GeoCoordinates } from "@/lib/geo/coordinates"
 
 function splitToArray(raw: string): string[] {
   return raw
@@ -52,6 +54,7 @@ export default function EditLandPage() {
     total_slots: "",
     cost_includes_infrastructure: false,
   })
+  const [coordinates, setCoordinates] = useState<GeoCoordinates>(null)
 
   useEffect(() => {
     if (!id) return
@@ -79,6 +82,7 @@ export default function EditLandPage() {
             land.total_slots !== null && land.total_slots !== undefined ? String(land.total_slots) : "",
           cost_includes_infrastructure: land.cost_includes_infrastructure === true,
         })
+        setCoordinates(parseGeoCoordinates(land.coordinates))
         if (Array.isArray(land.images)) {
           setImages(
             land.images.map((url: string, idx: number) => ({
@@ -189,6 +193,7 @@ export default function EditLandPage() {
               : null,
         cost_includes_infrastructure: form.cost_includes_infrastructure,
         images: images.map((image) => image.url),
+        coordinates,
       }
 
       const res = await apiFetch<{ success: boolean; message?: string }>(`/admin/lands/${id}`, {
@@ -317,6 +322,9 @@ export default function EditLandPage() {
             </div>
             <div className="space-y-2"><Label htmlFor="city">City</Label><Input id="city" value={form.city} onChange={(e) => setForm((s) => ({ ...s, city: e.target.value }))} /></div>
             <div className="space-y-2"><Label htmlFor="state">State</Label><Input id="state" value={form.state} onChange={(e) => setForm((s) => ({ ...s, state: e.target.value }))} /></div>
+            <div className="sm:col-span-2">
+              <PropertyLocationPicker value={coordinates} onChange={setCoordinates} />
+            </div>
           </CardContent>
         </Card>
 

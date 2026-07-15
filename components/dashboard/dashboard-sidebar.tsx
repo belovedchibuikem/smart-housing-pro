@@ -138,6 +138,8 @@ const navItems: NavItem[] = [
     subItems: [
       { href: "/dashboard/market-hub", label: "Market Hub", displayKey: "nav.marketHub", icon: Store },
       { href: "/dashboard/agent-profile", label: "Agent profile", displayKey: "nav.agentProfile", icon: Users },
+      { href: "/dashboard/agent", label: "Agent CRM", displayKey: "nav.agentCrm", icon: Users },
+      { href: "/dashboard/landlord", label: "Landlord hub", displayKey: "nav.landlordHub", icon: Building2 },
       { href: "/dashboard/browse-properties?listing=all", label: "All Listings", displayKey: "nav.allListings", icon: LayoutGrid },
       { href: "/dashboard/browse-properties?listing=house", label: "Browse Houses", displayKey: "nav.browseHouses", icon: Building2 },
       { href: "/dashboard/browse-properties?listing=land", label: "Browse Lands", displayKey: "nav.browseLands", icon: LandPlot },

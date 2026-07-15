@@ -67,6 +67,7 @@ const navItems: NavItem[] = [
   { href: "/super-admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/super-admin/businesses", label: "Businesses", icon: Building2 },
   { href: "/super-admin/marketplace", label: "Marketplace", icon: Store },
+  { href: "/super-admin/marketplace-fraud", label: "Fraud queue", icon: Shield },
   { href: "/super-admin/marketplace-agents", label: "Agents", icon: Users },
   { href: "/super-admin/modules", label: "Modules", icon: Blocks },
   { 

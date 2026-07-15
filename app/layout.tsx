@@ -7,6 +7,7 @@ import { TenantProvider } from "@/lib/tenant/tenant-context"
 import { WhiteLabelProvider } from "@/lib/context/white-label-context"
 import { TenantSettingsProvider } from "@/lib/context/tenant-settings-context"
 import { PwaProvider } from "@/components/pwa/pwa-provider"
+import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "sonner"
 import { I18nProvider } from "@/lib/i18n/i18n-provider"
 
@@ -64,12 +65,14 @@ export default function RootLayout({
         <TenantProvider>
           <TenantSettingsProvider>
             <WhiteLabelProvider>
-              <PwaProvider>
-                <I18nProvider>
-                  {children}
-                  <Toaster position="top-right" />
-                </I18nProvider>
-              </PwaProvider>
+              <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+                <PwaProvider>
+                  <I18nProvider>
+                    {children}
+                    <Toaster position="top-right" />
+                  </I18nProvider>
+                </PwaProvider>
+              </ThemeProvider>
             </WhiteLabelProvider>
           </TenantSettingsProvider>
         </TenantProvider>

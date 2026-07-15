@@ -8,6 +8,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { useSaasBranding } from "@/hooks/use-saas-branding"
 import { SaasBrandMark } from "@/components/saas/saas-brand-mark"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 export function SaaSHeader() {
   const [isOpen, setIsOpen] = useState(false)
@@ -97,9 +98,12 @@ export function SaaSHeader() {
           </Link>
         </nav>
 
-        <Button asChild className="hidden md:flex">
-          <Link href="/onboard">{ctaText}</Link>
-        </Button>
+        <div className="hidden md:flex items-center gap-2">
+          <ThemeToggle />
+          <Button asChild>
+            <Link href="/onboard">{ctaText}</Link>
+          </Button>
+        </div>
 
         <Sheet open={isOpen} onOpenChange={setIsOpen}>
           <SheetTrigger asChild className="md:hidden">

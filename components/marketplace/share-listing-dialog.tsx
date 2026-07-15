@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -15,7 +15,13 @@ import { Share2, Copy, Check } from "lucide-react"
 import type { MarketplaceListing } from "@/lib/api/marketplace"
 import { marketplaceListingPath } from "@/lib/api/marketplace"
 
-export function ShareListingDialog({ listing }: { listing: MarketplaceListing }) {
+export function ShareListingDialog({
+  listing,
+  children,
+}: {
+  listing: MarketplaceListing
+  children?: ReactNode
+}) {
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const path = marketplaceListingPath(listing)
@@ -34,10 +40,14 @@ export function ShareListingDialog({ listing }: { listing: MarketplaceListing })
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2">
-          <Share2 className="h-4 w-4" />
-          Share
-        </Button>
+        {children ? (
+          children
+        ) : (
+          <Button variant="outline" className="gap-2">
+            <Share2 className="h-4 w-4" />
+            Share
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

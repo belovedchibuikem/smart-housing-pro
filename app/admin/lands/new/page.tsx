@@ -14,6 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
+import { PropertyLocationPicker } from "@/components/admin/property-location-picker"
+import type { GeoCoordinates } from "@/lib/geo/coordinates"
 
 function splitToArray(raw: string): string[] {
   return raw
@@ -47,6 +49,7 @@ export default function NewLandPage() {
     total_slots: "",
     cost_includes_infrastructure: false,
   })
+  const [coordinates, setCoordinates] = useState<GeoCoordinates>(null)
 
   useEffect(() => {
     return () => {
@@ -139,6 +142,7 @@ export default function NewLandPage() {
               : null,
         cost_includes_infrastructure: form.cost_includes_infrastructure,
         images: images.map((image) => image.url),
+        ...(coordinates ? { coordinates } : {}),
       }
 
       const res = await apiFetch<{ success: boolean; data?: { land_code?: string }; message?: string }>(
@@ -409,6 +413,9 @@ export default function NewLandPage() {
             <div className="space-y-2">
               <Label htmlFor="state">State</Label>
               <Input id="state" value={form.state} onChange={(e) => setForm((s) => ({ ...s, state: e.target.value }))} />
+            </div>
+            <div className="sm:col-span-2">
+              <PropertyLocationPicker value={coordinates} onChange={setCoordinates} />
             </div>
           </CardContent>
         </Card>

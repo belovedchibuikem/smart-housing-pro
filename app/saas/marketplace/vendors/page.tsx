@@ -74,7 +74,11 @@ export default function MarketplaceVendorsPage() {
                       <div className="text-xs text-muted-foreground capitalize mt-0.5">
                         {vendor.vendor_type}
                         {vendor.marketplace_featured ? " · Featured" : ""}
+                        {vendor.cac_verified ? " · CAC verified" : ""}
                       </div>
+                      {vendor.years_in_business != null && (
+                        <p className="text-xs text-muted-foreground mt-1">{vendor.years_in_business} years in business</p>
+                      )}
                       {vendor.marketplace_tagline && (
                         <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{vendor.marketplace_tagline}</p>
                       )}

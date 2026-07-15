@@ -8,13 +8,20 @@ export type MarketplaceListing = {
   vendor_type?: string
   listing_kind: "house" | "land_parcel" | "land_legacy" | string
   listing_type?: string
+  listing_category?: string | null
+  listing_purpose?: string | null
   name: string
   title?: string
   description?: string | null
   location?: string | null
   city?: string | null
+  lga?: string | null
   state?: string | null
+  lat?: number | null
+  lng?: number | null
   price: number
+  old_price?: number | null
+  is_negotiable?: boolean
   rent_deposit?: number | null
   lease_term_months?: number | null
   rental_units_available?: number | null
@@ -25,20 +32,56 @@ export type MarketplaceListing = {
   size_sqm?: number | null
   bedrooms?: number | null
   bathrooms?: number | null
+  parking_spaces?: number | null
   property_type?: string | null
   image?: string | null
+  video_url?: string | null
+  virtual_tour_url?: string | null
   images?: Array<{ url: string; is_primary?: boolean }>
+  amenities?: string[]
+  detail_meta?: Record<string, unknown>
+  verification_history?: Array<{
+    id: string
+    action?: string | null
+    notes?: string | null
+    created_at?: string | null
+    actor?: string | null
+  }>
   total_slots?: number | null
   slots_available?: number | null
   status?: string
   verification_status?: string
   is_verified?: boolean
+  government_verified?: boolean
+  is_featured?: boolean
+  is_premium?: boolean
+  trust_score?: number | null
+  verification_score?: number | null
   verification_code?: string | null
   verify_url?: string | null
   detail_url?: string | null
   published_at?: string | null
   marketplace_requested?: boolean
   rejection_reason?: string | null
+  rental_units?: {
+    min_rent?: number | null
+    available_count?: number
+    units?: Array<{
+      id: string
+      unit_number?: string | null
+      unit_label?: string | null
+      rent_amount?: number
+      status?: string
+    }>
+  } | null
+}
+
+export type MarketplaceReview = {
+  id: string
+  author_name?: string | null
+  rating: number
+  body?: string | null
+  created_at?: string
 }
 
 export type MarketplaceVendor = {
@@ -52,21 +95,40 @@ export type MarketplaceVendor = {
   primary_color?: string
   secondary_color?: string
   listing_count: number
+  cac_number?: string | null
+  cac_verified?: boolean
+  vendor_cover_url?: string | null
+  vendor_about?: string | null
+  years_in_business?: number | null
+  completed_projects_count?: number | null
 }
 
 export type MarketplaceFilters = {
   q?: string
   listing_kind?: string
   listing_type?: string
+  listing_category?: string
+  listing_purpose?: string
+  property_type?: string
   state?: string
   city?: string
+  lga?: string
   min_price?: string | number
   max_price?: string | number
   min_size?: string | number
   max_size?: string | number
   bedrooms?: string | number
+  bathrooms?: string | number
+  parking?: string | number
   vendor_slug?: string
   vendor_type?: string
+  agent_profile_id?: string
+  verified?: boolean | string
+  featured?: boolean | string
+  min_trust_score?: string | number
+  lat?: string | number
+  lng?: string | number
+  radius_km?: string | number
   sort?: string
   page?: number
   per_page?: number
@@ -123,6 +185,37 @@ export async function fetchMarketplaceStats() {
     rentals?: number
     agents?: number
   } | null
+}
+
+export async function fetchMarketplaceFeatured(limit = 12) {
+  const res = await fetch(`/api/marketplace/featured?limit=${limit}`, { cache: "no-store" })
+  if (!res.ok) return [] as MarketplaceListing[]
+  const json = await res.json()
+  return (json.data || []) as MarketplaceListing[]
+}
+
+export async function fetchTrendingLocations(limit = 12) {
+  const res = await fetch(`/api/marketplace/trending-locations?limit=${limit}`, { cache: "no-store" })
+  if (!res.ok) return [] as Array<{ state?: string; city?: string; count: number }>
+  const json = await res.json()
+  return (json.data || []) as Array<{ state?: string; city?: string; count: number }>
+}
+
+export async function fetchSimilarListings(tenantSlug: string, kind: string, id: string) {
+  const res = await fetch(
+    `/api/marketplace/listings/${encodeURIComponent(tenantSlug)}/${encodeURIComponent(kind)}/${encodeURIComponent(id)}/similar`,
+    { cache: "no-store" }
+  )
+  if (!res.ok) return [] as MarketplaceListing[]
+  const json = await res.json()
+  return (json.data || []) as MarketplaceListing[]
+}
+
+export async function fetchHousingOsFlags() {
+  const res = await fetch("/api/marketplace/flags", { cache: "no-store" })
+  if (!res.ok) return null
+  const json = await res.json()
+  return json.data as Record<string, boolean> | null
 }
 
 export type MarketplaceAgent = {
@@ -216,6 +309,86 @@ export function marketplaceListingPath(listing: Pick<MarketplaceListing, "tenant
 
 export function marketplaceQrUrl(listing: Pick<MarketplaceListing, "tenant_slug" | "listing_kind" | "id">) {
   return `/api/marketplace/listings/${encodeURIComponent(listing.tenant_slug)}/${encodeURIComponent(listing.listing_kind)}/${encodeURIComponent(listing.id)}/qr`
+}
+
+import { guestHeaders } from "@/lib/marketplace/guest-key"
+
+export async function fetchFavoriteListings(): Promise<MarketplaceListing[]> {
+  const res = await fetch("/api/marketplace/favorites", {
+    cache: "no-store",
+    headers: guestHeaders(),
+  })
+  if (!res.ok) return []
+  const json = await res.json()
+  return (json.data || []) as MarketplaceListing[]
+}
+
+export async function addFavorite(marketplaceListingId: string): Promise<{ ok: boolean; message?: string }> {
+  const res = await fetch("/api/marketplace/favorites", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...guestHeaders() },
+    body: JSON.stringify({ marketplace_listing_id: marketplaceListingId }),
+  })
+  const json = await res.json().catch(() => ({}))
+  return { ok: res.ok, message: json.message }
+}
+
+export async function removeFavorite(marketplaceListingId: string): Promise<{ ok: boolean }> {
+  const res = await fetch(`/api/marketplace/favorites/${encodeURIComponent(marketplaceListingId)}`, {
+    method: "DELETE",
+    headers: guestHeaders(),
+  })
+  return { ok: res.ok }
+}
+
+export async function fetchListingReviews(
+  tenantSlug: string,
+  kind: string,
+  id: string
+): Promise<MarketplaceReview[]> {
+  const res = await fetch(
+    `/api/marketplace/listings/${encodeURIComponent(tenantSlug)}/${encodeURIComponent(kind)}/${encodeURIComponent(id)}/reviews`,
+    { cache: "no-store" }
+  )
+  if (!res.ok) return []
+  const json = await res.json()
+  return (json.data || []) as MarketplaceReview[]
+}
+
+export async function submitListingReview(
+  tenantSlug: string,
+  kind: string,
+  id: string,
+  body: { rating: number; body?: string; author_name?: string }
+): Promise<{ ok: boolean; message?: string }> {
+  const res = await fetch(
+    `/api/marketplace/listings/${encodeURIComponent(tenantSlug)}/${encodeURIComponent(kind)}/${encodeURIComponent(id)}/reviews`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...guestHeaders() },
+      body: JSON.stringify(body),
+    }
+  )
+  const json = await res.json().catch(() => ({}))
+  return { ok: res.ok, message: json.message }
+}
+
+export async function submitFraudReport(
+  tenantSlug: string,
+  kind: string,
+  id: string,
+  body: { reason: string; details?: string; reporter_email?: string }
+): Promise<{ ok: boolean; message?: string }> {
+  const res = await fetch(
+    `/api/marketplace/listings/${encodeURIComponent(tenantSlug)}/${encodeURIComponent(kind)}/${encodeURIComponent(id)}/report`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  )
+  const json = await res.json().catch(() => ({}))
+  return { ok: res.ok, message: json.message }
 }
 
 export function formatMarketplacePrice(price: number): string {

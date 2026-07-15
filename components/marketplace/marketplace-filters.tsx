@@ -107,6 +107,52 @@ export function MarketplaceFiltersPanel({ filters, onChange, onReset, vendors = 
       </div>
 
       <div className="space-y-2">
+        <Label>Category</Label>
+        <Select value={filters.listing_category || "all"} onValueChange={(v) => set("listing_category", v)}>
+          <SelectTrigger>
+            <SelectValue placeholder="All categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All categories</SelectItem>
+            <SelectItem value="apartment">Apartment</SelectItem>
+            <SelectItem value="duplex">Duplex</SelectItem>
+            <SelectItem value="luxury">Luxury</SelectItem>
+            <SelectItem value="commercial">Commercial</SelectItem>
+            <SelectItem value="office">Office</SelectItem>
+            <SelectItem value="land">Land</SelectItem>
+            <SelectItem value="short-let">Short let</SelectItem>
+            <SelectItem value="investment">Investment</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Purpose</Label>
+        <Select value={filters.listing_purpose || "all"} onValueChange={(v) => set("listing_purpose", v)}>
+          <SelectTrigger>
+            <SelectValue placeholder="Any purpose" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Any</SelectItem>
+            <SelectItem value="sale">Buy / Sale</SelectItem>
+            <SelectItem value="rent">Rent</SelectItem>
+            <SelectItem value="lease">Lease</SelectItem>
+            <SelectItem value="auction">Auction</SelectItem>
+            <SelectItem value="investment">Investment</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label>LGA</Label>
+        <Input
+          placeholder="e.g. Eti-Osa"
+          value={filters.lga || ""}
+          onChange={(e) => set("lga", e.target.value)}
+        />
+      </div>
+
+      <div className="space-y-2">
         <Label>State</Label>
         <Input
           placeholder="e.g. Lagos"
@@ -124,11 +170,49 @@ export function MarketplaceFiltersPanel({ filters, onChange, onReset, vendors = 
         />
       </div>
 
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label>Bedrooms (min)</Label>
+          <Select
+            value={filters.bedrooms ? String(filters.bedrooms) : "all"}
+            onValueChange={(v) => set("bedrooms", v === "all" ? "" : v)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Any" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Any</SelectItem>
+              <SelectItem value="1">1+</SelectItem>
+              <SelectItem value="2">2+</SelectItem>
+              <SelectItem value="3">3+</SelectItem>
+              <SelectItem value="4">4+</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-2">
+          <Label>Bathrooms (min)</Label>
+          <Select
+            value={filters.bathrooms ? String(filters.bathrooms) : "all"}
+            onValueChange={(v) => set("bathrooms", v === "all" ? "" : v)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Any" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Any</SelectItem>
+              <SelectItem value="1">1+</SelectItem>
+              <SelectItem value="2">2+</SelectItem>
+              <SelectItem value="3">3+</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
       <div className="space-y-2">
-        <Label>Bedrooms (min)</Label>
+        <Label>Parking (min)</Label>
         <Select
-          value={filters.bedrooms ? String(filters.bedrooms) : "all"}
-          onValueChange={(v) => set("bedrooms", v === "all" ? "" : v)}
+          value={filters.parking ? String(filters.parking) : "all"}
+          onValueChange={(v) => set("parking", v === "all" ? "" : v)}
         >
           <SelectTrigger>
             <SelectValue placeholder="Any" />
@@ -138,7 +222,6 @@ export function MarketplaceFiltersPanel({ filters, onChange, onReset, vendors = 
             <SelectItem value="1">1+</SelectItem>
             <SelectItem value="2">2+</SelectItem>
             <SelectItem value="3">3+</SelectItem>
-            <SelectItem value="4">4+</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -170,6 +253,9 @@ export function MarketplaceFiltersPanel({ filters, onChange, onReset, vendors = 
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="newest">Newest</SelectItem>
+            <SelectItem value="oldest">Oldest</SelectItem>
+            <SelectItem value="popular">Popular</SelectItem>
+            <SelectItem value="trust_desc">Highest trust</SelectItem>
             <SelectItem value="price_asc">Price: low to high</SelectItem>
             <SelectItem value="price_desc">Price: high to low</SelectItem>
             <SelectItem value="size_desc">Largest first</SelectItem>

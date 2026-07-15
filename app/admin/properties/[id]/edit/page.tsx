@@ -16,7 +16,9 @@ import { apiFetch } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { isPropertyCategorySlug } from "@/lib/properties/property-type-label"
 import { MarketplacePublishToggle } from "@/components/admin/marketplace-publish-toggle"
+import { PropertyLocationPicker } from "@/components/admin/property-location-picker"
 import { RentalUnitsManager } from "@/components/admin/rental-units-manager"
+import { parseGeoCoordinates, type GeoCoordinates } from "@/lib/geo/coordinates"
 
 interface PropertyImage {
   id?: string
@@ -56,6 +58,7 @@ export default function EditPropertyPage() {
   const [images, setImages] = useState<PropertyImage[]>([])
   const [uploadingImages, setUploadingImages] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [coordinates, setCoordinates] = useState<GeoCoordinates>(null)
 
   useEffect(() => {
     if (!propertyId) return
@@ -91,6 +94,7 @@ export default function EditPropertyPage() {
                 : "",
             listing_mode: property.listing_mode || "sale",
           })
+          setCoordinates(parseGeoCoordinates(property.coordinates))
 
           const propertyImages: PropertyImage[] = Array.isArray(property.images)
             ? property.images.map((image: PropertyImage) => ({
@@ -263,6 +267,7 @@ export default function EditPropertyPage() {
       if (images.length > 0) {
         submitData.images = images.map((image) => image.url)
       }
+      submitData.coordinates = coordinates
 
       const response = await apiFetch<{ success: boolean; message?: string; data?: any }>(
         `/admin/properties/${propertyId}`,
@@ -473,6 +478,8 @@ export default function EditPropertyPage() {
                 />
               </div>
             </div>
+
+            <PropertyLocationPicker value={coordinates} onChange={setCoordinates} className="pt-2" />
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
