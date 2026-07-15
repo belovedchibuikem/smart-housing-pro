@@ -145,6 +145,7 @@ export const ADMIN_HREF_MODULE_MAP: Record<string, string> = {
 
 /** Member href path segment → module slug */
 export const MEMBER_HREF_MODULE_MAP: Record<string, string> = {
+  "market-hub": "properties",
   wallet: "wallet",
   contributions: "contributions",
   equity: "equity",
@@ -156,6 +157,9 @@ export const MEMBER_HREF_MODULE_MAP: Record<string, string> = {
   properties: "properties",
   "browse-properties": "properties",
   "my-property": "properties",
+  "agent-profile": "properties",
+  agent: "properties",
+  landlord: "properties",
   "statutory-charges": "statutory",
   "property-management": "property_management",
   mail: "mail",

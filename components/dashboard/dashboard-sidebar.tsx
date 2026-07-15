@@ -49,6 +49,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { useState, useEffect, useMemo } from "react"
 import { apiFetch, getMemberCurrentSubscription } from "@/lib/api/client"
+import { fetchHousingOsFlags } from "@/lib/api/marketplace"
 import { filterMemberNavByModules } from "@/lib/modules/filter-nav-by-modules"
 import { useI18n } from "@/lib/i18n/i18n-provider"
 import { useSidebarNavigation } from "@/hooks/use-sidebar-navigation"
@@ -229,6 +230,10 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
   const { t } = useI18n()
   const [hasActiveSubscription, setHasActiveSubscription] = useState<boolean | null>(null)
   const [enabledModules, setEnabledModules] = useState<string[] | null>(null)
+  const [housingOsFlags, setHousingOsFlags] = useState<{
+    agent_crm_enabled?: boolean
+    landlord_dashboard_enabled?: boolean
+  } | null>(null)
 
   const navLabel = (item: NavItem) => (item.displayKey ? t(item.displayKey) : item.label)
 
@@ -236,17 +241,20 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
   useEffect(() => {
     const checkSubscription = async () => {
       try {
-        const [memberRes, tenantRes] = await Promise.all([
+        const [memberRes, tenantRes, housingFlags] = await Promise.all([
           getMemberCurrentSubscription(),
           apiFetch<{ enabled_modules?: string[] }>("/tenant/modules").catch(() => ({ enabled_modules: [] })),
+          fetchHousingOsFlags().catch(() => null),
         ])
         const isActive = memberRes.subscription?.is_active === true && memberRes.subscription?.status === "active"
         setHasActiveSubscription(isActive)
         setEnabledModules(tenantRes.enabled_modules ?? [])
+        setHousingOsFlags(housingFlags)
       } catch (error) {
         console.error("Failed to check subscription status:", error)
         setHasActiveSubscription(false)
         setEnabledModules([])
+        setHousingOsFlags(null)
       }
     }
     checkSubscription()
@@ -278,7 +286,34 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
     [subscriptionFiltered, enabledModules],
   )
 
-  const { toggleMenu, isMenuOpen } = useSidebarNavigation(filteredNavItems, pathname, "nested")
+  const flagFilteredNavItems = useMemo(() => {
+    const shouldHide = (href?: string): boolean => {
+      if (!href) return false
+      const normalized = href.split("?")[0].replace(/\/$/, "")
+      if (normalized === "/dashboard/agent") {
+        return housingOsFlags?.agent_crm_enabled !== true
+      }
+      if (normalized === "/dashboard/landlord") {
+        return housingOsFlags?.landlord_dashboard_enabled !== true
+      }
+      return false
+    }
+
+    const prune = (items: NavItem[]): NavItem[] =>
+      items
+        .filter((item) => !shouldHide(item.href))
+        .map((item) => {
+          if (!item.subItems?.length) return item
+          const nextSub = prune(item.subItems)
+          if (nextSub.length === 0 && !item.href) return null
+          return { ...item, subItems: nextSub }
+        })
+        .filter((item): item is NavItem => item !== null)
+
+    return prune(filteredNavItems)
+  }, [filteredNavItems, housingOsFlags])
+
+  const { toggleMenu, isMenuOpen } = useSidebarNavigation(flagFilteredNavItems, pathname, "nested")
 
   const renderNavItem = (item: NavItem, level = 0, menuKey = item.label) => {
     const Icon = item.icon
@@ -358,7 +393,7 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
           </Button>
         </div>
 
-        <nav className="p-4 space-y-2">{filteredNavItems.map((item) => renderNavItem(item))}</nav>
+        <nav className="p-4 space-y-2">{flagFilteredNavItems.map((item) => renderNavItem(item))}</nav>
       </aside>
     </>
   )
