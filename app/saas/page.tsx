@@ -213,7 +213,7 @@ const FALLBACK_PLAN_MARKETING: {
     priceLabel: "500,000",
     usdHint: "~$330",
     period: "/ Year",
-    description: "Designed for established real estate companies, developers, and housing cooperatives.",
+    description: "Designed for established real-estate companies, developers, and property organizations.",
     is_featured: false,
     features: [
       "Unlimited Property Listings",
@@ -233,7 +233,7 @@ const FALLBACK_PLAN_MARKETING: {
     priceLabel: "Custom",
     period: "Pricing",
     description:
-      "Built for large housing cooperatives, institutions, and organizations requiring full customization and advanced control.",
+      "Built for large real-estate institutions and organizations requiring full customization and advanced control.",
     is_featured: false,
     features: [
       "Everything in Professional Plan",
@@ -326,11 +326,11 @@ function SaaSLandingContent({
               </div>
             )}
             <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight text-balance">
-              {heroSection.title || "Manage Your Housing Cooperative with Confidence"}
+              {heroSection.title || "Manage Your Real-Estate Operations with Confidence"}
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto text-balance">
               {heroSection.subtitle ||
-                "All-in-one platform for member management, contributions, loans, and property allocation. Built for cooperatives, by cooperative experts."}
+                "All-in-one platform for member management, contributions, loans, and property allocation. Built for real-estate teams by real-estate experts."}
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
               <Button size="lg" asChild>
@@ -391,7 +391,7 @@ function SaaSLandingContent({
               <p className="text-sm font-semibold uppercase tracking-wider text-primary mb-2">Marketplace</p>
               <h2 className="text-3xl md:text-4xl font-bold mb-3">Latest properties from verified vendors</h2>
               <p className="text-muted-foreground text-lg">
-                Browse houses and land listed by cooperatives and landlords across the platform.
+                Browse houses and land listed by real-estate vendors and landlords across the platform.
               </p>
             </div>
             <Button asChild variant="outline" size="lg" className="shrink-0">
@@ -422,7 +422,7 @@ function SaaSLandingContent({
               {featuresSection.title || "Everything You Need to Succeed"}
             </h2>
             <p className="text-muted-foreground text-lg">
-              {featuresSection.subtitle || "Powerful features designed specifically for housing cooperatives and their unique needs."}
+              {featuresSection.subtitle || "Powerful features designed specifically for real-estate operators and their unique needs."}
             </p>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -499,7 +499,7 @@ function SaaSLandingContent({
       {testimonials.length > 0 && (
         <section id="testimonials" className="container mx-auto px-4 py-20">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Trusted by Cooperatives Nationwide</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Trusted by Real-Estate Teams Nationwide</h2>
             <p className="text-muted-foreground text-lg">See what our customers have to say about their experience.</p>
           </div>
           <div className="grid md:grid-cols-3 gap-8">
@@ -529,11 +529,11 @@ function SaaSLandingContent({
         <section className="bg-primary text-primary-foreground py-20">
           <div className="container mx-auto px-4 text-center">
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-balance">
-              {ctaSection.title || "Ready to Transform Your Cooperative?"}
+              {ctaSection.title || "Ready to Transform Your Real-Estate Business?"}
             </h2>
             <p className="text-lg mb-8 max-w-2xl mx-auto opacity-90 text-balance">
               {ctaSection.subtitle ||
-                "Join dozens of cooperatives already using CoopHub to streamline operations and delight their members."}
+                "Join dozens of real-estate teams already using Smart Housing to streamline operations and delight their members."}
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Button size="lg" variant="secondary" asChild>

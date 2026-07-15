@@ -33,7 +33,7 @@ export default function MarketplaceVendorsPage() {
           <Badge className="mb-3" variant="secondary">
             Vendor directory
           </Badge>
-          <h1 className="text-4xl font-bold">Cooperatives & landlords</h1>
+          <h1 className="text-4xl font-bold">Real-Estate Vendors & Landlords</h1>
           <p className="text-muted-foreground mt-3">
             Explore marketplace vendors with verified branding. Click a vendor to view their published listings.
           </p>

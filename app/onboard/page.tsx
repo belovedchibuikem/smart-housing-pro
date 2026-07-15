@@ -10,9 +10,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Building2, Check, ArrowRight, ArrowLeft, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react"
+import { Check, ArrowRight, ArrowLeft, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react"
 import Link from "next/link"
 import { apiFetch } from "@/lib/api/client"
+import { useSaasBranding } from "@/hooks/use-saas-branding"
+import { resolveStorageUrl } from "@/lib/api/config"
 import {
   marketingFeaturesFromPackage,
   mergePackageFeatures,
@@ -45,6 +47,9 @@ function isCustomPackage(pkg: Package): boolean {
 
 function OnboardingPageContent() {
   const searchParams = useSearchParams()
+  const { branding } = useSaasBranding()
+  const brandingLogo = branding.logo_url ? resolveStorageUrl(branding.logo_url) : null
+  const brandingIcon = branding.icon_url ? resolveStorageUrl(branding.icon_url) : null
   // Get platform domain dynamically
   const [platformDomain, setPlatformDomain] = useState<string>('smarthousing.com.ng')
 
@@ -62,7 +67,7 @@ function OnboardingPageContent() {
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname
       if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
-        setPlatformDomain('coophub.com') // Default for local development
+        setPlatformDomain('smarthousing.com.ng') // Default for local development
         return
       }
       // Try to extract base domain (e.g., from "app.example.com" -> "example.com")
@@ -74,7 +79,7 @@ function OnboardingPageContent() {
     }
     
     // Ultimate fallback
-    setPlatformDomain('coophub.com')
+    setPlatformDomain('smarthousing.com.ng')
   }, [])
 
   const [step, setStep] = useState(1)
@@ -333,15 +338,30 @@ function OnboardingPageContent() {
   return (
     <div className="min-h-screen bg-muted/30 flex items-center justify-center p-4">
       <div className="w-full max-w-4xl">
+        <div className="mb-4">
+          <Button type="button" variant="ghost" asChild>
+            <Link href="/saas" className="inline-flex items-center gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Link>
+          </Button>
+        </div>
         {/* Header */}
         <div className="text-center mb-8">
           <Link href="/saas" className="inline-flex items-center gap-2 font-bold text-2xl mb-4">
-            <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
-              <Building2 className="h-6 w-6" />
-            </div>
-            <span>CoopHub</span>
+            {brandingLogo || brandingIcon ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={brandingLogo || brandingIcon || ""}
+                alt="Smart Housing"
+                className="h-10 w-auto max-w-[180px] object-contain"
+              />
+            ) : (
+              <span className="text-primary">Smart Housing</span>
+            )}
+            <span>Smart Housing</span>
           </Link>
-          <h1 className="text-3xl font-bold mt-4">Create Your Cooperative Account</h1>
+          <h1 className="text-3xl font-bold mt-4">Create Your Real-Estate Account</h1>
           <p className="text-muted-foreground mt-2">Get started with your 14-day free trial</p>
         </div>
 
