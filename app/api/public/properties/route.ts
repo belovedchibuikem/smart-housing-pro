@@ -11,13 +11,22 @@ export async function GET(request: NextRequest) {
     }
 
     const search = request.nextUrl.searchParams.toString()
-    const url = `${apiBase.replace(/\/$/, "")}/properties/public${search ? `?${search}` : ""}`
+    const normalizedApiBase = apiBase.replace(/\/$/, "")
+    const preferredUrl = `${normalizedApiBase}/public/properties${search ? `?${search}` : ""}`
+    const legacyUrl = `${normalizedApiBase}/properties/public${search ? `?${search}` : ""}`
 
-    const res = await fetch(url, {
+    let res = await fetch(preferredUrl, {
       method: "GET",
       headers: buildTenantForwardHeaders(request),
       cache: "no-store",
     })
+    if (res.status === 404) {
+      res = await fetch(legacyUrl, {
+        method: "GET",
+        headers: buildTenantForwardHeaders(request),
+        cache: "no-store",
+      })
+    }
 
     const data = await res.json().catch(() => ({ message: "Failed to fetch properties" }))
     return NextResponse.json(data, { status: res.status })
