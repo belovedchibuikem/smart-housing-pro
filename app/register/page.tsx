@@ -4,18 +4,41 @@ import { RegisterForm } from "@/components/auth/register-form"
 import { Building2 } from "lucide-react"
 import Link from "next/link"
 import { useI18n } from "@/lib/i18n/i18n-provider"
+import Image from "next/image"
+import { useWhiteLabel } from "@/lib/hooks/use-white-label"
+import { useTenantSettings } from "@/lib/context/tenant-settings-context"
+import { useTenant } from "@/lib/tenant/tenant-context"
+import { resolveStorageUrl } from "@/lib/api/config"
 
 export default function RegisterPage() {
 	const { t } = useI18n()
+  const { settings: whiteLabelSettings } = useWhiteLabel()
+  const { getSetting } = useTenantSettings()
+  const { tenant } = useTenant()
+
+  const siteName = whiteLabelSettings?.company_name || tenant?.name || getSetting("site_name", t("registerPage.brandTitle"))
+  const siteTagline =
+    whiteLabelSettings?.company_tagline || getSetting("site_description", t("registerPage.brandSubtitle"))
+  const logoUrl = whiteLabelSettings?.logo_url || tenant?.logo_url
 
 	return (
 		<div className="min-h-screen grid lg:grid-cols-2">
 			<div className="hidden lg:flex flex-col justify-between p-12 bg-primary text-primary-foreground">
 				<Link href="/" className="flex items-center gap-2">
-					<Building2 className="h-8 w-8" />
+          {logoUrl ? (
+            <Image
+              src={resolveStorageUrl(logoUrl)}
+              alt={siteName}
+              width={32}
+              height={32}
+              className="h-8 w-8 object-contain"
+            />
+          ) : (
+            <Building2 className="h-8 w-8" />
+          )}
 					<div>
-						<h1 className="font-bold text-xl">{t("registerPage.brandTitle")}</h1>
-						<p className="text-xs opacity-90">{t("registerPage.brandSubtitle")}</p>
+						<h1 className="font-bold text-xl">{siteName}</h1>
+						<p className="text-xs opacity-90">{siteTagline}</p>
 					</div>
 				</Link>
 				<div className="space-y-6">
@@ -51,15 +74,27 @@ export default function RegisterPage() {
 						</div>
 					</div>
 				</div>
-				<div className="text-sm opacity-75">{t("registerPage.copyright")}</div>
+				<div className="text-sm opacity-75">
+          &copy; {new Date().getFullYear()} {siteName}
+        </div>
 			</div>
 
 			<div className="flex items-center justify-center p-8">
 				<div className="w-full max-w-md space-y-8">
 					<div className="text-center lg:text-left">
 						<Link href="/" className="lg:hidden flex items-center justify-center gap-2 mb-8">
-							<Building2 className="h-8 w-8 text-primary" />
-							<span className="font-bold text-xl">{t("registerPage.brandTitle")}</span>
+              {logoUrl ? (
+                <Image
+                  src={resolveStorageUrl(logoUrl)}
+                  alt={siteName}
+                  width={32}
+                  height={32}
+                  className="h-8 w-8 object-contain"
+                />
+              ) : (
+                <Building2 className="h-8 w-8 text-primary" />
+              )}
+							<span className="font-bold text-xl">{siteName}</span>
 						</Link>
 						<h1 className="text-3xl font-bold">{t("registerPage.createTitle")}</h1>
 						<p className="text-muted-foreground mt-2">{t("registerPage.createSubtitle")}</p>

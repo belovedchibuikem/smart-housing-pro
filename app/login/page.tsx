@@ -9,16 +9,18 @@ import { useWhiteLabel } from "@/lib/hooks/use-white-label"
 import { useTenantSettings } from "@/lib/context/tenant-settings-context"
 import { MaintenanceMode } from "@/components/auth/maintenance-mode"
 import { resolveStorageUrl } from "@/lib/api/config"
+import { useTenant } from "@/lib/tenant/tenant-context"
 
 export default function LoginPage() {
   const { t } = useI18n()
   const { settings: whiteLabelSettings } = useWhiteLabel()
   const { getSetting } = useTenantSettings()
+  const { tenant } = useTenant()
   
   const maintenanceMode = getSetting('maintenance_mode', false)
-  const siteName = whiteLabelSettings?.company_name || getSetting('site_name', 'FRSC HMS')
+  const siteName = whiteLabelSettings?.company_name || tenant?.name || getSetting('site_name', 'FRSC HMS')
   const siteTagline = whiteLabelSettings?.company_tagline || getSetting('site_description', 'Housing Management System')
-  const logoUrl = whiteLabelSettings?.logo_url
+  const logoUrl = whiteLabelSettings?.logo_url || tenant?.logo_url
   const loginBgUrl = whiteLabelSettings?.login_background_url
 
   // Check maintenance mode
