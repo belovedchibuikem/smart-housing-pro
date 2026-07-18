@@ -7,7 +7,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Search, MapPin, Home, Maximize } from "lucide-react"
+import { Search, MapPin, Home, Maximize, Heart } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { LandingHeader } from "@/components/landing/landing-header"
@@ -19,6 +19,8 @@ import {
 } from "@/lib/api/public-properties"
 import { PropertyTypePriceRow } from "@/components/properties/property-type-price-row"
 import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
+import { SharePublicPropertyDialog } from "@/components/properties/share-public-property-dialog"
+import { useTenant } from "@/lib/tenant/tenant-context"
 
 export default function PropertiesPage() {
   const [properties, setProperties] = useState<PublicPropertyListing[]>([])
@@ -27,6 +29,8 @@ export default function PropertiesPage() {
   const [propertyType, setPropertyType] = useState("all")
   const [priceRange, setPriceRange] = useState("all")
   const [location, setLocation] = useState("all")
+  const [wishlistOnly, setWishlistOnly] = useState(false)
+  const { wishlist, isWishlisted, toggleWishlist } = useTenant()
 
   useEffect(() => {
     fetchPublicProperties()
@@ -61,7 +65,8 @@ export default function PropertiesPage() {
     else if (priceRange === "20m-40m") matchesPrice = property.price > 20000000 && property.price <= 40000000
     else if (priceRange === "40m+") matchesPrice = property.price > 40000000
 
-    return matchesSearch && matchesType && matchesLocation && matchesPrice
+    const matchesWishlist = !wishlistOnly || isWishlisted(property.id, property.listing_kind)
+    return matchesSearch && matchesType && matchesLocation && matchesPrice && matchesWishlist
   })
 
   return (
@@ -133,7 +138,10 @@ export default function PropertiesPage() {
           </div>
 
           <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span>Showing {filteredProperties.length} properties</span>
+            <span>
+              Showing {filteredProperties.length} properties
+              {wishlistOnly ? ` · wishlist ${wishlist.length}` : ""}
+            </span>
             <Button
               variant="ghost"
               size="sm"
@@ -142,9 +150,15 @@ export default function PropertiesPage() {
                 setPropertyType("all")
                 setPriceRange("all")
                 setLocation("all")
+                setWishlistOnly(false)
               }}
             >
               Clear Filters
+            </Button>
+          </div>
+          <div className="flex justify-end">
+            <Button variant={wishlistOnly ? "default" : "outline"} size="sm" onClick={() => setWishlistOnly((prev) => !prev)}>
+              {wishlistOnly ? "Showing wishlist" : "Show wishlist"}
             </Button>
           </div>
         </div>
@@ -194,7 +208,26 @@ export default function PropertiesPage() {
                     price={formatPropertyPrice(property.price)}
                   />
                 </CardContent>
-                <CardFooter className="p-4 pt-0">
+                <CardFooter className="p-4 pt-0 flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="px-2.5"
+                    aria-label={isWishlisted(property.id, property.listing_kind) ? "Remove from wishlist" : "Add to wishlist"}
+                    onClick={() => toggleWishlist({ id: property.id, listingKind: property.listing_kind })}
+                  >
+                    <Heart
+                      className={`h-4 w-4 ${
+                        isWishlisted(property.id, property.listing_kind) ? "fill-red-500 text-red-500" : ""
+                      }`}
+                    />
+                  </Button>
+                  <SharePublicPropertyDialog property={property}>
+                    <Button type="button" variant="outline" size="sm">
+                      Share
+                    </Button>
+                  </SharePublicPropertyDialog>
                   <Link href={propertyDetailPath(property)} className="w-full">
                     <Button className="w-full" size="sm">
                       View Details

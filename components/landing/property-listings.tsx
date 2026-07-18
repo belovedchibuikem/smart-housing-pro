@@ -4,11 +4,13 @@ import Link from "next/link"
 import { Card, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { MapPin, Home, Maximize } from "lucide-react"
+import { MapPin, Home, Maximize, Heart } from "lucide-react"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { formatPropertyPrice, propertyDetailPath, type PublicPropertyListing } from "@/lib/api/public-properties"
 import { PropertyTypePriceRow } from "@/components/properties/property-type-price-row"
 import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
+import { SharePublicPropertyDialog } from "@/components/properties/share-public-property-dialog"
+import { useTenant } from "@/lib/tenant/tenant-context"
 
 interface PropertyListingsProps {
   properties?: PublicPropertyListing[]
@@ -22,6 +24,7 @@ interface PropertyListingsProps {
 export function PropertyListings({ properties = [], config }: PropertyListingsProps) {
   // Use provided properties or fallback to empty array
   const displayProperties = properties.slice(0, config?.limit || 6)
+  const { isWishlisted, toggleWishlist } = useTenant()
 
   const formatPrice = formatPropertyPrice
 
@@ -83,6 +86,25 @@ export function PropertyListings({ properties = [], config }: PropertyListingsPr
                 />
               </CardContent>
               <CardFooter className="p-4 pt-0 flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="px-2.5"
+                  aria-label={isWishlisted(property.id, property.listing_kind) ? "Remove from wishlist" : "Add to wishlist"}
+                  onClick={() => toggleWishlist({ id: property.id, listingKind: property.listing_kind })}
+                >
+                  <Heart
+                    className={`h-4 w-4 ${
+                      isWishlisted(property.id, property.listing_kind) ? "fill-red-500 text-red-500" : ""
+                    }`}
+                  />
+                </Button>
+                <SharePublicPropertyDialog property={property}>
+                  <Button type="button" variant="outline" size="sm">
+                    Share
+                  </Button>
+                </SharePublicPropertyDialog>
                 <Link href={propertyDetailPath(property)} className="flex-1">
                   <Button className="w-full" size="sm">
                     View Details

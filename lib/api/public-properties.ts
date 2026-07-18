@@ -14,6 +14,12 @@ export interface PublicPropertyListing {
   description?: string | null
   images?: Array<{ url: string; is_primary?: boolean; alt_text?: string | null }>
   features?: string[]
+  status?: string | null
+  total_slots?: number | null
+  slots_used?: number | null
+  slots_available?: number | null
+  accepting_interest?: boolean
+  created_at?: string | null
   land_size?: string | null
   land_code?: string | null
   suitable_for?: string | null

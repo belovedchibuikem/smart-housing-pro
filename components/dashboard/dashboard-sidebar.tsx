@@ -45,15 +45,16 @@ import {
   Search,
   LayoutGrid,
   Store,
+  Briefcase,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState, useEffect, useMemo } from "react"
-import { apiFetch, getMemberCurrentSubscription } from "@/lib/api/client"
-import { fetchHousingOsFlags } from "@/lib/api/marketplace"
+import { apiFetch, getMe, getMemberCurrentSubscription } from "@/lib/api/client"
 import { filterMemberNavByModules } from "@/lib/modules/filter-nav-by-modules"
 import { useI18n } from "@/lib/i18n/i18n-provider"
 import { useSidebarNavigation } from "@/hooks/use-sidebar-navigation"
 import { itemMatchesPathname, pathnameMatchesHref } from "@/lib/navigation/sidebar-nav"
+import { fetchHousingOsFlags } from "@/lib/api/marketplace"
 
 interface NavItem {
   href?: string
@@ -138,9 +139,9 @@ const navItems: NavItem[] = [
     icon: Search,
     subItems: [
       { href: "/dashboard/market-hub", label: "Market Hub", displayKey: "nav.marketHub", icon: Store },
-      { href: "/dashboard/agent-profile", label: "Agent profile", displayKey: "nav.agentProfile", icon: Users },
-      { href: "/dashboard/agent", label: "Agent CRM", displayKey: "nav.agentCrm", icon: Users },
-      { href: "/dashboard/landlord", label: "Landlord hub", displayKey: "nav.landlordHub", icon: Building2 },
+      { href: "/dashboard/agent-profile", label: "Agent Profile", displayKey: "nav.agentProfile", icon: UserCog },
+      { href: "/dashboard/agent", label: "Agent CRM", displayKey: "nav.agentCrm", icon: Briefcase },
+      { href: "/dashboard/landlord", label: "Landlord Hub", displayKey: "nav.landlordHub", icon: Building2 },
       { href: "/dashboard/browse-properties?listing=all", label: "All Listings", displayKey: "nav.allListings", icon: LayoutGrid },
       { href: "/dashboard/browse-properties?listing=house", label: "Browse Houses", displayKey: "nav.browseHouses", icon: Building2 },
       { href: "/dashboard/browse-properties?listing=land", label: "Browse Lands", displayKey: "nav.browseLands", icon: LandPlot },
@@ -230,10 +231,8 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
   const { t } = useI18n()
   const [hasActiveSubscription, setHasActiveSubscription] = useState<boolean | null>(null)
   const [enabledModules, setEnabledModules] = useState<string[] | null>(null)
-  const [housingOsFlags, setHousingOsFlags] = useState<{
-    agent_crm_enabled?: boolean
-    landlord_dashboard_enabled?: boolean
-  } | null>(null)
+  const [housingOsFlags, setHousingOsFlags] = useState<Record<string, unknown> | null>(null)
+  const [roleHints, setRoleHints] = useState({ loaded: false, isAgent: false, isLandlord: false })
 
   const navLabel = (item: NavItem) => (item.displayKey ? t(item.displayKey) : item.label)
 
@@ -241,20 +240,41 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
   useEffect(() => {
     const checkSubscription = async () => {
       try {
-        const [memberRes, tenantRes, housingFlags] = await Promise.all([
+        const [memberRes, tenantRes, flagsRes, meRes] = await Promise.all([
           getMemberCurrentSubscription(),
           apiFetch<{ enabled_modules?: string[] }>("/tenant/modules").catch(() => ({ enabled_modules: [] })),
-          fetchHousingOsFlags().catch(() => null),
+          fetchHousingOsFlags().catch(() => ({} as Record<string, unknown>)),
+          getMe().catch(() => null),
         ])
         const isActive = memberRes.subscription?.is_active === true && memberRes.subscription?.status === "active"
+        const mePayload = meRes as { user?: { role?: string | { slug?: string }; roles?: string[] } } | null
+        const user = mePayload?.user
+        const roleSlugs = new Set<string>()
+        if (Array.isArray(user?.roles)) {
+          for (const role of user.roles) {
+            if (typeof role === "string" && role.trim()) roleSlugs.add(role.trim().toLowerCase())
+          }
+        }
+        if (typeof user?.role === "string" && user.role.trim()) {
+          roleSlugs.add(user.role.trim().toLowerCase())
+        } else if (typeof user?.role === "object" && typeof user.role?.slug === "string" && user.role.slug.trim()) {
+          roleSlugs.add(user.role.slug.trim().toLowerCase())
+        }
+
         setHasActiveSubscription(isActive)
         setEnabledModules(tenantRes.enabled_modules ?? [])
-        setHousingOsFlags(housingFlags)
+        setHousingOsFlags(flagsRes ?? {})
+        setRoleHints({
+          loaded: true,
+          isAgent: roleSlugs.has("agent"),
+          isLandlord: roleSlugs.has("landlord"),
+        })
       } catch (error) {
         console.error("Failed to check subscription status:", error)
         setHasActiveSubscription(false)
         setEnabledModules([])
-        setHousingOsFlags(null)
+        setHousingOsFlags({})
+        setRoleHints({ loaded: true, isAgent: false, isLandlord: false })
       }
     }
     checkSubscription()
@@ -279,41 +299,45 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
   )
 
   const filteredNavItems = useMemo(
-    () =>
-      enabledModules === null
-        ? subscriptionFiltered
-        : filterMemberNavByModules(subscriptionFiltered, enabledModules),
-    [subscriptionFiltered, enabledModules],
+    () => {
+      const byModules =
+        enabledModules === null
+          ? subscriptionFiltered
+          : filterMemberNavByModules(subscriptionFiltered, enabledModules)
+
+      const flag = (key: string, fallback = false) => {
+        const value = housingOsFlags?.[key]
+        if (typeof value === "boolean") return value
+        if (typeof value === "number") return value !== 0
+        if (typeof value === "string") return value === "true" || value === "1"
+        return fallback
+      }
+
+      const shouldHideHref = (href: string) => {
+        const normalized = href.split("?")[0]
+        if (normalized === "/dashboard/agent-profile") return !roleHints.loaded || !roleHints.isAgent
+        if (normalized === "/dashboard/agent") return !roleHints.loaded || !roleHints.isAgent || !flag("agent_crm_enabled")
+        if (normalized === "/dashboard/landlord") {
+          return !roleHints.loaded || !roleHints.isLandlord || !flag("landlord_dashboard_enabled")
+        }
+        return false
+      }
+
+      const prune = (items: NavItem[]): NavItem[] =>
+        items
+          .map((item) => {
+            const prunedChildren = item.subItems ? prune(item.subItems) : undefined
+            if (item.href && shouldHideHref(item.href)) return null
+            if (prunedChildren && prunedChildren.length === 0 && !item.href) return null
+            return prunedChildren ? { ...item, subItems: prunedChildren } : item
+          })
+          .filter((item): item is NavItem => item !== null)
+
+      return prune(byModules)
+    },
+    [subscriptionFiltered, enabledModules, housingOsFlags, roleHints],
   )
-
-  const flagFilteredNavItems = useMemo(() => {
-    const shouldHide = (href?: string): boolean => {
-      if (!href) return false
-      const normalized = href.split("?")[0].replace(/\/$/, "")
-      if (normalized === "/dashboard/agent") {
-        return housingOsFlags?.agent_crm_enabled !== true
-      }
-      if (normalized === "/dashboard/landlord") {
-        return housingOsFlags?.landlord_dashboard_enabled !== true
-      }
-      return false
-    }
-
-    const prune = (items: NavItem[]): NavItem[] =>
-      items
-        .filter((item) => !shouldHide(item.href))
-        .map((item) => {
-          if (!item.subItems?.length) return item
-          const nextSub = prune(item.subItems)
-          if (nextSub.length === 0 && !item.href) return null
-          return { ...item, subItems: nextSub }
-        })
-        .filter((item): item is NavItem => item !== null)
-
-    return prune(filteredNavItems)
-  }, [filteredNavItems, housingOsFlags])
-
-  const { toggleMenu, isMenuOpen } = useSidebarNavigation(flagFilteredNavItems, pathname, "nested")
+  const { toggleMenu, isMenuOpen } = useSidebarNavigation(filteredNavItems, pathname, "nested")
 
   const renderNavItem = (item: NavItem, level = 0, menuKey = item.label) => {
     const Icon = item.icon
@@ -393,7 +417,7 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
           </Button>
         </div>
 
-        <nav className="p-4 space-y-2">{flagFilteredNavItems.map((item) => renderNavItem(item))}</nav>
+        <nav className="p-4 space-y-2">{filteredNavItems.map((item) => renderNavItem(item))}</nav>
       </aside>
     </>
   )
