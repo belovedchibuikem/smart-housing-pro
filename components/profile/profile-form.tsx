@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -125,6 +125,7 @@ const [nextOfKinForm, setNextOfKinForm] = useState({
 		password: "",
 		confirmPassword: "",
 	})
+	const onTabChangeRef = useRef(onTabChange)
 
 	useEffect(() => {
 		if (initialTab !== activeTab) {
@@ -134,8 +135,12 @@ const [nextOfKinForm, setNextOfKinForm] = useState({
 	}, [initialTab])
 
 	useEffect(() => {
-		onTabChange?.(activeTab)
-	}, [activeTab, onTabChange])
+		onTabChangeRef.current = onTabChange
+	}, [onTabChange])
+
+	useEffect(() => {
+		onTabChangeRef.current?.(activeTab)
+	}, [activeTab])
 
 	useEffect(() => {
 		if (!user) return

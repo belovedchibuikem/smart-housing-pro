@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { CheckCircle2, Circle } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -27,9 +27,13 @@ export default function CompleteProfilePage() {
 
 	const completion = useMemo(() => getMemberProfileCompletionStatus(user, member), [user, member])
 	const completionPercent = Math.round((completion.completedCount / completion.totalCount) * 100)
+	const handleTabChange = useCallback((tab: WizardTab) => {
+		setActiveTab((prev) => (prev === tab ? prev : tab))
+	}, [])
 
 	useEffect(() => {
-		setActiveTab(STEP_TO_TAB[completion.nextStep])
+		const nextTab = STEP_TO_TAB[completion.nextStep]
+		setActiveTab((prev) => (prev === nextTab ? prev : nextTab))
 	}, [completion.nextStep])
 
 	useEffect(() => {
@@ -70,7 +74,7 @@ export default function CompleteProfilePage() {
 									key={item.id}
 									variant="outline"
 									className="justify-start gap-2"
-									onClick={() => setActiveTab(STEP_TO_TAB[item.id])}
+									onClick={() => handleTabChange(STEP_TO_TAB[item.id])}
 								>
 									{done ? (
 										<CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -97,7 +101,7 @@ export default function CompleteProfilePage() {
 				isLoadingProfile={isLoading}
 				updateProfile={updateProfile}
 				initialTab={activeTab}
-				onTabChange={(tab) => setActiveTab(tab)}
+				onTabChange={handleTabChange}
 				kyc={kyc}
 			/>
 		</div>
