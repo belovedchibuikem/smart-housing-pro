@@ -20,6 +20,8 @@ export type MarketplaceListing = {
   lat?: number | null
   lng?: number | null
   price: number
+  member_price?: number | null
+  non_member_price?: number | null
   old_price?: number | null
   is_negotiable?: boolean
   rent_deposit?: number | null

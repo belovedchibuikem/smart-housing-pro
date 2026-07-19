@@ -41,6 +41,10 @@ export function MarketplaceListingCard({ listing, onFavorite, favoriteSelected, 
   const href = marketplaceListingPath(listing)
   const isLand = listing.listing_kind !== "house"
   const isRental = listing.listing_type === "rental" || listing.is_rental
+  const hasDualPrice =
+    listing.member_price != null &&
+    listing.non_member_price != null &&
+    Number(listing.member_price) !== Number(listing.non_member_price)
   const images =
     listing.images && listing.images.length > 0
       ? listing.images.map((i) => resolveStorageUrl(i.url) || "/placeholder.jpg")
@@ -120,6 +124,12 @@ export function MarketplaceListingCard({ listing, onFavorite, favoriteSelected, 
             </Badge>
           )}
         </div>
+        {hasDualPrice && !isRental && (
+          <p className="text-xs text-muted-foreground">
+            Member: {formatMarketplacePrice(Number(listing.member_price))} | Non-member:{" "}
+            {formatMarketplacePrice(Number(listing.non_member_price))}
+          </p>
+        )}
         <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
           <MapPin className="h-3.5 w-3.5 shrink-0" />
           <span className="truncate">{listing.location || "Location not specified"}</span>

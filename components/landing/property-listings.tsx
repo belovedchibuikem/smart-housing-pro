@@ -84,6 +84,11 @@ export function PropertyListings({ properties = [], config }: PropertyListingsPr
                   priceHeading="Price"
                   price={formatPrice(property.price)}
                 />
+                {property.non_member_price != null && property.member_price != null && (
+                  <p className="text-xs text-muted-foreground">
+                    Member: {formatPrice(property.member_price)} | Non-member: {formatPrice(property.non_member_price)}
+                  </p>
+                )}
               </CardContent>
               <CardFooter className="p-4 pt-0 flex gap-2">
                 <Button

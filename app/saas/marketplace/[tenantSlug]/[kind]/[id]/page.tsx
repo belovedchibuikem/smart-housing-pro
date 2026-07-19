@@ -81,6 +81,10 @@ export default function MarketplaceListingDetailPage() {
   const tenantLogin = `https://${listing.tenant_slug}.${process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || "smarthousing.com.ng"}/login`
   const isRental = listing.listing_type === "rental" || listing.is_rental
   const isLand = listing.listing_kind !== "house"
+  const hasDualPrice =
+    listing.member_price != null &&
+    listing.non_member_price != null &&
+    Number(listing.member_price) !== Number(listing.non_member_price)
   const amenities = listing.amenities || []
   const meta = listing.detail_meta || {}
   const jsonLd = {
@@ -161,6 +165,12 @@ export default function MarketplaceListingDetailPage() {
               <p className="text-3xl font-bold text-primary mt-3">
                 {isRental ? formatRentalPrice(listing.price) : formatMarketplacePrice(listing.price)}
               </p>
+              {hasDualPrice && !isRental && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Member: {formatMarketplacePrice(Number(listing.member_price))} | Non-member:{" "}
+                  {formatMarketplacePrice(Number(listing.non_member_price))}
+                </p>
+              )}
               {listing.old_price != null && listing.old_price > listing.price && (
                 <p className="text-sm text-muted-foreground line-through">
                   Was {formatMarketplacePrice(listing.old_price)}
@@ -362,6 +372,12 @@ export default function MarketplaceListingDetailPage() {
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground space-y-1">
                 <p>Price: {formatMarketplacePrice(listing.price)}</p>
+                {hasDualPrice && (
+                  <p>
+                    Member / Non-member: {formatMarketplacePrice(Number(listing.member_price))} /{" "}
+                    {formatMarketplacePrice(Number(listing.non_member_price))}
+                  </p>
+                )}
                 <p>Trust score: {listing.trust_score ?? "Pending computation"}</p>
                 <p>Verification score: {listing.verification_score ?? "—"}</p>
                 <p>Purpose: {listing.listing_purpose || (isRental ? "rent" : "sale")}</p>

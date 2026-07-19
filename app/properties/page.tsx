@@ -207,6 +207,12 @@ export default function PropertiesPage() {
                     priceHeading="Price"
                     price={formatPropertyPrice(property.price)}
                   />
+                  {property.non_member_price != null && property.member_price != null && (
+                    <p className="text-xs text-muted-foreground">
+                      Member: {formatPropertyPrice(property.member_price)} | Non-member:{" "}
+                      {formatPropertyPrice(property.non_member_price)}
+                    </p>
+                  )}
                 </CardContent>
                 <CardFooter className="p-4 pt-0 flex gap-2">
                   <Button
