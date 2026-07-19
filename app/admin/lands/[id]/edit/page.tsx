@@ -42,6 +42,7 @@ export default function EditLandPage() {
     land_description: "",
     land_size: "",
     cost: "",
+    non_member_price: "",
     suitable_for: "",
     infrastructure_plan: "",
     land_features: "",
@@ -69,6 +70,7 @@ export default function EditLandPage() {
           land_description: land.land_description ?? "",
           land_size: land.land_size ?? "",
           cost: land.cost?.toString() ?? "",
+          non_member_price: land.non_member_price?.toString() ?? "",
           suitable_for: land.suitable_for ?? "",
           infrastructure_plan: Array.isArray(land.infrastructure_plan) ? land.infrastructure_plan.join(", ") : "",
           land_features: Array.isArray(land.land_features) ? land.land_features.join(", ") : "",
@@ -176,6 +178,12 @@ export default function EditLandPage() {
         land_description: form.land_description.trim() || null,
         land_size: form.land_size.trim() || null,
         cost: costNum,
+        non_member_price:
+          form.non_member_price.trim() === ""
+            ? null
+            : Number.isFinite(Number(form.non_member_price))
+              ? Number(form.non_member_price)
+              : null,
         suitable_for: form.suitable_for.trim() || null,
         infrastructure_plan: splitToArray(form.infrastructure_plan),
         land_features: splitToArray(form.land_features),
@@ -261,6 +269,18 @@ export default function EditLandPage() {
               <div className="space-y-2">
                 <Label htmlFor="cost">Land cost (NGN) *</Label>
                 <Input id="cost" type="number" min={0} step="0.01" value={form.cost} onChange={(e) => setForm((s) => ({ ...s, cost: e.target.value }))} required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="non_member_price">Non-member cost (NGN)</Label>
+                <Input
+                  id="non_member_price"
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={form.non_member_price}
+                  onChange={(e) => setForm((s) => ({ ...s, non_member_price: e.target.value }))}
+                  placeholder="Optional higher amount for non-members"
+                />
               </div>
             </div>
             <div className="space-y-2">

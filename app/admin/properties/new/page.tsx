@@ -36,6 +36,7 @@ export default function NewPropertyPage() {
     city: "",
     state: "",
     price: "",
+    non_member_price: "",
     size: "",
     bedrooms: "",
     bathrooms: "",
@@ -168,6 +169,12 @@ export default function NewPropertyPage() {
         state: formData.state || "",
         price: parseFloat(formData.price),
         status: formData.status,
+      }
+      if (formData.non_member_price.trim() !== "") {
+        const nonMemberPrice = parseFloat(formData.non_member_price)
+        if (!Number.isNaN(nonMemberPrice) && nonMemberPrice >= 0) {
+          submitData.non_member_price = nonMemberPrice
+        }
       }
 
       if (formData.size) submitData.size = parseFloat(formData.size)
@@ -353,7 +360,7 @@ export default function NewPropertyPage() {
 
             <PropertyLocationPicker value={coordinates} onChange={setCoordinates} className="pt-2" />
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <div className="space-y-2">
                 <Label htmlFor="price">
                   Price (₦) <span className="text-red-500">*</span>
@@ -366,6 +373,19 @@ export default function NewPropertyPage() {
                   onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                   required
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="non_member_price">Non-member price (₦)</Label>
+                <Input
+                  id="non_member_price"
+                  type="number"
+                  placeholder="Optional higher amount for non-members"
+                  value={formData.non_member_price}
+                  onChange={(e) => setFormData({ ...formData, non_member_price: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Leave empty to let non-members see the same amount as members.
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>

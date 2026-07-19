@@ -77,7 +77,8 @@ export default function PlatformSettingsPage() {
         key,
         value,
         type: getSettingType(key),
-        category: getSettingCategory(key)
+        category: getSettingCategory(key),
+        is_public: isPublicSettingKey(key),
       }))
 
       console.log('Sending settings:', settingsArray)
@@ -138,10 +139,15 @@ export default function PlatformSettingsPage() {
   }
 
   const getSettingType = (key: string): string => {
+    if (key === 'notifications_email_enabled' || key === 'notifications_push_enabled') {
+      return 'boolean'
+    }
+
     // Explicit string types
     if (key === 'support_email' || key === 'platform_name' || key === 'platform_domain' || 
         key === 'timezone' || key === 'from_email' || key === 'from_name' ||
-        key.includes('email') || key.includes('name') || key.includes('domain')) {
+        key.includes('email') || key.includes('name') || key.includes('domain') ||
+        key.includes('firebase_')) {
       return 'string'
     }
     
@@ -168,9 +174,24 @@ export default function PlatformSettingsPage() {
   const getSettingCategory = (key: string): string => {
     if (key.includes('smtp') || key.includes('from_email') || key.includes('from_name')) return 'email'
     if (key.includes('security') || key.includes('2fa') || key.includes('session') || key.includes('ip')) return 'security'
-    if (key.includes('notify')) return 'notifications'
+    if (key.includes('notify') || key.includes('firebase') || key.includes('vapid')) return 'notifications'
     if (key.includes('backup') || key.includes('optimize')) return 'database'
     return 'general'
+  }
+
+  const isPublicSettingKey = (key: string): boolean => {
+    return [
+      'firebase_api_key',
+      'firebase_auth_domain',
+      'firebase_project_id',
+      'firebase_storage_bucket',
+      'firebase_messaging_sender_id',
+      'firebase_app_id',
+      'firebase_measurement_id',
+      'firebase_vapid_key',
+      'notifications_push_enabled',
+      'notifications_email_enabled',
+    ].includes(key)
   }
 
   const updateSetting = (key: string, value: any) => {
@@ -409,9 +430,121 @@ export default function PlatformSettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Notification Settings</CardTitle>
-              <CardDescription>Configure system notification preferences</CardDescription>
+              <CardDescription>Configure delivery channels and Firebase push configuration</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <Label htmlFor="notifications_email_enabled">Enable Email Notifications</Label>
+                    <p className="text-sm text-muted-foreground">Deliver transaction alerts to user emails instantly</p>
+                  </div>
+                  <Switch
+                    id="notifications_email_enabled"
+                    checked={settings.notifications_email_enabled ?? true}
+                    onCheckedChange={(checked) => updateSetting('notifications_email_enabled', checked)}
+                  />
+                </div>
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                  <div>
+                    <Label htmlFor="notifications_push_enabled">Enable Push Notifications</Label>
+                    <p className="text-sm text-muted-foreground">Use Firebase Cloud Messaging for web and mobile push</p>
+                  </div>
+                  <Switch
+                    id="notifications_push_enabled"
+                    checked={settings.notifications_push_enabled ?? true}
+                    onCheckedChange={(checked) => updateSetting('notifications_push_enabled', checked)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <Label htmlFor="firebase_project_id">Firebase Project ID</Label>
+                  <Input
+                    id="firebase_project_id"
+                    value={settings.firebase_project_id || ''}
+                    onChange={(e) => updateSetting('firebase_project_id', e.target.value)}
+                    placeholder="your-project-id"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="firebase_api_key">Firebase API Key</Label>
+                  <Input
+                    id="firebase_api_key"
+                    value={settings.firebase_api_key || ''}
+                    onChange={(e) => updateSetting('firebase_api_key', e.target.value)}
+                    placeholder="AIza..."
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="firebase_auth_domain">Firebase Auth Domain</Label>
+                  <Input
+                    id="firebase_auth_domain"
+                    value={settings.firebase_auth_domain || ''}
+                    onChange={(e) => updateSetting('firebase_auth_domain', e.target.value)}
+                    placeholder="your-project.firebaseapp.com"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="firebase_storage_bucket">Firebase Storage Bucket</Label>
+                  <Input
+                    id="firebase_storage_bucket"
+                    value={settings.firebase_storage_bucket || ''}
+                    onChange={(e) => updateSetting('firebase_storage_bucket', e.target.value)}
+                    placeholder="your-project.appspot.com"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="firebase_messaging_sender_id">Firebase Messaging Sender ID</Label>
+                  <Input
+                    id="firebase_messaging_sender_id"
+                    value={settings.firebase_messaging_sender_id || ''}
+                    onChange={(e) => updateSetting('firebase_messaging_sender_id', e.target.value)}
+                    placeholder="1234567890"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="firebase_app_id">Firebase App ID</Label>
+                  <Input
+                    id="firebase_app_id"
+                    value={settings.firebase_app_id || ''}
+                    onChange={(e) => updateSetting('firebase_app_id', e.target.value)}
+                    placeholder="1:1234567890:web:abc..."
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="firebase_measurement_id">Firebase Measurement ID (optional)</Label>
+                  <Input
+                    id="firebase_measurement_id"
+                    value={settings.firebase_measurement_id || ''}
+                    onChange={(e) => updateSetting('firebase_measurement_id', e.target.value)}
+                    placeholder="G-XXXXXXX"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="firebase_vapid_key">Firebase Web VAPID Key</Label>
+                  <Input
+                    id="firebase_vapid_key"
+                    value={settings.firebase_vapid_key || ''}
+                    onChange={(e) => updateSetting('firebase_vapid_key', e.target.value)}
+                    placeholder="BNe..."
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label htmlFor="firebase_server_key">Firebase Server Key</Label>
+                  <Input
+                    id="firebase_server_key"
+                    value={settings.firebase_server_key || ''}
+                    onChange={(e) => updateSetting('firebase_server_key', e.target.value)}
+                    placeholder="AAAA..."
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Used on backend to send push notifications to registered web/mobile devices.
+                  </p>
+                </div>
+              </div>
+
               {[
                 { key: 'notify_new_business', label: 'New Business Registration', description: 'Notify when a new business registers' },
                 { key: 'notify_subscription_expiring', label: 'Subscription Expiring', description: 'Notify when subscriptions are about to expire' },

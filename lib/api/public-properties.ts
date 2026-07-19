@@ -7,6 +7,8 @@ export interface PublicPropertyListing {
   listing_kind: "house" | "land_parcel" | "land_legacy"
   location: string
   price: number
+  member_price?: number | null
+  non_member_price?: number | null
   size?: string | number | null
   bedrooms?: number | null
   bathrooms?: number | null

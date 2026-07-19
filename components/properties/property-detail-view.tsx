@@ -142,6 +142,12 @@ export function PropertyDetailView({ property }: PropertyDetailViewProps) {
                     typeLabel={getPropertyTypeLabel(property)}
                     price={formatPropertyPrice(property.price)}
                   />
+                  {property.non_member_price != null && property.member_price != null && (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      Member price: {formatPropertyPrice(property.member_price)} | Non-member price:{" "}
+                      {formatPropertyPrice(property.non_member_price)}
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 py-6 border-y">
@@ -344,6 +350,12 @@ export function PropertyDetailView({ property }: PropertyDetailViewProps) {
               </CardHeader>
               <CardContent className="space-y-1 text-sm text-muted-foreground">
                 <p>Price: {formatPropertyPrice(property.price)}</p>
+                {property.non_member_price != null && property.member_price != null && (
+                  <p>
+                    Member / Non-member: {formatPropertyPrice(property.member_price)} /{" "}
+                    {formatPropertyPrice(property.non_member_price)}
+                  </p>
+                )}
                 <p>Status: {property.status || "available"}</p>
                 <p>Type: {getPropertyTypeLabel(property)}</p>
                 <p className="inline-flex items-center gap-1">

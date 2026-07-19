@@ -179,11 +179,11 @@ export function useUserNotifications(): UseUserNotificationsReturn {
 		refresh()
 	}, [refresh])
 
-	// Poll for updates every 30 seconds
+  // Poll frequently so users get near real-time updates.
 	useEffect(() => {
 		const interval = setInterval(() => {
 			fetchUnreadCount()
-		}, 30000)
+    }, 10000)
 
 		return () => clearInterval(interval)
 	}, [fetchUnreadCount])
