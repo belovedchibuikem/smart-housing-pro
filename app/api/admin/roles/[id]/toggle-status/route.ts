@@ -9,7 +9,7 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const response = await fetch(`${API_BASE_URL}/roles/${params.id}/toggle-status`, {
+    const response = await fetch(`${API_BASE_URL}/admin/roles/${params.id}/toggle-status`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

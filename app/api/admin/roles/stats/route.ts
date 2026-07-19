@@ -6,7 +6,7 @@ const API_BASE_URL = getApiBaseUrl()
 
 export async function GET(request: NextRequest) {
   try {
-    const response = await fetch(`${API_BASE_URL}/roles/stats`, {
+    const response = await fetch(`${API_BASE_URL}/admin/roles/stats`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
