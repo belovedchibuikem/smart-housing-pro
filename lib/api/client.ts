@@ -2683,11 +2683,19 @@ export async function toggleInvestmentPlanStatus(id: string) {
 }
 
 // Statutory Charges API
-export async function getStatutoryCharges(params?: { search?: string; status?: string; type?: string; page?: number; per_page?: number }) {
+export async function getStatutoryCharges(params?: {
+	search?: string
+	status?: string
+	type?: string
+	charge_category?: string
+	page?: number
+	per_page?: number
+}) {
 	const query = new URLSearchParams()
 	if (params?.search) query.set("search", params.search)
 	if (params?.status) query.set("status", params.status)
 	if (params?.type) query.set("type", params.type)
+	if (params?.charge_category) query.set("charge_category", params.charge_category)
 	if (params?.page) query.set("page", String(params.page))
 	if (params?.per_page) query.set("per_page", String(params.per_page))
 	return apiFetch<{ success: boolean; data: any[]; pagination: any }>(`/admin/statutory-charges?${query.toString()}`, { method: "GET" })
@@ -2715,6 +2723,80 @@ export async function approveStatutoryCharge(id: string) {
 
 export async function rejectStatutoryCharge(id: string, reason: string) {
 	return apiFetch<{ success: boolean; message: string; data: any }>(`/admin/statutory-charges/${id}/reject`, { method: "POST", body: { reason } })
+}
+
+export async function recalculateStatutoryCharge(id: string) {
+	return apiFetch<{ success: boolean; message: string; data: any }>(`/admin/statutory-charges/recalculate/${id}`, { method: "POST" })
+}
+
+export interface StatutoryChargeDefinitionPayload {
+	name: string
+	description?: string | null
+	type: string
+	charge_category: "estate_wide" | "member_based" | "event_based"
+	calculation_type: "fixed" | "percentage"
+	amount?: number | string | null
+	percentage?: number | string | null
+	percentage_base?: "land_cost" | "house_cost" | "property_cost" | "mortgage_amount" | "equity_amount" | null
+	property_id?: string | null
+	property_type?: string | null
+	department_id?: string | null
+	rules?: Record<string, unknown> | null
+	is_recurring?: boolean
+	frequency?: string | null
+	is_active?: boolean
+}
+
+export async function getStatutoryChargeDefinitions(params?: {
+	search?: string
+	charge_category?: string
+	property_id?: string
+	is_active?: string | boolean
+	page?: number
+	per_page?: number
+}) {
+	const query = new URLSearchParams()
+	if (params?.search) query.set("search", params.search)
+	if (params?.charge_category) query.set("charge_category", params.charge_category)
+	if (params?.property_id) query.set("property_id", params.property_id)
+	if (params?.is_active !== undefined) query.set("is_active", String(params.is_active))
+	if (params?.page) query.set("page", String(params.page))
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+	return apiFetch<{ success: boolean; data: any[]; pagination: any }>(
+		`/admin/statutory-charges/definitions?${query.toString()}`,
+		{ method: "GET" },
+	)
+}
+
+export async function getStatutoryChargeDefinition(id: string) {
+	return apiFetch<{ success: boolean; data: any }>(`/admin/statutory-charges/definitions/${id}`, { method: "GET" })
+}
+
+export async function createStatutoryChargeDefinition(data: StatutoryChargeDefinitionPayload) {
+	return apiFetch<{ success: boolean; message: string; data: any }>("/admin/statutory-charges/definitions", {
+		method: "POST",
+		body: data,
+	})
+}
+
+export async function updateStatutoryChargeDefinition(id: string, data: Partial<StatutoryChargeDefinitionPayload>) {
+	return apiFetch<{ success: boolean; message: string; data: any }>(`/admin/statutory-charges/definitions/${id}`, {
+		method: "PUT",
+		body: data,
+	})
+}
+
+export async function deleteStatutoryChargeDefinition(id: string) {
+	return apiFetch<{ success: boolean; message: string; data?: any }>(`/admin/statutory-charges/definitions/${id}`, {
+		method: "DELETE",
+	})
+}
+
+export async function assignStatutoryChargeDefinition(id: string, data: Record<string, unknown>) {
+	return apiFetch<{ success: boolean; message: string; data: any }>(`/admin/statutory-charges/definitions/${id}/assign`, {
+		method: "POST",
+		body: data,
+	})
 }
 
 export async function getStatutoryChargeTypes() {

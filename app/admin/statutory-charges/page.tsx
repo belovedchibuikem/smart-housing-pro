@@ -43,6 +43,8 @@ interface StatutoryCharge {
   total_paid: number
   remaining_amount: number
   is_overdue: boolean
+  charge_category?: string
+  definition_name?: string | null
 }
 
 export default function StatutoryChargesPage() {
@@ -52,6 +54,7 @@ export default function StatutoryChargesPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [typeFilter, setTypeFilter] = useState("all")
+  const [categoryFilter, setCategoryFilter] = useState("all")
   const [stats, setStats] = useState({ total_charges: 0, paid_charges: 0, pending_charges: 0, overdue_charges: 0, overdue_count: 0, collection_rate: 0 })
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; chargeId: string | null }>({ open: false, chargeId: null })
   const [approveDialog, setApproveDialog] = useState<{ open: boolean; chargeId: string | null }>({ open: false, chargeId: null })
@@ -63,7 +66,7 @@ export default function StatutoryChargesPage() {
     fetchCharges()
     fetchStats()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, statusFilter, typeFilter])
+  }, [searchQuery, statusFilter, typeFilter, categoryFilter])
 
   const fetchCharges = async () => {
     try {
@@ -72,6 +75,7 @@ export default function StatutoryChargesPage() {
       if (searchQuery) params.search = searchQuery
       if (statusFilter !== 'all') params.status = statusFilter
       if (typeFilter !== 'all') params.type = typeFilter
+      if (categoryFilter !== 'all') params.charge_category = categoryFilter
       
       const response = await getStatutoryCharges(params)
       if (response.success) {
@@ -183,10 +187,29 @@ export default function StatutoryChargesPage() {
         return "secondary"
       case "pending":
         return "outline"
+      case "partially_paid":
+        return "secondary"
+      case "waived":
+        return "outline"
       case "rejected":
         return "destructive"
       default:
         return "outline"
+    }
+  }
+
+  const categoryLabel = (category?: string) => {
+    switch (category) {
+      case "estate_wide":
+        return "Estate-Wide"
+      case "member_based":
+        return "Member"
+      case "event_based":
+        return "Event"
+      case "legacy":
+        return "Legacy"
+      default:
+        return category || "Legacy"
     }
   }
 
@@ -200,14 +223,19 @@ export default function StatutoryChargesPage() {
             <h1 className="text-3xl font-bold">Statutory Charges</h1>
             <p className="text-muted-foreground mt-1">View and manage all statutory charges</p>
           </div>
-          <Can permission="create_statutory_charges">
-            <Link href="/admin/statutory-charges/new">
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Charge
-              </Button>
+          <div className="flex items-center gap-2">
+            <Link href="/admin/statutory-charges/definitions">
+              <Button variant="outline">Charge Definitions</Button>
             </Link>
-          </Can>
+            <Can permission="create_statutory_charges">
+              <Link href="/admin/statutory-charges/new">
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Charge
+                </Button>
+              </Link>
+            </Can>
+          </div>
         </div>
 
         <div className="grid gap-6 md:grid-cols-4">
@@ -266,6 +294,18 @@ export default function StatutoryChargesPage() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="All Categories" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    <SelectItem value="estate_wide">Estate-Wide</SelectItem>
+                    <SelectItem value="member_based">Member</SelectItem>
+                    <SelectItem value="event_based">Event</SelectItem>
+                    <SelectItem value="legacy">Legacy</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Select value={typeFilter} onValueChange={setTypeFilter}>
                   <SelectTrigger className="w-40">
                     <SelectValue placeholder="All Types" />
@@ -285,7 +325,9 @@ export default function StatutoryChargesPage() {
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="partially_paid">Partially Paid</SelectItem>
                     <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="waived">Waived</SelectItem>
                     <SelectItem value="rejected">Rejected</SelectItem>
                   </SelectContent>
                 </Select>
@@ -308,6 +350,7 @@ export default function StatutoryChargesPage() {
                     <TableHead>Charge ID</TableHead>
                     <TableHead>Member</TableHead>
                     <TableHead>Charge Type</TableHead>
+                    <TableHead>Category</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Due Date</TableHead>
                     <TableHead>Status</TableHead>
@@ -324,7 +367,15 @@ export default function StatutoryChargesPage() {
                           <span className="text-xs text-muted-foreground block">{charge.member.member_id}</span>
                         )}
                       </TableCell>
-                      <TableCell>{charge.type}</TableCell>
+                      <TableCell>
+                        {charge.type}
+                        {charge.definition_name && (
+                          <span className="text-xs text-muted-foreground block">{charge.definition_name}</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{categoryLabel(charge.charge_category)}</Badge>
+                      </TableCell>
                       <TableCell className="font-semibold">
                         ₦{charge.amount.toLocaleString()}
                         {charge.remaining_amount > 0 && charge.remaining_amount < charge.amount && (
@@ -334,14 +385,14 @@ export default function StatutoryChargesPage() {
                         )}
                       </TableCell>
                       <TableCell className="text-sm">
-                        {new Date(charge.due_date).toLocaleDateString()}
+                        {charge.due_date ? new Date(charge.due_date).toLocaleDateString() : "—"}
                         {charge.is_overdue && (
                           <Badge variant="destructive" className="ml-2 text-xs">Overdue</Badge>
                         )}
                       </TableCell>
                       <TableCell>
                         <Badge variant={getStatusBadgeVariant(charge.status)}>
-                          {charge.status.charAt(0).toUpperCase() + charge.status.slice(1)}
+                          {charge.status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">

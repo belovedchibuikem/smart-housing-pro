@@ -18,6 +18,8 @@ interface StatutoryCharge {
   total_paid?: number
   remaining_amount?: number
   created_at: string
+  charge_category?: string
+  definition_name?: string | null
 }
 
 export default function StatutoryChargesPage() {
@@ -127,6 +129,21 @@ export default function StatutoryChargesPage() {
     return chargeType?.type || type
   }
 
+  const categoryLabel = (category?: string) => {
+    switch (category) {
+      case "estate_wide":
+        return "Estate"
+      case "member_based":
+        return "Member"
+      case "event_based":
+        return "Event"
+      case "legacy":
+        return "Legacy"
+      default:
+        return null
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -216,20 +233,33 @@ export default function StatutoryChargesPage() {
             <div className="space-y-4">
               {charges.map((charge) => {
                 const isOverdue = charge.due_date && new Date(charge.due_date) < new Date() && charge.status !== "paid"
-                const canPay = (charge.status === "approved" || charge.status === "pending") && !isOverdue
+                const canPay =
+                  (charge.status === "approved" ||
+                    charge.status === "pending" ||
+                    charge.status === "partially_paid") &&
+                  Number(charge.remaining_amount ?? charge.amount) > 0
                 const remaining = Number(charge.remaining_amount) || Number(charge.amount) || 0
+                const cat = categoryLabel(charge.charge_category)
 
                 return (
                   <div key={charge.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-semibold">{getChargeTypeName(charge.type)}</h3>
+                        {cat && (
+                          <Badge variant="outline" className="text-xs">
+                            {cat}
+                          </Badge>
+                        )}
                         <Badge variant={getStatusColor(charge.status, charge.due_date)} className="capitalize">
                           {getStatusIcon(charge.status)}
                           <span className="ml-1">{getStatusLabel(charge.status, charge.due_date)}</span>
                         </Badge>
                       </div>
-                      {charge.description && (
+                      {charge.definition_name && (
+                        <p className="text-sm font-medium mt-1">{charge.definition_name}</p>
+                      )}
+                      {charge.description && charge.description !== charge.definition_name && (
                         <p className="text-sm text-muted-foreground mt-1">{charge.description}</p>
                       )}
                       <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
