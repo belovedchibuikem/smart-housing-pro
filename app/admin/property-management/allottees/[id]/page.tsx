@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch, getPropertyAllottee } from "@/lib/api/client"
 import { Can } from "@/components/admin/can-permission"
@@ -53,6 +54,7 @@ export default function AllotteeTenurePage() {
   const [summary, setSummary] = useState<TenureSummary | null>(null)
   const [slotMeta, setSlotMeta] = useState<AllotteeSlotMeta | null>(null)
   const [repayAmount, setRepayAmount] = useState("")
+  const [repaySource, setRepaySource] = useState("wallet")
   const [repayDesc, setRepayDesc] = useState("")
   const [busy, setBusy] = useState(false)
   const [overrideReason, setOverrideReason] = useState("")
@@ -100,12 +102,14 @@ export default function AllotteeTenurePage() {
         method: "POST",
         body: JSON.stringify({
           amount: Number(repayAmount),
+          source: repaySource,
           description: repayDesc || "Admin repayment",
           allow_overpay: true,
         }),
       })
       toast({ title: "Repayment recorded" })
       setRepayAmount("")
+      setRepaySource("wallet")
       setRepayDesc("")
       await load()
     } catch (e) {
@@ -297,6 +301,20 @@ export default function AllotteeTenurePage() {
             <div className="space-y-2">
               <Label>Description</Label>
               <Input value={repayDesc} onChange={(e) => setRepayDesc(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Source account</Label>
+              <Select value={repaySource} onValueChange={setRepaySource}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select source account" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="wallet">Main wallet</SelectItem>
+                  <SelectItem value="contribution">Contribution wallet</SelectItem>
+                  <SelectItem value="equity_wallet">Equity wallet</SelectItem>
+                  <SelectItem value="cash">Cash / external payment</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <Can permission="manage_payments|manage_property_allottees">
               <Button onClick={recordRepayment} disabled={busy || !repayAmount}>

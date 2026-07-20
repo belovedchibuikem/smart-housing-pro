@@ -1816,6 +1816,100 @@ export interface MemberOwnershipHistoryEntry {
 	is_original?: boolean
 }
 
+export interface MemberOwnershipFinancials {
+	sale_price?: number
+	amount_paid?: number
+	outstanding?: number
+	payment_progress_percent?: number
+	payment_status?: string
+	total_cost?: number
+	balance?: number
+	slot_label?: string | null
+	tenure_status?: string | null
+}
+
+export interface MemberOwnershipRepaymentEntry {
+	id: string
+	amount: number
+	source?: string | null
+	reference?: string | null
+	status?: string | null
+	paid_at?: string | null
+	paid_on?: string | null
+	description?: string | null
+	created_at?: string | null
+}
+
+export interface MemberOwnershipPaymentSchedule {
+	available: boolean
+	message?: string
+	plan_id?: string
+	status?: string
+	funding_option?: string | null
+	selected_methods?: string[]
+	total_amount?: number
+	initial_balance?: number
+	remaining_balance?: number
+	starts_on?: string | null
+	ends_on?: string | null
+	items: Array<Record<string, unknown>>
+}
+
+export interface MemberOwnershipStatutoryChargePayment {
+	id: string
+	amount: number
+	payment_method?: string | null
+	reference?: string | null
+	status?: string | null
+	paid_at?: string | null
+}
+
+export interface MemberOwnershipStatutoryCharge {
+	id: string
+	type: string
+	type_label?: string
+	department?: string | null
+	description?: string | null
+	status: string
+	amount: number
+	total_paid: number
+	remaining_amount: number
+	due_date?: string | null
+	is_related_hint?: boolean
+	payments: MemberOwnershipStatutoryChargePayment[]
+}
+
+export interface MemberOwnershipDocument {
+	id: string
+	document_type: string
+	document_label?: string
+	status: string
+	file_url?: string | null
+	uploaded_by_type?: string | null
+	uploaded_by_id?: string | null
+	transfer_date?: string | null
+	executed_at?: string | null
+	registered_at?: string | null
+	owner_sequence?: number | null
+	metadata?: Record<string, unknown> | null
+	created_at?: string | null
+}
+
+export interface MemberPropertySupportDocument {
+	id: string
+	title?: string | null
+	description?: string | null
+	document_type?: string | null
+	file_name?: string | null
+	file_size?: number | null
+	mime_type?: string | null
+	file_url?: string | null
+	uploaded_by_role?: string | null
+	uploaded_by?: string | null
+	member_id?: string | null
+	created_at?: string | null
+}
+
 export interface PropertyOwnershipSummary {
 	total_owner_periods: number
 	total_transfers: number
@@ -2038,6 +2132,13 @@ export async function getMemberOwnershipHistory(
 			asset_type: string
 			asset: MemberOwnershipAssetDetail
 			ownership_history: MemberOwnershipHistoryEntry[]
+			financials?: MemberOwnershipFinancials | null
+			repayment_history?: MemberOwnershipRepaymentEntry[]
+			payment_schedule?: MemberOwnershipPaymentSchedule
+			statutory_charges?: MemberOwnershipStatutoryCharge[]
+			ownership_documents?: MemberOwnershipDocument[]
+			property_documents?: MemberPropertySupportDocument[]
+			land_documents?: MemberPropertySupportDocument[]
 		}
 	}>(`/admin/members/${memberId}/ownership-history?${params.toString()}`, { method: "GET" })
 }
