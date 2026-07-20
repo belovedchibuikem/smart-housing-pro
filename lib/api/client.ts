@@ -345,7 +345,7 @@ export async function registerRequest(payload: Record<string, unknown>) {
 	})
 }
 
-export async function verifyOtpRequest(payload: { email: string; otp: string }) {
+export async function verifyOtpRequest(payload: { email: string; otp: string; type?: "registration" | "password_reset" | "email_verification" }) {
 	return apiFetch<{ success: boolean; message: string; token?: string; user?: unknown; email_verified?: boolean }>("/auth/verify-otp", {
 		method: "POST",
 		body: payload,

@@ -5,7 +5,6 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { OtpVerificationDialog } from "@/components/auth/otp-verification-dialog"
 import { apiFetch } from "@/lib/api/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -17,7 +16,6 @@ export default function ForgotPasswordPage() {
 	const { t } = useI18n()
 	const router = useRouter()
 	const [email, setEmail] = useState("")
-	const [showOtpDialog, setShowOtpDialog] = useState(false)
 	const [message, setMessage] = useState<string | null>(null)
 	const [messageSuccess, setMessageSuccess] = useState(false)
 	const [loading, setLoading] = useState(false)
@@ -48,7 +46,7 @@ export default function ForgotPasswordPage() {
 			if (res.success) {
 				setMessage(t("forgotPassword.otpSent"))
 				setMessageSuccess(true)
-				setShowOtpDialog(true)
+				router.push(`/reset-password?email=${encodeURIComponent(email)}`)
 			} else {
 				throw new Error(res.message || t("forgotPassword.sendFailed"))
 			}
@@ -74,10 +72,6 @@ export default function ForgotPasswordPage() {
 
 	const handleRecaptchaError = () => {
 		setRecaptchaToken(null)
-	}
-
-	const handleOtpSuccess = () => {
-		router.push(`/reset-password?email=${encodeURIComponent(email)}`)
 	}
 
 	return (
@@ -143,15 +137,6 @@ export default function ForgotPasswordPage() {
 					</form>
 				</CardContent>
 			</Card>
-
-			<OtpVerificationDialog
-				open={showOtpDialog}
-				onOpenChange={setShowOtpDialog}
-				email={email}
-				type="password_reset"
-				onSuccess={handleOtpSuccess}
-				onError={(msg) => setMessage(msg)}
-			/>
 		</div>
 	)
 }

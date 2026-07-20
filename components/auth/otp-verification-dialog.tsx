@@ -79,7 +79,7 @@ export function OtpVerificationDialog({
     setError(null)
 
     try {
-      const res = await verifyOtpRequest({ email, otp: otpToVerify })
+      const res = await verifyOtpRequest({ email, otp: otpToVerify, type })
       if (res.success) {
         onSuccess?.(res.token, res.user)
         setOtp("")
