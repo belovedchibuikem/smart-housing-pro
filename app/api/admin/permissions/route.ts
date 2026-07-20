@@ -4,6 +4,18 @@ import { getApiBaseUrl } from "@/lib/api/config"
 
 const API_BASE_URL = getApiBaseUrl()
 
+async function parseUpstreamResponse(response: Response) {
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {
+      error: `Upstream returned non-JSON response (${response.status})`,
+      details: text.slice(0, 500),
+    };
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -12,17 +24,18 @@ export async function GET(request: NextRequest) {
     const response = await fetch(`${API_BASE_URL}/permissions?${queryString}`, {
       method: 'GET',
       headers: {
+        'Accept': 'application/json',
         'Content-Type': 'application/json',
         'Authorization': request.headers.get('Authorization') || '',
       },
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await parseUpstreamResponse(response);
       return NextResponse.json(errorData, { status: response.status });
     }
 
-    const data = await response.json();
+    const data = await parseUpstreamResponse(response);
     return NextResponse.json(data);
   } catch (error) {
     console.error('Permissions API Error:', error);
@@ -40,6 +53,7 @@ export async function POST(request: NextRequest) {
     const response = await fetch(`${API_BASE_URL}/permissions`, {
       method: 'POST',
       headers: {
+        'Accept': 'application/json',
         'Content-Type': 'application/json',
         'Authorization': request.headers.get('Authorization') || '',
       },
@@ -47,11 +61,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = await parseUpstreamResponse(response);
       return NextResponse.json(errorData, { status: response.status });
     }
 
-    const data = await response.json();
+    const data = await parseUpstreamResponse(response);
     return NextResponse.json(data);
   } catch (error) {
     console.error('Create Permission API Error:', error);
