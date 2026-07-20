@@ -106,6 +106,13 @@ export default function AdminLandManagementPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [subscriptionSearchQuery, setSubscriptionSearchQuery] = useState("")
   const [workspaceTab, setWorkspaceTab] = useState("parcels")
+
+  useEffect(() => {
+    const tab = searchParams.get("tab")
+    if (tab === "subscriptions" || tab === "tools" || tab === "parcels") {
+      setWorkspaceTab(tab)
+    }
+  }, [searchParamsString, searchParams])
   const [showEstateOverview, setShowEstateOverview] = useState(false)
   const [locationFilters, setLocationFilters] = useState<PropertyLocationFilterValues>(() =>
     locationFiltersFromSearchParams(searchParams),
@@ -675,11 +682,14 @@ export default function AdminLandManagementPage() {
                       </div>
 
                       <div className="flex flex-wrap gap-2 lg:flex-col lg:items-stretch">
+                        <Button variant="default" size="sm" asChild>
+                          <Link href={`/admin/land-subscriptions/${sub.id}`}>Record repayment</Link>
+                        </Button>
                         <Button variant="secondary" size="sm" asChild>
                           <Link href={`/admin/lands/${sub.land_id}?tab=ownership`}>View land</Link>
                         </Button>
                         <Button variant="outline" size="sm" asChild>
-                          <Link href={`/admin/lands/${sub.land_id}?tab=ownership`}>View payments</Link>
+                          <Link href={`/admin/members/${sub.member_id}`}>View member</Link>
                         </Button>
                       </div>
                     </div>

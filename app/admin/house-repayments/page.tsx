@@ -81,7 +81,7 @@ export default function AdminHouseRepaymentsPage() {
 	return (
 		<div className="space-y-6">
 			<div>
-				<h1 className="text-3xl font-bold tracking-tight">House & Slot Repayments</h1>
+				<h1 className="text-3xl font-bold tracking-tight">House & Land Repayments</h1>
 				<p className="text-muted-foreground mt-2">
 					Record repayments for a member&apos;s house block or land slot using cash, equity wallet, or mortgage disbursement.
 				</p>

@@ -190,47 +190,55 @@ export function AdminAssetRepaymentForm({
 				</div>
 			</div>
 
-			{source === "mortgage" && assetType === "house" && (
-				<div className="grid gap-4 sm:grid-cols-2">
-					{(options.mortgages?.length ?? 0) > 0 && (
-						<div className="space-y-2">
-							<Label>Linked mortgage (optional)</Label>
-							<Select value={mortgageId || "none"} onValueChange={(v) => setMortgageId(v === "none" ? "" : v)}>
-								<SelectTrigger>
-									<SelectValue placeholder="Select mortgage" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="none">No linked mortgage record</SelectItem>
-									{options.mortgages?.map((m) => (
-										<SelectItem key={m.id} value={m.id}>
-											Mortgage · {currency.format(Number(m.loan_amount ?? m.amount ?? 0))} ({m.status})
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+			{source === "mortgage" && (
+				<div className="rounded-md border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+					{assetType === "land" ? (
+						<p>
+							Record cash received from a mortgage institution or lender against this member&apos;s land plot.
+						</p>
+					) : (
+						<div className="grid gap-4 sm:grid-cols-2">
+							{(options.mortgages?.length ?? 0) > 0 && (
+								<div className="space-y-2">
+									<Label>Linked mortgage (optional)</Label>
+									<Select value={mortgageId || "none"} onValueChange={(v) => setMortgageId(v === "none" ? "" : v)}>
+										<SelectTrigger>
+											<SelectValue placeholder="Select mortgage" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="none">No linked mortgage record</SelectItem>
+											{options.mortgages?.map((m) => (
+												<SelectItem key={m.id} value={m.id}>
+													Mortgage · {currency.format(Number(m.loan_amount ?? m.amount ?? 0))} ({m.status})
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+							)}
+							{(options.internal_mortgage_plans?.length ?? 0) > 0 && (
+								<div className="space-y-2">
+									<Label>Internal mortgage plan (optional)</Label>
+									<Select value={internalPlanId || "none"} onValueChange={(v) => setInternalPlanId(v === "none" ? "" : v)}>
+										<SelectTrigger>
+											<SelectValue placeholder="Select plan" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="none">No internal plan record</SelectItem>
+											{options.internal_mortgage_plans?.map((p) => (
+												<SelectItem key={p.id} value={p.id}>
+													Internal plan · {currency.format(Number(p.principal ?? p.principal_amount ?? 0))}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+							)}
+							<p className="sm:col-span-2">
+								Record cash received from a mortgage institution against this member&apos;s house slot.
+							</p>
 						</div>
 					)}
-					{(options.internal_mortgage_plans?.length ?? 0) > 0 && (
-						<div className="space-y-2">
-							<Label>Internal mortgage plan (optional)</Label>
-							<Select value={internalPlanId || "none"} onValueChange={(v) => setInternalPlanId(v === "none" ? "" : v)}>
-								<SelectTrigger>
-									<SelectValue placeholder="Select plan" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="none">No internal plan record</SelectItem>
-									{options.internal_mortgage_plans?.map((p) => (
-										<SelectItem key={p.id} value={p.id}>
-											Internal plan · {currency.format(Number(p.principal ?? p.principal_amount ?? 0))}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-						</div>
-					)}
-					<p className="sm:col-span-2 text-xs text-muted-foreground">
-						Record cash received from a mortgage institution against this member&apos;s house slot.
-					</p>
 				</div>
 			)}
 

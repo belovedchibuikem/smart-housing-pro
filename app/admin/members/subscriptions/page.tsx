@@ -297,6 +297,7 @@ export default function MemberAssetSubscriptionsPage() {
                     <TableHead className="text-right">Outstanding</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -332,6 +333,19 @@ export default function MemberAssetSubscriptionsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-sm">{row.subscription_date || "—"}</TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="outline" size="sm" asChild>
+                          <Link
+                            href={
+                              row.asset_type === "land"
+                                ? `/admin/land-subscriptions/${row.subscription_id}`
+                                : `/admin/property-management/allottees/${row.subscription_id}`
+                            }
+                          >
+                            Record repayment
+                          </Link>
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

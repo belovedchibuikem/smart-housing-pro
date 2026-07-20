@@ -597,6 +597,7 @@ export async function recordAdminLandRepayment(
 		description?: string
 		notes?: string
 		payment_date?: string
+		reference?: string
 		allow_overpay?: boolean
 	},
 ) {
