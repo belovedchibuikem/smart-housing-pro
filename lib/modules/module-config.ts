@@ -104,6 +104,7 @@ export const ADMIN_HREF_MODULE_MAP: Record<string, string> = {
   roles: "roles_permissions",
   permissions: "roles_permissions",
   wallets: "wallet",
+  "wallet-transfer": "wallet",
   contributions: "contributions",
   "post-contribution": "contributions",
   "contribution-plans": "contributions",

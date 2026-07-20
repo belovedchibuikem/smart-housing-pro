@@ -1,40 +1,45 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { getApiBaseUrl } from "@/lib/api/config"
+
+const API_BASE_URL = getApiBaseUrl()
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { amount, recipientId, note, senderId } = body
-
-    // Validate required fields
-    if (!amount || !recipientId || !senderId) {
-      return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+    const mappedBody = {
+      amount: body?.amount,
+      recipient_type: body?.recipient_type || "member_number",
+      recipient_identifier: body?.recipient_identifier || body?.recipientId || "",
+      note: body?.note,
     }
 
-    // TODO: Add database integration to:
-    // 1. Verify sender has sufficient balance
-    // 2. Verify recipient exists
-    // 3. Deduct from sender's wallet
-    // 4. Credit recipient's wallet
-    // 5. Create transaction records
-
-    // Mock successful transfer for now
-    const transferData = {
-      success: true,
-      message: "Transfer completed successfully",
-      data: {
-        reference: `TRF-${Date.now()}`,
-        amount,
-        recipientId,
-        senderId,
-        note,
-        status: "completed",
-        timestamp: new Date().toISOString(),
+    const response = await fetch(`${API_BASE_URL.replace(/\/$/, "")}/wallet/transfer`, {
+      method: "POST",
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Authorization": request.headers.get("Authorization") || "",
+        "X-Forwarded-Host": request.headers.get("x-forwarded-host") || request.headers.get("host") || "",
       },
-    }
+      body: JSON.stringify(mappedBody),
+    })
 
-    return NextResponse.json(transferData)
+    const text = await response.text()
+    const payload = (() => {
+      try {
+        return text ? JSON.parse(text) : {}
+      } catch {
+        return {
+          success: false,
+          message: "Upstream returned non-JSON response",
+          details: text.slice(0, 300),
+        }
+      }
+    })()
+
+    return NextResponse.json(payload, { status: response.status })
   } catch (error) {
-    console.error("[v0] Wallet transfer error:", error)
-    return NextResponse.json({ error: "Failed to process transfer" }, { status: 500 })
+    console.error("Wallet transfer proxy error:", error)
+    return NextResponse.json({ success: false, message: "Failed to process transfer" }, { status: 500 })
   }
 }

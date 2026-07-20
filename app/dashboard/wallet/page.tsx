@@ -150,6 +150,12 @@ export default function WalletPage() {
                   View History
                 </Link>
               </Button>
+              <Button asChild size="sm" variant="secondary">
+                <Link href="/dashboard/wallet/transfer">
+                  <ArrowUpRight className="h-4 w-4 mr-2" />
+                  Transfer
+                </Link>
+              </Button>
               <Button size="sm" variant="secondary">
                 <Download className="h-4 w-4 mr-2" />
                 Download Statement

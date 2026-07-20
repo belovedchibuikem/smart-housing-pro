@@ -44,6 +44,7 @@ import {
   Bell,
   MapPinned,
   RotateCcw,
+  ArrowRightLeft,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -130,6 +131,8 @@ const navItems: NavItem[] = [
     subItems: [
       { href: "/admin/wallets", label: "Wallets", icon: Wallet },
       { href: "/admin/wallets/transactions", label: "Wallet Transactions", icon: ScrollText },
+      { href: "/admin/wallet-transfer", label: "Wallet Transfer", icon: ArrowRightLeft },
+      { href: "/admin/bulk-upload/wallet-transfers", label: "Bulk Wallet Transfer", icon: Upload },
     ],
   },
   {

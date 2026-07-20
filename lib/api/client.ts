@@ -450,6 +450,53 @@ export async function getWalletTransactions(params?: { page?: number; per_page?:
 	return apiFetch<WalletTransactionsResponse>(path, { method: "GET" })
 }
 
+export type InternalFundAccount = "wallet" | "contribution" | "equity"
+
+export async function getInternalFundBalances() {
+	return apiFetch<{
+		success: boolean
+		balances: {
+			wallet: number
+			contribution: number
+			equity: number
+			currency?: string
+		}
+	}>("/user/internal-funds/balances", { method: "GET" })
+}
+
+export async function transferInternalFunds(payload: {
+	from_account: InternalFundAccount
+	to_account: InternalFundAccount
+	amount: number
+	note?: string
+}) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		balances?: Record<string, number>
+	}>("/user/internal-funds/transfer", {
+		method: "POST",
+		body: payload,
+	})
+}
+
+export async function adminTransferInternalFunds(payload: {
+	member_id: string
+	from_account: InternalFundAccount
+	to_account: InternalFundAccount
+	amount: number
+	note?: string
+}) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		balances?: Record<string, number>
+	}>("/admin/internal-funds/transfer", {
+		method: "POST",
+		body: payload,
+	})
+}
+
 export interface PropertyImage {
 	id: string
 	url: string
@@ -1089,7 +1136,7 @@ export async function uploadPropertyDeed(propertyId: string, body: FormData, all
 
 export async function submitLandRepayment(
 	subscriptionId: string,
-	payload: { amount: number; payment_date?: string; description?: string },
+	payload: { amount: number; payment_date?: string; description?: string; source?: string },
 ) {
 	return apiFetch<{
 		success: boolean

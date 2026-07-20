@@ -28,6 +28,7 @@ export const TENANT_ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
   "bulk.mortgage-repayments": "manage_loan_repayments|view_loans",
   "bulk.internal-mortgage-repayments": "manage_loan_repayments|view_loans",
   "bulk.refund": "manage_payments|view_wallets|view_contributions",
+  "bulk.wallet-transfers": "manage_wallets|manage_payments|view_wallets",
   "bulk.internal-mortgages": "view_loans|create_loans|approve_loans",
   "bulk.investments": "view_investments|create_investments|approve_investments|create_investment_plans",
 
@@ -46,6 +47,7 @@ export const TENANT_ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
   "payment-gateways": "view_payment_gateways|manage_payment_gateways|test_payment_gateways",
   "payment-approvals": "manage_payments|view_payment_gateways|view_wallets|view_contributions",
   "payment-evidence": "manage_payments|view_payment_gateways|view_wallets|view_contributions",
+  "wallet-transfer": "manage_wallets|manage_payments|view_wallets",
   "white-label": "view_white_label|manage_white_label",
   wallets: "view_wallets|manage_wallets|view_pending_wallets|view_wallet_transactions|manage_payments",
   "investment-withdrawal-requests": "view_investments|edit_investments|approve_investments|manage_payments",

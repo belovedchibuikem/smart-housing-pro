@@ -2,73 +2,135 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ArrowRight, Wallet } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { useToast } from "@/hooks/use-toast"
+import { getInternalFundBalances, transferInternalFunds, type InternalFundAccount } from "@/lib/api/client"
 
 export default function WalletTransferPage() {
   const router = useRouter()
+  const { toast } = useToast()
   const [isLoading, setIsLoading] = useState(false)
+  const [loadingBalances, setLoadingBalances] = useState(true)
   const [amount, setAmount] = useState("")
-  const [recipientId, setRecipientId] = useState("")
+  const [fromAccount, setFromAccount] = useState<InternalFundAccount>("contribution")
+  const [toAccount, setToAccount] = useState<InternalFundAccount>("wallet")
   const [note, setNote] = useState("")
+  const [balances, setBalances] = useState<Record<InternalFundAccount, number>>({
+    wallet: 0,
+    contribution: 0,
+    equity: 0,
+  })
+
+  useEffect(() => {
+    let active = true
+    ;(async () => {
+      setLoadingBalances(true)
+      try {
+        const response = await getInternalFundBalances()
+        if (!active) return
+        setBalances({
+          wallet: Number(response?.balances?.wallet ?? 0),
+          contribution: Number(response?.balances?.contribution ?? 0),
+          equity: Number(response?.balances?.equity ?? 0),
+        })
+      } catch {
+        if (!active) return
+        toast({
+          title: "Unable to load balances",
+          description: "Try refreshing this page.",
+          variant: "destructive",
+        })
+      } finally {
+        if (active) setLoadingBalances(false)
+      }
+    })()
+    return () => {
+      active = false
+    }
+  }, [toast])
+
+  const accountLabel: Record<InternalFundAccount, string> = {
+    wallet: "Main Wallet",
+    contribution: "Contribution Wallet",
+    equity: "Equity Wallet",
+  }
+
+  const numericAmount = Number(amount)
+  const sourceBalance = balances[fromAccount] ?? 0
+  const isValidAmount = Number.isFinite(numericAmount) && numericAmount > 0
+  const canSubmit = isValidAmount && fromAccount !== toAccount && numericAmount <= sourceBalance
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!canSubmit) {
+      toast({
+        title: "Transfer not valid",
+        description: "Check amount, source/destination accounts, and available balance.",
+        variant: "destructive",
+      })
+      return
+    }
     setIsLoading(true)
 
     try {
-      const response = await fetch("/api/wallet/transfer", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          amount: Number(amount),
-          recipientId,
-          note,
-          senderId: "current-user-id", // TODO: Get from user session
-        }),
+      const data = await transferInternalFunds({
+        from_account: fromAccount,
+        to_account: toAccount,
+        amount: numericAmount,
+        note: note || undefined,
       })
 
-      const data = await response.json()
-
       if (data.success) {
-        const generatedReference = data.reference || data.transactionId || `TRF-${Date.now()}`
-        const recipientValue = data.recipientId || recipientId
-        const numericAmount = Number(amount)
         const params = new URLSearchParams()
-        params.set("reference", String(generatedReference))
-        params.set("recipient", String(recipientValue))
-        if (Number.isFinite(numericAmount) && numericAmount > 0) {
-          params.set("amount", String(numericAmount))
-        }
+        params.set("reference", `IFT-${Date.now()}`)
+        params.set("from", fromAccount)
+        params.set("to", toAccount)
+        params.set("amount", String(numericAmount))
         router.push(`/dashboard/wallet/transfer/success?${params.toString()}`)
       } else {
-        alert(data.message || "Transfer failed")
+        toast({
+          title: "Transfer failed",
+          description: data.message || "Could not complete transfer.",
+          variant: "destructive",
+        })
         setIsLoading(false)
       }
     } catch (error) {
       console.error("[v0] Transfer error:", error)
-      alert("An error occurred while processing your transfer")
+      toast({
+        title: "Transfer failed",
+        description: "An error occurred while processing your transfer",
+        variant: "destructive",
+      })
       setIsLoading(false)
     }
   }
+
+  const projectedBalances = useMemo(() => {
+    if (!isValidAmount || fromAccount === toAccount) return balances
+    return {
+      ...balances,
+      [fromAccount]: Math.max(0, (balances[fromAccount] ?? 0) - numericAmount),
+      [toAccount]: (balances[toAccount] ?? 0) + numericAmount,
+    }
+  }, [balances, fromAccount, toAccount, numericAmount, isValidAmount])
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Transfer Funds</h1>
-          <p className="text-muted-foreground mt-1">Transfer funds to another member's wallet</p>
+          <p className="text-muted-foreground mt-1">Move money between your wallets (main, contribution, equity)</p>
         </div>
-        <Link href="/dashboard/contributions">
+        <Link href="/dashboard/wallet">
           <Button variant="outline">Back</Button>
         </Link>
       </div>
@@ -77,8 +139,10 @@ export default function WalletTransferPage() {
         <div className="flex items-center gap-3">
           <Wallet className="h-5 w-5 text-primary" />
           <div>
-            <p className="text-sm text-muted-foreground">Available Balance</p>
-            <p className="text-2xl font-bold">₦125,000</p>
+            <p className="text-sm text-muted-foreground">Source Balance</p>
+            <p className="text-2xl font-bold">
+              {loadingBalances ? "Loading..." : `₦${sourceBalance.toLocaleString()}`}
+            </p>
           </div>
         </div>
       </Card>
@@ -87,25 +151,39 @@ export default function WalletTransferPage() {
         <Card className="p-6">
           <div className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="recipientId">Recipient FRSC Housing ID</Label>
-              <Input
-                id="recipientId"
-                type="text"
-                placeholder="Enter recipient's Housing ID"
-                value={recipientId}
-                onChange={(e) => setRecipientId(e.target.value)}
-                required
-              />
-              <p className="text-xs text-muted-foreground">
-                Enter the unique FRSC Housing ID of the member you want to transfer to
-              </p>
+              <Label htmlFor="from-account">From Account</Label>
+              <Select value={fromAccount} onValueChange={(v) => setFromAccount(v as InternalFundAccount)}>
+                <SelectTrigger id="from-account">
+                  <SelectValue placeholder="Select source account" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="wallet">{accountLabel.wallet}</SelectItem>
+                  <SelectItem value="contribution">{accountLabel.contribution}</SelectItem>
+                  <SelectItem value="equity">{accountLabel.equity}</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="amount">Transfer Amount</Label>
+              <Label htmlFor="to-account">To Account</Label>
+              <Select value={toAccount} onValueChange={(v) => setToAccount(v as InternalFundAccount)}>
+                <SelectTrigger id="to-account">
+                  <SelectValue placeholder="Select destination account" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="wallet">{accountLabel.wallet}</SelectItem>
+                  <SelectItem value="contribution">{accountLabel.contribution}</SelectItem>
+                  <SelectItem value="equity">{accountLabel.equity}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="amount">Transfer Amount (₦)</Label>
               <Input
                 id="amount"
                 type="number"
+                min={1}
                 placeholder="Enter amount"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
@@ -114,8 +192,8 @@ export default function WalletTransferPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="note">Transfer Note (Optional)</Label>
-              <Textarea
+              <Label htmlFor="note">Note (Optional)</Label>
+              <Input
                 id="note"
                 placeholder="Add a note for this transfer"
                 value={note}
@@ -131,27 +209,31 @@ export default function WalletTransferPage() {
               <h3 className="font-semibold">Transfer Summary</h3>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Transfer Amount</span>
-                  <span className="font-medium">₦{Number(amount).toLocaleString()}</span>
+                  <span className="text-muted-foreground">From</span>
+                  <span className="font-medium">{accountLabel[fromAccount]}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Transfer Fee</span>
-                  <span className="font-medium">₦0</span>
+                  <span className="text-muted-foreground">To</span>
+                  <span className="font-medium">{accountLabel[toAccount]}</span>
                 </div>
-                <div className="border-t pt-2 flex justify-between">
-                  <span className="font-semibold">Total Deduction</span>
-                  <span className="font-bold text-lg">₦{Number(amount).toLocaleString()}</span>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Amount</span>
+                  <span className="font-medium">₦{numericAmount.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-sm pt-2 border-t">
-                  <span className="text-muted-foreground">New Balance</span>
-                  <span className="font-medium">₦{(125000 - Number(amount)).toLocaleString()}</span>
+                  <span className="text-muted-foreground">Projected source balance</span>
+                  <span className="font-medium">₦{(projectedBalances[fromAccount] ?? 0).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Projected destination balance</span>
+                  <span className="font-medium">₦{(projectedBalances[toAccount] ?? 0).toLocaleString()}</span>
                 </div>
               </div>
             </div>
           </Card>
         )}
 
-        <Button type="submit" className="w-full" size="lg" disabled={isLoading || !amount || !recipientId}>
+        <Button type="submit" className="w-full" size="lg" disabled={isLoading || !canSubmit || loadingBalances}>
           {isLoading ? (
             "Processing..."
           ) : (

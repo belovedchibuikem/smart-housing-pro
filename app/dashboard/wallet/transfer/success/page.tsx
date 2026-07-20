@@ -11,10 +11,16 @@ import { ReceiptDownloadButton } from "@/components/payments/receipt-download-bu
 export default function TransferSuccessPage() {
   const searchParams = useSearchParams()
   const reference = searchParams.get("reference") ?? "TXN-2024-001235"
-  const recipient = searchParams.get("recipient") ?? "FRSC-HMS-12345"
+  const fromAccount = searchParams.get("from") ?? "contribution"
+  const toAccount = searchParams.get("to") ?? "wallet"
   const amountParam = searchParams.get("amount")
   const amount = amountParam ? Number(amountParam) : 25000
   const issuedAt = useMemo(() => new Date(), [])
+  const label = (value: string) => {
+    if (value === "equity") return "Equity Wallet"
+    if (value === "contribution") return "Contribution Wallet"
+    return "Main Wallet"
+  }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -27,7 +33,7 @@ export default function TransferSuccessPage() {
 
         <h1 className="text-3xl font-bold mb-2">Transfer Successful!</h1>
         <p className="text-muted-foreground mb-8">
-          Your funds have been successfully transferred to the recipient's wallet.
+          Your internal wallet transfer has been completed successfully.
         </p>
 
         <Card className="p-6 bg-muted/50 text-left mb-6">
@@ -38,8 +44,12 @@ export default function TransferSuccessPage() {
               <span className="font-medium">{reference}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Recipient ID</span>
-              <span className="font-medium">{recipient}</span>
+              <span className="text-muted-foreground">From Account</span>
+              <span className="font-medium">{label(fromAccount)}</span>
+            </div>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">To Account</span>
+              <span className="font-medium">{label(toAccount)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Amount Transferred</span>
@@ -69,19 +79,20 @@ export default function TransferSuccessPage() {
             className="flex-1"
             data={{
               title: "Wallet Transfer Receipt",
-              subtitle: `Sent to ${recipient}`,
+              subtitle: `${label(fromAccount)} to ${label(toAccount)}`,
               amount,
               currency: "NGN",
               status: "Successful",
-              paymentMethod: "Wallet Transfer",
+              paymentMethod: "Internal Fund Transfer",
               reference,
               date: issuedAt.toISOString(),
               items: [
-                { label: "Recipient", value: recipient },
+                { label: "From", value: label(fromAccount) },
+                { label: "To", value: label(toAccount) },
                 { label: "Issued On", value: issuedAt.toLocaleString() },
               ],
               footerNote:
-                "Wallet transfers are instant and irreversible. Please contact support immediately if you suspect an error.",
+                "Internal transfers are applied instantly to your selected source and destination balances.",
             }}
           />
         </div>

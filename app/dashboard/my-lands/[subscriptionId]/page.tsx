@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
 	Table,
 	TableBody,
@@ -31,6 +32,7 @@ export default function MemberLandAccountPage() {
 	const { toast } = useToast()
 	const [row, setRow] = useState<Record<string, unknown> | null>(null)
 	const [amount, setAmount] = useState("")
+	const [source, setSource] = useState("wallet")
 	const [paymentDate, setPaymentDate] = useState("")
 	const [description, setDescription] = useState("")
 	const [submitting, setSubmitting] = useState(false)
@@ -59,11 +61,13 @@ export default function MemberLandAccountPage() {
 		try {
 			const res = await submitLandRepayment(subscriptionId, {
 				amount: value,
+				source,
 				payment_date: paymentDate || undefined,
 				description: description || undefined,
 			})
 			toast({ title: res.message || "Repayment recorded" })
 			setAmount("")
+			setSource("wallet")
 			setPaymentDate("")
 			setDescription("")
 			await load()
@@ -210,6 +214,20 @@ export default function MemberLandAccountPage() {
 								value={paymentDate}
 								onChange={(e) => setPaymentDate(e.target.value)}
 							/>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="land-repay-source">Payment source</Label>
+							<Select value={source} onValueChange={setSource}>
+								<SelectTrigger id="land-repay-source">
+									<SelectValue placeholder="Select source" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="wallet">Main wallet</SelectItem>
+									<SelectItem value="contribution">Contribution wallet</SelectItem>
+									<SelectItem value="equity_wallet">Equity wallet</SelectItem>
+									<SelectItem value="cash">Cash / bank transfer</SelectItem>
+								</SelectContent>
+							</Select>
 						</div>
 						<div className="space-y-2 md:col-span-2">
 							<Label htmlFor="land-repay-desc">Description (optional)</Label>

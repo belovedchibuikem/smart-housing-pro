@@ -16,6 +16,7 @@ export const BULK_UPLOAD_SLUG_PERMISSIONS: Record<string, string> = {
   "internal-mortgages": "create_loans",
   "internal-mortgage-repayments": "manage_loan_repayments",
   refund: "manage_payments",
+  "wallet-transfers": "manage_wallets|manage_payments|view_wallets",
   "property-subscribers": "manage_property_allottees|approve_allotments",
   "property-payments": "manage_payments|manage_property_allottees",
   lands: "create_properties",
