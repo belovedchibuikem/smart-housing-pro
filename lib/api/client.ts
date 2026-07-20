@@ -553,7 +553,7 @@ export interface AdminAssetRepaymentOptions {
 	equity_wallet_balance?: number
 	wallet_balance?: number
 	payment_methods?: Array<{ value: string; label: string }>
-	mortgages?: Array<{ id: string; amount?: number; status?: string }>
+	mortgages?: Array<{ id: string; amount?: number; loan_amount?: number; status?: string }>
 	internal_mortgage_plans?: Array<{ id: string; principal?: number; principal_amount?: number; status?: string }>
 }
 

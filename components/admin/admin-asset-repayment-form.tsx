@@ -203,7 +203,7 @@ export function AdminAssetRepaymentForm({
 									<SelectItem value="none">No linked mortgage record</SelectItem>
 									{options.mortgages?.map((m) => (
 										<SelectItem key={m.id} value={m.id}>
-											Mortgage · {currency.format(Number(m.amount ?? 0))} ({m.status})
+											Mortgage · {currency.format(Number(m.loan_amount ?? m.amount ?? 0))} ({m.status})
 										</SelectItem>
 									))}
 								</SelectContent>
