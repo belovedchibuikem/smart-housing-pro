@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { apiFetch } from '@/lib/api/client'
-import { Permission, GroupedPermissions } from '@/lib/types/role'
+import { Permission } from '@/lib/types/role'
 
 interface UsePermissionsOptions {
   search?: string
@@ -10,6 +10,55 @@ interface UsePermissionsOptions {
   sortOrder?: 'asc' | 'desc'
   page?: number
   perPage?: number
+}
+
+function toBool(v: any): boolean {
+  if (typeof v === 'boolean') return v
+  if (typeof v === 'number') return v !== 0
+  if (typeof v === 'string') {
+    const t = v.trim().toLowerCase()
+    return t === '1' || t === 'true' || t === 'yes' || t === 'active'
+  }
+  return !!v
+}
+
+function inferGroupFromPermissionName(name: string): string {
+  if (!name) return 'general'
+  if (name.includes('.')) return name.split('.')[0] || 'general'
+  if (name.includes('_')) return name.split('_')[0] || 'general'
+  return 'general'
+}
+
+async function fetchAllPermissionsFallback(limitPerPage = 200, maxPages = 20): Promise<Permission[]> {
+  const all: Permission[] = []
+  let current = 1
+  let last = 1
+
+  do {
+    const response = await apiFetch<{ success?: boolean; permissions: any; pagination?: any }>(
+      `/admin/permissions?per_page=${limitPerPage}&page=${current}`
+    )
+    const list = Array.isArray(response.permissions)
+      ? response.permissions
+      : (response as any).data?.permissions || response.permissions?.data || []
+
+    const normalized = (list as any[]).map((p) => {
+      const raw = p as any
+      const rawActive =
+        ('is_active' in raw ? raw.is_active : undefined) ??
+        ('active' in raw ? raw.active : undefined) ??
+        ('status' in raw ? raw.status : undefined) ??
+        ('enabled' in raw ? raw.enabled : undefined)
+      return { ...p, is_active: toBool(rawActive) } as Permission
+    })
+    all.push(...normalized)
+
+    const pagination = response.pagination || (response as any).data?.pagination
+    last = Number(pagination?.last_page || 1)
+    current += 1
+  } while (current <= last && current <= maxPages)
+
+  return all
 }
 
 export function usePermissions(options: UsePermissionsOptions = {}) {
@@ -41,16 +90,6 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
       const list = Array.isArray(response.permissions)
         ? response.permissions
         : (response as any).data?.permissions || response.permissions?.data || []
-      // Normalize is_active to boolean (handles various source keys)
-      const toBool = (v: any) => {
-        if (typeof v === 'boolean') return v
-        if (typeof v === 'number') return v !== 0
-        if (typeof v === 'string') {
-          const t = v.trim().toLowerCase()
-          return t === '1' || t === 'true' || t === 'yes' || t === 'active'
-        }
-        return !!v
-      }
       const normalized = (list as any[]).map((p) => {
         const raw = (p as any)
         const rawActive =
@@ -93,16 +132,6 @@ export function useGroupedPermissions(options: { search?: string; group?: string
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const toBool = (v: any) => {
-    if (typeof v === 'boolean') return v
-    if (typeof v === 'number') return v !== 0
-    if (typeof v === 'string') {
-      const t = v.trim().toLowerCase()
-      return t === '1' || t === 'true' || t === 'yes' || t === 'active'
-    }
-    return !!v
-  }
-
   const toDisplay = (k: string) => k.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
 
   const fetchGroupedPermissions = async () => {
@@ -110,16 +139,30 @@ export function useGroupedPermissions(options: { search?: string; group?: string
       setLoading(true)
       setError(null)
 
-      const params = new URLSearchParams()
-      if (options.search) params.append('search', options.search)
-      if (options.group && options.group !== 'all') params.append('group', options.group)
-      if (options.is_active && options.is_active !== 'all') params.append('is_active', options.is_active)
+      const list = await fetchAllPermissionsFallback()
+      const filtered = list.filter((permission: any) => {
+        if (options.search) {
+          const q = options.search.toLowerCase()
+          const hay = `${permission.name || ''} ${permission.display_name || ''} ${permission.description || ''}`.toLowerCase()
+          if (!hay.includes(q)) return false
+        }
+        if (options.group && options.group !== 'all') {
+          const g = (permission as any).group || inferGroupFromPermissionName(permission.name)
+          if (g !== options.group) return false
+        }
+        if (options.is_active && options.is_active !== 'all') {
+          const active = toBool((permission as any).is_active)
+          if ((options.is_active === 'true') !== active) return false
+        }
+        return true
+      })
+      const gp: any = filtered.reduce((acc, permission) => {
+        const key = (permission as any).group || inferGroupFromPermissionName(permission.name)
+        if (!acc[key]) acc[key] = []
+        acc[key].push(permission)
+        return acc
+      }, {} as Record<string, Permission[]>)
 
-      const response = await apiFetch<{ success?: boolean; grouped_permissions: GroupedPermissions[] | Record<string, Permission[]> }>(
-        `/admin/permissions/grouped${params.toString() ? `?${params.toString()}` : ''}`
-      )
-
-      const gp: any = response.grouped_permissions
       let map: Record<string, Permission[]> = {}
 
       if (Array.isArray(gp)) {
@@ -296,10 +339,19 @@ export function usePermissionStats() {
     try {
       setLoading(true)
       setError(null)
-      const response = await apiFetch<{ success: boolean; stats: any }>(
-        '/admin/permissions/stats'
+      const list = await fetchAllPermissionsFallback()
+      const total = list.length
+      const active = list.filter((p: any) => toBool((p as any).is_active)).length
+      const groups = new Set(
+        list.map((p: any) => ((p as any).group || inferGroupFromPermissionName((p as any).name || '')).toString())
       )
-      setStats(response.stats)
+      setStats({
+        total_permissions: total,
+        active_permissions: active,
+        inactive_permissions: Math.max(total - active, 0),
+        permissions_in_use: list.filter((p: any) => Boolean((p as any).is_in_use)).length,
+        total_groups: groups.size,
+      })
     } catch (err: any) {
       setError(err.message || 'Failed to fetch permission stats')
     } finally {
