@@ -17,6 +17,8 @@ import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch, getPropertyPaymentPlanDetails, getApprovedPropertyInterests, type ApprovedPropertyInterest } from "@/lib/api/client"
 import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
+import { Checkbox } from "@/components/ui/checkbox"
+import { MORTGAGE_PROPERTY_TITLE_OPTIONS } from "@/lib/mortgage-property-titles"
 
 interface MortgageProvider {
   id: string
