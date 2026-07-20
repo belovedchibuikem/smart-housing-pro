@@ -89,7 +89,7 @@ export default function AdminWalletTransferPage() {
 		return {
 			wallet: Number(summary?.wallet.balance ?? 0),
 			contribution: Number(summary?.contribution.available ?? 0),
-			equity: Number((summary?.equity_wallet.available ?? summary?.equity_wallet.balance) ?? 0),
+			equity: Number(summary?.equity_wallet.balance ?? summary?.equity_wallet.available ?? 0),
 		}
 	}, [summary])
 
@@ -118,6 +118,22 @@ export default function AdminWalletTransferPage() {
 			})
 			if (!response.success) {
 				throw new Error(response.message || "Transfer failed")
+			}
+			if (response.balances) {
+				setSummary((prev) =>
+					prev
+						? {
+								...prev,
+								wallet: { balance: response.balances!.wallet },
+								contribution: { ...prev.contribution, available: response.balances!.contribution },
+								equity_wallet: {
+									...prev.equity_wallet,
+									balance: response.balances!.equity,
+									available: response.balances!.equity,
+								},
+							}
+						: prev
+				)
 			}
 			toast.success(response.message || "Transfer completed successfully")
 			setAmount("")
