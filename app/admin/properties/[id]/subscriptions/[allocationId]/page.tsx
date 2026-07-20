@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { getPropertySubscription, generatePropertySubscriptionCertificate } from "@/lib/api/client"
 import { openSubscriptionCertificate } from "@/lib/properties/subscription-certificate"
+import { AdminAssetRepaymentForm } from "@/components/admin/admin-asset-repayment-form"
 
 interface SubscriptionDetail {
   allocation: {
@@ -420,6 +421,21 @@ export default function SubscriptionDetailPage() {
         </TabsContent>
 
         <TabsContent value="payments" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Record repayment</CardTitle>
+              <CardDescription>
+                Apply cash, equity wallet, or mortgage funds to this member&apos;s house slot
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AdminAssetRepaymentForm
+                assetType="house"
+                tenureId={allocationId}
+                onSuccess={() => void fetchSubscriptionDetails()}
+              />
+            </CardContent>
+          </Card>
           <Card>
             <CardHeader>
               <CardTitle>Payment History</CardTitle>

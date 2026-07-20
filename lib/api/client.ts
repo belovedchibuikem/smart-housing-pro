@@ -497,6 +497,115 @@ export async function adminTransferInternalFunds(payload: {
 	})
 }
 
+export async function bulkApproveEquityContributions(payload: {
+	contribution_ids?: string[]
+	filters?: {
+		search?: string
+		payment_method?: string
+		date_from?: string
+		date_to?: string
+	}
+}) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		approved_count?: number
+		skipped_count?: number
+		errors?: string[]
+	}>("/admin/equity-contributions/bulk-approve", {
+		method: "POST",
+		body: payload,
+	})
+}
+
+export async function bulkRejectEquityContributions(payload: {
+	contribution_ids?: string[]
+	rejection_reason: string
+	filters?: {
+		search?: string
+		payment_method?: string
+		date_from?: string
+		date_to?: string
+	}
+}) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		rejected_count?: number
+		skipped_count?: number
+		errors?: string[]
+	}>("/admin/equity-contributions/bulk-reject", {
+		method: "POST",
+		body: payload,
+	})
+}
+
+export interface AdminAssetRepaymentOptions {
+	allocation_id?: string
+	subscription_id?: string
+	member_id?: string
+	slot_label?: string | null
+	property_title?: string | null
+	land_title?: string | null
+	sale_price?: number
+	amount_paid?: number
+	outstanding?: number
+	equity_wallet_balance?: number
+	wallet_balance?: number
+	payment_methods?: Array<{ value: string; label: string }>
+	mortgages?: Array<{ id: string; amount?: number; status?: string }>
+	internal_mortgage_plans?: Array<{ id: string; principal?: number; principal_amount?: number; status?: string }>
+}
+
+export async function getAdminHouseRepaymentOptions(allocationId: string) {
+	return apiFetch<{ success: boolean; data: AdminAssetRepaymentOptions }>(
+		`/admin/property-management/tenures/houses/${allocationId}/repayment-options`,
+	)
+}
+
+export async function getAdminLandRepaymentOptions(subscriptionId: string) {
+	return apiFetch<{ success: boolean; data: AdminAssetRepaymentOptions }>(
+		`/admin/property-management/tenures/lands/${subscriptionId}/repayment-options`,
+	)
+}
+
+export async function recordAdminHouseRepayment(
+	allocationId: string,
+	payload: {
+		amount: number
+		source?: string
+		description?: string
+		notes?: string
+		payment_date?: string
+		reference?: string
+		mortgage_id?: string
+		internal_mortgage_plan_id?: string
+		allow_overpay?: boolean
+	},
+) {
+	return apiFetch<{ success: boolean; message: string; data?: Record<string, unknown> }>(
+		`/admin/property-management/tenures/houses/${allocationId}/repayments`,
+		{ method: "POST", body: payload },
+	)
+}
+
+export async function recordAdminLandRepayment(
+	subscriptionId: string,
+	payload: {
+		amount: number
+		source?: string
+		description?: string
+		notes?: string
+		payment_date?: string
+		allow_overpay?: boolean
+	},
+) {
+	return apiFetch<{ success: boolean; message: string; data?: Record<string, unknown> }>(
+		`/admin/property-management/tenures/lands/${subscriptionId}/repayments`,
+		{ method: "POST", body: payload },
+	)
+}
+
 export interface PropertyImage {
 	id: string
 	url: string

@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Progress } from "@/components/ui/progress"
 import { Home, LandPlot, MapPin, Calendar, ChevronRight, History, FileText, ReceiptText } from "lucide-react"
 import { toast } from "sonner"
+import { AdminAssetRepaymentForm } from "@/components/admin/admin-asset-repayment-form"
 import {
   getMemberOwnershipHistory,
   getMemberPropertyHoldings,
@@ -343,6 +344,23 @@ export function MemberPropertiesSection({ memberId }: MemberPropertiesSectionPro
                       </Badge>
                     ) : null}
                   </div>
+                </div>
+              ) : null}
+
+              {selectedHolding ? (
+                <div className="space-y-3 rounded-lg border p-4">
+                  <h3 className="font-semibold">Record repayment</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Apply cash, equity wallet, or mortgage disbursement to this member&apos;s{" "}
+                    {selectedHolding.asset_type === "land" ? "land slot" : "house block/slot"}.
+                  </p>
+                  <AdminAssetRepaymentForm
+                    assetType={selectedHolding.asset_type}
+                    tenureId={selectedHolding.holding_id}
+                    memberId={memberId}
+                    compact
+                    onSuccess={() => void openHoldingDetail(selectedHolding)}
+                  />
                 </div>
               ) : null}
 

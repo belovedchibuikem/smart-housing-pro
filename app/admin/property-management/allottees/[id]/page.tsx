@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch, getPropertyAllottee } from "@/lib/api/client"
 import { Can } from "@/components/admin/can-permission"
+import { AdminAssetRepaymentForm } from "@/components/admin/admin-asset-repayment-form"
 
 type TenureSummary = {
   sale_price: number
@@ -53,9 +54,6 @@ export default function AllotteeTenurePage() {
   const [loading, setLoading] = useState(true)
   const [summary, setSummary] = useState<TenureSummary | null>(null)
   const [slotMeta, setSlotMeta] = useState<AllotteeSlotMeta | null>(null)
-  const [repayAmount, setRepayAmount] = useState("")
-  const [repaySource, setRepaySource] = useState("wallet")
-  const [repayDesc, setRepayDesc] = useState("")
   const [busy, setBusy] = useState(false)
   const [overrideReason, setOverrideReason] = useState("")
   const [deedFile, setDeedFile] = useState<File | null>(null)
@@ -96,31 +94,7 @@ export default function AllotteeTenurePage() {
   }, [allotteeId, load])
 
   const recordRepayment = async () => {
-    setBusy(true)
-    try {
-      await apiFetch(`/admin/property-management/tenures/houses/${allotteeId}/repayments`, {
-        method: "POST",
-        body: JSON.stringify({
-          amount: Number(repayAmount),
-          source: repaySource,
-          description: repayDesc || "Admin repayment",
-          allow_overpay: true,
-        }),
-      })
-      toast({ title: "Repayment recorded" })
-      setRepayAmount("")
-      setRepaySource("wallet")
-      setRepayDesc("")
-      await load()
-    } catch (e) {
-      toast({
-        title: "Error",
-        description: e instanceof Error ? e.message : "Failed",
-        variant: "destructive",
-      })
-    } finally {
-      setBusy(false)
-    }
+    await load()
   }
 
   const uploadDeed = async () => {
@@ -285,43 +259,14 @@ export default function AllotteeTenurePage() {
         <Card>
           <CardHeader>
             <CardTitle>Record repayment</CardTitle>
-            <CardDescription>Credits this member&apos;s current tenure only</CardDescription>
+            <CardDescription>Cash, equity wallet, or mortgage disbursement for this block/slot</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Amount</Label>
-              <Input
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={repayAmount}
-                onChange={(e) => setRepayAmount(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Description</Label>
-              <Input value={repayDesc} onChange={(e) => setRepayDesc(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Source account</Label>
-              <Select value={repaySource} onValueChange={setRepaySource}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select source account" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="wallet">Main wallet</SelectItem>
-                  <SelectItem value="contribution">Contribution wallet</SelectItem>
-                  <SelectItem value="equity_wallet">Equity wallet</SelectItem>
-                  <SelectItem value="cash">Cash / external payment</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Can permission="manage_payments|manage_property_allottees">
-              <Button onClick={recordRepayment} disabled={busy || !repayAmount}>
-                {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Record repayment
-              </Button>
-            </Can>
+          <CardContent>
+            <AdminAssetRepaymentForm
+              assetType="house"
+              tenureId={allotteeId}
+              onSuccess={() => void recordRepayment()}
+            />
           </CardContent>
         </Card>
 

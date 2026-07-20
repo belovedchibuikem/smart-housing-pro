@@ -198,6 +198,7 @@ const navItems: NavItem[] = [
       { href: "/admin/bulk-upload/properties", label: "Bulk Houses (CSV)", icon: Upload },
       { href: "/admin/bulk-upload/property-subscribers", label: "Bulk House Subscribers", icon: Upload },
       { href: "/admin/bulk-upload/property-payments", label: "Bulk House Repayments", icon: Upload },
+      { href: "/admin/house-repayments", label: "Record House/Slot Repayment", icon: CreditCard },
       { href: "/admin/property-management/allottees/new", label: "Assign House to Member", icon: UserCheck },
       { href: "/admin/property-management/allottees", label: "Manage House Allottees", icon: UserCheck },
       { href: "/admin/reports/properties", label: "Building Reports", icon: FileBarChart },

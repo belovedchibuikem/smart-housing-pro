@@ -12,7 +12,8 @@ import Link from "next/link"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
 import { useRouter } from "next/navigation"
 import { toast as sonnerToast } from "sonner"
-import { apiFetch } from "@/lib/api/client"
+import { apiFetch, bulkApproveEquityContributions, bulkRejectEquityContributions } from "@/lib/api/client"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -65,6 +66,9 @@ export default function AdminEquityContributionsPage() {
   const [showRejectDialog, setShowRejectDialog] = useState(false)
   const [selectedContribution, setSelectedContribution] = useState<EquityContribution | null>(null)
   const [rejectionReason, setRejectionReason] = useState("")
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [bulkRejectMode, setBulkRejectMode] = useState(false)
+  const [bulkProcessing, setBulkProcessing] = useState(false)
   const [stats, setStats] = useState({
     totalThisMonth: 0,
     pending: 0,
@@ -172,10 +176,43 @@ export default function AdminEquityContributionsPage() {
   }
 
   const handleReject = async () => {
-    if (!selectedContribution || !rejectionReason.trim()) {
+    if (!rejectionReason.trim()) {
       sonnerToast.error("Rejection reason is required")
       return
     }
+
+    if (bulkRejectMode) {
+      try {
+        setBulkProcessing(true)
+        const response = await bulkRejectEquityContributions({
+          contribution_ids: selectedIds.length > 0 ? selectedIds : undefined,
+          rejection_reason: rejectionReason,
+          filters:
+            selectedIds.length === 0 && statusFilter === "pending"
+              ? {
+                  search: searchQuery || undefined,
+                  payment_method: paymentMethodFilter !== "all" ? paymentMethodFilter : undefined,
+                }
+              : undefined,
+        })
+        if (response.success) {
+          sonnerToast.success(response.message || "Bulk rejection completed")
+          setShowRejectDialog(false)
+          setBulkRejectMode(false)
+          setSelectedIds([])
+          setRejectionReason("")
+          fetchContributions()
+          fetchStats()
+        }
+      } catch (error: unknown) {
+        sonnerToast.error(error instanceof Error ? error.message : "Bulk reject failed")
+      } finally {
+        setBulkProcessing(false)
+      }
+      return
+    }
+
+    if (!selectedContribution) return
 
     try {
       setProcessing(selectedContribution.id)
@@ -204,6 +241,44 @@ export default function AdminEquityContributionsPage() {
       })
     } finally {
       setProcessing(null)
+    }
+  }
+
+  const pendingOnPage = contributions.filter((c) => c.status === "pending")
+  const allPendingSelected =
+    pendingOnPage.length > 0 && pendingOnPage.every((c) => selectedIds.includes(c.id))
+
+  const toggleSelectAllPending = () => {
+    if (allPendingSelected) {
+      setSelectedIds((prev) => prev.filter((id) => !pendingOnPage.some((c) => c.id === id)))
+    } else {
+      setSelectedIds((prev) => Array.from(new Set([...prev, ...pendingOnPage.map((c) => c.id)])))
+    }
+  }
+
+  const handleBulkApprove = async () => {
+    try {
+      setBulkProcessing(true)
+      const response = await bulkApproveEquityContributions({
+        contribution_ids: selectedIds.length > 0 ? selectedIds : undefined,
+        filters:
+          selectedIds.length === 0 && statusFilter === "pending"
+            ? {
+                search: searchQuery || undefined,
+                payment_method: paymentMethodFilter !== "all" ? paymentMethodFilter : undefined,
+              }
+            : undefined,
+      })
+      if (response.success) {
+        sonnerToast.success(response.message || "Bulk approval completed")
+        setSelectedIds([])
+        fetchContributions()
+        fetchStats()
+      }
+    } catch (error: unknown) {
+      sonnerToast.error(error instanceof Error ? error.message : "Bulk approve failed")
+    } finally {
+      setBulkProcessing(false)
     }
   }
 
@@ -327,9 +402,53 @@ export default function AdminEquityContributionsPage() {
           </div>
         </CardHeader>
         <CardContent>
+          {(can("approve_equity_contributions") || can("reject_equity_contributions")) && (
+            <div className="mb-4 flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 p-3">
+              <span className="text-sm text-muted-foreground">
+                {selectedIds.length > 0
+                  ? `${selectedIds.length} selected`
+                  : statusFilter === "pending"
+                    ? "Bulk actions apply to pending filter or selection"
+                    : "Select pending rows to bulk approve/reject"}
+              </span>
+              <Can permission="approve_equity_contributions">
+                <Button
+                  size="sm"
+                  onClick={() => void handleBulkApprove()}
+                  disabled={bulkProcessing || (selectedIds.length === 0 && statusFilter !== "pending")}
+                >
+                  {bulkProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Approve {selectedIds.length > 0 ? "selected" : "all pending"}
+                </Button>
+              </Can>
+              <Can permission="reject_equity_contributions">
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => {
+                    setBulkRejectMode(true)
+                    setSelectedContribution(null)
+                    setShowRejectDialog(true)
+                  }}
+                  disabled={bulkProcessing || (selectedIds.length === 0 && statusFilter !== "pending")}
+                >
+                  Reject {selectedIds.length > 0 ? "selected" : "all pending"}
+                </Button>
+              </Can>
+            </div>
+          )}
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <Can permission="approve_equity_contributions|reject_equity_contributions">
+                    <Checkbox
+                      checked={allPendingSelected}
+                      onCheckedChange={toggleSelectAllPending}
+                      aria-label="Select all pending on page"
+                    />
+                  </Can>
+                </TableHead>
                 <TableHead>Member</TableHead>
                 <TableHead>Plan</TableHead>
                 <TableHead>Amount</TableHead>
@@ -343,13 +462,28 @@ export default function AdminEquityContributionsPage() {
             <TableBody>
               {contributions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                     No equity contributions found
                   </TableCell>
                 </TableRow>
               ) : (
                 contributions.map((contribution) => (
                   <TableRow key={contribution.id}>
+                    <TableCell>
+                      {contribution.status === "pending" ? (
+                        <Checkbox
+                          checked={selectedIds.includes(contribution.id)}
+                          onCheckedChange={(checked) => {
+                            setSelectedIds((prev) =>
+                              checked
+                                ? [...prev, contribution.id]
+                                : prev.filter((id) => id !== contribution.id),
+                            )
+                          }}
+                          aria-label={`Select contribution ${contribution.id}`}
+                        />
+                      ) : null}
+                    </TableCell>
                     <TableCell>
                       <div>
                         <div className="font-medium">
@@ -402,6 +536,7 @@ export default function AdminEquityContributionsPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => {
+                                setBulkRejectMode(false)
                                 setSelectedContribution(contribution)
                                 setShowRejectDialog(true)
                               }}
@@ -457,16 +592,29 @@ export default function AdminEquityContributionsPage() {
       </Card>
 
       {/* Reject Dialog */}
-      <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
+      <Dialog
+        open={showRejectDialog}
+        onOpenChange={(open) => {
+          setShowRejectDialog(open)
+          if (!open) {
+            setBulkRejectMode(false)
+            setRejectionReason("")
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reject Equity Contribution</DialogTitle>
+            <DialogTitle>
+              {bulkRejectMode ? "Bulk Reject Equity Contributions" : "Reject Equity Contribution"}
+            </DialogTitle>
             <DialogDescription>
-              Please provide a reason for rejecting this contribution
+              {bulkRejectMode
+                ? "This reason will apply to all selected or filtered pending contributions."
+                : "Please provide a reason for rejecting this contribution"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {selectedContribution && (
+            {!bulkRejectMode && selectedContribution && (
               <div className="p-4 bg-muted rounded-lg">
                 <div className="text-sm">
                   <div className="font-medium">Member: {selectedContribution.member?.user?.first_name} {selectedContribution.member?.user?.last_name}</div>
@@ -488,19 +636,20 @@ export default function AdminEquityContributionsPage() {
           <DialogFooter>
             <Button variant="outline" onClick={() => {
               setShowRejectDialog(false)
+              setBulkRejectMode(false)
               setSelectedContribution(null)
               setRejectionReason("")
             }}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleReject} disabled={processing !== null || !rejectionReason.trim()}>
-              {processing ? (
+            <Button variant="destructive" onClick={handleReject} disabled={processing !== null || bulkProcessing || !rejectionReason.trim()}>
+              {(processing || bulkProcessing) ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Rejecting...
                 </>
               ) : (
-                "Reject Contribution"
+                bulkRejectMode ? "Reject contributions" : "Reject Contribution"
               )}
             </Button>
           </DialogFooter>
