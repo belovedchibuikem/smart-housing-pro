@@ -20,13 +20,15 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const queryString = searchParams.toString();
+    const url = `${API_BASE_URL.replace(/\/$/, '')}/admin/permissions${queryString ? `?${queryString}` : ''}`;
     
-    const response = await fetch(`${API_BASE_URL}/permissions?${queryString}`, {
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
         'Authorization': request.headers.get('Authorization') || '',
+        'X-Forwarded-Host': request.headers.get('x-forwarded-host') || request.headers.get('host') || '',
       },
     });
 
@@ -49,13 +51,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    const url = `${API_BASE_URL.replace(/\/$/, '')}/admin/permissions`;
     
-    const response = await fetch(`${API_BASE_URL}/permissions`, {
+    const response = await fetch(url, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
         'Authorization': request.headers.get('Authorization') || '',
+        'X-Forwarded-Host': request.headers.get('x-forwarded-host') || request.headers.get('host') || '',
       },
       body: JSON.stringify(body),
     });
