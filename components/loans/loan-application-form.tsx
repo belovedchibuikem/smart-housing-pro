@@ -41,14 +41,8 @@ const computeMonthlyRepayment = (product: LoanProduct | undefined, amount: numbe
 
 	const interestRate = product.interest_rate ?? 0
 
-	if (product.interest_type === "compound") {
-		const monthlyRate = interestRate / 100
-		const totalAmount = amount * Math.pow(1 + monthlyRate, months)
-		const monthlyPayment = totalAmount / months
-		return { monthly: monthlyPayment, total: totalAmount, interest: totalAmount - amount }
-	}
-
-	const totalInterest = amount * (interestRate / 100) * months
+	// Interest rate applies once over the full tenure (not per month / not compound)
+	const totalInterest = amount * (interestRate / 100)
 	const totalAmount = amount + totalInterest
 	const monthlyPayment = totalAmount / months
 
@@ -273,8 +267,7 @@ export function LoanApplicationForm({
 					{selectedProduct ? (
 						<div className="rounded-lg border bg-muted/40 p-4">
 							<div className="flex flex-wrap items-center gap-3">
-								<Badge variant="secondary">Interest: {selectedProduct.interest_rate ?? 0}%</Badge>
-								<Badge variant="secondary">Type: {selectedProduct.interest_type?.toUpperCase()}</Badge>
+								<Badge variant="secondary">Interest: {selectedProduct.interest_rate ?? 0}% for tenure</Badge>
 								{selectedProduct.processing_fee_percentage ? (
 									<Badge variant="secondary">
 										Processing Fee: {selectedProduct.processing_fee_percentage}%
@@ -311,8 +304,8 @@ export function LoanApplicationForm({
                 </div>
               </div>
 							<p className="mt-3 text-xs">
-								Calculation based on {selectedProduct?.interest_type ?? "simple"} interest with rate of{" "}
-								{selectedProduct?.interest_rate ?? 0}% for {tenureMonths} months.
+								Interest of {selectedProduct?.interest_rate ?? 0}% is applied once over the full{" "}
+								{tenureMonths}-month tenure (not compounded).
               </p>
             </div>
 					) : null}

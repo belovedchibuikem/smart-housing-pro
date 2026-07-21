@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { ArrowLeft, Loader2 } from "lucide-react"
 import Link from "next/link"
@@ -51,6 +50,7 @@ export default function NewLoanProductPage() {
             interest_rate: parseFloat(formData.interest_rate),
             min_tenure_months: parseInt(formData.min_tenure_months),
             max_tenure_months: parseInt(formData.max_tenure_months),
+            interest_type: "simple",
             processing_fee_percentage: formData.processing_fee_percentage
               ? parseInt(formData.processing_fee_percentage, 10)
               : 0,
@@ -170,22 +170,8 @@ export default function NewLoanProductPage() {
                   placeholder="e.g., 10"
                   required
                 />
-                <p className="text-sm text-muted-foreground">Annual interest rate</p>
+                <p className="text-sm text-muted-foreground">Applied once over the full loan tenure (not compounded)</p>
                     </div>
-                    <div className="space-y-2">
-                <Label htmlFor="interestType">Interest Type *</Label>
-                <Select value={formData.interest_type} onValueChange={(value) => setFormData({ ...formData, interest_type: value })}>
-                  <SelectTrigger id="interestType">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="simple">Simple Interest</SelectItem>
-                    <SelectItem value="compound">Compound Interest</SelectItem>
-                  </SelectContent>
-                </Select>
-                    </div>
-                  </div>
-                  <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                 <Label htmlFor="minTenure">Minimum Tenure (months) *</Label>
                 <Input
@@ -197,6 +183,8 @@ export default function NewLoanProductPage() {
                   required
                 />
                     </div>
+                  </div>
+                  <div className="grid md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                 <Label htmlFor="maxTenure">Maximum Tenure (months) *</Label>
                 <Input
@@ -208,9 +196,7 @@ export default function NewLoanProductPage() {
                   required
                 />
                     </div>
-            </div>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className="space-y-2">
                 <Label htmlFor="processingFee">Processing Fee (%)</Label>
                 <Input
                   id="processingFee"
@@ -221,6 +207,8 @@ export default function NewLoanProductPage() {
                   placeholder="e.g., 1"
                 />
                   </div>
+                  </div>
+            <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                 <Label htmlFor="latePaymentFee">Late Payment Fee (₦)</Label>
                 <Input
@@ -242,9 +230,9 @@ export default function NewLoanProductPage() {
           </CardHeader>
           <CardContent>
                   <div className="p-4 bg-muted rounded-lg space-y-2">
-              <h4 className="font-medium text-sm">Repayment Calculation ({formData.interest_type === 'simple' ? 'Simple' : 'Compound'} Interest):</h4>
+              <h4 className="font-medium text-sm">Repayment Calculation (interest for full tenure):</h4>
                     <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• Total Interest = Loan Amount × Interest Rate × (Tenure / 12)</li>
+                <li>• Total Interest = Loan Amount × Interest Rate (once over tenure)</li>
                       <li>• Total Repayment = Loan Amount + Total Interest</li>
                       <li>• Monthly Repayment = Total Repayment ÷ Tenure</li>
                       <li className="font-medium text-foreground pt-2">
@@ -255,10 +243,10 @@ export default function NewLoanProductPage() {
                       <p className="text-sm font-medium">Example:</p>
                       <ul className="text-sm text-muted-foreground space-y-1 mt-1">
                         <li>• Loan: ₦200,000 at 10% for 4 months</li>
-                  <li>• Interest: ₦200,000 × 10% × (4/12) = ₦6,667</li>
-                  <li>• Total: ₦206,667</li>
-                  <li>• Monthly: ₦206,667 ÷ 4 = ₦51,667</li>
-                  <li className="font-medium text-foreground">• Required Net Pay: ₦51,667 × 2 = ₦103,334</li>
+                  <li>• Interest: ₦200,000 × 10% = ₦20,000</li>
+                  <li>• Total: ₦220,000</li>
+                  <li>• Monthly: ₦220,000 ÷ 4 = ₦55,000</li>
+                  <li className="font-medium text-foreground">• Required Net Pay: ₦55,000 × 2 = ₦110,000</li>
                       </ul>
                     </div>
                   </div>

@@ -1,6 +1,6 @@
 import { apiFetch } from "./client"
 
-export type InterestType = "simple" | "compound" | string
+export type InterestType = "simple" | string
 
 export interface LoanProduct {
 	id: string

@@ -269,7 +269,7 @@ export default function LoanReportPage() {
                         </div>
                         <div className="text-right">
                           <div className="text-sm text-muted-foreground">Interest Rate</div>
-                          <div className="font-semibold">{loan.interest_rate}% p.a.</div>
+                          <div className="font-semibold">{loan.interest_rate}% for tenure</div>
                         </div>
                       </div>
 

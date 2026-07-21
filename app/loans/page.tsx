@@ -139,7 +139,7 @@ export default function LoansPage() {
 													<div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/20">
                       <Icon className="h-6 w-6 text-primary" />
                     </div>
-													<Badge variant="outline">{product.interest_rate ?? 0}% p.a.</Badge>
+													<Badge variant="outline">{product.interest_rate ?? 0}% for tenure</Badge>
                   </div>
                   <div>
 													<h3 className="text-xl font-semibold">{product.name}</h3>

@@ -251,7 +251,7 @@ export default function AdminLoanProductsPage() {
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Interest Rate</p>
-                          <p className="font-medium text-sm">{product.interest_rate}% per annum</p>
+                          <p className="font-medium text-sm">{product.interest_rate}% for tenure</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Tenure</p>

@@ -89,7 +89,9 @@ export default function LoanProductDetailPage({ params }: { params: Promise<{ id
 				</Button>
 				<div className="flex-1">
 					<h1 className="text-3xl font-bold">{product.name}</h1>
-					<p className="text-muted-foreground text-sm">{product.interest_type} interest</p>
+					<p className="text-muted-foreground text-sm">
+						{product.interest_rate}% interest for full tenure
+					</p>
 				</div>
 				<Button asChild>
 					<Link href={`/admin/loan-products/${id}/edit`}>

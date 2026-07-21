@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { ArrowLeft, Loader2 } from "lucide-react"
 import { apiFetch } from "@/lib/api/client"
@@ -85,7 +84,7 @@ export default function EditLoanProductPage({ params }: { params: Promise<{ id: 
 					interest_rate: parseFloat(form.interest_rate),
 					min_tenure_months: parseInt(form.min_tenure_months, 10),
 					max_tenure_months: parseInt(form.max_tenure_months, 10),
-					interest_type: form.interest_type,
+					interest_type: "simple",
 					processing_fee_percentage: form.processing_fee_percentage
 						? parseInt(form.processing_fee_percentage, 10)
 						: 0,
@@ -180,24 +179,8 @@ export default function EditLoanProductPage({ params }: { params: Promise<{ id: 
 									onChange={(e) => setForm({ ...form, interest_rate: e.target.value })}
 									required
 								/>
+								<p className="text-sm text-muted-foreground">Applied once over the full loan tenure (not compounded)</p>
 							</div>
-							<div className="space-y-2">
-								<Label>Interest type</Label>
-								<Select
-									value={form.interest_type}
-									onValueChange={(v) => setForm({ ...form, interest_type: v })}
-								>
-									<SelectTrigger>
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="simple">Simple</SelectItem>
-										<SelectItem value="compound">Compound</SelectItem>
-									</SelectContent>
-								</Select>
-							</div>
-						</div>
-						<div className="grid md:grid-cols-2 gap-4">
 							<div className="space-y-2">
 								<Label>Min tenure (months)</Label>
 								<Input
@@ -207,6 +190,8 @@ export default function EditLoanProductPage({ params }: { params: Promise<{ id: 
 									required
 								/>
 							</div>
+						</div>
+						<div className="grid md:grid-cols-2 gap-4">
 							<div className="space-y-2">
 								<Label>Max tenure (months)</Label>
 								<Input
@@ -216,16 +201,17 @@ export default function EditLoanProductPage({ params }: { params: Promise<{ id: 
 									required
 								/>
 							</div>
-						</div>
-						<div className="grid md:grid-cols-2 gap-4">
 							<div className="space-y-2">
 								<Label>Processing fee (%)</Label>
 								<Input
 									type="number"
+									step="0.1"
 									value={form.processing_fee_percentage}
 									onChange={(e) => setForm({ ...form, processing_fee_percentage: e.target.value })}
 								/>
 							</div>
+						</div>
+						<div className="grid md:grid-cols-2 gap-4">
 							<div className="space-y-2">
 								<Label>Late payment fee (₦)</Label>
 								<Input

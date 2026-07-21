@@ -74,9 +74,7 @@ export function LoanProducts({ products, isLoading, error, onSelectProduct }: Lo
 			{activeProducts.map((product) => {
 				const minAmount = product.min_amount ? currency.format(product.min_amount) : "—"
 				const maxAmount = product.max_amount ? currency.format(product.max_amount) : "No cap"
-				const interestRate = `${product.interest_rate ?? 0}% ${
-					product.interest_type === "compound" ? "(compound)" : "p.a."
-				}`
+				const interestRate = `${product.interest_rate ?? 0}% for tenure`
 				const tenureRange =
 					product.min_tenure_months && product.max_tenure_months
 						? `${product.min_tenure_months} - ${product.max_tenure_months} months`

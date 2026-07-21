@@ -143,7 +143,7 @@ export function ActiveLoans({ loans, isLoading, isRefreshing, error, onRefresh }
 				const outstandingBalance = loan.outstandingBalance ?? Math.max(totalAmount - (loan.totalRepaid ?? 0), 0)
 				const progress = Math.round(loan.progressPercent ?? 0)
 				const tenureLabel = loan.duration_months ? `${loan.duration_months} months` : "—"
-				const interestRateLabel = `${loan.interest_rate ?? 0}% p.a.`
+				const interestRateLabel = `${loan.interest_rate ?? 0}% for tenure`
 				const nextPaymentAmount =
 					loan.nextRepayment?.amount !== undefined
 						? shortNumberFormatter.format(loan.nextRepayment.amount ?? monthlyPayment)

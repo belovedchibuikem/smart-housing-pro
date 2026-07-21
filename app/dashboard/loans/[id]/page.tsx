@@ -328,7 +328,7 @@ export default function LoanDetailsPage() {
               <FileText className="h-4 w-4 text-muted-foreground" />
               <div>
                 <p className="text-xs text-muted-foreground">Interest Rate</p>
-										<p className="text-sm font-medium">{loan.interest_rate ?? 0}% p.a.</p>
+										<p className="text-sm font-medium">{loan.interest_rate ?? 0}% for tenure</p>
               </div>
             </div>
           </div>
@@ -426,7 +426,7 @@ export default function LoanDetailsPage() {
             </div>
             <div className="flex justify-between pt-2">
 									<span className="text-muted-foreground">Tenure</span>
-									<span className="font-medium">{loan.duration_months} months @ {loan.interest_rate ?? 0}% p.a.</span>
+									<span className="font-medium">{loan.duration_months} months @ {loan.interest_rate ?? 0}% for tenure</span>
             </div>
           </CardContent>
         </Card>
