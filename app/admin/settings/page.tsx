@@ -115,9 +115,10 @@ export default function AdminSettingsPage() {
   const handleSave = async () => {
     setSaving(true)
     try {
+      const { head_of_housing_signature_url: _signaturePreview, ...settingsToSave } = settings
       const data = await apiFetch("/admin/settings", {
         method: "POST",
-        body: { settings },
+        body: { settings: settingsToSave },
       })
 
       if (data.success) {
@@ -130,7 +131,13 @@ export default function AdminSettingsPage() {
           window.dispatchEvent(new Event('tenant-settings-updated'))
         }
       } else {
-        throw new Error(data.message || "Failed to save settings")
+        const errorDetails =
+          data.errors && typeof data.errors === "object"
+            ? Object.values(data.errors as Record<string, string[]>)
+                .flat()
+                .join(" · ")
+            : null
+        throw new Error(errorDetails || data.message || "Failed to save settings")
       }
     } catch (error: any) {
       console.error("Error saving settings:", error)
