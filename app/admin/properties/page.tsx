@@ -349,10 +349,13 @@ export default function AdminPropertiesPage() {
       const response = await generatePropertySubscriptionCertificate(allocationId)
 
       if (response.success && response.certificate) {
-        openSubscriptionCertificate(response.certificate)
+        const delivery = openSubscriptionCertificate(response.certificate)
         toast({
           title: "Certificate ready",
-          description: `Certificate ${response.certificate.certificate_number} opened for print or save as PDF.`,
+          description:
+            delivery === "opened"
+              ? `Certificate ${response.certificate.certificate_number} opened for print or save as PDF.`
+              : `Pop-ups blocked — certificate ${response.certificate.certificate_number} downloaded as HTML. Open the file to view or print.`,
         })
       } else {
         throw new Error(response.message || "Failed to generate certificate")

@@ -23,6 +23,7 @@ export interface SubscriptionCertificatePayload {
 	sold_at?: string | null
 	completion_date?: string
 	owner_label?: string | null
+	owner_sequence?: number | null
 }
 
 function formatCurrency(amount?: number) {
@@ -326,18 +327,49 @@ export function buildSubscriptionCertificateHtml(payload: SubscriptionCertificat
       <div class="cert-no">Certificate No: ${escapeHtml(payload.certificate_number)} · Issued ${formatDate(payload.issue_date)}</div>
     </div>
   </div>
-  <script>window.onload = () => { window.focus(); window.print(); };</script>
+  <script>
+    window.addEventListener("load", function () {
+      window.focus();
+      setTimeout(function () { window.print(); }, 400);
+    });
+  </script>
 </body>
 </html>`
 }
 
-export function openSubscriptionCertificate(payload: SubscriptionCertificatePayload) {
+function downloadCertificateHtml(html: string, certificateNumber: string) {
+	const blob = new Blob([html], { type: "text/html;charset=utf-8" })
+	const url = URL.createObjectURL(blob)
+	const anchor = document.createElement("a")
+	anchor.href = url
+	anchor.download = `${certificateNumber.replace(/[^a-zA-Z0-9-_]/g, "_")}.html`
+	anchor.click()
+	URL.revokeObjectURL(url)
+}
+
+/**
+ * Opens the certificate in a new tab. Uses a blob URL so content renders even when
+ * COOP / noopener would block document.write on a blank popup window.
+ * @returns how the certificate was delivered to the user
+ */
+export function openSubscriptionCertificate(
+	payload: SubscriptionCertificatePayload,
+): "opened" | "downloaded" {
 	const html = buildSubscriptionCertificateHtml(payload)
-	const win = window.open("", "_blank", "noopener,noreferrer,width=1200,height=850")
+	const blob = new Blob([html], { type: "text/html;charset=utf-8" })
+	const blobUrl = URL.createObjectURL(blob)
+
+	const win = window.open(blobUrl, "_blank")
+
 	if (!win) {
-		throw new Error("Pop-up blocked. Please allow pop-ups to view and print the certificate.")
+		URL.revokeObjectURL(blobUrl)
+		downloadCertificateHtml(html, payload.certificate_number)
+		return "downloaded"
 	}
-	win.document.open()
-	win.document.write(html)
-	win.document.close()
+
+	win.addEventListener?.("load", () => {
+		setTimeout(() => URL.revokeObjectURL(blobUrl), 30_000)
+	})
+	setTimeout(() => URL.revokeObjectURL(blobUrl), 120_000)
+	return "opened"
 }
