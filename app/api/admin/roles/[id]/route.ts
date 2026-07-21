@@ -14,6 +14,8 @@ export async function GET(
       headers: {
         'Content-Type': 'application/json',
         'Authorization': request.headers.get('Authorization') || '',
+        'X-Forwarded-Host': request.headers.get('X-Forwarded-Host') || request.headers.get('host') || '',
+        'X-Tenant-Slug': request.headers.get('X-Tenant-Slug') || '',
       },
     });
 
@@ -45,6 +47,8 @@ export async function PUT(
       headers: {
         'Content-Type': 'application/json',
         'Authorization': request.headers.get('Authorization') || '',
+        'X-Forwarded-Host': request.headers.get('X-Forwarded-Host') || request.headers.get('host') || '',
+        'X-Tenant-Slug': request.headers.get('X-Tenant-Slug') || '',
       },
       body: JSON.stringify(body),
     });

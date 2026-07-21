@@ -114,8 +114,17 @@ export default function EditRolePage() {
       toast.success("Role updated successfully!")
       router.push('/admin/roles')
     } catch (error: any) {
-      if (error.details?.errors) {
-        setErrors(error.details.errors)
+      const payloadErrors = error?.payload?.errors || error?.details?.errors
+      if (payloadErrors && typeof payloadErrors === 'object') {
+        const normalized: Record<string, string> = {}
+        for (const [key, value] of Object.entries(payloadErrors as Record<string, unknown>)) {
+          const first = Array.isArray(value) ? value[0] : value
+          if (typeof first === 'string' && first.trim()) {
+            normalized[key] = first
+          }
+        }
+        setErrors(normalized)
+        toast.error(error.message || "Validation failed")
       } else {
         toast.error(error.message || "Failed to update role")
       }
@@ -303,7 +312,7 @@ export default function EditRolePage() {
                                 onCheckedChange={(checked) => handlePermissionChange(permission.name, !!checked)}
                               />
                               <Label htmlFor={permission.id} className="text-sm">
-                                {permission.display_name}
+                                {permission.display_name || permission.label || permission.name}
                               </Label>
                             </div>
                           ))}

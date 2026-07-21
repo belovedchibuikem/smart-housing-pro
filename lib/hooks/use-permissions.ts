@@ -22,6 +22,32 @@ function toBool(v: any): boolean {
   return !!v
 }
 
+function formatPermissionName(name: string): string {
+  return name.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
+}
+
+function normalizePermission(raw: any): Permission {
+  const name = String(raw?.name ?? '')
+  const label = typeof raw?.label === 'string' ? raw.label.trim() : ''
+  const display =
+    (typeof raw?.display_name === 'string' && raw.display_name.trim()) ||
+    label ||
+    (name ? formatPermissionName(name) : '')
+  const rawActive =
+    ('is_active' in (raw || {}) ? raw.is_active : undefined) ??
+    ('active' in (raw || {}) ? raw.active : undefined) ??
+    ('status' in (raw || {}) ? raw.status : undefined) ??
+    ('enabled' in (raw || {}) ? raw.enabled : undefined)
+
+  return {
+    ...raw,
+    name,
+    label: label || undefined,
+    display_name: display,
+    is_active: toBool(rawActive),
+  } as Permission
+}
+
 function inferGroupFromPermissionName(name: string): string {
   if (!name) return 'general'
   if (name.includes('.')) return name.split('.')[0] || 'general'
@@ -42,15 +68,7 @@ async function fetchAllPermissionsFallback(limitPerPage = 200, maxPages = 20): P
       ? response.permissions
       : (response as any).data?.permissions || response.permissions?.data || []
 
-    const normalized = (list as any[]).map((p) => {
-      const raw = p as any
-      const rawActive =
-        ('is_active' in raw ? raw.is_active : undefined) ??
-        ('active' in raw ? raw.active : undefined) ??
-        ('status' in raw ? raw.status : undefined) ??
-        ('enabled' in raw ? raw.enabled : undefined)
-      return { ...p, is_active: toBool(rawActive) } as Permission
-    })
+    const normalized = (list as any[]).map((p) => normalizePermission(p))
     all.push(...normalized)
 
     const pagination = response.pagination || (response as any).data?.pagination
@@ -90,19 +108,8 @@ export function usePermissions(options: UsePermissionsOptions = {}) {
       const list = Array.isArray(response.permissions)
         ? response.permissions
         : (response as any).data?.permissions || response.permissions?.data || []
-      const normalized = (list as any[]).map((p) => {
-        const raw = (p as any)
-        const rawActive =
-          ('is_active' in raw ? raw.is_active : undefined) ??
-          ('active' in raw ? raw.active : undefined) ??
-          ('status' in raw ? raw.status : undefined) ??
-          ('enabled' in raw ? raw.enabled : undefined)
-        return {
-          ...p,
-          is_active: toBool(rawActive),
-        }
-      })
-      setPermissions(normalized as Permission[])
+      const normalized = (list as any[]).map((p) => normalizePermission(p))
+      setPermissions(normalized)
       if (response.pagination) {
         setPagination(response.pagination)
       }
@@ -169,19 +176,11 @@ export function useGroupedPermissions(options: { search?: string; group?: string
         gp.forEach((g: any) => {
           const key = g.group || 'ungrouped'
           const perms: any[] = g.permissions || []
-          map[key] = perms.map((p) => {
-            const raw = p as any
-            const rawActive = ('is_active' in raw ? raw.is_active : undefined) ?? ('active' in raw ? raw.active : undefined) ?? ('status' in raw ? raw.status : undefined) ?? ('enabled' in raw ? raw.enabled : undefined)
-            return { ...p, is_active: toBool(rawActive) } as Permission
-          })
+          map[key] = perms.map((p) => normalizePermission(p))
         })
       } else if (gp && typeof gp === 'object') {
         Object.entries(gp as Record<string, any[]>).forEach(([key, perms]) => {
-          map[key] = (perms as any[]).map((p) => {
-            const raw = p as any
-            const rawActive = ('is_active' in raw ? raw.is_active : undefined) ?? ('active' in raw ? raw.active : undefined) ?? ('status' in raw ? raw.status : undefined) ?? ('enabled' in raw ? raw.enabled : undefined)
-            return { ...p, is_active: toBool(rawActive) } as Permission
-          })
+          map[key] = (perms as any[]).map((p) => normalizePermission(p))
         })
       }
 

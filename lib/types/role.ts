@@ -14,6 +14,7 @@ export interface Role {
 export interface Permission {
   id: string
   name: string
+  label?: string
   display_name: string
   description?: string
   group: string
