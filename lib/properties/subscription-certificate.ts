@@ -61,346 +61,453 @@ function escapeHtml(value: string) {
 		.replace(/"/g, "&quot;")
 }
 
-function renderParagraphs(paragraphs: string[]) {
+function renderDetailCell(label: string, value: string, fullWidth = false) {
+	return `<div class="detail-cell${fullWidth ? " detail-cell--full" : ""}">
+    <div class="detail-label">${escapeHtml(label)}</div>
+    <div class="detail-value">${escapeHtml(value)}</div>
+  </div>`
+}
+
+function renderConfirmationParagraphs(paragraphs: string[]) {
 	return paragraphs
-		.map(
-			(paragraph, index) =>
-				`<p class="paragraph"><span class="paragraph-number">${index + 1}.</span> ${escapeHtml(paragraph)}</p>`,
-		)
+		.map((paragraph) => `<p class="confirmation-line">${escapeHtml(paragraph)}</p>`)
 		.join("")
 }
 
 export function buildSubscriptionCertificateHtml(payload: SubscriptionCertificatePayload): string {
 	const org = payload.organization_name || "Housing Cooperative"
-	const tagline = payload.organization_tagline || ""
+	const tagline = payload.organization_tagline || "Excellence in Staff Welfare & Housing"
 	const isOwnership = payload.certificate_type === "ownership"
+	const certificateTitle = isOwnership ? "Certificate of Property Ownership" : "Certificate of House Allocation"
+	const certifyingLine = isOwnership
+		? "This certifies full ownership transfer upon completed subscription and deed requirements."
+		: "This certifies the confirmation of house allocation upon full payment completion."
+
 	const subject =
 		payload.subject_line ||
 		(isOwnership
-			? "CONFIRMATION OF PROPERTY OWNERSHIP ON PAYMENT COMPLETION"
-			: "CONFIRMATION OF HOUSE ALLOCATION ON PAYMENT COMPLETION")
+			? "Confirmation of Property Ownership on Payment Completion"
+			: "Confirmation of House Allocation on Payment Completion")
 
 	const referenceNumber = payload.reference_number || payload.certificate_number
 	const issueDateLong = formatDate(payload.issue_date)
-	const issueDateMonthYear = formatDate(payload.issue_date, "monthYear")
 
-	const memberAddress = payload.member.address || "—"
-	const propertyFullAddress =
-		payload.property.full_address ||
+	const propertyLine =
 		payload.property.unit_address ||
 		payload.property.slot_label ||
 		payload.property.address ||
 		payload.property.title
+	const locationLine = [payload.property.city, payload.property.state].filter(Boolean).join(", ") || "—"
+
+	const propertyFullAddress =
+		payload.property.full_address ||
+		[propertyLine, locationLine !== "—" ? locationLine : null].filter(Boolean).join(", ") ||
+		payload.property.title
 
 	const defaultParagraphs = [
 		`Reference: ${referenceNumber} dated ${issueDateLong}.`,
-		"The quoted reference above is in respect of the underlined subject.",
-		`We are glad to officially acknowledge the completion of your payment for the ${payload.property.title} allocated to you.`,
-		`In line with this, we hereby confirm the allocation of ${propertyFullAddress} as your rightful property.`,
-		"Please note that the terms of the allocation remain consistent with the original agreement that requires management of the property in accordance with our estate's guidelines.",
-		`We use this medium to congratulate you on this milestone and pray that your home brings you comfort and satisfaction as we look forward to your continued partnership with ${org}.`,
+		`We hereby acknowledge the completion of payment for ${payload.property.title}${propertyLine ? ` (${propertyLine})` : ""}.`,
+		`The allocation of ${propertyFullAddress} is confirmed as the rightful property of the subscriber named above.`,
+		`Terms of allocation remain consistent with the original agreement and estate management guidelines of ${org}.`,
 	]
 
 	const paragraphs =
 		Array.isArray(payload.letter_paragraphs) && payload.letter_paragraphs.length > 0
-			? payload.letter_paragraphs
+			? payload.letter_paragraphs.slice(0, 5)
 			: defaultParagraphs
 
 	const logoBlock = payload.organization_logo_url
-		? `<img src="${escapeHtml(payload.organization_logo_url)}" alt="${escapeHtml(org)}" class="logo" />`
-		: `<div class="logo-fallback">${escapeHtml(org.charAt(0))}</div>`
+		? `<img src="${escapeHtml(payload.organization_logo_url)}" alt="${escapeHtml(org)}" class="brand-logo" />`
+		: `<div class="brand-logo brand-logo--fallback" aria-hidden="true">${escapeHtml(org.charAt(0))}</div>`
 
 	const signatureBlock = payload.head_of_housing_signature_url
 		? `<img src="${escapeHtml(payload.head_of_housing_signature_url)}" alt="Signature" class="signature-image" />`
-		: `<div class="signature-line"></div>`
+		: `<div class="signature-line" aria-hidden="true"></div>`
 
 	const signatoryName = (payload.head_of_housing_name || "").trim()
 	const signatoryTitle = (payload.head_of_housing_title || "Head of Housing").trim()
 
-	const orgAddress = payload.organization_address
-		? payload.organization_address
-				.split("\n")
-				.map((line) => escapeHtml(line.trim()))
-				.filter(Boolean)
-				.join("<br />")
-		: ""
-
-	const summaryStrip = `
-    <div class="summary-strip">
-      <div class="summary-item"><span>Property</span><strong>${escapeHtml(payload.property.title)}</strong></div>
-      <div class="summary-item"><span>Unit</span><strong>${escapeHtml(payload.property.slot_label || payload.property.unit_address || "—")}</strong></div>
-      <div class="summary-item"><span>Paid</span><strong>${formatCurrency(payload.amount_paid ?? payload.property.price)}</strong></div>
-      <div class="summary-item"><span>${isOwnership ? "Ownership" : "Completed"}</span><strong>${formatDate(payload.sold_at || payload.completion_date || payload.issue_date)}</strong></div>
-    </div>`
+	const detailsGrid = [
+		renderDetailCell("Property / House Block", payload.property.title, true),
+		renderDetailCell("Unit / Slot", propertyLine || "—"),
+		renderDetailCell("Location", locationLine),
+		renderDetailCell("Subscription Value", formatCurrency(payload.property.price)),
+		renderDetailCell("Amount Paid", formatCurrency(payload.amount_paid ?? payload.property.price)),
+		renderDetailCell("Allocation Date", formatDate(payload.allocation_date)),
+		renderDetailCell(
+			isOwnership ? "Ownership Date" : "Completion Date",
+			formatDate(payload.sold_at || payload.completion_date || payload.issue_date),
+		),
+		...(payload.owner_label ? [renderDetailCell("Ownership Hand", payload.owner_label)] : []),
+	].join("")
 
 	return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>${escapeHtml(subject)} — ${escapeHtml(payload.certificate_number)}</title>
+  <title>${escapeHtml(certificateTitle)} — ${escapeHtml(payload.certificate_number)}</title>
   <style>
-    @page { size: A4 portrait; margin: 10mm; }
+    @page { size: A4 portrait; margin: 0; }
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
       padding: 0;
       width: 210mm;
       height: 297mm;
-      font-family: Arial, "Segoe UI", sans-serif;
-      background: #ffffff;
-      color: #111827;
-      line-height: 1.35;
+      background: #f3f4f6;
+      color: #1f2937;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
-    .page {
+    body {
+      font-family: Georgia, "Times New Roman", serif;
+    }
+    .sheet {
       width: 210mm;
       height: 297mm;
       max-height: 297mm;
       overflow: hidden;
-      padding: 10mm 12mm 8mm;
-      display: flex;
-      flex-direction: column;
+      padding: 7mm;
       page-break-after: avoid;
       page-break-inside: avoid;
     }
-    .letterhead {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 10px;
-      align-items: start;
-      border-bottom: 1.5px solid #0f766e;
-      padding-bottom: 8px;
-      margin-bottom: 10px;
+    .frame {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      padding: 5mm;
+      border: 2px solid #b8860b;
+      outline: 1px solid rgba(184, 134, 11, 0.45);
+      outline-offset: 3px;
+      background:
+        radial-gradient(circle at 0% 0%, rgba(184, 134, 11, 0.08), transparent 24%),
+        radial-gradient(circle at 100% 100%, rgba(15, 118, 110, 0.08), transparent 26%),
+        linear-gradient(180deg, #fffdf8 0%, #ffffff 42%, #f8fafc 100%);
+    }
+    .frame-inner {
+      height: 100%;
+      border: 1px solid rgba(15, 118, 110, 0.18);
+      padding: 8mm 9mm 7mm;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .ornament {
+      position: absolute;
+      width: 56px;
+      height: 56px;
+      border: 1px solid rgba(184, 134, 11, 0.28);
+      border-radius: 999px;
+      pointer-events: none;
+    }
+    .ornament--tl { top: 10mm; left: 10mm; }
+    .ornament--tr { top: 10mm; right: 10mm; }
+    .ornament--bl { bottom: 10mm; left: 10mm; }
+    .ornament--br { bottom: 10mm; right: 10mm; }
+
+    .header {
+      text-align: center;
       flex-shrink: 0;
     }
-    .brand {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      min-width: 0;
-    }
-    .logo, .logo-fallback {
-      width: 46px;
-      height: 46px;
+    .brand-logo,
+    .brand-logo--fallback {
+      width: 58px;
+      height: 58px;
+      margin: 0 auto 8px;
       border-radius: 999px;
       object-fit: cover;
-      flex-shrink: 0;
+      display: block;
     }
-    .logo-fallback {
+    .brand-logo--fallback {
       display: grid;
       place-items: center;
-      background: #ecfeff;
-      color: #0f766e;
-      font-size: 20px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 2px solid #b8860b;
+      color: #b8860b;
+      font-size: 26px;
       font-weight: 700;
-      border: 1.5px solid #99f6e4;
+      font-family: Georgia, serif;
     }
     .org-name {
       font-size: 13px;
-      font-weight: 700;
-      color: #0f766e;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
-      line-height: 1.2;
+      color: #0f766e;
+      font-weight: 700;
+      font-family: "Segoe UI", Arial, sans-serif;
+      line-height: 1.25;
     }
     .org-tagline {
+      margin-top: 4px;
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #64748b;
+      font-family: "Segoe UI", Arial, sans-serif;
+    }
+    .header-meta {
+      margin-top: 8px;
+      display: flex;
+      justify-content: center;
+      gap: 18px;
+      flex-wrap: wrap;
+      font-family: "Segoe UI", Arial, sans-serif;
       font-size: 9px;
       color: #64748b;
-      text-transform: uppercase;
       letter-spacing: 0.06em;
-      margin-top: 1px;
-    }
-    .org-address {
-      margin-top: 4px;
-      font-size: 10px;
-      color: #475569;
-      line-height: 1.3;
-    }
-    .meta {
-      text-align: right;
-      font-size: 10px;
-      color: #475569;
-      flex-shrink: 0;
-    }
-    .meta strong {
-      display: block;
-      color: #111827;
-      font-size: 10px;
-      margin-bottom: 2px;
-      word-break: break-word;
-      max-width: 42mm;
-      margin-left: auto;
-    }
-    .body {
-      flex: 1;
-      min-height: 0;
-      display: flex;
-      flex-direction: column;
-    }
-    .recipient {
-      margin: 0 0 10px;
-      font-size: 11px;
-      flex-shrink: 0;
-    }
-    .recipient-name {
-      font-weight: 700;
-      margin-bottom: 2px;
-    }
-    .recipient-meta {
-      color: #64748b;
-      font-size: 10px;
-      margin-top: 3px;
-    }
-    .subject {
-      text-align: center;
-      font-size: 12px;
-      font-weight: 700;
       text-transform: uppercase;
-      text-decoration: underline;
-      margin: 0 0 10px;
-      letter-spacing: 0.02em;
-      line-height: 1.3;
-      flex-shrink: 0;
     }
-    .paragraphs {
-      flex: 1;
-      min-height: 0;
-      overflow: hidden;
+    .header-meta strong {
+      color: #334155;
+      font-weight: 600;
     }
-    .paragraph {
-      margin: 0 0 7px;
-      font-size: 11px;
-      text-align: justify;
+    .divider {
+      width: 120px;
+      height: 2px;
+      margin: 10px auto 0;
+      background: linear-gradient(90deg, transparent, #b8860b, transparent);
     }
-    .paragraph:last-child {
-      margin-bottom: 0;
-    }
-    .paragraph-number {
-      font-weight: 700;
-      margin-right: 4px;
-    }
-    .summary-strip {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 6px;
+
+    .title-block {
+      text-align: center;
       margin: 10px 0 8px;
       flex-shrink: 0;
     }
-    .summary-item {
-      border: 1px solid #dbeafe;
-      background: #f8fafc;
-      border-radius: 4px;
-      padding: 5px 6px;
-      min-width: 0;
+    .cert-title {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.15;
+      color: #111827;
+      font-weight: 700;
     }
-    .summary-item span {
-      display: block;
-      font-size: 8px;
+    .cert-subtitle {
+      margin: 6px auto 0;
+      max-width: 520px;
+      font-size: 11px;
+      line-height: 1.45;
+      color: #4b5563;
+      font-style: italic;
+    }
+    .subject-line {
+      margin-top: 6px;
+      font-family: "Segoe UI", Arial, sans-serif;
+      font-size: 9px;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: #64748b;
-      margin-bottom: 2px;
-    }
-    .summary-item strong {
-      display: block;
-      font-size: 10px;
+      color: #0f766e;
       font-weight: 600;
-      color: #0f172a;
-      line-height: 1.25;
+    }
+
+    .recipient-block {
+      text-align: center;
+      margin: 8px 0 10px;
+      flex-shrink: 0;
+    }
+    .presented-to {
+      font-size: 12px;
+      color: #374151;
+    }
+    .member-name {
+      margin: 4px 0 6px;
+      font-size: 28px;
+      line-height: 1.1;
+      color: #0f766e;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+    .member-meta {
+      font-family: "Segoe UI", Arial, sans-serif;
+      font-size: 10px;
+      color: #64748b;
+      letter-spacing: 0.03em;
+    }
+
+    .details-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+      margin-bottom: 10px;
+      flex-shrink: 0;
+    }
+    .detail-cell {
+      border: 1px solid rgba(15, 118, 110, 0.16);
+      background: rgba(255, 255, 255, 0.78);
+      border-radius: 8px;
+      padding: 7px 9px;
+      min-width: 0;
+    }
+    .detail-cell--full {
+      grid-column: 1 / -1;
+    }
+    .detail-label {
+      font-family: "Segoe UI", Arial, sans-serif;
+      font-size: 8px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #64748b;
+      margin-bottom: 3px;
+    }
+    .detail-value {
+      font-size: 12px;
+      font-weight: 600;
+      color: #111827;
+      line-height: 1.3;
       word-break: break-word;
     }
-    .bottom {
+
+    .confirmation-panel {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      border-top: 1px solid rgba(15, 118, 110, 0.12);
+      border-bottom: 1px solid rgba(15, 118, 110, 0.12);
+      padding: 8px 2px;
+      margin-bottom: 8px;
+    }
+    .confirmation-heading {
+      font-family: "Segoe UI", Arial, sans-serif;
+      font-size: 8px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #0f766e;
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+    .confirmation-line {
+      margin: 0 0 6px;
+      font-size: 10.5px;
+      line-height: 1.45;
+      color: #374151;
+      text-align: justify;
+    }
+    .confirmation-line:last-child {
+      margin-bottom: 0;
+    }
+
+    .footer-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: end;
       flex-shrink: 0;
-      margin-top: auto;
     }
     .signatory {
-      width: 220px;
+      min-width: 0;
     }
     .signature-image {
       display: block;
-      max-height: 48px;
-      max-width: 180px;
+      max-height: 52px;
+      max-width: 190px;
       object-fit: contain;
-      margin-bottom: 2px;
+      margin-bottom: 4px;
     }
     .signature-line {
-      width: 180px;
+      width: 190px;
       border-top: 1px solid #94a3b8;
-      margin: 22px 0 4px;
+      margin: 26px 0 6px;
     }
     .signatory-name {
+      font-size: 12px;
       font-weight: 700;
-      font-size: 11px;
+      color: #111827;
       line-height: 1.25;
     }
     .signatory-title {
+      font-family: "Segoe UI", Arial, sans-serif;
       font-size: 10px;
       color: #475569;
-      line-height: 1.25;
+      margin-top: 2px;
     }
-    .footer {
-      margin-top: 8px;
-      padding-top: 6px;
-      border-top: 1px solid #e2e8f0;
-      font-size: 9px;
-      color: #64748b;
+    .seal {
+      width: 72px;
+      height: 72px;
+      border: 2px double #b8860b;
+      border-radius: 999px;
+      display: grid;
+      place-items: center;
       text-align: center;
-      letter-spacing: 0.04em;
+      color: #b8860b;
+      font-family: "Segoe UI", Arial, sans-serif;
+      font-size: 8px;
+      letter-spacing: 0.12em;
       text-transform: uppercase;
+      line-height: 1.2;
+      background: rgba(255, 255, 255, 0.82);
+      transform: rotate(-8deg);
+      flex-shrink: 0;
     }
+    .cert-footer {
+      margin-top: 8px;
+      text-align: center;
+      font-family: "Segoe UI", Arial, sans-serif;
+      font-size: 9px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #64748b;
+      flex-shrink: 0;
+    }
+
     @media print {
-      html, body { width: 210mm; height: 297mm; }
-      .page {
-        width: 210mm;
-        height: 297mm;
-        overflow: hidden;
-      }
+      html, body { background: white; }
+      .sheet { padding: 7mm; }
     }
   </style>
 </head>
 <body>
-  <div class="page">
-    <div class="letterhead">
-      <div class="brand">
-        ${logoBlock}
-        <div>
+  <div class="sheet">
+    <div class="frame">
+      <div class="ornament ornament--tl" aria-hidden="true"></div>
+      <div class="ornament ornament--tr" aria-hidden="true"></div>
+      <div class="ornament ornament--bl" aria-hidden="true"></div>
+      <div class="ornament ornament--br" aria-hidden="true"></div>
+
+      <div class="frame-inner">
+        <header class="header">
+          ${logoBlock}
           <div class="org-name">${escapeHtml(org)}</div>
-          ${tagline ? `<div class="org-tagline">${escapeHtml(tagline)}</div>` : ""}
-          ${orgAddress ? `<div class="org-address">${orgAddress}</div>` : ""}
+          <div class="org-tagline">${escapeHtml(tagline)}</div>
+          <div class="header-meta">
+            <span>Ref: <strong>${escapeHtml(referenceNumber)}</strong></span>
+            <span>Issued: <strong>${escapeHtml(issueDateLong)}</strong></span>
+          </div>
+          <div class="divider" aria-hidden="true"></div>
+        </header>
+
+        <section class="title-block">
+          <h1 class="cert-title">${escapeHtml(certificateTitle)}</h1>
+          <p class="cert-subtitle">${escapeHtml(certifyingLine)}</p>
+          <div class="subject-line">${escapeHtml(subject)}</div>
+        </section>
+
+        <section class="recipient-block">
+          <div class="presented-to">This certificate is proudly presented to</div>
+          <div class="member-name">${escapeHtml(payload.member.name)}</div>
+          <div class="member-meta">
+            Member ID: ${escapeHtml(payload.member.member_id)}${payload.member.email ? ` · ${escapeHtml(payload.member.email)}` : ""}
+          </div>
+        </section>
+
+        <section class="details-grid" aria-label="Allocation details">
+          ${detailsGrid}
+        </section>
+
+        <section class="confirmation-panel" aria-label="Confirmation statement">
+          <div class="confirmation-heading">Official Confirmation</div>
+          ${renderConfirmationParagraphs(paragraphs)}
+        </section>
+
+        <div class="footer-row">
+          <div class="signatory">
+            ${signatureBlock}
+            ${signatoryName ? `<div class="signatory-name">${escapeHtml(signatoryName)}</div>` : ""}
+            <div class="signatory-title">${escapeHtml(signatoryTitle)}</div>
+          </div>
+          <div class="seal" aria-hidden="true">Official<br />Seal</div>
         </div>
-      </div>
-      <div class="meta">
-        <strong>${escapeHtml(referenceNumber)}</strong>
-        ${issueDateMonthYear}
-      </div>
-    </div>
 
-    <div class="body">
-      <div class="recipient">
-        <div class="recipient-name">${escapeHtml(payload.member.name)},</div>
-        <div>${escapeHtml(memberAddress)}</div>
-        <div class="recipient-meta">Member ID: ${escapeHtml(payload.member.member_id)}</div>
-      </div>
-
-      <h1 class="subject">${escapeHtml(subject)}</h1>
-
-      <div class="paragraphs">
-        ${renderParagraphs(paragraphs)}
-      </div>
-
-      <div class="bottom">
-        ${summaryStrip}
-
-        <div class="signatory">
-          ${signatureBlock}
-          ${signatoryName ? `<div class="signatory-name">${escapeHtml(signatoryName)}</div>` : ""}
-          <div class="signatory-title">${escapeHtml(signatoryTitle)}</div>
-        </div>
-
-        <div class="footer">
-          Certificate No: ${escapeHtml(payload.certificate_number)} · Issued ${issueDateLong}
-        </div>
+        <footer class="cert-footer">
+          Certificate No: ${escapeHtml(payload.certificate_number)} · Issued ${escapeHtml(issueDateLong)}
+        </footer>
       </div>
     </div>
   </div>
@@ -413,6 +520,7 @@ export function buildSubscriptionCertificateHtml(payload: SubscriptionCertificat
 </body>
 </html>`
 }
+
 function downloadCertificateHtml(html: string, certificateNumber: string) {
 	const blob = new Blob([html], { type: "text/html;charset=utf-8" })
 	const url = URL.createObjectURL(blob)
