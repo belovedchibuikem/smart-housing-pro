@@ -39,6 +39,12 @@ export default function BulkUploadWalletTransfersPage() {
 					row["member_id"] ||
 					row["member_number"] ||
 					row["staff_id"] ||
+					row["ippis_number"] ||
+					row["IPPIS"] ||
+					row["IPPIS Number"] ||
+					row["ippis"] ||
+					row["frsc_pin"] ||
+					row["FRSC PIN"] ||
 					"",
 				fromAccount:
 					(row["Source Account (wallet/contribution/equity)"] ||
@@ -153,7 +159,9 @@ export default function BulkUploadWalletTransfersPage() {
 		<div className="p-6 space-y-6">
 			<div>
 				<h1 className="text-3xl font-bold">Bulk Upload Wallet Transfers</h1>
-				<p className="text-muted-foreground">Upload member internal transfers with source and destination accounts.</p>
+				<p className="text-muted-foreground">
+					Upload member internal transfers. Identify members by member number, staff ID, IPPIS, FRSC PIN, or UUID.
+				</p>
 			</div>
 
 			<Card>

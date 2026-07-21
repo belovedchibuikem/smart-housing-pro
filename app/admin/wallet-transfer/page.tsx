@@ -21,6 +21,24 @@ type MemberOption = {
 	id: string
 	name: string
 	member_id: string
+	identifier_label: string
+}
+
+function formatMemberIdentifier(member: {
+	member_number?: string | null
+	staff_id?: string | null
+	ippis_number?: string | null
+	frsc_pin?: string | null
+	id?: string
+}) {
+	const parts = [
+		member.member_number,
+		member.staff_id,
+		member.ippis_number ? `IPPIS: ${member.ippis_number}` : null,
+		member.frsc_pin ? `PIN: ${member.frsc_pin}` : null,
+	].filter(Boolean)
+
+	return parts.length > 0 ? parts.join(" · ") : String(member.id ?? "—")
 }
 
 const accountLabel: Record<InternalFundAccount, string> = {
@@ -59,8 +77,9 @@ export default function AdminWalletTransferPage() {
 				setMembers(
 					list.map((m) => ({
 						id: String(m.id ?? ""),
-						name: `${m?.user?.first_name ?? ""} ${m?.user?.last_name ?? ""}`.trim() || "Unknown Member",
-						member_id: String(m?.member_number ?? m?.staff_id ?? "—"),
+						name: `${m?.user?.first_name ?? m?.first_name ?? ""} ${m?.user?.last_name ?? m?.last_name ?? ""}`.trim() || "Unknown Member",
+						member_id: String(m?.member_number ?? m?.staff_id ?? m?.ippis_number ?? "—"),
+						identifier_label: formatMemberIdentifier(m),
 					}))
 				)
 			} catch {
@@ -158,7 +177,7 @@ export default function AdminWalletTransferPage() {
 			<Card>
 				<CardHeader>
 					<CardTitle>Select Member</CardTitle>
-					<CardDescription>Search member by name, member number, or staff ID.</CardDescription>
+					<CardDescription>Search by name, member number, staff ID, IPPIS, or FRSC PIN.</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
 					<div className="relative">
@@ -166,7 +185,7 @@ export default function AdminWalletTransferPage() {
 						<Input
 							value={search}
 							onChange={(e) => setSearch(e.target.value)}
-							placeholder="Search member..."
+							placeholder="Search by name, member number, staff ID, or IPPIS..."
 							className="pl-10"
 							disabled={!!selectedMember}
 						/>
@@ -175,7 +194,7 @@ export default function AdminWalletTransferPage() {
 						<div className="flex items-center justify-between rounded-md border p-3">
 							<div>
 								<p className="font-medium">{selectedMember.name}</p>
-								<p className="text-sm text-muted-foreground">{selectedMember.member_id}</p>
+								<p className="text-sm text-muted-foreground">{selectedMember.identifier_label}</p>
 							</div>
 							<Button
 								variant="outline"
@@ -205,7 +224,7 @@ export default function AdminWalletTransferPage() {
 										}}
 									>
 										<p className="font-medium">{member.name}</p>
-										<p className="text-sm text-muted-foreground">{member.member_id}</p>
+										<p className="text-sm text-muted-foreground">{member.identifier_label}</p>
 									</button>
 								))
 							)}

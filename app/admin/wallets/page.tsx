@@ -41,7 +41,7 @@ export default function AdminWalletsPage() {
         return {
           id: String(w.id ?? member.id ?? Math.random()),
           memberName: (member.name ?? member.full_name ?? `${member.first_name ?? ''} ${member.last_name ?? ''}`.trim()) || 'Unknown',
-          memberId: member.member_id ?? member.staff_id ?? member.code ?? '—',
+          memberId: member.member_id ?? member.identifier_label ?? member.member_number ?? member.staff_id ?? member.ippis_number ?? member.code ?? '—',
           balance: Number(w.balance ?? w.current_balance ?? 0) || 0,
           totalDeposits: Number(w.total_deposits ?? w.total_credits ?? 0) || 0,
           totalWithdrawals: Number(w.total_withdrawals ?? w.total_debits ?? 0) || 0,
@@ -128,7 +128,7 @@ export default function AdminWalletsPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name or member ID..."
+                placeholder="Search by name, member number, staff ID, or IPPIS..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"

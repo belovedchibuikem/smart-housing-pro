@@ -149,13 +149,15 @@ export function membersToSearchableOptions(
 		member_number?: string | null
 		member_id?: string | null
 		staff_id?: string | null
+		ippis_number?: string | null
+		frsc_pin?: string | null
 	}>
 ): SearchableSelectOption[] {
 	return members.map((m) => {
 		const name = `${m.user?.first_name ?? ""} ${m.user?.last_name ?? ""}`.trim() || "Member"
-		const idPart = m.member_number || m.member_id || m.staff_id || m.id
+		const idPart = m.member_number || m.member_id || m.staff_id || m.ippis_number || m.id
 		const label = `${name} (${idPart})`
-		const searchText = [name, idPart, m.user?.email, m.staff_id, m.member_number].filter(Boolean).join(" ")
+		const searchText = [name, idPart, m.user?.email, m.staff_id, m.member_number, m.ippis_number, m.frsc_pin].filter(Boolean).join(" ")
 		return {
 			value: m.id,
 			label: name,
