@@ -145,65 +145,75 @@ export function buildSubscriptionCertificateHtml(payload: SubscriptionCertificat
 <html lang="en">
 <head>
   <meta charset="utf-8" />
+  <meta name="viewport" content="width=794, initial-scale=1" />
   <title>${escapeHtml(certificateTitle)} — ${escapeHtml(payload.certificate_number)}</title>
   <style>
-    @page { size: A4 portrait; margin: 0; }
+    @page {
+      size: 210mm 297mm;
+      margin: 0;
+    }
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
       padding: 0;
-      width: 210mm;
-      height: 297mm;
-      background: #f3f4f6;
+      background: #e5e7eb;
       color: #1f2937;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
     body {
       font-family: Georgia, "Times New Roman", serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 12px;
     }
     .sheet {
       width: 210mm;
       height: 297mm;
-      max-height: 297mm;
+      max-width: 100%;
+      aspect-ratio: 210 / 297;
       overflow: hidden;
-      padding: 7mm;
+      padding: 6mm;
       page-break-after: avoid;
       page-break-inside: avoid;
+      background: #ffffff;
+      box-shadow: 0 8px 32px rgba(15, 23, 42, 0.12);
     }
     .frame {
       position: relative;
       width: 100%;
       height: 100%;
-      padding: 5mm;
+      padding: 4mm;
       border: 2px solid #b8860b;
-      outline: 1px solid rgba(184, 134, 11, 0.45);
-      outline-offset: 3px;
+      box-shadow: inset 0 0 0 1px rgba(184, 134, 11, 0.45);
       background:
         radial-gradient(circle at 0% 0%, rgba(184, 134, 11, 0.08), transparent 24%),
         radial-gradient(circle at 100% 100%, rgba(15, 118, 110, 0.08), transparent 26%),
         linear-gradient(180deg, #fffdf8 0%, #ffffff 42%, #f8fafc 100%);
+      overflow: hidden;
     }
     .frame-inner {
       height: 100%;
       border: 1px solid rgba(15, 118, 110, 0.18);
-      padding: 8mm 9mm 7mm;
+      padding: 7mm 8mm 6mm;
       display: flex;
       flex-direction: column;
       overflow: hidden;
     }
     .ornament {
       position: absolute;
-      width: 56px;
-      height: 56px;
+      width: 44px;
+      height: 44px;
       border: 1px solid rgba(184, 134, 11, 0.28);
       border-radius: 999px;
       pointer-events: none;
     }
-    .ornament--tl { top: 10mm; left: 10mm; }
-    .ornament--tr { top: 10mm; right: 10mm; }
-    .ornament--bl { bottom: 10mm; left: 10mm; }
-    .ornament--br { bottom: 10mm; right: 10mm; }
+    .ornament--tl { top: 3mm; left: 3mm; }
+    .ornament--tr { top: 3mm; right: 3mm; }
+    .ornament--bl { bottom: 3mm; left: 3mm; }
+    .ornament--br { bottom: 3mm; right: 3mm; }
 
     .header {
       text-align: center;
@@ -448,8 +458,45 @@ export function buildSubscriptionCertificateHtml(payload: SubscriptionCertificat
     }
 
     @media print {
-      html, body { background: white; }
-      .sheet { padding: 7mm; }
+      @page {
+        size: 210mm 297mm portrait;
+        margin: 0;
+      }
+      html, body {
+        width: 210mm;
+        height: 297mm;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+        display: block !important;
+        overflow: hidden !important;
+      }
+      body * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .sheet {
+        width: 210mm !important;
+        height: 297mm !important;
+        max-width: none !important;
+        margin: 0 !important;
+        padding: 6mm !important;
+        box-shadow: none !important;
+        overflow: hidden !important;
+      }
+      .frame,
+      .frame-inner {
+        overflow: hidden !important;
+      }
+    }
+
+    @media screen and (max-width: 820px) {
+      body { padding: 8px; }
+      .sheet {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 210 / 297;
+      }
     }
   </style>
 </head>
@@ -513,8 +560,11 @@ export function buildSubscriptionCertificateHtml(payload: SubscriptionCertificat
   </div>
   <script>
     window.addEventListener("load", function () {
+      var style = document.createElement("style");
+      style.textContent = "@page { size: 210mm 297mm portrait; margin: 0; }";
+      document.head.appendChild(style);
       window.focus();
-      setTimeout(function () { window.print(); }, 400);
+      setTimeout(function () { window.print(); }, 500);
     });
   </script>
 </body>
