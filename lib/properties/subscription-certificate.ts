@@ -78,7 +78,7 @@ export function buildSubscriptionCertificateHtml(payload: SubscriptionCertificat
 	const org = payload.organization_name || "Housing Cooperative"
 	const tagline = payload.organization_tagline || "Excellence in Staff Welfare & Housing"
 	const isOwnership = payload.certificate_type === "ownership"
-	const certificateTitle = isOwnership ? "Certificate of Property Ownership" : "Certificate of House Allocation"
+	const certificateTitle = isOwnership ? "Proof of Ownership" : "Certificate of House Allocation"
 	const certifyingLine = isOwnership
 		? "This certifies full ownership transfer upon completed subscription and deed requirements."
 		: "This certifies the confirmation of house allocation upon full payment completion."
@@ -131,8 +131,8 @@ export function buildSubscriptionCertificateHtml(payload: SubscriptionCertificat
 		renderDetailCell("Property / House Block", payload.property.title, true),
 		renderDetailCell("Unit / Slot", propertyLine || "—"),
 		renderDetailCell("Location", locationLine),
-		renderDetailCell("Subscription Value", formatCurrency(payload.property.price)),
-		renderDetailCell("Amount Paid", formatCurrency(payload.amount_paid ?? payload.property.price)),
+		renderDetailCell("Total House Cost", formatCurrency(payload.property.price)),
+		renderDetailCell("Total Amount Paid", formatCurrency(payload.amount_paid ?? payload.property.price)),
 		renderDetailCell("Allocation Date", formatDate(payload.allocation_date)),
 		renderDetailCell(
 			isOwnership ? "Ownership Date" : "Completion Date",
