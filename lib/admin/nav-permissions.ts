@@ -81,9 +81,9 @@ export const TENANT_ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
     "view_statutory_charges|create_statutory_charges|edit_statutory_charges|delete_statutory_charges|approve_statutory_charges|reject_statutory_charges|manage_statutory_charge_types|manage_statutory_charge_departments",
   "property-management":
     "view_properties|manage_property_estates|manage_property_allottees|view_maintenance|create_maintenance|edit_maintenance|assign_maintenance|complete_maintenance|approve_allotments|reject_allotments|view_property_reports",
-  "blockchain-setup": "view_properties|manage_settings|view_reports",
-  "blockchain-wallets": "view_properties|view_wallets|manage_wallets|view_reports",
-  blockchain: "view_properties|view_wallets|view_reports|view_members",
+  "blockchain-setup": "manage_blockchain_setup|manage_blockchain|manage_settings",
+  "blockchain-wallets": "manage_blockchain_wallets|manage_blockchain|view_blockchain",
+  blockchain: "view_blockchain|manage_blockchain",
   "mail-service":
     "view_mail|compose_mail|reply_mail|assign_mail|bulk_mail|delete_mail",
   reports:
