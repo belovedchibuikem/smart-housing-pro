@@ -33,12 +33,27 @@ export function getRoleSlug(user: AuthUser | { role?: AuthUser["role"]; roles?: 
 	return ""
 }
 
+function formatRoleLabel(label: string): string {
+	const trimmed = label.trim()
+	if (!trimmed) return ""
+	// Machine slugs → "Loans And Credit Office"; keep human names as-is
+	if (trimmed.includes("_") || /^[a-z0-9]+(?:[_-][a-z0-9]+)+$/i.test(trimmed)) {
+		return trimmed
+			.replace(/[_-]+/g, " ")
+			.replace(/\b\w/g, (c) => c.toUpperCase())
+	}
+	return trimmed
+}
+
 export function getRoleDisplayName(user: AuthUser | null | undefined): string {
 	if (!user) return ""
 	if (typeof user.role === "object" && user.role?.name) {
-		return user.role.name
+		return formatRoleLabel(String(user.role.name))
+	}
+	if (typeof user.role === "string" && user.role) {
+		return formatRoleLabel(user.role)
 	}
 	const slug = getRoleSlug(user)
 	if (!slug) return ""
-	return slug.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+	return formatRoleLabel(slug)
 }

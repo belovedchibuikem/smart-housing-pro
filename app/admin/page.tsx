@@ -146,8 +146,17 @@ export default function AdminDashboardPage() {
   const [heading, setHeading] = useState("Dashboard")
 
   useEffect(() => {
-    const u = getUserData() as AuthUser | null
-    setHeading(getStaffDashboardHeading(u))
+    const applyHeading = () => {
+      const u = getUserData() as AuthUser | null
+      setHeading(getStaffDashboardHeading(u))
+    }
+    applyHeading()
+    window.addEventListener("sh-auth-updated", applyHeading)
+    window.addEventListener("storage", applyHeading)
+    return () => {
+      window.removeEventListener("sh-auth-updated", applyHeading)
+      window.removeEventListener("storage", applyHeading)
+    }
   }, [])
 
   useEffect(() => {
@@ -261,7 +270,9 @@ export default function AdminDashboardPage() {
     <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
       <div>
         <h1 className="text-2xl md:text-3xl font-bold">{heading}</h1>
-        <p className="text-muted-foreground mt-1">Overview of {data?.tenant?.name || 'Housing Management'} System</p>
+        <p className="text-muted-foreground mt-1">
+          Welcome — overview of {data?.tenant?.name || "Housing Management"} System
+        </p>
       </div>
 
       {/* Stats Grid */}
