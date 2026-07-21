@@ -108,6 +108,13 @@ export function appendLocationFilters(params: URLSearchParams, filters: Property
   if (filters.status && filters.status !== "all") params.set("status", filters.status)
 }
 
+export function appendLocationFiltersForLandParcels(params: URLSearchParams, filters: PropertyLocationFilterValues) {
+  if (filters.estateId) params.set("estate_id", filters.estateId)
+  if (filters.location) params.set("location", filters.location)
+  if (filters.city) params.set("city", filters.city)
+  if (filters.state) params.set("state", filters.state)
+}
+
 import { formatCompactNaira, formatNairaAmount } from "@/lib/utils/currency"
 
 export function formatNaira(value: number | undefined | null, compact = false) {

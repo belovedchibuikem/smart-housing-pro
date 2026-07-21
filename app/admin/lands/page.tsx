@@ -51,7 +51,9 @@ import { PropertyLocationFilters } from "@/components/admin/property-location-fi
 import { LocationOverviewPanel } from "@/components/admin/location-overview-panel"
 import {
   appendLocationFilters,
+  appendLocationFiltersForLandParcels,
   locationFiltersFromSearchParams,
+  EMPTY_LOCATION_FILTERS,
   type LocationFilterOptions,
   type PropertyLocationFilterValues,
 } from "@/lib/properties/location-filters"
@@ -74,6 +76,7 @@ interface LandParcel {
   total_slots?: number | null
   slots_available?: number | null
   subscriptions_count?: number
+  record_source?: "legacy_property" | string
 }
 
 type LandSubRow = {
@@ -122,6 +125,17 @@ export default function AdminLandManagementPage() {
   const [landPaginationTotal, setLandPaginationTotal] = useState(0)
   const [recalculating, setRecalculating] = useState(false)
   const canRecalculateStats = can("manage_property_estates|create_properties|edit_properties")
+  const hasActiveLocationFilters = Boolean(
+    locationFilters.estateId || locationFilters.location || locationFilters.city || locationFilters.state,
+  )
+
+  const landDetailHref = (land: LandParcel) =>
+    land.record_source === "legacy_property" ? `/admin/properties/${land.id}` : `/admin/lands/${land.id}`
+
+  const landEditHref = (land: LandParcel) =>
+    land.record_source === "legacy_property"
+      ? `/admin/properties/${land.id}/edit`
+      : `/admin/lands/${land.id}/edit`
 
   useEffect(() => {
     fetchAdminPropertyStatistics()
@@ -170,8 +184,9 @@ export default function AdminLandManagementPage() {
       setLoading(true)
       const params = new URLSearchParams()
       if (searchQuery) params.append("search", searchQuery)
-      appendLocationFilters(params, locationFilters)
-      params.append("per_page", "100")
+      appendLocationFiltersForLandParcels(params, locationFilters)
+      params.append("per_page", "500")
+      params.append("include_legacy", "1")
       const response = await apiFetch<{
         success: boolean
         data: LandParcel[]
@@ -463,10 +478,24 @@ export default function AdminLandManagementPage() {
                 options={filterOptions}
                 loading={loading}
                 onChange={handleLocationFiltersChange}
+                showStatus={false}
               />
             </div>
 
             <div className="p-4 sm:p-5">
+              {hasActiveLocationFilters ? (
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                  <span>Location filters are active. Some land parcels may be hidden if their city or state was not filled in during upload.</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleLocationFiltersChange({ ...EMPTY_LOCATION_FILTERS })}
+                  >
+                    Clear filters
+                  </Button>
+                </div>
+              ) : null}
               {loading ? (
                 <div className="py-16 text-center">
                   <Loader2 className="mx-auto mb-2 h-8 w-8 animate-spin text-muted-foreground" />
@@ -498,7 +527,7 @@ export default function AdminLandManagementPage() {
                         />
                         <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
                           <Badge className="border-0 bg-background/90 text-foreground shadow-sm backdrop-blur">
-                            Land parcel
+                            {land.record_source === "legacy_property" ? "Legacy land" : "Land parcel"}
                           </Badge>
                           {land.land_size ? (
                             <Badge variant="secondary" className="shadow-sm">
@@ -559,20 +588,20 @@ export default function AdminLandManagementPage() {
 
                         <div className="mt-auto flex gap-2 pt-1">
                           <Button variant="secondary" size="sm" className="flex-1" asChild>
-                            <Link href={`/admin/lands/${land.id}`}>
+                            <Link href={landDetailHref(land)}>
                               <Eye className="mr-1.5 h-3.5 w-3.5" />
                               View
                             </Link>
                           </Button>
                           {can("edit_properties") ? (
                             <Button variant="outline" size="sm" className="flex-1" asChild>
-                              <Link href={`/admin/lands/${land.id}/edit`}>
+                              <Link href={landEditHref(land)}>
                                 <Edit className="mr-1.5 h-3.5 w-3.5" />
                                 Edit
                               </Link>
                             </Button>
                           ) : null}
-                          {can("delete_properties") ? (
+                          {can("delete_properties") && land.record_source !== "legacy_property" ? (
                             <Button
                               variant="outline"
                               size="sm"

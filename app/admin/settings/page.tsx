@@ -10,10 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
-import { Save, Mail, TestTube, AlertCircle, CheckCircle, Loader2 } from "lucide-react"
+import { Save, Mail, TestTube, AlertCircle, CheckCircle, Loader2, FileText, Upload } from "lucide-react"
 import { toast as sonnerToast } from "sonner"
 import { apiFetch } from "@/lib/api/client"
 import { Can } from "@/components/admin/can-permission"
+import { Textarea } from "@/components/ui/textarea"
 
 /** Keys must match api/app/Services/Tenant/BulkMemberFieldRulesService::fieldCatalog */
 const BULK_MEMBER_FIELD_OPTIONS: { key: string; label: string }[] = [
@@ -73,6 +74,15 @@ interface Settings {
   sms_notifications?: boolean
   admin_alerts?: boolean
   notification_email?: string
+
+  head_of_housing_name?: string
+  head_of_housing_title?: string
+  head_of_housing_signature_url?: string | null
+  housing_cert_reference_prefix?: string
+  housing_cert_allocation_reference_prefix?: string
+  housing_cert_subject?: string
+  housing_cert_organization_address?: string
+  housing_cert_body_paragraphs?: string[]
 }
 
 export default function AdminSettingsPage() {
@@ -82,6 +92,7 @@ export default function AdminSettingsPage() {
   const [testEmailAddress, setTestEmailAddress] = useState("")
   const [testEmailResult, setTestEmailResult] = useState<{ success: boolean; message: string } | null>(null)
   const [settings, setSettings] = useState<Settings>({})
+  const [uploadingSignature, setUploadingSignature] = useState(false)
 
   useEffect(() => {
     fetchSettings()
@@ -178,6 +189,56 @@ export default function AdminSettingsPage() {
     }))
   }
 
+  const handleSignatureUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setUploadingSignature(true)
+    try {
+      const formData = new FormData()
+      formData.append("signature", file)
+      const data = await apiFetch<{ success: boolean; head_of_housing_signature_url?: string; message?: string }>(
+        "/admin/settings/upload-housing-signature",
+        { method: "POST", body: formData },
+      )
+      if (!data.success) {
+        throw new Error(data.message || "Failed to upload signature")
+      }
+      setSettings((prev) => ({
+        ...prev,
+        head_of_housing_signature_url: data.head_of_housing_signature_url || prev.head_of_housing_signature_url,
+      }))
+      sonnerToast.success("Signature uploaded")
+    } catch (error: any) {
+      sonnerToast.error("Failed to upload signature", { description: error.message })
+    } finally {
+      setUploadingSignature(false)
+      event.target.value = ""
+    }
+  }
+
+  const updateCertificateParagraph = (index: number, value: string) => {
+    setSettings((prev) => {
+      const paragraphs = [...(prev.housing_cert_body_paragraphs || [])]
+      paragraphs[index] = value
+      return { ...prev, housing_cert_body_paragraphs: paragraphs }
+    })
+  }
+
+  const addCertificateParagraph = () => {
+    setSettings((prev) => ({
+      ...prev,
+      housing_cert_body_paragraphs: [...(prev.housing_cert_body_paragraphs || []), ""],
+    }))
+  }
+
+  const removeCertificateParagraph = (index: number) => {
+    setSettings((prev) => ({
+      ...prev,
+      housing_cert_body_paragraphs: (prev.housing_cert_body_paragraphs || []).filter((_, i) => i !== index),
+    }))
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -203,11 +264,12 @@ export default function AdminSettingsPage() {
       </div>
 
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-5">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="email">Email</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="housing-certificates">Certificates</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general">
@@ -635,6 +697,158 @@ export default function AdminSettingsPage() {
                   placeholder="admin@example.com"
                 />
                 <p className="text-sm text-muted-foreground">Email address to receive admin notifications</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="housing-certificates">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Housing Allocation Certificates
+              </CardTitle>
+              <CardDescription>
+                Configure the Head of Housing signatory and letter text used when issuing payment completion or ownership certificates.
+                Organization name and logo come from White Label settings.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="head_of_housing_name">Head of Housing — Name</Label>
+                  <Input
+                    id="head_of_housing_name"
+                    value={settings.head_of_housing_name || ""}
+                    onChange={(e) => updateSetting("head_of_housing_name", e.target.value)}
+                    placeholder="e.g. Babatope S. Agbaje, FCNA"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="head_of_housing_title">Head of Housing — Position</Label>
+                  <Input
+                    id="head_of_housing_title"
+                    value={settings.head_of_housing_title || ""}
+                    onChange={(e) => updateSetting("head_of_housing_title", e.target.value)}
+                    placeholder="e.g. DCC (Housing)"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Signature image</Label>
+                <div className="flex flex-wrap items-center gap-4 rounded-lg border bg-muted/20 p-4">
+                  {settings.head_of_housing_signature_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={settings.head_of_housing_signature_url}
+                      alt="Head of Housing signature"
+                      className="h-16 max-w-[220px] object-contain"
+                    />
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No signature uploaded yet.</p>
+                  )}
+                  <div>
+                    <Input
+                      id="housing_signature_upload"
+                      type="file"
+                      accept="image/png,image/jpeg,image/jpg,image/webp"
+                      className="hidden"
+                      onChange={handleSignatureUpload}
+                    />
+                    <Button type="button" variant="outline" size="sm" disabled={uploadingSignature} asChild>
+                      <label htmlFor="housing_signature_upload" className="cursor-pointer">
+                        {uploadingSignature ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Upload className="mr-2 h-4 w-4" />
+                        )}
+                        Upload signature
+                      </label>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="housing_cert_reference_prefix">Certificate reference prefix</Label>
+                  <Input
+                    id="housing_cert_reference_prefix"
+                    value={settings.housing_cert_reference_prefix || ""}
+                    onChange={(e) => updateSetting("housing_cert_reference_prefix", e.target.value)}
+                    placeholder="FRSC/HQ/CM/COOP/ALLO"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="housing_cert_allocation_reference_prefix">Original allocation reference prefix</Label>
+                  <Input
+                    id="housing_cert_allocation_reference_prefix"
+                    value={settings.housing_cert_allocation_reference_prefix || ""}
+                    onChange={(e) => updateSetting("housing_cert_allocation_reference_prefix", e.target.value)}
+                    placeholder="FHCS/LOKH/ALL"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="housing_cert_subject">Letter subject line</Label>
+                <Input
+                  id="housing_cert_subject"
+                  value={settings.housing_cert_subject || ""}
+                  onChange={(e) => updateSetting("housing_cert_subject", e.target.value)}
+                  placeholder="CONFIRMATION OF HOUSE ALLOCATION ON PAYMENT COMPLETION"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="housing_cert_organization_address">Organization address (letterhead)</Label>
+                <Textarea
+                  id="housing_cert_organization_address"
+                  value={settings.housing_cert_organization_address || ""}
+                  onChange={(e) => updateSetting("housing_cert_organization_address", e.target.value)}
+                  placeholder={"FRSC Housing Cooperative Society\nAbuja, Nigeria"}
+                  rows={3}
+                />
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <Label>Letter paragraphs</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Use placeholders such as {"{member_name}"}, {"{property_full_address}"}, {"{organization_name}"}, {"{allocation_reference}"}, {"{payment_facilitator_clause}"}.
+                    </p>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={addCertificateParagraph}>
+                    Add paragraph
+                  </Button>
+                </div>
+                {(settings.housing_cert_body_paragraphs || []).map((paragraph, index) => (
+                  <div key={`cert-paragraph-${index}`} className="space-y-2 rounded-lg border p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <Label>Paragraph {index + 1}</Label>
+                      {(settings.housing_cert_body_paragraphs || []).length > 1 ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeCertificateParagraph(index)}
+                        >
+                          Remove
+                        </Button>
+                      ) : null}
+                    </div>
+                    <Textarea
+                      value={paragraph}
+                      onChange={(e) => updateCertificateParagraph(index, e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
