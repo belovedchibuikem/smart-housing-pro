@@ -14,7 +14,6 @@ import {
   Shield,
   X,
   ChevronDown,
-  ChevronRight,
   CreditCard,
   FileText,
   Activity,
@@ -183,59 +182,63 @@ export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAd
 
     if (hasSubItems) {
       return (
-        <div key={item.label}>
-          <div className="flex items-center gap-1">
-            <div
+        <div key={item.label} className="space-y-0.5">
+          <button
+            type="button"
+            onClick={() => toggleMenu(item.label)}
+            aria-expanded={isOpen}
+            className={cn(
+              "flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors duration-200",
+              hasActiveSubItem || isOpen
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            )}
+          >
+            <Icon className="h-5 w-5 shrink-0" />
+            <span className="flex-1 truncate">{item.label}</span>
+            <ChevronDown
               className={cn(
-                "flex items-center flex-1 gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors",
-                hasActiveSubItem
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                "h-4 w-4 shrink-0 opacity-70 transition-transform duration-200",
+                isOpen ? "rotate-0" : "-rotate-90",
               )}
-            >
-              <Icon className="h-5 w-5" />
-              {item.label}
+            />
+          </button>
+          <div
+            className={cn(
+              "grid transition-[grid-template-rows,opacity] duration-200 ease-out",
+              isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+            )}
+          >
+            <div className="overflow-hidden">
+              <div className="ml-3 mt-0.5 space-y-0.5 border-l border-border/60 pl-2">
+                {item.subItems?.map((subItem) => {
+                  const SubIcon = subItem.icon
+                  const isSubActive = subItem.href
+                    ? pathname === subItem.href || pathname.startsWith(subItem.href + "/")
+                    : false
+                  const subBadge = badgeCountForHref(subItem.href)
+                  return (
+                    <Link
+                      key={subItem.href}
+                      href={subItem.href!}
+                      data-nav-active={isSubActive ? "true" : undefined}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={cn(
+                        "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors duration-150",
+                        isSubActive
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      )}
+                    >
+                      <SubIcon className="h-4 w-4 shrink-0" />
+                      <span className="flex-1 truncate">{subItem.label}</span>
+                      <SuperPendingBadge count={subBadge} />
+                    </Link>
+                  )
+                })}
+              </div>
             </div>
-            <button
-              onClick={() => toggleMenu(item.label)}
-              className="p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-            >
-              {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            </button>
           </div>
-          {isOpen && (
-            <div className="ml-4 mt-1 space-y-1">
-              {item.subItems?.map((subItem) => {
-                const SubIcon = subItem.icon
-                const isSubActive = subItem.href ? (() => {
-                  // Exact match
-                  if (pathname === subItem.href) return true
-                  
-                  // Match if pathname starts with the href
-                  return pathname.startsWith(subItem.href + "/")
-                })() : false
-                const subBadge = badgeCountForHref(subItem.href)
-                return (
-                  <Link
-                    key={subItem.href}
-                    href={subItem.href!}
-                    data-nav-active={isSubActive ? "true" : undefined}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={cn(
-                      "flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-colors",
-                      isSubActive
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                    )}
-                  >
-                    <SubIcon className="h-4 w-4 shrink-0" />
-                    <span className="flex-1 truncate">{subItem.label}</span>
-                    <SuperPendingBadge count={subBadge} />
-                  </Link>
-                )
-              })}
-            </div>
-          )}
         </div>
       )
     }

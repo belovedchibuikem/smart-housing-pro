@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   collectFlatActiveMenuKeys,
   collectNestedActiveMenuKeys,
@@ -9,32 +9,93 @@ import {
 
 type SidebarNavMode = "flat" | "nested"
 
-function mergeOpenMenuKeys(prev: string[], activeKeys: string[]): string[] {
-  if (activeKeys.length === 0) return prev
-  const next = Array.from(new Set([...prev, ...activeKeys]))
-  if (next.length === prev.length && next.every((key) => prev.includes(key))) {
-    return prev
+/** Stable signature so filtered nav arrays don't thrash open-state every render. */
+function navItemsSignature(items: SidebarNavItem[]): string {
+  const walk = (nodes: SidebarNavItem[]): string =>
+    nodes
+      .map((node) => {
+        const kids = node.subItems?.length ? `[${walk(node.subItems)}]` : ""
+        return `${node.label}${kids}`
+      })
+      .join("|")
+  return walk(items)
+}
+
+function ancestorsOf(menuKey: string): string[] {
+  const parts = menuKey.split("/").filter(Boolean)
+  if (parts.length <= 1) return []
+  const keys: string[] = []
+  for (let i = 1; i < parts.length; i++) {
+    keys.push(parts.slice(0, i).join("/"))
   }
-  return next
+  return keys
+}
+
+/**
+ * Accordion open set:
+ * - flat: only one top-level group
+ * - nested: only the active branch (ancestors + target); siblings close
+ */
+function openAccordionBranch(menuKey: string): string[] {
+  return [...ancestorsOf(menuKey), menuKey]
+}
+
+function closeBranch(prev: string[], menuKey: string): string[] {
+  return prev.filter((key) => key !== menuKey && !key.startsWith(`${menuKey}/`))
 }
 
 export function useSidebarNavigation(items: SidebarNavItem[], pathname: string, mode: SidebarNavMode = "flat") {
   const [openMenus, setOpenMenus] = useState<string[]>([])
+  const itemsKey = useMemo(() => navItemsSignature(items), [items])
+  const itemsRef = useRef(items)
+  const prevPathnameRef = useRef(pathname)
+  itemsRef.current = items
 
+  const resolveActiveKeys = useCallback(
+    (path: string) => {
+      const current = itemsRef.current
+      if (current.length === 0) return [] as string[]
+      return mode === "nested"
+        ? collectNestedActiveMenuKeys(current, path)
+        : collectFlatActiveMenuKeys(current, path)
+    },
+    [mode],
+  )
+
+  // Sync open groups to the route — pathname/structure only (not every new items array ref).
   useEffect(() => {
-    if (items.length === 0) return
+    const activeKeys = resolveActiveKeys(pathname)
+    const pathChanged = prevPathnameRef.current !== pathname
+    prevPathnameRef.current = pathname
 
-    const activeKeys =
-      mode === "nested"
-        ? collectNestedActiveMenuKeys(items, pathname)
-        : collectFlatActiveMenuKeys(items, pathname)
+    if (activeKeys.length === 0) {
+      // Close groups when leaving a section; keep manual opens on top-level pages.
+      if (pathChanged) setOpenMenus([])
+      return
+    }
 
-    setOpenMenus((prev) => mergeOpenMenuKeys(prev, activeKeys))
-  }, [pathname, items, mode])
+    if (mode === "flat") {
+      // One open group: prefer the active route's parent.
+      setOpenMenus([activeKeys[0]])
+      return
+    }
+
+    // Nested: open the deepest active branch only (closes other trees).
+    const deepest = activeKeys.reduce((a, b) => (b.length >= a.length ? b : a), activeKeys[0])
+    setOpenMenus(openAccordionBranch(deepest))
+  }, [pathname, itemsKey, mode, resolveActiveKeys])
 
   const toggleMenu = useCallback((menuKey: string) => {
-    setOpenMenus((prev) => (prev.includes(menuKey) ? prev.filter((key) => key !== menuKey) : [...prev, menuKey]))
-  }, [])
+    setOpenMenus((prev) => {
+      if (prev.includes(menuKey)) {
+        return closeBranch(prev, menuKey)
+      }
+      if (mode === "flat") {
+        return [menuKey]
+      }
+      return openAccordionBranch(menuKey)
+    })
+  }, [mode])
 
   const isMenuOpen = useCallback((menuKey: string) => openMenus.includes(menuKey), [openMenus])
 

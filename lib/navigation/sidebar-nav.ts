@@ -44,6 +44,8 @@ export function collectFlatActiveMenuKeys(items: SidebarNavItem[], pathname: str
     if (!item.subItems?.length) continue
     if (item.subItems.some((sub) => itemMatchesPathname(sub, pathname))) {
       keys.push(item.label)
+      // Accordion: at most one active top-level group for the current route.
+      break
     }
   }
 

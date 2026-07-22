@@ -14,7 +14,6 @@ import {
   Sparkles,
   Shield,
   ChevronDown,
-  ChevronRight,
   Mail,
   FileBarChart,
   UserMinus,
@@ -348,31 +347,43 @@ export function DashboardSidebar({ mobileMenuOpen, setMobileMenuOpen }: Dashboar
 
     if (hasSubItems) {
       return (
-        <div key={menuKey}>
+        <div key={menuKey} className="space-y-0.5">
           <button
             type="button"
             data-nav-active={hasActiveChild && !isOpen ? "true" : undefined}
             onClick={() => toggleMenu(menuKey)}
             className={cn(
-              "flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors",
+              "flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors duration-200",
               level > 0 && "py-2 text-xs",
-              isActive || hasActiveChild
+              isActive || hasActiveChild || isOpen
                 ? "bg-primary/10 text-foreground"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
             aria-expanded={isOpen}
           >
             <Icon className={cn("h-5 w-5 shrink-0", level > 0 && "h-4 w-4")} />
-            <span className="flex-1">{navLabel(item)}</span>
-            {isOpen ? <ChevronDown className="h-4 w-4 shrink-0 opacity-70" /> : <ChevronRight className="h-4 w-4 shrink-0 opacity-70" />}
-          </button>
-          {isOpen && (
-            <div className={cn("ml-4 mt-1 space-y-1 border-l border-border/60 pl-2", level > 0 && "ml-5")}>
-              {item.subItems?.map((subItem) =>
-                renderNavItem(subItem, level + 1, `${menuKey}/${subItem.label}`),
+            <span className="flex-1 truncate">{navLabel(item)}</span>
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 shrink-0 opacity-70 transition-transform duration-200",
+                isOpen ? "rotate-0" : "-rotate-90",
               )}
+            />
+          </button>
+          <div
+            className={cn(
+              "grid transition-[grid-template-rows,opacity] duration-200 ease-out",
+              isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+            )}
+          >
+            <div className="overflow-hidden">
+              <div className={cn("ml-3 mt-0.5 space-y-0.5 border-l border-border/60 pl-2", level > 0 && "ml-4")}>
+                {item.subItems?.map((subItem) =>
+                  renderNavItem(subItem, level + 1, `${menuKey}/${subItem.label}`),
+                )}
+              </div>
             </div>
-          )}
+          </div>
         </div>
       )
     }
