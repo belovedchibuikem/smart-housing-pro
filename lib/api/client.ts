@@ -2,6 +2,10 @@
 
 import type { AuthUser } from "@/lib/auth/types"
 import { clearAuthCookies } from "@/lib/auth/auth-cookies"
+import {
+	clearSessionTimeout,
+	touchSessionActivity,
+} from "@/lib/auth/session-timeout"
 
 // Lightweight API client for browser-side requests
 
@@ -9,6 +13,41 @@ export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
 
 const AUTH_TOKEN_KEY = "auth_token"
 const TENANT_SLUG_KEY = "tenant_slug"
+let authRedirectInFlight = false
+
+function isAuthExemptPath(path: string): boolean {
+	const normalized = path.startsWith("/") ? path : `/${path}`
+	return (
+		normalized.startsWith("/auth/login") ||
+		normalized.startsWith("/auth/register") ||
+		normalized.startsWith("/auth/verify-otp") ||
+		normalized.startsWith("/auth/resend-otp") ||
+		normalized.startsWith("/auth/forgot-password") ||
+		normalized.startsWith("/auth/reset-password") ||
+		normalized.startsWith("/auth/mobile-login") ||
+		normalized.startsWith("/auth/logout") ||
+		normalized.startsWith("/auth/recaptcha")
+	)
+}
+
+function clearClientSessionAndRedirect(reason: string = "session"): void {
+	if (typeof window === "undefined" || authRedirectInFlight) return
+	authRedirectInFlight = true
+	try {
+		window.localStorage.removeItem(AUTH_TOKEN_KEY)
+		window.localStorage.removeItem("user_data")
+		clearAuthCookies()
+		clearSessionTimeout()
+	} catch {
+		// no-op
+	}
+	const path = window.location.pathname || ""
+	if (path.startsWith("/login")) {
+		authRedirectInFlight = false
+		return
+	}
+	window.location.href = `/login?reason=${encodeURIComponent(reason)}`
+}
 
 /** Browser calls use same-origin /api rewrite; server/SSR uses the configured Laravel URL. */
 export function getApiBaseUrl(): string {
@@ -33,9 +72,11 @@ export function setAuthToken(token: string | null) {
 	try {
 		if (token) {
 			window.localStorage.setItem(AUTH_TOKEN_KEY, token)
+			touchSessionActivity()
 		} else {
 			window.localStorage.removeItem(AUTH_TOKEN_KEY)
 			clearAuthCookies()
+			clearSessionTimeout()
 		}
 	} catch {
 		// no-op
@@ -236,11 +277,23 @@ export async function apiFetch<T = unknown>(
 					data: data || "No response data",
 				})
 
+				if (response.status === 401 && !isAuthExemptPath(path)) {
+					const code =
+						data && typeof data === "object" && "code" in data
+							? String((data as { code?: unknown }).code || "session")
+							: "session"
+					clearClientSessionAndRedirect(code === "session_idle" ? "idle" : code)
+				}
+
 				const userMessage = extractUserFacingApiError(data, response.status)
 				const error = new Error(finalizeUserErrorMessage(userMessage, response.status))
 				;(error as Error & { status?: number; payload?: unknown }).status = response.status
 				;(error as Error & { status?: number; payload?: unknown }).payload = data
 				throw error
+			}
+
+			if (token && !isAuthExemptPath(path)) {
+				touchSessionActivity()
 			}
 
 			return (data || {}) as T
@@ -319,6 +372,7 @@ export async function loginRequest(payload: { email: string; password: string; r
 		auth_context?: "tenant" | "platform"
 		tenant_id?: string | null
 		tenant?: { id: string; slug?: string | null; name?: string | null } | null
+		session_timeout?: number
 	}>("/auth/login", {
 		method: "POST",
 		body: payload,
@@ -326,7 +380,9 @@ export async function loginRequest(payload: { email: string; password: string; r
 }
 
 export async function meRequest() {
-	return apiFetch<{ user: unknown; message?: string }>("/auth/me", { method: "GET" })
+	return apiFetch<{ user: unknown; message?: string; session_timeout?: number }>("/auth/me", {
+		method: "GET",
+	})
 }
 
 /** Alias used by admin layout session refresh */
@@ -346,7 +402,14 @@ export async function registerRequest(payload: Record<string, unknown>) {
 }
 
 export async function verifyOtpRequest(payload: { email: string; otp: string; type?: "registration" | "password_reset" | "email_verification" }) {
-	return apiFetch<{ success: boolean; message: string; token?: string; user?: unknown; email_verified?: boolean }>("/auth/verify-otp", {
+	return apiFetch<{
+		success: boolean
+		message: string
+		token?: string
+		user?: unknown
+		email_verified?: boolean
+		session_timeout?: number
+	}>("/auth/verify-otp", {
 		method: "POST",
 		body: payload,
 	})
@@ -3812,6 +3875,8 @@ export async function getAuditLogs(params?: {
 	module?: string
 	resource_type?: string
 	resource_id?: string
+	http_method?: string
+	source?: string
 	date_range?: string
 	start_date?: string
 	end_date?: string
@@ -3827,6 +3892,8 @@ export async function getAuditLogs(params?: {
 	if (params?.module) query.set("module", params.module)
 	if (params?.resource_type) query.set("resource_type", params.resource_type)
 	if (params?.resource_id) query.set("resource_id", params.resource_id)
+	if (params?.http_method) query.set("http_method", params.http_method)
+	if (params?.source) query.set("source", params.source)
 	if (params?.date_range) query.set("date_range", params.date_range)
 	if (params?.start_date) query.set("start_date", params.start_date)
 	if (params?.end_date) query.set("end_date", params.end_date)
@@ -3939,6 +4006,8 @@ export async function exportAuditLogs(params?: {
 	module?: string
 	resource_type?: string
 	resource_id?: string
+	http_method?: string
+	source?: string
 	date_range?: string
 	start_date?: string
 	end_date?: string
@@ -3952,6 +4021,8 @@ export async function exportAuditLogs(params?: {
 	if (params?.module) query.set("module", params.module)
 	if (params?.resource_type) query.set("resource_type", params.resource_type)
 	if (params?.resource_id) query.set("resource_id", params.resource_id)
+	if (params?.http_method) query.set("http_method", params.http_method)
+	if (params?.source) query.set("source", params.source)
 	if (params?.date_range) query.set("date_range", params.date_range)
 	if (params?.start_date) query.set("start_date", params.start_date)
 	if (params?.end_date) query.set("end_date", params.end_date)

@@ -284,7 +284,6 @@ const navItems: NavItem[] = [
       { href: "/admin/reports/audit", label: "Audit Reports", icon: FileBarChart },
     ],
   },
-  { href: "/admin/activity-logs", label: "Activity Logs", icon: ScrollText },
   { href: "/admin/notifications", label: "Notifications", icon: Bell },
   { href: "/admin/documents", label: "Documents", icon: FileText },
   {
@@ -305,7 +304,15 @@ const navItems: NavItem[] = [
   },
   { href: "/admin/white-label", label: "White Label", icon: Settings },
   { href: "/admin/custom-domains", label: "Custom Domains", icon: LinkIcon },
-  { href: "/admin/settings", label: "Settings", icon: Settings },
+  {
+    label: "System",
+    icon: Settings,
+    subItems: [
+      { href: "/admin/audit-logs", label: "Audit Logs", icon: Shield },
+      { href: "/admin/activity-logs", label: "Activity Logs", icon: ScrollText },
+      { href: "/admin/settings", label: "Settings", icon: Settings },
+    ],
+  },
 ]
 
 interface AdminSidebarProps {

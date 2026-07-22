@@ -1,6 +1,6 @@
 import { logoutRequest, setAuthToken } from "@/lib/api/client"
 import { clearAuthCookies } from "@/lib/auth/auth-cookies"
-import { useRouter } from "next/navigation"
+import { clearSessionTimeout } from "@/lib/auth/session-timeout"
 
 /**
  * Logout function that calls API and clears all local storage
@@ -18,6 +18,7 @@ export async function handleLogout(): Promise<void> {
 		localStorage.removeItem("user_data")
 		setAuthToken(null)
 		clearAuthCookies()
+		clearSessionTimeout()
 		
 		// Redirect to login page
 		window.location.href = "/login"

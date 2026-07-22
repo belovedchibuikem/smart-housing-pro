@@ -12,6 +12,9 @@ import { fetchUserProfile } from "@/lib/api/user-profile"
 import { isMemberProfileComplete } from "@/lib/profile/profile-completion"
 import { Loader2 } from "lucide-react"
 import { unlockBodyPointerEvents } from "@/lib/ui/unlock-body"
+import { IdleSessionGuard } from "@/lib/auth/idle-session"
+import { meRequest } from "@/lib/api/client"
+import { persistSessionTimeout } from "@/lib/auth/session-timeout"
 
 export default function DashboardLayout({
   children,
@@ -30,6 +33,22 @@ export default function DashboardLayout({
     unlockBodyPointerEvents()
     setMobileMenuOpen(false)
   }, [pathname])
+
+  useEffect(() => {
+    let cancelled = false
+    meRequest()
+      .then((me) => {
+        if (!cancelled && typeof me?.session_timeout === "number") {
+          persistSessionTimeout(me.session_timeout)
+        }
+      })
+      .catch(() => {
+        // AuthGuard / 401 handler manage expired sessions
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -80,6 +99,7 @@ export default function DashboardLayout({
 
   return (
     <AuthGuard requireMemberDashboard redirectTo="/login">
+      <IdleSessionGuard />
       <div className="min-h-screen bg-background">
         <DashboardHeader mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
         <div className="flex">

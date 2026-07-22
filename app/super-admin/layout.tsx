@@ -9,6 +9,7 @@ import { SuperAdminHeader } from "@/components/super-admin/super-admin-header"
 import { SuperAdminSidebar } from "@/components/super-admin/super-admin-sidebar"
 import { SuperAdminLoadingProvider } from "@/components/super-admin/super-admin-loading-context"
 import { unlockBodyPointerEvents } from "@/lib/ui/unlock-body"
+import { IdleSessionGuard } from "@/lib/auth/idle-session"
 
 export default function SuperAdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -21,6 +22,7 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
 
   return (
     <AuthGuard requiredRole="super-admin" redirectTo="/login">
+      <IdleSessionGuard />
       <TenantProvider>
         <div className="min-h-screen bg-background">
           <SuperAdminHeader onMenuClick={() => setMobileMenuOpen(!mobileMenuOpen)} />

@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { OtpVerificationDialog } from "@/components/auth/otp-verification-dialog"
 import { Recaptcha, RecaptchaRef } from "@/components/auth/recaptcha"
 import { meRequest, registerRequest, setAuthToken, setTenantSlug, getTenantSlug } from "@/lib/api/client"
+import { persistSessionTimeout, touchSessionActivity } from "@/lib/auth/session-timeout"
 import { persistAuthSession } from "@/lib/auth/auth-cookies"
 import type { AuthUser } from "@/lib/auth/types"
 import { useI18n } from "@/lib/i18n/i18n-provider"
@@ -137,12 +138,16 @@ export function RegisterForm() {
 		if (!token) return
 
 		setAuthToken(token)
+		touchSessionActivity()
 
 		let sessionUser = user as AuthUser | undefined
 		try {
 			const me = await meRequest()
 			if (me?.user) {
 				sessionUser = me.user as AuthUser
+			}
+			if (typeof me?.session_timeout === "number") {
+				persistSessionTimeout(me.session_timeout)
 			}
 		} catch {
 			// Continue with OTP response user fallback

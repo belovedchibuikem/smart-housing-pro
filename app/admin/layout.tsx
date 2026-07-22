@@ -16,6 +16,8 @@ import { meRequest } from "@/lib/api/client"
 import { getRoleSlug } from "@/lib/auth/user-roles"
 import { useSubscriptionGuard } from "@/lib/hooks/use-subscription"
 import { unlockBodyPointerEvents } from "@/lib/ui/unlock-body"
+import { IdleSessionGuard } from "@/lib/auth/idle-session"
+import { persistSessionTimeout } from "@/lib/auth/session-timeout"
 import { Loader2 } from "lucide-react"
 
 export default function AdminLayout({
@@ -59,6 +61,9 @@ export default function AdminLayout({
         const me = await meRequest()
         const fresh = me?.user as AuthUser | undefined
         const token = typeof window !== "undefined" ? window.localStorage.getItem("auth_token") : null
+        if (typeof me?.session_timeout === "number") {
+          persistSessionTimeout(me.session_timeout)
+        }
         if (fresh && token && !cancelled) {
           localStorage.setItem("user_data", JSON.stringify(fresh))
           persistAuthSession(fresh, token)
@@ -101,6 +106,7 @@ export default function AdminLayout({
 
   return (
     <AuthGuard requireStaffDashboardAccess>
+      <IdleSessionGuard />
       <div className="min-h-screen bg-background">
         <AdminHeader mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
         <div className="flex">

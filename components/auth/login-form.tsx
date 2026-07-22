@@ -11,6 +11,7 @@ import Link from "next/link"
 import { Eye, EyeOff } from "lucide-react"
 import { loginRequest, setAuthToken, setTenantSlug } from "@/lib/api/client"
 import { persistAuthSession } from "@/lib/auth/auth-cookies"
+import { persistSessionTimeout, touchSessionActivity } from "@/lib/auth/session-timeout"
 import { getDashboardRoute, hasRouteAccess } from "@/lib/auth/redirect-utils"
 import type { AuthUser } from "@/lib/auth/types"
 import { Recaptcha, RecaptchaRef } from "@/components/auth/recaptcha"
@@ -55,6 +56,8 @@ export function LoginForm({ allowRegistration = true }: LoginFormProps) {
 
       // store token
       setAuthToken(result.token)
+      persistSessionTimeout(result.session_timeout)
+      touchSessionActivity()
 
       // Use user data from login response (no need to call /api/auth/me)
       const user = {
