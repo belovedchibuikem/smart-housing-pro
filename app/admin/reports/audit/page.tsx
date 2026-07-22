@@ -161,7 +161,10 @@ export default function AuditReportsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Audit Trail</CardTitle>
-          <CardDescription>Detailed system activity logs with timestamps</CardDescription>
+          <CardDescription>
+            Staff operations from tenant audit logs (create/update/delete, login, approvals). For the full
+            investigator view open System → Audit Logs.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -184,16 +187,18 @@ export default function AuditReportsPage() {
                 </TableHeader>
                 <TableBody>
                   {logs.map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell className="font-medium">{log.id}</TableCell>
-                      <TableCell className="text-xs">{log.created_at}</TableCell>
+                    <TableRow key={log.raw_id || log.id}>
+                      <TableCell className="font-medium font-mono text-xs">{log.id}</TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">{log.created_at}</TableCell>
                       <TableCell>{log.user}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{log.action}</Badge>
                       </TableCell>
                       <TableCell>{log.module}</TableCell>
-                      <TableCell className="max-w-xs truncate">{log.description}</TableCell>
-                      <TableCell className="font-mono text-xs">{log.ip_address || '-'}</TableCell>
+                      <TableCell className="max-w-xs truncate" title={log.description}>
+                        {log.description}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">{log.ip_address || "—"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
