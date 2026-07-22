@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, UserPlus, Shield, Mail, Phone, Edit, Trash2, MoreHorizontal, User } from "lucide-react"
-import { AddUserModal } from "@/components/admin/add-user-modal"
+import Link from "next/link"
 import { EditUserModal } from "@/components/admin/edit-user-modal"
 import { useUsers, useUserStats, useDeleteUser, useToggleUserStatus } from "@/lib/hooks/use-users"
 import { User as UserType } from "@/lib/types/user"
@@ -37,7 +37,6 @@ export default function UsersPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
-  const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null)
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null)
@@ -130,9 +129,11 @@ export default function UsersPage() {
           <p className="text-muted-foreground mt-1">Manage admin users and assign roles across the system</p>
         </div>
         <Can permission="create_users">
-          <Button onClick={() => setShowAddModal(true)}>
-            <UserPlus className="h-4 w-4 mr-2" />
-            Add User
+          <Button asChild>
+            <Link href="/admin/users/new">
+              <UserPlus className="h-4 w-4 mr-2" />
+              Add User
+            </Link>
           </Button>
         </Can>
       </div>
@@ -401,17 +402,6 @@ export default function UsersPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* Add User Modal */}
-      <AddUserModal
-        open={showAddModal}
-        onOpenChange={setShowAddModal}
-        onSuccess={() => {
-          refetch()
-          refetchUserStats()
-          setShowAddModal(false)
-        }}
-      />
 
       {/* Edit User Modal */}
       <EditUserModal
