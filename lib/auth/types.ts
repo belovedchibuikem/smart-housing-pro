@@ -4,6 +4,8 @@ export interface AuthRole {
 	name: string
 	/** Machine name / Spatie role name (e.g. "finance_manager") */
 	slug: string
+	/** Exact Role.display_name from the database when present */
+	display_name?: string | null
 }
 
 export interface AuthUser {

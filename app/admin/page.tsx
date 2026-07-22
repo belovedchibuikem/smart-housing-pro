@@ -8,7 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Users, Wallet, TrendingUp, Home, CheckCircle, Clock, DollarSign, PiggyBank, RotateCcw, Building2, MapPinned } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { usePageLoading } from "@/hooks/use-loading"
-import { apiFetch } from "@/lib/api/client"
+import { apiFetch, meRequest } from "@/lib/api/client"
+import { useWhiteLabelSettings } from "@/lib/hooks/use-white-label"
+import { persistAuthSession } from "@/lib/auth/auth-cookies"
 import {
   Table,
   TableBody,
@@ -142,6 +144,7 @@ function normalizeAdminDashboardPayload(raw: unknown): DashboardData {
 
 export default function AdminDashboardPage() {
   const { isLoading, loadData } = usePageLoading()
+  const { getCompanyName } = useWhiteLabelSettings()
   const [data, setData] = useState<DashboardData | null>(null)
   const [heading, setHeading] = useState("Dashboard")
 
@@ -151,9 +154,30 @@ export default function AdminDashboardPage() {
       setHeading(getStaffDashboardHeading(u))
     }
     applyHeading()
+
+    // Refresh role payload from API so heading uses Role.display_name, not stale cache.
+    let cancelled = false
+    meRequest()
+      .then((me) => {
+        if (cancelled || !me?.user) return
+        const token =
+          typeof window !== "undefined" ? window.localStorage.getItem("auth_token") : null
+        const fresh = me.user as AuthUser
+        localStorage.setItem("user_data", JSON.stringify(fresh))
+        if (token) {
+          persistAuthSession(fresh, token)
+        }
+        window.dispatchEvent(new Event("sh-auth-updated"))
+        setHeading(getStaffDashboardHeading(fresh))
+      })
+      .catch(() => {
+        // Keep cached heading
+      })
+
     window.addEventListener("sh-auth-updated", applyHeading)
     window.addEventListener("storage", applyHeading)
     return () => {
+      cancelled = true
       window.removeEventListener("sh-auth-updated", applyHeading)
       window.removeEventListener("storage", applyHeading)
     }
@@ -170,6 +194,12 @@ export default function AdminDashboardPage() {
       }
     }).then(setData)
   }, [loadData])
+
+  const organizationLabel = (() => {
+    const raw = (data?.tenant?.name || getCompanyName() || "").trim()
+    if (!raw) return "Housing Management System"
+    return /system$/i.test(raw) ? raw : `${raw} System`
+  })()
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-NG', {
@@ -271,7 +301,7 @@ export default function AdminDashboardPage() {
       <div>
         <h1 className="text-2xl md:text-3xl font-bold">{heading}</h1>
         <p className="text-muted-foreground mt-1">
-          Welcome — overview of {data?.tenant?.name || "Housing Management"} System
+          Welcome - overview of {organizationLabel}.
         </p>
       </div>
 

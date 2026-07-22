@@ -47,8 +47,11 @@ function formatRoleLabel(label: string): string {
 
 export function getRoleDisplayName(user: AuthUser | null | undefined): string {
 	if (!user) return ""
-	if (typeof user.role === "object" && user.role?.name) {
-		return formatRoleLabel(String(user.role.name))
+	if (typeof user.role === "object" && user.role) {
+		const display =
+			typeof user.role.display_name === "string" ? user.role.display_name.trim() : ""
+		if (display) return display
+		if (user.role.name) return formatRoleLabel(String(user.role.name))
 	}
 	if (typeof user.role === "string" && user.role) {
 		return formatRoleLabel(user.role)
