@@ -75,6 +75,10 @@ export function LoginForm({ allowRegistration = true }: LoginFormProps) {
       const tenantSlug = result.tenant?.slug?.trim()
       if (tenantSlug) {
         setTenantSlug(tenantSlug)
+      } else {
+        // Platform super-admin login must not keep a stale cooperative slug
+        // (would confuse tenant middleware / API context on the apex domain).
+        setTenantSlug(null)
       }
 
       const fallbackRoute = getDashboardRoute(user)

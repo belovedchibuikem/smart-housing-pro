@@ -82,7 +82,7 @@ export function IdleSessionGuard() {
 		if (typeof window === "undefined") return
 		if (!getAuthToken()) return
 
-		touchSessionActivity(getLastActivityAt())
+		touchSessionActivity()
 
 		const onActivity = () => {
 			if (loggingOutRef.current) return

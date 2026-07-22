@@ -5,6 +5,7 @@ import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
 import type { Tenant } from "@/lib/types/tenant"
 import { setTenantSlug } from "@/lib/api/client"
+import { getTenantSlugFromHost, isCustomDomain } from "@/lib/tenant/tenant-utils"
 
 const TENANT_WISHLIST_STORAGE_KEY = "sh_tenant_property_wishlist"
 
@@ -106,7 +107,17 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
           }
         : null
       setTenant(tenantData)
-      if (data?.tenant?.slug) {
+      if (typeof window !== "undefined") {
+        const host = window.location.hostname
+        const onPlatformApex =
+          !getTenantSlugFromHost(host) && !isCustomDomain(host)
+        if (onPlatformApex) {
+          // Never pin a cooperative slug on the SaaS / super-admin host.
+          setTenantSlug(null)
+        } else if (data?.tenant?.slug) {
+          setTenantSlug(data.tenant.slug)
+        }
+      } else if (data?.tenant?.slug) {
         setTenantSlug(data.tenant.slug)
       }
     } catch (err) {
