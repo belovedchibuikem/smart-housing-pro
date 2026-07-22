@@ -465,7 +465,7 @@ export function AdminSidebar({
           <div
             className={cn(
               "grid transition-[grid-template-rows,opacity] duration-200 ease-out",
-              isOpen ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+              isOpen ? "grid-rows-[1fr] opacity-100" : "pointer-events-none grid-rows-[0fr] opacity-0",
             )}
           >
             <div className="overflow-hidden">

@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
+import { usePathname } from "next/navigation"
 import { AdminHeader } from "@/components/admin/admin-header"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
 import { AdminLoadingProvider } from "@/components/admin/admin-loading-context"
@@ -14,6 +15,7 @@ import { persistAuthSession, persistAuthSessionFromStorage } from "@/lib/auth/au
 import { meRequest } from "@/lib/api/client"
 import { getRoleSlug } from "@/lib/auth/user-roles"
 import { useSubscriptionGuard } from "@/lib/hooks/use-subscription"
+import { unlockBodyPointerEvents } from "@/lib/ui/unlock-body"
 import { Loader2 } from "lucide-react"
 
 export default function AdminLayout({
@@ -21,6 +23,7 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode
 }) {
+  const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [userRole, setUserRole] = useState<UserRole>("member")
   const [permissions, setPermissions] = useState<string[]>([])
@@ -28,6 +31,12 @@ export default function AdminLayout({
 
   // Check tenant subscription status and handle redirects
   const { isLoading } = useSubscriptionGuard(true)
+
+  // Clear stuck Radix body locks after route changes (roles/permissions menus, selects).
+  useEffect(() => {
+    unlockBodyPointerEvents()
+    setMobileMenuOpen(false)
+  }, [pathname])
 
   const applyUserToNav = (user: AuthUser) => {
     const slug = getRoleSlug(user)

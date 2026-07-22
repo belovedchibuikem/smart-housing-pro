@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
 import { apiFetch } from "@/lib/api/client"
+import { unlockBodyPointerEvents } from "@/lib/ui/unlock-body"
+import { toast } from "sonner"
 
 interface Permission {
   id: string
@@ -71,8 +73,11 @@ export default function EditPermissionPage() {
           sort_order: form.sort_order,
         },
       })
-      router.push("/admin/permissions")
+      toast.success("Permission updated successfully!")
+      unlockBodyPointerEvents()
+      router.replace("/admin/permissions")
     } catch (e: any) {
+      unlockBodyPointerEvents()
       setError(e.message || "Failed to update permission")
     } finally {
       setSaving(false)

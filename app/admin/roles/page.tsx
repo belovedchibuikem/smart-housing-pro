@@ -319,7 +319,12 @@ export default function RolesPage() {
       </Card>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteRoleId} onOpenChange={() => setDeleteRoleId(null)}>
+      <AlertDialog
+        open={!!deleteRoleId}
+        onOpenChange={(open) => {
+          if (!open) setDeleteRoleId(null)
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -331,11 +336,12 @@ export default function RolesPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => {
-                if (deleteRoleId) {
-                  handleDelete(deleteRoleId)
-                  setDeleteRoleId(null)
-                }
+              onClick={(e) => {
+                e.preventDefault()
+                if (!deleteRoleId) return
+                const id = deleteRoleId
+                setDeleteRoleId(null)
+                void handleDelete(id)
               }}
               className="bg-red-600 hover:bg-red-700"
               disabled={deleteLoading}

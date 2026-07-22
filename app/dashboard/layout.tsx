@@ -11,6 +11,7 @@ import { useSubscriptionGuard } from "@/lib/hooks/use-subscription"
 import { fetchUserProfile } from "@/lib/api/user-profile"
 import { isMemberProfileComplete } from "@/lib/profile/profile-completion"
 import { Loader2 } from "lucide-react"
+import { unlockBodyPointerEvents } from "@/lib/ui/unlock-body"
 
 export default function DashboardLayout({
   children,
@@ -24,6 +25,11 @@ export default function DashboardLayout({
   
   // Check member subscription status and handle redirects
   const { isLoading } = useSubscriptionGuard(false)
+
+  useEffect(() => {
+    unlockBodyPointerEvents()
+    setMobileMenuOpen(false)
+  }, [pathname])
 
   useEffect(() => {
     let cancelled = false

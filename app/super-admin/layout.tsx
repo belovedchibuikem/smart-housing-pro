@@ -1,15 +1,23 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { usePathname } from "next/navigation"
 import { AuthGuard } from "@/lib/tenant/auth-guard"
 import { TenantProvider } from "@/lib/tenant/tenant-context"
 import { SuperAdminHeader } from "@/components/super-admin/super-admin-header"
 import { SuperAdminSidebar } from "@/components/super-admin/super-admin-sidebar"
 import { SuperAdminLoadingProvider } from "@/components/super-admin/super-admin-loading-context"
+import { unlockBodyPointerEvents } from "@/lib/ui/unlock-body"
 
 export default function SuperAdminLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+
+  useEffect(() => {
+    unlockBodyPointerEvents()
+    setMobileMenuOpen(false)
+  }, [pathname])
 
   return (
     <AuthGuard requiredRole="super-admin" redirectTo="/login">

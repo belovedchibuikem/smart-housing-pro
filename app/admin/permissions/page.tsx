@@ -320,7 +320,12 @@ export default function PermissionsPage() {
       </Card>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deletePermissionId} onOpenChange={() => setDeletePermissionId(null)}>
+      <AlertDialog
+        open={!!deletePermissionId}
+        onOpenChange={(open) => {
+          if (!open) setDeletePermissionId(null)
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -332,13 +337,12 @@ export default function PermissionsPage() {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => {
-                if (deletePermissionId) {
-                  // Handle delete permission
-                  toast.success("Permission deleted successfully!")
-                  setDeletePermissionId(null)
-                  refetch()
-                }
+              onClick={(e) => {
+                e.preventDefault()
+                if (!deletePermissionId) return
+                setDeletePermissionId(null)
+                toast.success("Permission deleted successfully!")
+                refetch()
               }}
               className="bg-red-600 hover:bg-red-700"
             >

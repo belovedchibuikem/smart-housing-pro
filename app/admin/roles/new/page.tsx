@@ -16,6 +16,7 @@ import { CreateRoleRequest } from "@/lib/types/role"
 import { toast } from "sonner"
 import Link from "next/link"
 import { Can } from "@/components/admin/can-permission"
+import { unlockBodyPointerEvents } from "@/lib/ui/unlock-body"
 
 export default function NewRolePage() {
   const router = useRouter()
@@ -40,8 +41,10 @@ export default function NewRolePage() {
     try {
       await createRole(formData)
       toast.success("Role created successfully!")
-      router.push('/admin/roles')
+      unlockBodyPointerEvents()
+      router.replace("/admin/roles")
     } catch (error: any) {
+      unlockBodyPointerEvents()
       const payloadErrors = error?.payload?.errors || error?.details?.errors
       if (payloadErrors && typeof payloadErrors === 'object') {
         const normalized: Record<string, string> = {}
@@ -224,18 +227,21 @@ export default function NewRolePage() {
                           </Button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          {group.permissions.map((permission) => (
+                          {group.permissions.map((permission) => {
+                            const inputId = `perm-${permission.id}`
+                            return (
                             <div key={permission.id} className="flex items-center space-x-2">
                               <Checkbox
-                                id={permission.id}
+                                id={inputId}
                                 checked={formData.permissions.includes(permission.name)}
                                 onCheckedChange={(checked) => handlePermissionChange(permission.name, !!checked)}
                               />
-                              <Label htmlFor={permission.id} className="text-sm">
+                              <Label htmlFor={inputId} className="text-sm">
                                 {permission.display_name || permission.label || permission.name}
                               </Label>
                             </div>
-                          ))}
+                            )
+                          })}
                         </div>
                       </div>
                     ))}
