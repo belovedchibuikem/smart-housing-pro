@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, Calendar, DollarSign, Home, User, FileText, CheckCircle2, Clock, Loader2 } from "lucide-react"
+import { ArrowLeft, Calendar, Home, User, FileText, Loader2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -12,12 +12,14 @@ import { useToast } from "@/hooks/use-toast"
 import { getPropertySubscription, generatePropertySubscriptionCertificate } from "@/lib/api/client"
 import { openSubscriptionCertificate } from "@/lib/properties/subscription-certificate"
 import { AdminAssetRepaymentForm } from "@/components/admin/admin-asset-repayment-form"
+import { PropertyDocuments } from "@/components/properties/property-documents"
 
 interface SubscriptionDetail {
   allocation: {
     id: string
     property_id: string
     member_id: string
+    property_slot_id?: string | null
     status: string
     allocation_date: string | null
     unit_address?: string | null
@@ -77,13 +79,15 @@ interface SubscriptionDetail {
   }>
 }
 
+const DETAIL_TABS = ["overview", "payments", "schedule", "documents"] as const
+
 export default function SubscriptionDetailPage() {
   const params = useParams()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { toast } = useToast()
   const allocationId = params.allocationId as string
-  const initialTab = ["overview", "payments", "schedule"].includes(searchParams.get("tab") || "")
+  const initialTab = DETAIL_TABS.includes((searchParams.get("tab") || "") as (typeof DETAIL_TABS)[number])
     ? (searchParams.get("tab") as string)
     : "overview"
   const [activeTab, setActiveTab] = useState(initialTab)
@@ -93,7 +97,7 @@ export default function SubscriptionDetailPage() {
 
   useEffect(() => {
     const tab = searchParams.get("tab")
-    if (tab && ["overview", "payments", "schedule"].includes(tab)) {
+    if (tab && DETAIL_TABS.includes(tab as (typeof DETAIL_TABS)[number])) {
       setActiveTab(tab)
     }
   }, [searchParams])
@@ -109,10 +113,10 @@ export default function SubscriptionDetailPage() {
       if (response.success && response.data) {
         setData(response.data)
       } else {
-        throw new Error('Failed to fetch subscription details')
+        throw new Error("Failed to fetch subscription details")
       }
     } catch (error: any) {
-      console.error('Failed to fetch subscription details:', error)
+      console.error("Failed to fetch subscription details:", error)
       toast({
         title: "Error",
         description: error.message || "Failed to load subscription details",
@@ -138,7 +142,7 @@ export default function SubscriptionDetailPage() {
               : `Pop-ups blocked — certificate ${response.certificate.certificate_number} downloaded as HTML. Open the file to view or print.`,
         })
       } else {
-        throw new Error(response.message || 'Failed to generate certificate')
+        throw new Error(response.message || "Failed to generate certificate")
       }
     } catch (error: unknown) {
       const message =
@@ -180,21 +184,27 @@ export default function SubscriptionDetailPage() {
   }
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-NG', {
-      style: 'currency',
-      currency: 'NGN',
+    return new Intl.NumberFormat("en-NG", {
+      style: "currency",
+      currency: "NGN",
       minimumFractionDigits: 0,
     }).format(amount)
   }
 
   const formatDate = (date: string | null) => {
-    if (!date) return '—'
-    return new Date(date).toLocaleDateString('en-NG', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
+    if (!date) return "—"
+    return new Date(date).toLocaleDateString("en-NG", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     })
   }
+
+  const memberLabel =
+    `${data.member.first_name} ${data.member.last_name}`.trim() ||
+    data.member.member_id ||
+    "Member"
+  const slotLabel = data.allocation.unit_address || data.property.unit_address || "Slot"
 
   return (
     <div className="p-6 space-y-6">
@@ -239,7 +249,9 @@ export default function SubscriptionDetailPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Amount Paid</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(data.payment_summary.amount_paid)}</div>
+            <div className="text-2xl font-bold text-green-600">
+              {formatCurrency(data.payment_summary.amount_paid)}
+            </div>
             <div className="text-xs text-muted-foreground mt-1">
               {data.payment_summary.completion_percentage.toFixed(1)}% completed
             </div>
@@ -250,7 +262,9 @@ export default function SubscriptionDetailPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Remaining Balance</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{formatCurrency(data.payment_summary.balance)}</div>
+            <div className="text-2xl font-bold text-orange-600">
+              {formatCurrency(data.payment_summary.balance)}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -259,13 +273,13 @@ export default function SubscriptionDetailPage() {
         value={activeTab}
         onValueChange={(value) => {
           setActiveTab(value)
-          const params = new URLSearchParams(searchParams.toString())
+          const nextParams = new URLSearchParams(searchParams.toString())
           if (value === "overview") {
-            params.delete("tab")
+            nextParams.delete("tab")
           } else {
-            params.set("tab", value)
+            nextParams.set("tab", value)
           }
-          const qs = params.toString()
+          const qs = nextParams.toString()
           router.replace(qs ? `?${qs}` : "?", { scroll: false })
         }}
         className="space-y-4"
@@ -274,6 +288,7 @@ export default function SubscriptionDetailPage() {
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="payments">Payment History</TabsTrigger>
           <TabsTrigger value="schedule">Payment Schedule</TabsTrigger>
+          <TabsTrigger value="documents">Documents</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
@@ -300,7 +315,11 @@ export default function SubscriptionDetailPage() {
                   {(data.property.property_location || data.property.city || data.property.state) && (
                     <div className="text-sm text-muted-foreground">
                       {data.allocation.unit_address || data.property.unit_address ? (
-                        <>Estate location: {data.property.property_location || [data.property.city, data.property.state].filter(Boolean).join(", ")}</>
+                        <>
+                          Estate location:{" "}
+                          {data.property.property_location ||
+                            [data.property.city, data.property.state].filter(Boolean).join(", ")}
+                        </>
                       ) : (
                         [data.property.city, data.property.state].filter(Boolean).join(", ")
                       )}
@@ -326,7 +345,9 @@ export default function SubscriptionDetailPage() {
                     <div className="text-sm text-muted-foreground mb-2">Features</div>
                     <div className="flex flex-wrap gap-2">
                       {data.property.features.map((feature, index) => (
-                        <Badge key={index} variant="secondary">{feature}</Badge>
+                        <Badge key={index} variant="secondary">
+                          {feature}
+                        </Badge>
                       ))}
                     </div>
                   </div>
@@ -350,7 +371,9 @@ export default function SubscriptionDetailPage() {
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Member Number</div>
-                  <div className="font-medium">{data.member.member_id || data.member.staff_id || '—'}</div>
+                  <div className="font-medium">
+                    {data.member.member_id || data.member.staff_id || "—"}
+                  </div>
                 </div>
                 {data.member.email && (
                   <div>
@@ -373,7 +396,7 @@ export default function SubscriptionDetailPage() {
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">Status</div>
-                  <Badge variant={data.allocation.status === 'approved' ? 'default' : 'secondary'}>
+                  <Badge variant={data.allocation.status === "approved" ? "default" : "secondary"}>
                     {data.allocation.status}
                   </Badge>
                 </div>
@@ -391,7 +414,9 @@ export default function SubscriptionDetailPage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
                     <div className="text-sm text-muted-foreground">Plan Status</div>
-                    <Badge variant={data.payment_plan.status === 'completed' ? 'default' : 'secondary'}>
+                    <Badge
+                      variant={data.payment_plan.status === "completed" ? "default" : "secondary"}
+                    >
                       {data.payment_plan.status}
                     </Badge>
                   </div>
@@ -401,23 +426,28 @@ export default function SubscriptionDetailPage() {
                   </div>
                   <div>
                     <div className="text-sm text-muted-foreground">Remaining Balance</div>
-                    <div className="font-medium">{formatCurrency(data.payment_plan.remaining_balance)}</div>
+                    <div className="font-medium">
+                      {formatCurrency(data.payment_plan.remaining_balance)}
+                    </div>
                   </div>
                   <div>
                     <div className="text-sm text-muted-foreground">Funding Option</div>
                     <div className="font-medium capitalize">{data.payment_plan.funding_option}</div>
                   </div>
                 </div>
-                {data.payment_plan.selected_methods && data.payment_plan.selected_methods.length > 0 && (
-                  <div>
-                    <div className="text-sm text-muted-foreground mb-2">Payment Methods</div>
-                    <div className="flex flex-wrap gap-2">
-                      {data.payment_plan.selected_methods.map((method, index) => (
-                        <Badge key={index} variant="outline">{method}</Badge>
-                      ))}
+                {data.payment_plan.selected_methods &&
+                  data.payment_plan.selected_methods.length > 0 && (
+                    <div>
+                      <div className="text-sm text-muted-foreground mb-2">Payment Methods</div>
+                      <div className="flex flex-wrap gap-2">
+                        {data.payment_plan.selected_methods.map((method, index) => (
+                          <Badge key={index} variant="outline">
+                            {method}
+                          </Badge>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
               </CardContent>
             </Card>
           )}
@@ -464,11 +494,17 @@ export default function SubscriptionDetailPage() {
                     {data.payment_history.map((payment) => (
                       <TableRow key={payment.id}>
                         <TableCell>{formatDate(payment.paid_at)}</TableCell>
-                        <TableCell className="font-medium">{formatCurrency(payment.amount)}</TableCell>
+                        <TableCell className="font-medium">
+                          {formatCurrency(payment.amount)}
+                        </TableCell>
                         <TableCell className="capitalize">{payment.source}</TableCell>
-                        <TableCell className="font-mono text-xs">{payment.reference || payment.payment_reference || '—'}</TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {payment.reference || payment.payment_reference || "—"}
+                        </TableCell>
                         <TableCell>
-                          <Badge variant={payment.status === 'completed' ? 'default' : 'secondary'}>
+                          <Badge
+                            variant={payment.status === "completed" ? "default" : "secondary"}
+                          >
                             {payment.status}
                           </Badge>
                         </TableCell>
@@ -488,7 +524,9 @@ export default function SubscriptionDetailPage() {
               <CardDescription>Upcoming and completed payment schedule</CardDescription>
             </CardHeader>
             <CardContent>
-              {data.payment_plan && data.payment_plan.schedule && data.payment_plan.schedule.length > 0 ? (
+              {data.payment_plan &&
+              data.payment_plan.schedule &&
+              data.payment_plan.schedule.length > 0 ? (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -500,11 +538,17 @@ export default function SubscriptionDetailPage() {
                   <TableBody>
                     {data.payment_plan.schedule.map((scheduleItem: any, index: number) => (
                       <TableRow key={index}>
-                        <TableCell>{formatDate(scheduleItem.due_date || scheduleItem.date)}</TableCell>
-                        <TableCell className="font-medium">{formatCurrency(scheduleItem.amount || 0)}</TableCell>
                         <TableCell>
-                          <Badge variant={scheduleItem.status === 'paid' ? 'default' : 'secondary'}>
-                            {scheduleItem.status || 'Pending'}
+                          {formatDate(scheduleItem.due_date || scheduleItem.date)}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {formatCurrency(scheduleItem.amount || 0)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={scheduleItem.status === "paid" ? "default" : "secondary"}
+                          >
+                            {scheduleItem.status || "Pending"}
                           </Badge>
                         </TableCell>
                       </TableRow>
@@ -519,8 +563,27 @@ export default function SubscriptionDetailPage() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        <TabsContent value="documents" className="space-y-4">
+          <PropertyDocuments
+            propertyId={data.property.id}
+            canUpload
+            allowDelete
+            role="admin"
+            memberId={data.member.id}
+            propertySlotId={data.allocation.property_slot_id ?? null}
+            propertyAllocationId={data.allocation.id}
+            memberOptions={[
+              {
+                id: data.member.id,
+                label: memberLabel,
+              },
+            ]}
+            title={`${slotLabel} documents`}
+            description="Upload and view documents for this subscription / slot allottee account."
+          />
+        </TabsContent>
       </Tabs>
     </div>
   )
 }
-

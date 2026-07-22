@@ -1679,8 +1679,10 @@ export async function getPropertySubscription(allocationId: string) {
 				id: string
 				property_id: string
 				member_id: string
+				property_slot_id?: string | null
 				status: string
 				allocation_date: string | null
+				unit_address?: string | null
 				notes: string | null
 				created_at: string
 			}

@@ -17,6 +17,13 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast } from "sonner"
@@ -322,12 +329,9 @@ export function PropertyOwnershipPanel({ assetType, assetId }: PropertyOwnership
           total: response.data.total_slots,
           available: response.data.slots_available,
         })
-        setSelectedSlotId((prev) => {
-          if (prev && list.some((slot) => slot.id === prev)) return prev
-          const preferred =
-            list.find((slot) => slot.status === "held" || slot.status === "sold") ?? list[0] ?? null
-          return preferred?.id ?? null
-        })
+        setSelectedSlotId((prev) =>
+          prev && list.some((slot) => slot.id === prev) ? prev : null
+        )
         if (list.length === 0) {
           // Fall back to asset-level ownership when no slots inventory exists
           try {
@@ -592,7 +596,7 @@ export function PropertyOwnershipPanel({ assetType, assetId }: PropertyOwnership
             Slot inventory
           </CardTitle>
           <CardDescription>
-            Ownership is tracked per slot. Select a slot to view its tenure timeline.
+            Ownership is tracked per slot. Open a slot to view tenure, timeline, and documents.
             {slotsMeta.total != null
               ? ` ${slotsMeta.available ?? 0} of ${slotsMeta.total} slots available.`
               : ""}
@@ -663,7 +667,7 @@ export function PropertyOwnershipPanel({ assetType, assetId }: PropertyOwnership
                         variant={isSelected ? "default" : "outline"}
                         onClick={() => setSelectedSlotId(slot.id)}
                       >
-                        {isSelected ? "Selected" : "View history"}
+                        {isSelected ? "Open" : "View details"}
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -674,142 +678,151 @@ export function PropertyOwnershipPanel({ assetType, assetId }: PropertyOwnership
         </CardContent>
       </Card>
 
-      {selectedSlot ? (
-        <>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <User className="h-4 w-4" />
-                {selectedSlot.label}
-                <Badge variant="outline" className="capitalize font-normal">
-                  #{selectedSlot.slot_number}
-                </Badge>
-              </CardTitle>
-              <CardDescription>
-                Current tenure and payment for this slot.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingOwnership ? (
-                <Skeleton className="h-24 w-full" />
-              ) : slotOwnership?.current_tenure ? (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                  <div className="rounded-lg border bg-muted/30 p-4">
-                    <p className="text-xs text-muted-foreground">Sale price</p>
-                    <p className="text-xl font-bold">
-                      {formatMoney(
-                        (slotOwnership.current_tenure.sale_price as number | undefined) ??
-                          selectedSlot.sale_price
-                      )}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border bg-muted/30 p-4">
-                    <p className="text-xs text-muted-foreground">Amount paid</p>
-                    <p className="text-xl font-bold">
-                      {formatMoney(
-                        (slotOwnership.current_tenure.amount_paid as number | undefined) ??
-                          selectedSlot.amount_paid
-                      )}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border bg-muted/30 p-4">
-                    <p className="text-xs text-muted-foreground">Outstanding</p>
-                    <p className="text-xl font-bold">
-                      {formatMoney(
-                        (slotOwnership.current_tenure.outstanding as number | undefined) ??
-                          selectedSlot.outstanding
-                      )}
-                    </p>
-                  </div>
-                  <div className="rounded-lg border bg-muted/30 p-4">
-                    <p className="text-xs text-muted-foreground">Progress</p>
-                    <p className="text-xl font-bold">
-                      {Math.round(
-                        Number(
-                          slotOwnership.current_tenure.payment_progress_percent ??
-                            selectedSlot.payment_progress_percent ??
-                            0
-                        )
-                      )}
-                      %
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">This slot is currently vacant.</p>
-              )}
+      <Dialog
+        open={Boolean(selectedSlot)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedSlotId(null)
+        }}
+      >
+        <DialogContent className="flex max-h-[92vh] w-[min(96vw,72rem)] max-w-6xl flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl">
+          {selectedSlot ? (
+            <>
+              <DialogHeader className="shrink-0 border-b px-6 py-4 pr-12 text-left">
+                <DialogTitle className="flex flex-wrap items-center gap-2">
+                  <User className="h-4 w-4" />
+                  {selectedSlot.label}
+                  <Badge variant="outline" className="capitalize font-normal">
+                    #{selectedSlot.slot_number}
+                  </Badge>
+                </DialogTitle>
+                <DialogDescription>
+                  Tenure, ownership timeline, and documents for this slot.
+                </DialogDescription>
+              </DialogHeader>
 
-              {currentOwners.length > 0 ? (
-                <div className="mt-4 space-y-3">
-                  {currentOwners.map((owner) => (
-                    <div
-                      key={owner.allocation_id ?? owner.subscription_id ?? owner.member_id}
-                      className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3"
-                    >
-                      <div>
-                        <HandBadge entry={owner} />
-                        <p className="mt-1 font-semibold">{owner.owner_name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          Since {formatDate(owner.started_date)}
-                          {owner.member_number ? ` · ${owner.member_number}` : ""}
+              <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5">
+                <section className="space-y-3">
+                  <h3 className="text-sm font-semibold">Current tenure and payment</h3>
+                  {loadingOwnership ? (
+                    <Skeleton className="h-24 w-full" />
+                  ) : slotOwnership?.current_tenure ? (
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                      <div className="rounded-lg border bg-muted/30 p-4">
+                        <p className="text-xs text-muted-foreground">Sale price</p>
+                        <p className="text-xl font-bold">
+                          {formatMoney(
+                            (slotOwnership.current_tenure.sale_price as number | undefined) ??
+                              selectedSlot.sale_price
+                          )}
                         </p>
                       </div>
-                      {owner.member_id ? (
-                        <Button variant="outline" size="sm" asChild>
-                          <Link href={`/admin/members/${owner.member_id}`}>Member record</Link>
-                        </Button>
-                      ) : null}
+                      <div className="rounded-lg border bg-muted/30 p-4">
+                        <p className="text-xs text-muted-foreground">Amount paid</p>
+                        <p className="text-xl font-bold">
+                          {formatMoney(
+                            (slotOwnership.current_tenure.amount_paid as number | undefined) ??
+                              selectedSlot.amount_paid
+                          )}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border bg-muted/30 p-4">
+                        <p className="text-xs text-muted-foreground">Outstanding</p>
+                        <p className="text-xl font-bold">
+                          {formatMoney(
+                            (slotOwnership.current_tenure.outstanding as number | undefined) ??
+                              selectedSlot.outstanding
+                          )}
+                        </p>
+                      </div>
+                      <div className="rounded-lg border bg-muted/30 p-4">
+                        <p className="text-xs text-muted-foreground">Progress</p>
+                        <p className="text-xl font-bold">
+                          {Math.round(
+                            Number(
+                              slotOwnership.current_tenure.payment_progress_percent ??
+                                selectedSlot.payment_progress_percent ??
+                                0
+                            )
+                          )}
+                          %
+                        </p>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">This slot is currently vacant.</p>
+                  )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <History className="h-5 w-5" />
-                Slot ownership timeline
-              </CardTitle>
-              <CardDescription>
-                Chronological chain for {selectedSlot.label} only.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingOwnership ? (
-                <Skeleton className="h-40 w-full" />
-              ) : (
-                <TimelineList timeline={timeline} />
-              )}
-            </CardContent>
-          </Card>
+                  {currentOwners.length > 0 ? (
+                    <div className="space-y-3">
+                      {currentOwners.map((owner) => (
+                        <div
+                          key={owner.allocation_id ?? owner.subscription_id ?? owner.member_id}
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3"
+                        >
+                          <div>
+                            <HandBadge entry={owner} />
+                            <p className="mt-1 font-semibold">{owner.owner_name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Since {formatDate(owner.started_date)}
+                              {owner.member_number ? ` · ${owner.member_number}` : ""}
+                            </p>
+                          </div>
+                          {owner.member_id ? (
+                            <Button variant="outline" size="sm" asChild>
+                              <Link href={`/admin/members/${owner.member_id}`}>Member record</Link>
+                            </Button>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </section>
 
-          {assetType === "house" ? (
-            <PropertyDocuments
-              propertyId={assetId}
-              canUpload
-              allowDelete
-              role="admin"
-              propertySlotId={selectedSlot.id}
-              propertyAllocationId={
-                (slotOwnership?.current_tenure?.allocation_id as string | undefined) ??
-                (currentOwners[0]?.allocation_id as string | undefined) ??
-                null
-              }
-              memberId={currentOwners[0]?.member_id ?? null}
-              memberOptions={currentOwners
-                .filter((o) => o.member_id)
-                .map((o) => ({
-                  id: o.member_id as string,
-                  label: o.owner_name || o.member_number || "Member",
-                }))}
-              title={`${selectedSlot.label} documents`}
-              description="Upload and view documents for this slot / block and its allottee account."
-            />
+                <section className="space-y-3">
+                  <div>
+                    <h3 className="flex items-center gap-2 text-sm font-semibold">
+                      <History className="h-4 w-4" />
+                      Slot ownership timeline
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Chronological chain for {selectedSlot.label} only.
+                    </p>
+                  </div>
+                  {loadingOwnership ? (
+                    <Skeleton className="h-40 w-full" />
+                  ) : (
+                    <TimelineList timeline={timeline} />
+                  )}
+                </section>
+
+                {assetType === "house" ? (
+                  <PropertyDocuments
+                    propertyId={assetId}
+                    canUpload
+                    allowDelete
+                    role="admin"
+                    propertySlotId={selectedSlot.id}
+                    propertyAllocationId={
+                      (slotOwnership?.current_tenure?.allocation_id as string | undefined) ??
+                      (currentOwners[0]?.allocation_id as string | undefined) ??
+                      null
+                    }
+                    memberId={currentOwners[0]?.member_id ?? null}
+                    memberOptions={currentOwners
+                      .filter((o) => o.member_id)
+                      .map((o) => ({
+                        id: o.member_id as string,
+                        label: o.owner_name || o.member_number || "Member",
+                      }))}
+                    title={`${selectedSlot.label} documents`}
+                    description="Upload and view documents for this slot / block and its allottee account."
+                  />
+                ) : null}
+              </div>
+            </>
           ) : null}
-        </>
-      ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -327,7 +327,7 @@ export default function MemberHouseAccountPage() {
 					role="member"
 					memberId={undefined}
 					propertySlotId={row.property_slot_id ?? null}
-					propertyAllocationId={row.allocation_id || allocationId}
+					propertyAllocationId={row.allocation_id || row.id || allocationId}
 					title={`${row.slot_label || "Slot"} documents`}
 					description="View and upload documents for your property slot / block."
 				/>
