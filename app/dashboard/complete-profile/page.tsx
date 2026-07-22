@@ -44,18 +44,34 @@ export default function CompleteProfilePage() {
 
 	return (
 		<div className="mx-auto max-w-5xl space-y-6">
-			<div>
-				<h1 className="text-3xl font-bold">Complete your profile</h1>
-				<p className="mt-1 text-muted-foreground">
-					Add your profile details once so you can unlock all member experiences.
-				</p>
+			<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+				<div>
+					<h1 className="text-3xl font-bold">Complete your profile</h1>
+					<p className="mt-1 text-muted-foreground">
+						Add your details when you can. You can skip this and use your account now, then finish later.
+					</p>
+				</div>
+				<Button
+					variant="outline"
+					onClick={() => {
+						try {
+							window.sessionStorage.setItem("member_profile_completion_banner_dismissed", "1")
+						} catch {
+							/* ignore */
+						}
+						router.push("/dashboard")
+					}}
+				>
+					Skip for now
+				</Button>
 			</div>
 
 			<Card>
 				<CardHeader>
 					<CardTitle>Profile completion</CardTitle>
 					<CardDescription>
-						{completion.completedCount} of {completion.totalCount} sections complete
+						{completion.completedCount} of {completion.totalCount} sections complete — optional until you need
+						them for some services
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
@@ -85,6 +101,24 @@ export default function CompleteProfilePage() {
 								</Button>
 							)
 						})}
+					</div>
+					<div className="flex flex-wrap gap-2 border-t pt-4">
+						<Button
+							variant="secondary"
+							onClick={() => {
+								try {
+									window.sessionStorage.setItem("member_profile_completion_banner_dismissed", "1")
+								} catch {
+									/* ignore */
+								}
+								router.push("/dashboard")
+							}}
+						>
+							Continue to dashboard
+						</Button>
+						<p className="self-center text-xs text-muted-foreground">
+							You can return anytime from Profile → Complete profile.
+						</p>
 					</div>
 				</CardContent>
 			</Card>

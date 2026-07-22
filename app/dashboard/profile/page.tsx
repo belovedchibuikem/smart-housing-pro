@@ -46,9 +46,14 @@ export default function ProfilePage() {
 
   return (
 		<div className="mx-auto max-w-5xl space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">My Profile</h1>
-				<p className="mt-1 text-muted-foreground">Manage your personal information and account settings</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">My Profile</h1>
+          <p className="mt-1 text-muted-foreground">Manage your personal information and account settings</p>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/dashboard/complete-profile">Complete profile wizard</Link>
+        </Button>
       </div>
 
 			{error ? (
