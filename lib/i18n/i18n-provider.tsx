@@ -54,6 +54,13 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
       try {
         const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null
         if (!token) return
+        // Cooperative member locale only — never call /user/settings as platform SuperAdmin.
+        const { isPlatformApexHost, isPlatformSuperAdminSession } = await import(
+          "@/lib/auth/platform-host"
+        )
+        if (isPlatformApexHost() || isPlatformSuperAdminSession()) return
+        if (window.location.pathname.startsWith("/super-admin")) return
+
         const res = await getUserSettings()
         if (cancelled || !res.success || !res.settings?.language) return
         const next = normalizeLocale(res.settings.language as string)

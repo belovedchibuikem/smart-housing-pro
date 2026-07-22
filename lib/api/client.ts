@@ -6,6 +6,10 @@ import {
 	clearSessionTimeout,
 	touchSessionActivity,
 } from "@/lib/auth/session-timeout"
+import {
+	isPlatformSuperAdminSession,
+	isTenantScopedApiPath,
+} from "@/lib/auth/platform-host"
 
 // Lightweight API client for browser-side requests
 
@@ -278,6 +282,16 @@ export async function apiFetch<T = unknown>(
 				})
 
 				if (response.status === 401 && !isAuthExemptPath(path)) {
+					// Platform super-admin tokens are not valid on cooperative routes.
+					// Never wipe the SuperAdmin session because a root layout provider
+					// probed /admin/settings or /user/settings on www.
+					if (isPlatformSuperAdminSession() && isTenantScopedApiPath(path)) {
+						const userMessage = extractUserFacingApiError(data, response.status)
+						const error = new Error(finalizeUserErrorMessage(userMessage, response.status))
+						;(error as Error & { status?: number; payload?: unknown }).status = response.status
+						;(error as Error & { status?: number; payload?: unknown }).payload = data
+						throw error
+					}
 					const code =
 						data && typeof data === "object" && "code" in data
 							? String((data as { code?: unknown }).code || "session")

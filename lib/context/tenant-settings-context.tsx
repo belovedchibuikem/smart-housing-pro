@@ -1,6 +1,7 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
+import { isPlatformApexHost, isPlatformSuperAdminSession } from "@/lib/auth/platform-host"
 
 interface TenantSettings {
   site_name?: string
@@ -24,14 +25,20 @@ interface TenantSettingsContextType {
 const TenantSettingsContext = createContext<TenantSettingsContextType | undefined>(undefined)
 
 const defaultSettings: TenantSettings = {
-  site_name: "FRSC Housing Management",
-  site_email: "housing20000@frsc.gov.ng",
-  support_email: "frschousingcooperative@gmail.com",
+  site_name: "Smart Housing",
+  site_email: "",
+  support_email: "",
   default_currency: "NGN",
   timezone: "Africa/Lagos",
   maintenance_mode: false,
   allow_registration: true,
   require_email_verification: true,
+}
+
+const platformSettings: TenantSettings = {
+  ...defaultSettings,
+  site_name: "Smart Housing",
+  allow_registration: false,
 }
 
 export function TenantSettingsProvider({ children }: { children: ReactNode }) {
@@ -40,9 +47,16 @@ export function TenantSettingsProvider({ children }: { children: ReactNode }) {
 
   const fetchSettings = async () => {
     try {
+      // Platform apex / super-admin must not hit cooperative /admin/settings
+      // (that 401 was wiping the SuperAdmin session after a successful login).
+      if (isPlatformApexHost() || isPlatformSuperAdminSession()) {
+        setSettings(platformSettings)
+        return
+      }
+
       const { apiFetch } = await import("@/lib/api/client")
       const data = await apiFetch<{ success: boolean; settings: TenantSettings }>("/admin/settings")
-      
+
       if (data.success && data.settings) {
         setSettings(data.settings)
       } else {
@@ -57,17 +71,16 @@ export function TenantSettingsProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    fetchSettings()
-    
-    // Listen for settings updates
+    void fetchSettings()
+
     const handleSettingsUpdate = () => {
-      fetchSettings()
+      void fetchSettings()
     }
-    
-    window.addEventListener('tenant-settings-updated', handleSettingsUpdate)
-    
+
+    window.addEventListener("tenant-settings-updated", handleSettingsUpdate)
+
     return () => {
-      window.removeEventListener('tenant-settings-updated', handleSettingsUpdate)
+      window.removeEventListener("tenant-settings-updated", handleSettingsUpdate)
     }
   }, [])
 
@@ -90,7 +103,6 @@ export function TenantSettingsProvider({ children }: { children: ReactNode }) {
 export function useTenantSettings() {
   const context = useContext(TenantSettingsContext)
   if (context === undefined) {
-    // Return default context if not in provider (for public pages)
     return {
       settings: defaultSettings,
       loading: false,
@@ -102,4 +114,3 @@ export function useTenantSettings() {
 }
 
 export type { TenantSettings, TenantSettingsContextType }
-

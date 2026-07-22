@@ -91,6 +91,16 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(true)
       setError(null)
 
+      // Platform apex is not a cooperative — skip tenant/current (was binding FRSC via stale slug).
+      if (typeof window !== "undefined") {
+        const host = window.location.hostname
+        if (!getTenantSlugFromHost(host) && !isCustomDomain(host)) {
+          setTenant(null)
+          setTenantSlug(null)
+          return
+        }
+      }
+
       // Fetch current tenant based on domain/subdomain
       const response = await fetch("/api/tenant/current")
 
@@ -107,18 +117,10 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
           }
         : null
       setTenant(tenantData)
-      if (typeof window !== "undefined") {
-        const host = window.location.hostname
-        const onPlatformApex =
-          !getTenantSlugFromHost(host) && !isCustomDomain(host)
-        if (onPlatformApex) {
-          // Never pin a cooperative slug on the SaaS / super-admin host.
-          setTenantSlug(null)
-        } else if (data?.tenant?.slug) {
-          setTenantSlug(data.tenant.slug)
-        }
-      } else if (data?.tenant?.slug) {
+      if (data?.tenant?.slug) {
         setTenantSlug(data.tenant.slug)
+      } else {
+        setTenantSlug(null)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error")
