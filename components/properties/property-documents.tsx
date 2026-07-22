@@ -15,9 +15,8 @@ import {
 	type PropertyDocument,
 	uploadPropertyDocument,
 } from "@/lib/api/client"
+import { SearchableSelect, type SearchableSelectOption } from "@/components/ui/searchable-select"
 import { Loader2, Trash2, Upload, FileText } from "lucide-react"
-
-const ALL_MEMBERS_VALUE = "__all_members__"
 
 const documentTypeOptions = [
 	{ value: "eoi", label: "Expression of Interest" },
@@ -32,8 +31,13 @@ export interface PropertyDocumentsProps {
 	canUpload?: boolean
 	allowDelete?: boolean
 	memberId?: string | null
+	/** Prefill / filter by slot (block) */
+	propertySlotId?: string | null
+	propertyAllocationId?: string | null
 	memberOptions?: Array<{ id: string; label: string }>
 	role?: "member" | "admin"
+	title?: string
+	description?: string
 }
 
 export function PropertyDocuments({
@@ -41,8 +45,12 @@ export function PropertyDocuments({
 	canUpload = false,
 	allowDelete = false,
 	memberId,
+	propertySlotId = null,
+	propertyAllocationId = null,
 	memberOptions = [],
 	role = "member",
+	title: sectionTitle = "Property Documents",
+	description: sectionDescription,
 }: PropertyDocumentsProps) {
 	const { toast } = useToast()
 	const [documents, setDocuments] = useState<PropertyDocument[]>([])
@@ -51,17 +59,37 @@ export function PropertyDocuments({
 	const [file, setFile] = useState<File | null>(null)
 	const [title, setTitle] = useState("")
 	const [documentType, setDocumentType] = useState<string>("other")
-	const [selectedMember, setSelectedMember] = useState<string>(memberId ?? ALL_MEMBERS_VALUE)
+	const [selectedMember, setSelectedMember] = useState<string>(memberId ?? "")
+
+	useEffect(() => {
+		setSelectedMember(memberId ?? "")
+	}, [memberId])
 
 	useEffect(() => {
 		void loadDocuments()
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [propertyId])
+	}, [propertyId, propertySlotId, propertyAllocationId, memberId])
+
+	const memberSearchOptions: SearchableSelectOption[] = useMemo(
+		() =>
+			memberOptions.map((option) => ({
+				value: option.id,
+				label: option.label,
+				description: option.id,
+				searchText: option.label,
+			})),
+		[memberOptions]
+	)
 
 	const loadDocuments = async () => {
 		try {
 			setLoading(true)
-			const response = await getPropertyDocuments(propertyId, { per_page: 50 })
+			const response = await getPropertyDocuments(propertyId, {
+				per_page: 50,
+				member_id: role === "admin" ? memberId || undefined : undefined,
+				property_slot_id: propertySlotId || undefined,
+				property_allocation_id: propertyAllocationId || undefined,
+			})
 			if (response.success) {
 				setDocuments(response.data ?? [])
 			}
@@ -92,8 +120,15 @@ export function PropertyDocuments({
 			setUploading(true)
 			const formData = new FormData()
 			formData.append("property_id", propertyId)
-			if (role === "admin" && selectedMember && selectedMember !== ALL_MEMBERS_VALUE) {
-				formData.append("member_id", selectedMember)
+			const assignMember = role === "admin" ? selectedMember || memberId : memberId
+			if (assignMember) {
+				formData.append("member_id", assignMember)
+			}
+			if (propertySlotId) {
+				formData.append("property_slot_id", propertySlotId)
+			}
+			if (propertyAllocationId) {
+				formData.append("property_allocation_id", propertyAllocationId)
 			}
 			formData.append("title", title.trim() || file.name)
 			if (documentType) {
@@ -114,7 +149,7 @@ export function PropertyDocuments({
 
 			toast({
 				title: "Document uploaded",
-				description: "The document is now available in the repository.",
+				description: "The document is now available for this property / slot.",
 			})
 
 			setFile(null)
@@ -181,13 +216,15 @@ export function PropertyDocuments({
 		return "System Document"
 	}
 
+	const lockMemberPicker = Boolean(memberId && propertySlotId)
+
 	return (
 		<Card>
 			<CardHeader>
-				<CardTitle>Property Documents</CardTitle>
+				<CardTitle>{sectionTitle}</CardTitle>
 				<CardDescription>
-					Access all files linked to this property: expression of interest, payment proofs, mortgage agreements, completion
-					certificates, and more.
+					{sectionDescription ||
+						"Access files linked to this property or slot: payment proofs, agreements, certificates, and more."}
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="space-y-6">
@@ -218,22 +255,24 @@ export function PropertyDocuments({
 									</SelectContent>
 								</Select>
 							</div>
-							{role === "admin" && memberOptions.length > 0 && (
-								<div className="space-y-2">
-									<Label htmlFor="member-select">Assign to Member (optional)</Label>
-									<Select value={selectedMember} onValueChange={setSelectedMember}>
-										<SelectTrigger id="member-select">
-											<SelectValue placeholder="Select member" />
-										</SelectTrigger>
-									<SelectContent>
-										<SelectItem value={ALL_MEMBERS_VALUE}>All Members</SelectItem>
-										{memberOptions.map((option) => (
-												<SelectItem key={option.id} value={option.id}>
-													{option.label}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
+							{role === "admin" && memberSearchOptions.length > 0 && !lockMemberPicker && (
+								<div className="space-y-2 md:col-span-2">
+									<Label>Assign to Member (optional)</Label>
+									<SearchableSelect
+										options={memberSearchOptions}
+										value={selectedMember}
+										onValueChange={setSelectedMember}
+										placeholder="Search member by name or number…"
+										searchPlaceholder="Type to search members…"
+										emptyText="No matching members."
+										allowEmpty
+										emptyValueLabel="All members / property-wide"
+									/>
+								</div>
+							)}
+							{role === "admin" && lockMemberPicker && memberId && (
+								<div className="space-y-2 md:col-span-2 text-sm text-muted-foreground">
+									Uploading to the current slot allottee account.
 								</div>
 							)}
 						</div>
@@ -292,9 +331,20 @@ export function PropertyDocuments({
 													{document.document_type.replace(/_/g, " ")}
 												</Badge>
 											)}
+											{document.slot_label && (
+												<Badge variant="outline">{document.slot_label}</Badge>
+											)}
 										</div>
 										{document.description && (
 											<p className="text-muted-foreground">{document.description}</p>
+										)}
+										{document.member?.user && (
+											<p className="text-xs text-muted-foreground">
+												Member:{" "}
+												{`${document.member.user.first_name ?? ""} ${document.member.user.last_name ?? ""}`.trim() ||
+													document.member.member_number ||
+													"Assigned"}
+											</p>
 										)}
 										<div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
 											<span>{renderUploaderInfo(document)}</span>
@@ -313,10 +363,9 @@ export function PropertyDocuments({
 													rel="noopener noreferrer"
 													className="font-medium text-primary hover:underline"
 												>
-													Download
+													View / Download
 												</a>
 											)}
-											{document.metadata?.notes && <span>Notes: {document.metadata.notes}</span>}
 										</div>
 									</div>
 								</div>
@@ -338,5 +387,3 @@ export function PropertyDocuments({
 		</Card>
 	)
 }
-
-

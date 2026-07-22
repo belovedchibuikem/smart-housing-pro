@@ -33,6 +33,7 @@ import {
   type PropertyOwnershipOwnerEntry,
   type PropertyOwnershipTimelineEntry,
 } from "@/lib/api/client"
+import { PropertyDocuments } from "@/components/properties/property-documents"
 
 interface PropertyOwnershipPanelProps {
   assetType: "house" | "land"
@@ -783,6 +784,30 @@ export function PropertyOwnershipPanel({ assetType, assetId }: PropertyOwnership
               )}
             </CardContent>
           </Card>
+
+          {assetType === "house" ? (
+            <PropertyDocuments
+              propertyId={assetId}
+              canUpload
+              allowDelete
+              role="admin"
+              propertySlotId={selectedSlot.id}
+              propertyAllocationId={
+                (slotOwnership?.current_tenure?.allocation_id as string | undefined) ??
+                (currentOwners[0]?.allocation_id as string | undefined) ??
+                null
+              }
+              memberId={currentOwners[0]?.member_id ?? null}
+              memberOptions={currentOwners
+                .filter((o) => o.member_id)
+                .map((o) => ({
+                  id: o.member_id as string,
+                  label: o.owner_name || o.member_number || "Member",
+                }))}
+              title={`${selectedSlot.label} documents`}
+              description="Upload and view documents for this slot / block and its allottee account."
+            />
+          ) : null}
         </>
       ) : null}
     </div>

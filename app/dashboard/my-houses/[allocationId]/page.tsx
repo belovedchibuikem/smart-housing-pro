@@ -27,6 +27,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, Loader2, Upload } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { PropertyDocuments } from "@/components/properties/property-documents"
 
 export default function MemberHouseAccountPage() {
 	const params = useParams()
@@ -317,6 +318,20 @@ export default function MemberHouseAccountPage() {
 					)}
 				</CardContent>
 			</Card>
+
+			{row.property_id ? (
+				<PropertyDocuments
+					propertyId={row.property_id}
+					canUpload
+					allowDelete={false}
+					role="member"
+					memberId={undefined}
+					propertySlotId={row.property_slot_id ?? null}
+					propertyAllocationId={row.allocation_id || allocationId}
+					title={`${row.slot_label || "Slot"} documents`}
+					description="View and upload documents for your property slot / block."
+				/>
+			) : null}
 
 			<Card>
 				<CardHeader>

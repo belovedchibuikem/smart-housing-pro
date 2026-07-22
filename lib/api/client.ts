@@ -932,6 +932,9 @@ export interface PropertyDocument {
 	id: string
 	property_id: string
 	member_id?: string | null
+	property_slot_id?: string | null
+	property_allocation_id?: string | null
+	slot_label?: string | null
 	uploaded_by: string
 	uploaded_by_role: "member" | "admin" | "system"
 	title: string
@@ -949,6 +952,15 @@ export interface PropertyDocument {
 		first_name?: string | null
 		last_name?: string | null
 		email?: string | null
+	} | null
+	member?: {
+		id: string
+		member_number?: string | null
+		user?: {
+			first_name?: string | null
+			last_name?: string | null
+			email?: string | null
+		} | null
 	} | null
 	metadata?: Record<string, unknown> | null
 }
@@ -1441,10 +1453,26 @@ export async function getPropertyPaymentSetup(propertyId: string, allocationId?:
 	)
 }
 
-export async function getPropertyDocuments(propertyId: string, params?: { page?: number; per_page?: number }) {
+export async function getPropertyDocuments(
+	propertyId: string,
+	params?: {
+		page?: number
+		per_page?: number
+		member_id?: string
+		property_slot_id?: string
+		property_allocation_id?: string
+		document_type?: string
+		search?: string
+	}
+) {
 	const query = new URLSearchParams()
 	if (params?.page) query.set("page", String(params.page))
 	if (params?.per_page) query.set("per_page", String(params.per_page))
+	if (params?.member_id) query.set("member_id", params.member_id)
+	if (params?.property_slot_id) query.set("property_slot_id", params.property_slot_id)
+	if (params?.property_allocation_id) query.set("property_allocation_id", params.property_allocation_id)
+	if (params?.document_type) query.set("document_type", params.document_type)
+	if (params?.search) query.set("search", params.search)
 
 	return apiFetch<{
 		success: boolean
