@@ -348,7 +348,8 @@ export function usePermissionStats() {
         total_permissions: total,
         active_permissions: active,
         inactive_permissions: Math.max(total - active, 0),
-        groups_count: groups.size,
+        permissions_in_use: list.filter((p: any) => Boolean((p as any).is_in_use)).length,
+        total_groups: groups.size,
       })
     } catch (err: any) {
       setError(err.message || 'Failed to fetch permission stats')
