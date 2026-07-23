@@ -486,6 +486,11 @@ export default function AdminPropertiesPage() {
                   <Link href="/admin/bulk-upload/property-payments">Bulk house repayments</Link>
                 </DropdownMenuItem>
               </Can>
+              <Can permission="manage_property_allottees|manage_payments">
+                <DropdownMenuItem asChild>
+                  <Link href="/admin/bulk-upload/equity-asset-repayments">Bulk equity repayments</Link>
+                </DropdownMenuItem>
+              </Can>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link href="/admin/eoi-forms">House EOI forms</Link>

@@ -22,6 +22,7 @@ export const BULK_UPLOAD_SLUG_PERMISSIONS: Record<string, string> = {
   lands: "create_properties",
   "land-subscriptions": "manage_property_allottees|approve_allotments",
   "land-payments": "manage_payments|manage_property_allottees",
+  "equity-asset-repayments": "manage_payments|manage_property_allottees",
   investments: "create_investments|approve_investments|create_investment_plans",
 }
 

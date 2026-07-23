@@ -347,6 +347,11 @@ export default function AdminLandManagementPage() {
                   <Link href="/admin/bulk-upload/land-payments">Bulk land payments</Link>
                 </DropdownMenuItem>
               </Can>
+              <Can permission="manage_property_allottees|manage_payments">
+                <DropdownMenuItem asChild>
+                  <Link href="/admin/bulk-upload/equity-asset-repayments">Bulk equity repayments</Link>
+                </DropdownMenuItem>
+              </Can>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
                 <Link href="/admin/land-eoi-forms">

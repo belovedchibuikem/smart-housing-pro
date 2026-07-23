@@ -151,6 +151,7 @@ const navItems: NavItem[] = [
       { href: "/admin/equity-contributions", label: "All Equity Contributions", icon: HandCoins },
       { href: "/admin/equity-plans", label: "Equity Plans", icon: Package },
       { href: "/admin/bulk-upload/equity-contributions", label: "Bulk Upload Equity", icon: Upload },
+      { href: "/admin/bulk-upload/equity-asset-repayments", label: "Bulk Equity Repayments", icon: Upload },
     ],
   },
   {
@@ -197,6 +198,7 @@ const navItems: NavItem[] = [
       { href: "/admin/bulk-upload/properties", label: "Bulk Houses (CSV)", icon: Upload },
       { href: "/admin/bulk-upload/property-subscribers", label: "Bulk House Subscribers", icon: Upload },
       { href: "/admin/bulk-upload/property-payments", label: "Bulk House Repayments", icon: Upload },
+      { href: "/admin/bulk-upload/equity-asset-repayments", label: "Bulk Equity Repayments", icon: Upload },
       { href: "/admin/house-repayments", label: "Record House/Land Repayment", icon: CreditCard },
       { href: "/admin/property-management/allottees/new", label: "Assign House to Member", icon: UserCheck },
       { href: "/admin/property-management/allottees", label: "Manage House Allottees", icon: UserCheck },
