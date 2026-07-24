@@ -413,7 +413,7 @@ export default function BulkEquityAssetRepaymentsPage() {
                 <Input
                   id="holdings-search"
                   className="pl-9"
-                  placeholder="Name, member no, staff ID, property, land…"
+                  placeholder="Name, member ID, staff ID, IPPIS, FRSC PIN, property, land…"
                   value={searchInput}
                   onChange={(e) => setSearchInput(e.target.value)}
                 />

@@ -220,7 +220,7 @@ export default function MemberAssetSubscriptionsPage() {
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               className="pl-9"
-              placeholder="Search member, ID, property, land…"
+              placeholder="Search member, ID, staff ID, IPPIS, FRSC PIN, property, land…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />

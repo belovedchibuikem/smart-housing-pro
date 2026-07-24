@@ -98,7 +98,7 @@ export default function AdminHouseRepaymentsPage() {
 						<Input
 							value={search}
 							onChange={(e) => setSearch(e.target.value)}
-							placeholder="Search member..."
+							placeholder="Search by name, member ID, staff ID, IPPIS, or FRSC PIN..."
 							className="pl-10"
 							disabled={!!selectedMember}
 						/>

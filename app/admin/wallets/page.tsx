@@ -128,7 +128,7 @@ export default function AdminWalletsPage() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search by name, member number, staff ID, or IPPIS..."
+                placeholder="Search by name, member number, staff ID, IPPIS, or FRSC PIN..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
