@@ -259,7 +259,7 @@ export function MemberPropertiesSection({ memberId }: MemberPropertiesSectionPro
       </Card>
 
       <Dialog open={detailOpen} onOpenChange={(open) => !open && closeDetail()}>
-        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+        <DialogContent className="max-h-[90vh] w-full max-w-[calc(100%-2rem)] overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>{selectedHolding?.title ?? "Property details"}</DialogTitle>
             <DialogDescription>
