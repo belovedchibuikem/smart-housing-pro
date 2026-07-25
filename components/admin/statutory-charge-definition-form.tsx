@@ -38,9 +38,12 @@ interface DefinitionFormProps {
 }
 
 const CATEGORY_HELP: Record<string, string> = {
-  estate_wide: "Assigned automatically when a member is allocated a matching house or land subscription.",
-  member_based: "Assigned manually by admin to a specific member (use Assign on the definitions list).",
-  event_based: "Assigned when a named event fires (e.g. ownership transfer). Set event trigger below.",
+  estate_wide:
+    "Auto-creates a ledger charge when a member is allocated a matching house or land. Scope by a specific property, a property type, or leave blank for any house/land. After saving, use “Apply to existing holders” so current allottees also get the charge.",
+  member_based:
+    "Assigned manually from Charge Definitions (mass assign up to 100 members). Members then see it under Statutory Charges in addition to house/land cost.",
+  event_based:
+    "Assigned when a named event fires (e.g. ownership transfer / reallocation). Set event trigger below.",
 }
 
 export function StatutoryChargeDefinitionForm({ mode, definitionId, initial }: DefinitionFormProps) {
@@ -153,13 +156,18 @@ export function StatutoryChargeDefinitionForm({ mode, definitionId, initial }: D
       return
     }
 
+    const fixedAmount =
+      formData.calculation_type === "fixed" && formData.amount.trim() !== ""
+        ? (Math.round(Number(formData.amount.replace(/,/g, "")) * 100) / 100).toFixed(2)
+        : null
+
     const payload: StatutoryChargeDefinitionPayload = {
       name: formData.name.trim(),
       description: formData.description.trim() || null,
       type: formData.type,
       charge_category: formData.charge_category,
       calculation_type: formData.calculation_type,
-      amount: formData.calculation_type === "fixed" ? formData.amount : null,
+      amount: formData.calculation_type === "fixed" ? fixedAmount : null,
       percentage: formData.calculation_type === "percentage" ? formData.percentage : null,
       percentage_base: formData.calculation_type === "percentage" ? formData.percentage_base : null,
       property_id: formData.property_id || null,
@@ -268,8 +276,8 @@ export function StatutoryChargeDefinitionForm({ mode, definitionId, initial }: D
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="estate_wide">Estate-Wide (auto on allocate/subscribe)</SelectItem>
-                    <SelectItem value="member_based">Member-Based (manual assign)</SelectItem>
+                    <SelectItem value="estate_wide">Estate-Wide (auto on allocate/subscribe + apply existing)</SelectItem>
+                    <SelectItem value="member_based">Member-Based (manual / mass assign)</SelectItem>
                     <SelectItem value="event_based">Event-Based</SelectItem>
                   </SelectContent>
                 </Select>

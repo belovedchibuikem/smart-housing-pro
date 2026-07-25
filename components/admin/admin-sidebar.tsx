@@ -240,6 +240,7 @@ const navItems: NavItem[] = [
       { href: "/admin/statutory-charges", label: "All Charges", icon: Eye },
       { href: "/admin/statutory-charges/definitions", label: "Charge Definitions", icon: FileCheck },
       { href: "/admin/statutory-charges/types", label: "Manage Charge Types", icon: FileCheck },
+      { href: "/admin/statutory-charges/payments/new", label: "Record Payment", icon: DollarSign },
       { href: "/admin/statutory-charges/payments", label: "Payment Records", icon: DollarSign },
       { href: "/admin/statutory-charges/departments", label: "Department Allocation", icon: Building },
     ],

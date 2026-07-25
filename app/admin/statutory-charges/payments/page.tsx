@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Search, Eye, Loader2 } from "lucide-react"
+import { Search, Eye, Loader2, Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { getStatutoryChargePayments } from "@/lib/api/client"
+import Link from "next/link"
 
 interface Payment {
   id: string
@@ -76,9 +77,17 @@ export default function PaymentRecordsPage() {
   return (
     <main className="flex-1 p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold">Payment Records</h1>
-          <p className="text-muted-foreground mt-1">View all statutory charge payment records</p>
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="text-3xl font-bold">Payment Records</h1>
+            <p className="text-muted-foreground mt-1">View all statutory charge payment records.</p>
+          </div>
+          <Button asChild>
+            <Link href="/admin/statutory-charges/payments/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Record payment
+            </Link>
+          </Button>
         </div>
 
         <Card>

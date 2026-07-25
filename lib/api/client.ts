@@ -3026,9 +3026,35 @@ export async function deleteStatutoryChargeDefinition(id: string) {
 }
 
 export async function assignStatutoryChargeDefinition(id: string, data: Record<string, unknown>) {
-	return apiFetch<{ success: boolean; message: string; data: any }>(`/admin/statutory-charges/definitions/${id}/assign`, {
+	return apiFetch<{
+		success: boolean
+		message: string
+		data: {
+			created?: any[]
+			created_count?: number
+			skipped?: Array<{ member_id: string; message: string }>
+			failed?: Array<{ member_id: string; message: string }>
+			charge?: any
+		}
+	}>(`/admin/statutory-charges/definitions/${id}/assign`, {
 		method: "POST",
 		body: data,
+	})
+}
+
+export async function applyStatutoryChargeDefinition(id: string) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		data: {
+			definition_id: string
+			created_count: number
+			skipped: number
+			failed: Array<{ member_id: string; message: string }>
+		}
+	}>(`/admin/statutory-charges/definitions/${id}/apply`, {
+		method: "POST",
+		body: {},
 	})
 }
 
