@@ -28,6 +28,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowLeft, Loader2, Upload } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { PropertyDocuments } from "@/components/properties/property-documents"
+import { isRepaymentReversed, repaymentStatusLabel } from "@/lib/utils/repayment-status"
 
 export default function MemberHouseAccountPage() {
 	const params = useParams()
@@ -343,24 +344,35 @@ export default function MemberHouseAccountPage() {
 							<TableRow>
 								<TableHead>Date</TableHead>
 								<TableHead>Amount</TableHead>
+								<TableHead>Status</TableHead>
 								<TableHead>Description</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
 							{payments.length === 0 ? (
 								<TableRow>
-									<TableCell colSpan={3} className="text-muted-foreground">
+									<TableCell colSpan={4} className="text-muted-foreground">
 										No payments yet.
 									</TableCell>
 								</TableRow>
 							) : (
-								payments.map((p) => (
-									<TableRow key={p.id}>
+								payments.map((p) => {
+									const reversed = isRepaymentReversed(p as { is_reversed?: boolean; status?: string })
+									return (
+									<TableRow key={p.id} className={reversed ? "bg-destructive/5" : undefined}>
 										<TableCell>{p.paid_on ?? "—"}</TableCell>
-										<TableCell>₦{Number(p.amount ?? 0).toLocaleString()}</TableCell>
+										<TableCell className={reversed ? "line-through text-muted-foreground" : undefined}>
+											₦{Number(p.amount ?? 0).toLocaleString()}
+										</TableCell>
+										<TableCell>
+											<Badge variant={reversed ? "destructive" : "secondary"}>
+												{repaymentStatusLabel(p as { is_reversed?: boolean; status?: string })}
+											</Badge>
+										</TableCell>
 										<TableCell>{p.description ?? "—"}</TableCell>
 									</TableRow>
-								))
+									)
+								})
 							)}
 						</TableBody>
 					</Table>

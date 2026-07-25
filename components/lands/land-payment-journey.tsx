@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Loader2, CheckCircle2, Calendar, DollarSign } from "lucide-react"
+import { Loader2, CheckCircle2, Calendar, DollarSign, Undo2 } from "lucide-react"
 import { getMemberLandSubscriptionDetail, type MemberLandSubscriptionRow } from "@/lib/api/client"
+import { isRepaymentReversed, repaymentStatusLabel } from "@/lib/utils/repayment-status"
 
 type LandPaymentJourneyProps = {
   subscriptionId?: string | null
@@ -120,24 +121,43 @@ export function LandPaymentJourney({ subscriptionId, summary }: LandPaymentJourn
           {payments.length === 0 ? (
             <p className="text-sm text-muted-foreground">No payments recorded yet.</p>
           ) : (
-            payments.map((payment) => (
-              <div key={payment.id} className="flex items-start gap-3 rounded-lg border p-4">
-                <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
+            payments.map((payment) => {
+              const reversed = isRepaymentReversed(
+                payment as { is_reversed?: boolean; status?: string; metadata?: { voided?: boolean } },
+              )
+              return (
+              <div
+                key={payment.id}
+                className={`flex items-start gap-3 rounded-lg border p-4 ${reversed ? "border-destructive/40 bg-destructive/5" : ""}`}
+              >
+                {reversed ? (
+                  <Undo2 className="mt-0.5 h-5 w-5 text-destructive" />
+                ) : (
+                  <CheckCircle2 className="mt-0.5 h-5 w-5 text-emerald-600" />
+                )}
                 <div className="flex-1">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-semibold">{formatCurrency(Number(payment.amount))}</span>
-                    <Badge variant="outline">{formatDate(payment.paid_on)}</Badge>
+                    <span className={`font-semibold ${reversed ? "line-through text-muted-foreground" : ""}`}>
+                      {formatCurrency(Number(payment.amount))}
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant={reversed ? "destructive" : "outline"}>
+                        {repaymentStatusLabel(payment as { is_reversed?: boolean; status?: string })}
+                      </Badge>
+                      <Badge variant="outline">{formatDate(payment.paid_on)}</Badge>
+                    </div>
                   </div>
                   {payment.description ? (
                     <p className="mt-1 text-sm text-muted-foreground">{payment.description}</p>
                   ) : null}
                   <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
                     <Calendar className="h-3 w-3" />
-                    Recorded payment
+                    {reversed ? "Repayment reversed" : "Recorded payment"}
                   </p>
                 </div>
               </div>
-            ))
+              )
+            })
           )}
         </CardContent>
       </Card>

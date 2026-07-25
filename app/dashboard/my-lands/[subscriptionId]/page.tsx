@@ -25,6 +25,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, Loader2, Upload } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { isRepaymentReversed, repaymentStatusLabel } from "@/lib/utils/repayment-status"
 
 export default function MemberLandAccountPage() {
 	const params = useParams()
@@ -112,8 +113,15 @@ export default function MemberLandAccountPage() {
 
 	const land = (row.land as Record<string, unknown>) || {}
 	const payments =
-		(row.payments as Array<{ id: string; amount: unknown; paid_on?: string; description?: string | null }>) ||
-		[]
+		(row.payments as Array<{
+			id: string
+			amount: unknown
+			paid_on?: string
+			description?: string | null
+			status?: string | null
+			is_reversed?: boolean
+			void_reason?: string | null
+		}>) || []
 
 	const salePrice = Number(row.sale_price ?? row.total_cost ?? 0)
 	const paid = Number(row.amount_paid ?? 0)
@@ -285,24 +293,40 @@ export default function MemberLandAccountPage() {
 							<TableRow>
 								<TableHead>Date</TableHead>
 								<TableHead>Amount</TableHead>
+								<TableHead>Status</TableHead>
 								<TableHead>Description</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
 							{payments.length === 0 ? (
 								<TableRow>
-									<TableCell colSpan={3} className="text-muted-foreground">
+									<TableCell colSpan={4} className="text-muted-foreground">
 										No payments yet.
 									</TableCell>
 								</TableRow>
 							) : (
-								payments.map((p) => (
-									<TableRow key={p.id}>
+								payments.map((p) => {
+									const reversed = isRepaymentReversed(p)
+									return (
+									<TableRow key={p.id} className={reversed ? "bg-destructive/5" : undefined}>
 										<TableCell>{p.paid_on ?? "—"}</TableCell>
-										<TableCell>₦{Number(p.amount ?? 0).toLocaleString()}</TableCell>
-										<TableCell>{p.description ?? "—"}</TableCell>
+										<TableCell className={reversed ? "line-through text-muted-foreground" : undefined}>
+											₦{Number(p.amount ?? 0).toLocaleString()}
+										</TableCell>
+										<TableCell>
+											<Badge variant={reversed ? "destructive" : "secondary"}>
+												{repaymentStatusLabel(p)}
+											</Badge>
+										</TableCell>
+										<TableCell>
+											{p.description ?? "—"}
+											{reversed && p.void_reason ? (
+												<div className="text-xs text-destructive">Reason: {p.void_reason}</div>
+											) : null}
+										</TableCell>
 									</TableRow>
-								))
+									)
+								})
 							)}
 						</TableBody>
 					</Table>

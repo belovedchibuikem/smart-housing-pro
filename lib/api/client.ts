@@ -836,6 +836,9 @@ export interface PropertyPaymentHistoryEntry {
 	id: string
 	amount: number
 	status: string
+	is_reversed?: boolean
+	void_reason?: string | null
+	reversed_at?: string | null
 	approval_status?: string | null
 	payment_method?: string | null
 	reference?: string | null
@@ -934,6 +937,9 @@ export interface PropertyLedgerEntry {
 	source: string
 	reference?: string | null
 	status: string
+	is_reversed?: boolean
+	void_reason?: string | null
+	reversed_at?: string | null
 	paid_at?: string | null
 	metadata?: Record<string, unknown> | null
 	payment_id?: string | null
@@ -2058,6 +2064,9 @@ export interface MemberOwnershipRepaymentEntry {
 	source?: string | null
 	reference?: string | null
 	status?: string | null
+	is_reversed?: boolean
+	void_reason?: string | null
+	reversed_at?: string | null
 	paid_at?: string | null
 	paid_on?: string | null
 	description?: string | null

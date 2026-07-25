@@ -29,6 +29,7 @@ import {
   type MemberOwnershipHistoryEntry,
   type MemberOwnershipAssetDetail,
 } from "@/lib/api/client"
+import { isRepaymentReversed, repaymentStatusLabel } from "@/lib/utils/repayment-status"
 
 interface MemberPropertiesSectionProps {
   memberId: string
@@ -461,10 +462,17 @@ export function MemberPropertiesSection({ memberId }: MemberPropertiesSectionPro
                   <p className="text-sm text-muted-foreground">No repayment records found for this slot.</p>
                 ) : (
                   <div className="space-y-2">
-                    {repaymentHistory.slice(0, 20).map((entry) => (
-                      <div key={entry.id} className="rounded-md border px-3 py-2">
+                    {repaymentHistory.slice(0, 20).map((entry) => {
+                      const reversed = isRepaymentReversed(entry)
+                      return (
+                      <div
+                        key={entry.id}
+                        className={`rounded-md border px-3 py-2 ${reversed ? "border-destructive/40 bg-destructive/5" : ""}`}
+                      >
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="font-medium">{formatCurrency(entry.amount)}</p>
+                          <p className={`font-medium ${reversed ? "line-through text-muted-foreground" : ""}`}>
+                            {formatCurrency(entry.amount)}
+                          </p>
                           <p className="text-xs text-muted-foreground">{formatDate(entry.paid_at ?? entry.paid_on)}</p>
                         </div>
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -473,12 +481,18 @@ export function MemberPropertiesSection({ memberId }: MemberPropertiesSectionPro
                               {entry.source.replace(/_/g, " ")}
                             </Badge>
                           ) : null}
+                          <Badge variant={reversed ? "destructive" : "secondary"} className="capitalize">
+                            {repaymentStatusLabel(entry)}
+                          </Badge>
                           {entry.reference ? <span>Ref: {entry.reference}</span> : null}
-                          {entry.status ? <span className="capitalize">Status: {entry.status.replace(/_/g, " ")}</span> : null}
                         </div>
+                        {reversed && entry.void_reason ? (
+                          <p className="mt-1 text-xs text-destructive">Reversal reason: {entry.void_reason}</p>
+                        ) : null}
                         {entry.description ? <p className="mt-1 text-sm">{entry.description}</p> : null}
                       </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
               </div>

@@ -36,6 +36,10 @@ import type {
 	RepaymentScheduleEntry,
 } from "@/lib/api/client"
 import {
+	isRepaymentReversed,
+	repaymentStatusLabel,
+} from "@/lib/utils/repayment-status"
+import {
 	getPropertyPaymentSetup,
 	getPropertyTenure,
 	getMemberHouseAccount,
@@ -738,31 +742,50 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 
 		return (
 			<div className="space-y-4">
-				{entries.map((payment) => (
-					<div key={payment.id} className="flex flex-col gap-4 rounded-lg border p-4 md:flex-row md:items-center md:justify-between">
+				{entries.map((payment) => {
+					const reversed = isRepaymentReversed(payment)
+					return (
+					<div
+						key={payment.id}
+						className={`flex flex-col gap-4 rounded-lg border p-4 md:flex-row md:items-center md:justify-between ${reversed ? "border-destructive/40 bg-destructive/5" : ""}`}
+					>
 						<div className="flex items-center gap-4">
 							<div className="p-2 bg-primary/10 rounded-lg">
 								<Receipt className="h-5 w-5 text-primary" />
 							</div>
 							<div>
-								<div className="font-semibold">{formatCurrency(payment.amount)}</div>
+								<div className={`font-semibold ${reversed ? "line-through text-muted-foreground" : ""}`}>
+									{formatCurrency(payment.amount)}
+								</div>
 								<div className="text-sm text-muted-foreground">
 									{payment.payment_method?.replace(/_/g, " ") || "—"} • {formatDate(payment.created_at)}
 								</div>
 								{payment.reference && (
 									<div className="text-xs text-muted-foreground">Reference: {payment.reference}</div>
 								)}
+								{reversed && payment.void_reason ? (
+									<div className="text-xs text-destructive">Reversal reason: {payment.void_reason}</div>
+								) : null}
 							</div>
 						</div>
 						<div className="flex flex-wrap items-center gap-3">
-							<Badge variant={payment.status === "completed" || payment.status === "success" ? "default" : "secondary"}>
-								{payment.status?.replace(/_/g, " ") ?? "Pending"}
+							<Badge
+								variant={
+									reversed
+										? "destructive"
+										: payment.status === "completed" || payment.status === "success"
+											? "default"
+											: "secondary"
+								}
+							>
+								{repaymentStatusLabel(payment)}
 							</Badge>
 							{payment.approval_status && payment.approval_status !== "approved" && (
 								<Badge variant="outline" className="capitalize">
 									Approval {payment.approval_status}
 								</Badge>
 							)}
+							{!reversed ? (
 							<Button 
 								variant="outline" 
 								size="sm"
@@ -774,9 +797,11 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 								<Receipt className="mr-2 h-4 w-4" />
 								View Receipt
 							</Button>
+							) : null}
 						</div>
 					</div>
-				))}
+					)
+				})}
 			</div>
 		)
 	}
@@ -1522,10 +1547,12 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 						</div>
 					) : (
 						<div className="space-y-4">
-							{ledgerEntries.map((entry) => (
+							{ledgerEntries.map((entry) => {
+								const reversed = isRepaymentReversed(entry)
+								return (
 								<div
 									key={entry.id}
-									className="flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:justify-between"
+									className={`flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:justify-between ${reversed ? "border-destructive/40 bg-destructive/5" : ""}`}
 								>
 									<div>
 										<div className="flex items-center gap-2 text-sm">
@@ -1533,13 +1560,11 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 												{entry.direction === "credit" ? "Credit" : "Debit"}
 											</Badge>
 											<span className="capitalize">{entry.source.replace(/_/g, " ")}</span>
-											{entry.status && (
-												<Badge variant="outline" className="capitalize">
-													{entry.status}
-												</Badge>
-											)}
+											<Badge variant={reversed ? "destructive" : "outline"} className="capitalize">
+												{repaymentStatusLabel(entry)}
+											</Badge>
 										</div>
-										<div className="mt-2 text-lg font-semibold">
+										<div className={`mt-2 text-lg font-semibold ${reversed ? "line-through text-muted-foreground" : ""}`}>
 											{entry.direction === "credit" ? "+" : "-"} {formatCurrency(entry.amount)}
 										</div>
 										<div className="mt-1 text-xs text-muted-foreground">
@@ -1557,9 +1582,13 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 										{entry.payment_id && <div>Payment ID: {entry.payment_id}</div>}
 										{entry.plan_id && <div>Plan ID: {entry.plan_id}</div>}
 										{entry.mortgage_plan_id && <div>Mortgage Plan: {entry.mortgage_plan_id}</div>}
+										{reversed && entry.void_reason ? (
+											<div className="text-destructive">Reversal reason: {entry.void_reason}</div>
+										) : null}
 									</div>
 								</div>
-							))}
+								)
+							})}
 						</div>
 					)}
 

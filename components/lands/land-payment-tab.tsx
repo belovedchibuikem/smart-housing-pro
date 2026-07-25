@@ -11,7 +11,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Badge } from "@/components/ui/badge"
 import type { MemberLandSubscriptionRow } from "@/lib/api/client"
+import { isRepaymentReversed, repaymentStatusLabel } from "@/lib/utils/repayment-status"
 
 type LandPaymentTabProps = {
   subscription?: MemberLandSubscriptionRow | null
@@ -71,17 +73,28 @@ export function LandPaymentTab({ subscription }: LandPaymentTabProps) {
                 <TableRow>
                   <TableHead>Date</TableHead>
                   <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
                   <TableHead>Description</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {payments.map((p) => (
-                  <TableRow key={p.id}>
+                {payments.map((p) => {
+                  const reversed = isRepaymentReversed(p as { is_reversed?: boolean; status?: string; metadata?: { voided?: boolean } })
+                  return (
+                  <TableRow key={p.id} className={reversed ? "bg-destructive/5" : undefined}>
                     <TableCell>{p.paid_on ? new Date(p.paid_on).toLocaleDateString() : "—"}</TableCell>
-                    <TableCell className="font-semibold">{formatCurrency(Number(p.amount))}</TableCell>
+                    <TableCell className={`font-semibold ${reversed ? "line-through text-muted-foreground" : ""}`}>
+                      {formatCurrency(Number(p.amount))}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={reversed ? "destructive" : "secondary"}>
+                        {repaymentStatusLabel(p as { is_reversed?: boolean; status?: string })}
+                      </Badge>
+                    </TableCell>
                     <TableCell>{p.description ?? "—"}</TableCell>
                   </TableRow>
-                ))}
+                  )
+                })}
               </TableBody>
             </Table>
           )}
