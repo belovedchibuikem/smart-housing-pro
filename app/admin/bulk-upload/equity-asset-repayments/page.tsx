@@ -425,7 +425,7 @@ export default function BulkEquityAssetRepaymentsPage() {
           <div>
             <CardTitle>1. Select holdings</CardTitle>
             <CardDescription>
-              Active house/land holdings with outstanding balances · {pagination.total} match
+              Active house/land holdings with amounts due (asset + statutory) · {pagination.total} match
               {equityOnly ? " (equity only)" : ""}
             </CardDescription>
           </div>
@@ -599,7 +599,7 @@ export default function BulkEquityAssetRepaymentsPage() {
                   </TableHead>
                   <TableHead>Member</TableHead>
                   <TableHead>Asset</TableHead>
-                  <TableHead className="text-right">Outstanding</TableHead>
+                  <TableHead className="text-right">Due (asset+statutory)</TableHead>
                   <TableHead className="text-right">Equity</TableHead>
                   <TableHead className="text-right">Suggested</TableHead>
                   {amountMode === "part" ? <TableHead className="w-36 text-right">Override</TableHead> : null}
@@ -787,7 +787,7 @@ export default function BulkEquityAssetRepaymentsPage() {
                     <TableHead>Member / Asset</TableHead>
                     <TableHead className="text-right">Requested</TableHead>
                     <TableHead className="text-right">Equity avail.</TableHead>
-                    <TableHead className="text-right">Outstanding</TableHead>
+                    <TableHead className="text-right">Due (asset+statutory)</TableHead>
                     <TableHead className="text-right">Payable</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
