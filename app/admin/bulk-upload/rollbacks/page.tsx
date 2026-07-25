@@ -39,6 +39,13 @@ type ModuleFilter =
   | "house_repayment"
   | "land_repayment"
   | "wallet_transfer"
+  | "refund"
+  | "loan"
+  | "loan_repayment"
+  | "mortgage"
+  | "mortgage_repayment"
+  | "internal_mortgage_plan"
+  | "internal_mortgage_repayment"
 
 type SearchRow = {
   module: string
@@ -364,6 +371,13 @@ export default function FinancialRollbacksPage() {
                   <SelectItem value="house_repayment">House repayment</SelectItem>
                   <SelectItem value="land_repayment">Land repayment</SelectItem>
                   <SelectItem value="wallet_transfer">Wallet transfer</SelectItem>
+                  <SelectItem value="refund">Refund</SelectItem>
+                  <SelectItem value="loan">Loan</SelectItem>
+                  <SelectItem value="loan_repayment">Loan repayment</SelectItem>
+                  <SelectItem value="mortgage">Mortgage</SelectItem>
+                  <SelectItem value="mortgage_repayment">Mortgage repayment</SelectItem>
+                  <SelectItem value="internal_mortgage_plan">Internal mortgage plan</SelectItem>
+                  <SelectItem value="internal_mortgage_repayment">Internal mortgage repayment</SelectItem>
                 </SelectContent>
               </Select>
             </div>

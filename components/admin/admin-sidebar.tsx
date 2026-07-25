@@ -155,6 +155,7 @@ const navItems: NavItem[] = [
       { href: "/admin/equity-plans", label: "Equity Plans", icon: Package },
       { href: "/admin/bulk-upload/equity-contributions", label: "Bulk Upload Equity", icon: Upload },
       { href: "/admin/bulk-upload/equity-asset-repayments", label: "Bulk Equity Repayments", icon: Upload },
+      { href: "/admin/bulk-upload/rollbacks", label: "Financial Rollbacks", icon: RotateCcw },
     ],
   },
   {
@@ -165,6 +166,7 @@ const navItems: NavItem[] = [
       { href: "/admin/bulk-upload/loan-repayments", label: "Bulk Upload Repayments", icon: Upload },
       { href: "/admin/loan-repayments", label: "Individual Repayment", icon: Receipt },
       { href: "/admin/loan-products", label: "Loan Products", icon: Package },
+      { href: "/admin/bulk-upload/rollbacks", label: "Financial Rollbacks", icon: RotateCcw },
     ],
   },
   {
@@ -175,6 +177,7 @@ const navItems: NavItem[] = [
       { href: "/admin/wallets/pending", label: "Pending Refund", icon: FileText },
       { href: "/admin/refund-member", label: "Refund Member", icon: DollarSign },
       { href: "/admin/bulk-upload/refund", label: "Bulk Refund", icon: Upload },
+      { href: "/admin/bulk-upload/rollbacks", label: "Financial Rollbacks", icon: RotateCcw },
     ],
   },
   {
@@ -188,6 +191,7 @@ const navItems: NavItem[] = [
       { href: "/admin/internal-mortgages", label: "Internal Mortgage Plans", icon: Wrench },
       { href: "/admin/bulk-upload/internal-mortgages", label: "Bulk Internal Mortgage", icon: Upload },
       { href: "/admin/tools/mortgage-calculators", label: "Mortgage Calculators", icon: Calculator },
+      { href: "/admin/bulk-upload/rollbacks", label: "Financial Rollbacks", icon: RotateCcw },
     ],
   },
   {
