@@ -92,8 +92,11 @@ export default function AdminContributionsPage() {
     try {
       const allResponse = await apiFetch<{ success: boolean; data: Contribution[] }>('/admin/contributions?per_page=1000')
       if (allResponse.success && allResponse.data) {
+        // Money totals only count approved/completed. Rejected / voided / rolled-back excluded.
+        const isCounted = (c: Contribution) => c.status === "approved" || c.status === "completed"
+        const counted = allResponse.data.filter(isCounted)
         const now = new Date()
-        const thisMonth = allResponse.data.filter((c: Contribution) => {
+        const thisMonth = counted.filter((c: Contribution) => {
           const date = new Date(c.contribution_date || c.created_at)
           return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
         })
@@ -108,10 +111,8 @@ export default function AdminContributionsPage() {
           0,
         )
         const pending = allResponse.data.filter((c: Contribution) => c.status === "pending").length
-        const completed = allResponse.data.filter(
-          (c: Contribution) => c.status === "approved" || c.status === "completed",
-        ).length
-        const totalAllTime = allResponse.data.reduce(
+        const completed = counted.length
+        const totalAllTime = counted.reduce(
           (sum: number, contribution: Contribution) => sum + normalizeAmount(contribution.amount),
           0,
         )

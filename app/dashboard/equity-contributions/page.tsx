@@ -50,13 +50,14 @@ export default function EquityContributionsPage() {
         const contributionsData = Array.isArray(response.data) ? response.data : (response.data as any).data || []
         setContributions(contributionsData)
 
-        // Calculate stats
+        // Money totals only count approved equity (rejected / voided / rolled-back excluded).
+        const counted = contributionsData.filter((c: EquityContribution) => c.status === "approved")
         const now = new Date()
-        const thisMonth = contributionsData.filter((c: EquityContribution) => {
+        const thisMonth = counted.filter((c: EquityContribution) => {
           const date = new Date(c.created_at)
           return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
         })
-        const thisYear = contributionsData.filter((c: EquityContribution) => {
+        const thisYear = counted.filter((c: EquityContribution) => {
           const date = new Date(c.created_at)
           return date.getFullYear() === now.getFullYear()
         })
@@ -67,7 +68,7 @@ export default function EquityContributionsPage() {
         }
 
         setStats({
-          totalContributions: contributionsData.reduce(
+          totalContributions: counted.reduce(
             (sum: number, contribution: EquityContribution) => sum + parseAmount(contribution.amount),
             0,
           ),
@@ -79,7 +80,7 @@ export default function EquityContributionsPage() {
             (sum: number, contribution: EquityContribution) => sum + parseAmount(contribution.amount),
             0,
           ),
-          approved: contributionsData.filter((c: EquityContribution) => c.status === "approved").length,
+          approved: counted.length,
           pending: contributionsData.filter((c: EquityContribution) => c.status === "pending").length,
         })
       }

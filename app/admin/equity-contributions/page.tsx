@@ -113,8 +113,10 @@ export default function AdminEquityContributionsPage() {
     try {
       const allResponse = await apiFetch<{ success: boolean; data: EquityContribution[] }>('/admin/equity-contributions?per_page=1000')
       if (allResponse.success && allResponse.data) {
+        // Money totals only count approved equity. Rejected / failed / voided / rolled-back must not inflate cards.
+        const counted = allResponse.data.filter((c: EquityContribution) => c.status === 'approved')
         const now = new Date()
-        const thisMonth = allResponse.data.filter((c: EquityContribution) => {
+        const thisMonth = counted.filter((c: EquityContribution) => {
           const date = new Date(c.created_at)
           return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
         })
@@ -124,8 +126,8 @@ export default function AdminEquityContributionsPage() {
           0,
         )
         const pending = allResponse.data.filter((c: EquityContribution) => c.status === 'pending').length
-        const approved = allResponse.data.filter((c: EquityContribution) => c.status === 'approved').length
-        const totalAllTime = allResponse.data.reduce(
+        const approved = counted.length
+        const totalAllTime = counted.reduce(
           (sum: number, contribution: EquityContribution) => sum + normalizeAmount(contribution.amount),
           0,
         )
