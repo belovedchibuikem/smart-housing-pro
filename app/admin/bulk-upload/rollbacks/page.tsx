@@ -238,27 +238,52 @@ export default function FinancialRollbacksPage() {
       toast({ title: "Reason required", description: "Enter at least 3 characters.", variant: "destructive" })
       return
     }
+    const reversibleItems = (preview?.reversible ?? []).map((r) => ({
+      module: r.module,
+      target_id: r.target_id,
+    }))
+    if (reversibleItems.length === 0) {
+      toast({
+        title: "Nothing to reverse",
+        description: "All selected rows are blocked. Reverse dependents (repayments/transfers) first.",
+        variant: "destructive",
+      })
+      return
+    }
     setExecuting(true)
     try {
+      // Send only preview-reversible rows (not blocked). Batch path still re-validates server-side.
       const body = rollbackBatchId
         ? { batch_id: rollbackBatchId, reason: reason.trim() }
-        : { items: selectedItems, reason: reason.trim() }
+        : { items: reversibleItems, reason: reason.trim() }
 
       const res = await apiFetch<{ success: boolean; message: string; data: any }>(
         "/admin/financial-rollbacks/execute",
         { method: "POST", body }
       )
 
+      const failed = res.data?.failed ?? []
+      const failedHint =
+        Array.isArray(failed) && failed.length > 0
+          ? ` First failure: ${failed[0]?.module} ${String(failed[0]?.target_id || "").slice(0, 8)}… — ${failed[0]?.message || "unknown"}`
+          : ""
+
       toast({
-        title: res.success ? "Rollback complete" : "Rollback blocked",
-        description: res.message,
+        title: res.success ? "Rollback complete" : "Rollback did not reverse rows",
+        description: `${res.message || ""}${failedHint}`.trim(),
         variant: res.success ? "default" : "destructive",
       })
-      setConfirmOpen(false)
-      setReason("")
-      setPreview(null)
-      await loadSearch()
-      await loadBatches()
+
+      if (res.success) {
+        setConfirmOpen(false)
+        setReason("")
+        setPreview(null)
+        await loadSearch()
+        await loadBatches()
+      } else {
+        // Keep dialog open with the existing preview so the blocked reasons stay visible.
+        await loadSearch()
+      }
     } catch (e: any) {
       toast({
         title: "Rollback failed",
@@ -526,8 +551,9 @@ export default function FinancialRollbacksPage() {
           <DialogHeader>
             <DialogTitle>Confirm rollback</DialogTitle>
             <DialogDescription>
-              Compensating ledger rows will be appended. Wallet balance and totals (total contributed / total used)
-              are updated together. Blocked rows must have dependents reversed first.
+              Only reversible rows are executed. Compensating ledger rows are appended; wallet balance and totals
+              update together. Blocked rows (used_downstream_insufficient_balance) need dependent repayments or
+              transfers reversed first.
             </DialogDescription>
           </DialogHeader>
 
