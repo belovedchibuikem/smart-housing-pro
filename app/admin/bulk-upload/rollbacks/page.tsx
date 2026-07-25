@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Pagination } from "@/components/ui/pagination"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { apiFetch } from "@/lib/api/client"
 import { formatNairaAmount } from "@/lib/utils/currency"
 
@@ -95,7 +95,6 @@ function money(n: number | undefined | null) {
 
 export default function FinancialRollbacksPage() {
   const canRollback = useBulkUploadPermission("rollbacks")
-  const { toast } = useToast()
 
   const [module, setModule] = useState<ModuleFilter>("all")
   const [dateFrom, setDateFrom] = useState("")
@@ -116,6 +115,11 @@ export default function FinancialRollbacksPage() {
   const [previewing, setPreviewing] = useState(false)
   const [executing, setExecuting] = useState(false)
   const [rollbackBatchId, setRollbackBatchId] = useState<string | null>(null)
+  const [executeResult, setExecuteResult] = useState<{
+    ok: boolean
+    title: string
+    detail: string
+  } | null>(null)
 
   const selectedItems = useMemo(
     () =>
@@ -148,15 +152,13 @@ export default function FinancialRollbacksPage() {
       setMeta(res.meta ?? { page: 1, per_page: 50, total: 0, last_page: 1 })
       setSelected({})
     } catch (e: any) {
-      toast({
-        title: "Search failed",
+      toast.error("Search failed", {
         description: e?.message || "Could not load reversible transactions",
-        variant: "destructive",
       })
     } finally {
       setLoading(false)
     }
-  }, [canRollback, module, page, status, dateFrom, dateTo, member, reference, batchId, toast])
+  }, [canRollback, module, page, status, dateFrom, dateTo, member, reference, batchId])
 
   const loadBatches = useCallback(async () => {
     if (!canRollback) return
@@ -180,10 +182,11 @@ export default function FinancialRollbacksPage() {
 
   const openPreviewForSelection = async () => {
     if (selectedItems.length === 0) {
-      toast({ title: "Select at least one transaction", variant: "destructive" })
+      toast.error("Select at least one transaction")
       return
     }
     setRollbackBatchId(null)
+    setExecuteResult(null)
     setPreviewing(true)
     try {
       const res = await apiFetch<{ success: boolean; data: PreviewData }>(
@@ -198,10 +201,8 @@ export default function FinancialRollbacksPage() {
       })
       setConfirmOpen(true)
     } catch (e: any) {
-      toast({
-        title: "Preview failed",
+      toast.error("Preview failed", {
         description: e?.message || "Could not preview rollback",
-        variant: "destructive",
       })
     } finally {
       setPreviewing(false)
@@ -210,6 +211,7 @@ export default function FinancialRollbacksPage() {
 
   const openPreviewForBatch = async (id: string) => {
     setRollbackBatchId(id)
+    setExecuteResult(null)
     setPreviewing(true)
     try {
       const res = await apiFetch<{ success: boolean; data: PreviewData }>(
@@ -223,10 +225,8 @@ export default function FinancialRollbacksPage() {
       })
       setConfirmOpen(true)
     } catch (e: any) {
-      toast({
-        title: "Preview failed",
+      toast.error("Preview failed", {
         description: e?.message || "Could not preview batch rollback",
-        variant: "destructive",
       })
     } finally {
       setPreviewing(false)
@@ -235,7 +235,7 @@ export default function FinancialRollbacksPage() {
 
   const executeRollback = async () => {
     if (reason.trim().length < 3) {
-      toast({ title: "Reason required", description: "Enter at least 3 characters.", variant: "destructive" })
+      toast.error("Reason required", { description: "Enter at least 3 characters." })
       return
     }
     const reversibleItems = (preview?.reversible ?? []).map((r) => ({
@@ -243,14 +243,13 @@ export default function FinancialRollbacksPage() {
       target_id: r.target_id,
     }))
     if (reversibleItems.length === 0) {
-      toast({
-        title: "Nothing to reverse",
-        description: "All selected rows are blocked. Reverse dependents (repayments/transfers) first.",
-        variant: "destructive",
-      })
+      const detail = "All selected rows are blocked. Reverse dependents (repayments/transfers) first."
+      setExecuteResult({ ok: false, title: "Nothing to reverse", detail })
+      toast.error("Nothing to reverse", { description: detail })
       return
     }
     setExecuting(true)
+    setExecuteResult(null)
     try {
       // Send only preview-reversible rows (not blocked). Batch path still re-validates server-side.
       const body = rollbackBatchId
@@ -262,34 +261,35 @@ export default function FinancialRollbacksPage() {
         { method: "POST", body }
       )
 
+      const reversedCount = Array.isArray(res.data?.reversed) ? res.data.reversed.length : 0
+      const blockedCount = Array.isArray(res.data?.blocked) ? res.data.blocked.length : 0
       const failed = res.data?.failed ?? []
+      const failedCount = Array.isArray(failed) ? failed.length : 0
       const failedHint =
-        Array.isArray(failed) && failed.length > 0
+        failedCount > 0
           ? ` First failure: ${failed[0]?.module} ${String(failed[0]?.target_id || "").slice(0, 8)}… — ${failed[0]?.message || "unknown"}`
           : ""
+      const detail = `${res.message || `Reversed ${reversedCount}. Blocked ${blockedCount}. Failed ${failedCount}.`}${failedHint}`.trim()
+      const title = res.success ? "Rollback complete" : "Rollback did not reverse rows"
 
-      toast({
-        title: res.success ? "Rollback complete" : "Rollback did not reverse rows",
-        description: `${res.message || ""}${failedHint}`.trim(),
-        variant: res.success ? "default" : "destructive",
-      })
-
+      setExecuteResult({ ok: Boolean(res.success), title, detail })
       if (res.success) {
+        toast.success(title, { description: detail, duration: 8000 })
         setConfirmOpen(false)
         setReason("")
         setPreview(null)
+        setExecuteResult(null)
         await loadSearch()
         await loadBatches()
       } else {
+        toast.error(title, { description: detail, duration: 12000 })
         // Keep dialog open with the existing preview so the blocked reasons stay visible.
         await loadSearch()
       }
     } catch (e: any) {
-      toast({
-        title: "Rollback failed",
-        description: e?.message || "Could not execute rollback",
-        variant: "destructive",
-      })
+      const detail = e?.message || "Could not execute rollback"
+      setExecuteResult({ ok: false, title: "Rollback failed", detail })
+      toast.error("Rollback failed", { description: detail, duration: 12000 })
     } finally {
       setExecuting(false)
     }
@@ -584,6 +584,15 @@ export default function FinancialRollbacksPage() {
                     {(preview.blocked?.length ?? 0) > 5 && (
                       <div>…and {(preview.blocked?.length ?? 0) - 5} more</div>
                     )}
+                  </AlertDescription>
+                </Alert>
+              )}
+              {executeResult && (
+                <Alert variant={executeResult.ok ? "default" : "destructive"}>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    <div className="font-medium">{executeResult.title}</div>
+                    <div className="mt-1 whitespace-pre-wrap">{executeResult.detail}</div>
                   </AlertDescription>
                 </Alert>
               )}
