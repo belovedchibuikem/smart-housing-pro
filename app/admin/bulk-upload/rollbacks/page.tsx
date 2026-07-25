@@ -107,7 +107,7 @@ export default function FinancialRollbacksPage() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(false)
   const [rows, setRows] = useState<SearchRow[]>([])
-  const [meta, setMeta] = useState({ page: 1, per_page: 25, total: 0, last_page: 1 })
+  const [meta, setMeta] = useState({ page: 1, per_page: 50, total: 0, last_page: 1 })
   const [selected, setSelected] = useState<Record<string, boolean>>({})
   const [batches, setBatches] = useState<BatchRow[]>([])
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -132,7 +132,7 @@ export default function FinancialRollbacksPage() {
       const qs = new URLSearchParams({
         module,
         page: String(page),
-        per_page: "25",
+        per_page: "50",
       })
       if (status && status !== "all_statuses") qs.set("status", status)
       if (dateFrom) qs.set("date_from", dateFrom)
@@ -145,7 +145,7 @@ export default function FinancialRollbacksPage() {
         `/admin/financial-rollbacks/search?${qs.toString()}`
       )
       setRows(res.data ?? [])
-      setMeta(res.meta ?? { page: 1, per_page: 25, total: 0, last_page: 1 })
+      setMeta(res.meta ?? { page: 1, per_page: 50, total: 0, last_page: 1 })
       setSelected({})
     } catch (e: any) {
       toast({
@@ -188,9 +188,14 @@ export default function FinancialRollbacksPage() {
     try {
       const res = await apiFetch<{ success: boolean; data: PreviewData }>(
         "/admin/financial-rollbacks/preview",
-        { method: "POST", body: JSON.stringify({ items: selectedItems }) }
+        { method: "POST", body: { items: selectedItems } }
       )
-      setPreview(res.data)
+      // apiFetch already returns the JSON payload; normalize preview shape.
+      const previewData = (res?.data ?? res) as PreviewData
+      setPreview({
+        reversible: previewData?.reversible ?? [],
+        blocked: previewData?.blocked ?? [],
+      })
       setConfirmOpen(true)
     } catch (e: any) {
       toast({
@@ -209,9 +214,13 @@ export default function FinancialRollbacksPage() {
     try {
       const res = await apiFetch<{ success: boolean; data: PreviewData }>(
         "/admin/financial-rollbacks/preview",
-        { method: "POST", body: JSON.stringify({ batch_id: id }) }
+        { method: "POST", body: { batch_id: id } }
       )
-      setPreview(res.data)
+      const previewData = (res?.data ?? res) as PreviewData
+      setPreview({
+        reversible: previewData?.reversible ?? [],
+        blocked: previewData?.blocked ?? [],
+      })
       setConfirmOpen(true)
     } catch (e: any) {
       toast({
@@ -237,7 +246,7 @@ export default function FinancialRollbacksPage() {
 
       const res = await apiFetch<{ success: boolean; message: string; data: any }>(
         "/admin/financial-rollbacks/execute",
-        { method: "POST", body: JSON.stringify(body) }
+        { method: "POST", body }
       )
 
       toast({
@@ -525,20 +534,29 @@ export default function FinancialRollbacksPage() {
           {preview && (
             <div className="space-y-3 text-sm">
               <div>
-                <strong>{preview.reversible.length}</strong> reversible ·{" "}
-                <strong>{preview.blocked.length}</strong> blocked
+                <strong>{preview.reversible?.length ?? 0}</strong> reversible ·{" "}
+                <strong>{preview.blocked?.length ?? 0}</strong> blocked
               </div>
-              {preview.blocked.length > 0 && (
+              {(preview.reversible?.length ?? 0) === 0 && (preview.blocked?.length ?? 0) === 0 && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Nothing to reverse. Select rows in the search table, or open Rollback on a batch that still has
+                    applied items. Historical uploads from before batch tracking must be selected from search.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {(preview.blocked?.length ?? 0) > 0 && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    {preview.blocked.slice(0, 5).map((b) => (
+                    {(preview.blocked ?? []).slice(0, 5).map((b) => (
                       <div key={`${b.module}:${b.target_id}`}>
                         {b.module} {b.target_id.slice(0, 8)}… — {b.reason}
                       </div>
                     ))}
-                    {preview.blocked.length > 5 && (
-                      <div>…and {preview.blocked.length - 5} more</div>
+                    {(preview.blocked?.length ?? 0) > 5 && (
+                      <div>…and {(preview.blocked?.length ?? 0) - 5} more</div>
                     )}
                   </AlertDescription>
                 </Alert>
@@ -563,7 +581,7 @@ export default function FinancialRollbacksPage() {
             <Button
               variant="destructive"
               onClick={() => void executeRollback()}
-              disabled={executing || !preview || preview.reversible.length === 0}
+              disabled={executing || !preview || (preview.reversible?.length ?? 0) === 0}
             >
               {executing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Undo2 className="h-4 w-4 mr-2" />}
               Execute rollback
