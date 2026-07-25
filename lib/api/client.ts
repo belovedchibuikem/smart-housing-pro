@@ -2005,6 +2005,13 @@ export interface MemberPropertyHolding {
 	identifier: string
 	estate_location?: string | null
 	status: string
+	tenure_status?: string | null
+	sale_price?: number
+	amount_paid?: number
+	outstanding?: number
+	payment_progress_percent?: number
+	/** unpaid | partial | paid — derived from outstanding, not allotment status */
+	payment_status?: string | null
 	allocation_date?: string | null
 	bedrooms?: number | null
 	bathrooms?: number | null

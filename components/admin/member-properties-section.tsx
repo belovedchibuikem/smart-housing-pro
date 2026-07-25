@@ -57,14 +57,31 @@ function statusBadgeVariant(status?: string) {
     case "approved":
     case "subscribed":
     case "active":
+    case "paid":
+    case "fully_paid":
       return "default" as const
+    case "partial":
     case "pending":
+    case "unpaid":
       return "secondary" as const
     case "rejected":
       return "destructive" as const
     default:
       return "outline" as const
   }
+}
+
+/** Allotment status "completed" means assigned — show repayment status instead. */
+function repaymentLabel(paymentStatus?: string | null, outstanding?: number | null) {
+  const key = (paymentStatus ?? "").toLowerCase()
+  if (key === "paid" || key === "fully_paid") return "Paid"
+  if (key === "partial") return "Partial"
+  if (key === "unpaid") return "Unpaid"
+  if (typeof outstanding === "number") {
+    if (outstanding <= 0.009) return "Paid"
+    return "Unpaid"
+  }
+  return null
 }
 
 export function MemberPropertiesSection({ memberId }: MemberPropertiesSectionProps) {
@@ -209,9 +226,18 @@ export function MemberPropertiesSection({ memberId }: MemberPropertiesSectionPro
                             {holding.is_original_owner ? "Original owner" : holding.hand_label}
                           </Badge>
                         ) : null}
-                        <Badge variant={statusBadgeVariant(holding.status)} className="capitalize">
-                          {holding.status.replace(/_/g, " ")}
-                        </Badge>
+                        {(() => {
+                          const label = repaymentLabel(holding.payment_status, holding.outstanding)
+                          if (!label) return null
+                          return (
+                            <Badge
+                              variant={statusBadgeVariant(holding.payment_status || label)}
+                              className="capitalize"
+                            >
+                              {label}
+                            </Badge>
+                          )
+                        })()}
                       </div>
                       <div className="flex items-start gap-1.5 text-sm text-muted-foreground">
                         <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -333,11 +359,18 @@ export function MemberPropertiesSection({ memberId }: MemberPropertiesSectionPro
                     <Progress value={Number(financials.payment_progress_percent ?? 0)} className="h-2" />
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {financials.payment_status ? (
-                      <Badge variant="secondary" className="capitalize">
-                        {String(financials.payment_status).replace(/_/g, " ")}
-                      </Badge>
-                    ) : null}
+                    {(() => {
+                      const label = repaymentLabel(
+                        financials.payment_status,
+                        financials.balance ?? financials.outstanding,
+                      )
+                      if (!label) return null
+                      return (
+                        <Badge variant={statusBadgeVariant(financials.payment_status || label)} className="capitalize">
+                          {label}
+                        </Badge>
+                      )
+                    })()}
                     {financials.tenure_status ? (
                       <Badge variant="outline" className="capitalize">
                         Tenure: {String(financials.tenure_status).replace(/_/g, " ")}
