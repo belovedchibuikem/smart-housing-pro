@@ -38,7 +38,9 @@ type Candidate = {
   member_name: string
   asset_label: string
   outstanding: number
-  equity_balance: number
+  contribution_balance?: number
+  wallet_balance?: number
+  equity_balance?: number
   suggested_payable: number
 }
 
@@ -52,11 +54,14 @@ type PreviewRow = {
   subscription_id: string | null
   asset_label?: string | null
   outstanding: number
-  equity_available: number
+  contribution_available?: number
+  wallet_balance?: number
+  equity_available?: number
   requested: number
   payable: number
   status: "payable" | "skipped"
   skip_reason?: string | null
+  contribution_after?: number
   equity_after?: number
   result?: "success" | "failed" | "skipped"
   message?: string
@@ -96,17 +101,25 @@ function money(n: number | undefined | null) {
   return formatNairaAmount(n ?? 0, { compact: false })
 }
 
-export default function BulkEquityAssetRepaymentsPage() {
-  const canUpload = useBulkUploadPermission("equity-asset-repayments")
+function candidateBalance(c: Candidate): number {
+  return Number(c.contribution_balance ?? c.wallet_balance ?? c.equity_balance ?? 0) || 0
+}
+
+function previewAvailable(r: PreviewRow): number {
+  return Number(r.contribution_available ?? r.wallet_balance ?? r.equity_available ?? 0) || 0
+}
+
+export default function BulkContributionAssetRepaymentsPage() {
+  const canUpload = useBulkUploadPermission("contribution-asset-repayments")
   const { toast } = useToast()
 
   const [searchInput, setSearchInput] = useState("")
   const [search, setSearch] = useState("")
   const [assetType, setAssetType] = useState<AssetTypeFilter>("all")
-  const [equityOnly, setEquityOnly] = useState(true)
-  const [minEquityInput, setMinEquityInput] = useState("")
+  const [contributionOnly, setContributionOnly] = useState(true)
+  const [minContributionInput, setMinContributionInput] = useState("")
   const [minOutstandingInput, setMinOutstandingInput] = useState("")
-  const [minEquity, setMinEquity] = useState("")
+  const [minContribution, setMinContribution] = useState("")
   const [minOutstanding, setMinOutstanding] = useState("")
   const [page, setPage] = useState(1)
   const [candidates, setCandidates] = useState<Candidate[]>([])
@@ -138,8 +151,10 @@ export default function BulkEquityAssetRepaymentsPage() {
       const qs = new URLSearchParams()
       if (search.trim()) qs.set("search", search.trim())
       if (assetType !== "all") qs.set("asset_type", assetType)
-      if (equityOnly) qs.set("equity_only", "1")
-      if (minEquity.trim() && Number(minEquity) > 0) qs.set("min_equity", String(Number(minEquity)))
+      if (contributionOnly) qs.set("contribution_only", "1")
+      if (minContribution.trim() && Number(minContribution) > 0) {
+        qs.set("min_contribution", String(Number(minContribution)))
+      }
       if (minOutstanding.trim() && Number(minOutstanding) > 0) {
         qs.set("min_outstanding", String(Number(minOutstanding)))
       }
@@ -148,7 +163,7 @@ export default function BulkEquityAssetRepaymentsPage() {
       if (opts?.keysOnly) qs.set("keys_only", "1")
       return qs
     },
-    [search, assetType, equityOnly, minEquity, minOutstanding, page],
+    [search, assetType, contributionOnly, minContribution, minOutstanding, page],
   )
 
   const loadCandidates = useCallback(async () => {
@@ -164,7 +179,7 @@ export default function BulkEquityAssetRepaymentsPage() {
           pagination?: PaginationMeta
           meta?: { scanned_houses?: number; scanned_lands?: number }
         }
-      }>(`/admin/bulk/equity-asset-repayments/candidates?${qs.toString()}`)
+      }>(`/admin/bulk/contribution-asset-repayments/candidates?${qs.toString()}`)
       const list = res.data?.candidates ?? []
       setCandidates(Array.isArray(list) ? list : [])
       setPagination(
@@ -237,7 +252,7 @@ export default function BulkEquityAssetRepaymentsPage() {
       const qs = buildFilterQuery({ page: 1, keysOnly: true })
       const res = await apiFetch<{
         data?: { candidates?: Candidate[]; count?: number }
-      }>(`/admin/bulk/equity-asset-repayments/candidates?${qs.toString()}`)
+      }>(`/admin/bulk/contribution-asset-repayments/candidates?${qs.toString()}`)
       const list = res.data?.candidates ?? []
       const next: Record<string, Candidate> = {}
       list.forEach((c) => {
@@ -261,7 +276,7 @@ export default function BulkEquityAssetRepaymentsPage() {
 
   const applyFilters = () => {
     setSearch(searchInput.trim())
-    setMinEquity(minEquityInput.trim())
+    setMinContribution(minContributionInput.trim())
     setMinOutstanding(minOutstandingInput.trim())
     setPage(1)
   }
@@ -270,10 +285,10 @@ export default function BulkEquityAssetRepaymentsPage() {
     setSearchInput("")
     setSearch("")
     setAssetType("all")
-    setEquityOnly(true)
-    setMinEquityInput("")
+    setContributionOnly(true)
+    setMinContributionInput("")
     setMinOutstandingInput("")
-    setMinEquity("")
+    setMinContribution("")
     setMinOutstanding("")
     setPage(1)
   }
@@ -322,7 +337,7 @@ export default function BulkEquityAssetRepaymentsPage() {
     setExecuteResult(null)
     try {
       const res = await apiFetch<{ success?: boolean; data: PreviewData }>(
-        "/admin/bulk/equity-asset-repayments/preview",
+        "/admin/bulk/contribution-asset-repayments/preview",
         {
           method: "POST",
           body: buildPayload(),
@@ -345,7 +360,7 @@ export default function BulkEquityAssetRepaymentsPage() {
     setExecuteIdempotencyKey(
       typeof crypto !== "undefined" && "randomUUID" in crypto
         ? crypto.randomUUID()
-        : `ber-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+        : `bcr-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
     )
     setConfirmOpen(true)
   }
@@ -355,12 +370,12 @@ export default function BulkEquityAssetRepaymentsPage() {
       executeIdempotencyKey ??
       (typeof crypto !== "undefined" && "randomUUID" in crypto
         ? crypto.randomUUID()
-        : `ber-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`)
+        : `bcr-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`)
     setExecuteIdempotencyKey(key)
     setExecuting(true)
     try {
       const res = await apiFetch<{ success?: boolean; data: ExecuteData }>(
-        "/admin/bulk/equity-asset-repayments/execute",
+        "/admin/bulk/contribution-asset-repayments/execute",
         {
           method: "POST",
           body: buildPayload(key),
@@ -391,7 +406,7 @@ export default function BulkEquityAssetRepaymentsPage() {
     return (
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
-        <AlertDescription>You do not have permission to run bulk equity asset repayments.</AlertDescription>
+        <AlertDescription>You do not have permission to run bulk contribution asset repayments.</AlertDescription>
       </Alert>
     )
   }
@@ -401,10 +416,10 @@ export default function BulkEquityAssetRepaymentsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Bulk Equity → House/Land Repayment</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Bulk Contribution → House/Land Repayment</h1>
         <p className="mt-2 text-muted-foreground">
-          Filter holdings, select many at once (page or all matching), then repay from equity wallets in one
-          batch. Members with equity balances appear first.
+          Filter holdings, select many at once (page or all matching), then repay from contribution wallets in one
+          batch. Members with contribution balances appear first.
         </p>
       </div>
 
@@ -414,7 +429,7 @@ export default function BulkEquityAssetRepaymentsPage() {
             <CardTitle>1. Select holdings</CardTitle>
             <CardDescription>
               Active house/land holdings with outstanding balances · {pagination.total} match
-              {equityOnly ? " (equity only)" : ""}
+              {contributionOnly ? " (contribution only)" : ""}
             </CardDescription>
           </div>
           <Button variant="outline" size="sm" onClick={() => void loadCandidates()} disabled={loading}>
@@ -470,32 +485,32 @@ export default function BulkEquityAssetRepaymentsPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Equity filter</Label>
+              <Label>Contribution filter</Label>
               <div className="flex items-center gap-2 pt-2">
                 <Checkbox
-                  id="equity-only"
-                  checked={equityOnly}
+                  id="contribution-only"
+                  checked={contributionOnly}
                   onCheckedChange={(v) => {
-                    setEquityOnly(Boolean(v))
+                    setContributionOnly(Boolean(v))
                     setPage(1)
                   }}
                 />
-                <Label htmlFor="equity-only" className="text-sm font-normal">
-                  Only with equity balance
+                <Label htmlFor="contribution-only" className="text-sm font-normal">
+                  Only with contribution balance
                 </Label>
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="min-equity">Min equity (₦)</Label>
+              <Label htmlFor="min-contribution">Min contribution (₦)</Label>
               <Input
-                id="min-equity"
+                id="min-contribution"
                 type="number"
                 min={0}
                 step="1"
                 placeholder="e.g. 10000"
-                value={minEquityInput}
-                onChange={(e) => setMinEquityInput(e.target.value)}
+                value={minContributionInput}
+                onChange={(e) => setMinContributionInput(e.target.value)}
               />
             </div>
 
@@ -568,7 +583,7 @@ export default function BulkEquityAssetRepaymentsPage() {
                   <TableHead>Member</TableHead>
                   <TableHead>Asset</TableHead>
                   <TableHead className="text-right">Outstanding</TableHead>
-                  <TableHead className="text-right">Equity</TableHead>
+                  <TableHead className="text-right">Contribution</TableHead>
                   <TableHead className="text-right">Suggested</TableHead>
                   {amountMode === "part" ? <TableHead className="w-36 text-right">Override</TableHead> : null}
                 </TableRow>
@@ -586,8 +601,8 @@ export default function BulkEquityAssetRepaymentsPage() {
                     <TableCell colSpan={colSpan} className="py-10 text-center text-muted-foreground">
                       <p className="font-medium text-foreground">No eligible holdings found</p>
                       <p className="mx-auto mt-2 max-w-lg text-sm">
-                        Try turning off “Only with equity balance”, clearing search, or lowering min equity /
-                        outstanding.
+                        Try turning off “Only with contribution balance”, clearing search, or lowering min
+                        contribution / outstanding.
                         {meta
                           ? ` Scanned ${meta.scanned_houses ?? 0} house allotment(s) and ${meta.scanned_lands ?? 0} land subscription(s).`
                           : null}
@@ -598,57 +613,60 @@ export default function BulkEquityAssetRepaymentsPage() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  candidates.map((c) => (
-                    <TableRow key={c.row_key}>
-                      <TableCell>
-                        <Checkbox
-                          checked={Boolean(selected[c.row_key])}
-                          onCheckedChange={(v) =>
-                            setSelected((prev) => {
-                              const next = { ...prev }
-                              if (v) next[c.row_key] = c
-                              else delete next[c.row_key]
-                              return next
-                            })
-                          }
-                          aria-label={`Select ${c.member_name}`}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">{c.member_name}</div>
-                        <div className="text-xs text-muted-foreground">{c.member_number ?? "—"}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline">{c.asset_type}</Badge>
-                          <span className="text-sm">{c.asset_label}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">{money(c.outstanding)}</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        <span className={c.equity_balance > 0 ? "font-medium text-foreground" : "text-muted-foreground"}>
-                          {money(c.equity_balance)}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums">{money(c.suggested_payable)}</TableCell>
-                      {amountMode === "part" ? (
-                        <TableCell className="text-right">
-                          <Input
-                            type="number"
-                            min={0}
-                            step="0.01"
-                            className="h-8 text-right"
-                            placeholder="—"
-                            disabled={!selected[c.row_key]}
-                            value={overrides[c.row_key] ?? ""}
-                            onChange={(e) =>
-                              setOverrides((prev) => ({ ...prev, [c.row_key]: e.target.value }))
+                  candidates.map((c) => {
+                    const balance = candidateBalance(c)
+                    return (
+                      <TableRow key={c.row_key}>
+                        <TableCell>
+                          <Checkbox
+                            checked={Boolean(selected[c.row_key])}
+                            onCheckedChange={(v) =>
+                              setSelected((prev) => {
+                                const next = { ...prev }
+                                if (v) next[c.row_key] = c
+                                else delete next[c.row_key]
+                                return next
+                              })
                             }
+                            aria-label={`Select ${c.member_name}`}
                           />
                         </TableCell>
-                      ) : null}
-                    </TableRow>
-                  ))
+                        <TableCell>
+                          <div className="font-medium">{c.member_name}</div>
+                          <div className="text-xs text-muted-foreground">{c.member_number ?? "—"}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">{c.asset_type}</Badge>
+                            <span className="text-sm">{c.asset_label}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{money(c.outstanding)}</TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          <span className={balance > 0 ? "font-medium text-foreground" : "text-muted-foreground"}>
+                            {money(balance)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{money(c.suggested_payable)}</TableCell>
+                        {amountMode === "part" ? (
+                          <TableCell className="text-right">
+                            <Input
+                              type="number"
+                              min={0}
+                              step="0.01"
+                              className="h-8 text-right"
+                              placeholder="—"
+                              disabled={!selected[c.row_key]}
+                              value={overrides[c.row_key] ?? ""}
+                              onChange={(e) =>
+                                setOverrides((prev) => ({ ...prev, [c.row_key]: e.target.value }))
+                              }
+                            />
+                          </TableCell>
+                        ) : null}
+                      </TableRow>
+                    )
+                  })
                 )}
               </TableBody>
             </Table>
@@ -671,8 +689,9 @@ export default function BulkEquityAssetRepaymentsPage() {
         <CardHeader>
           <CardTitle>2. Amount mode</CardTitle>
           <CardDescription>
-            Full wallet pays min(equity, outstanding) per selected row in order. Part uses a shared amount,
-            with optional per-row overrides. Same member across multiple rows shares remaining equity in order.
+            Full wallet pays min(contribution, outstanding) per selected row in order. Part uses a shared amount,
+            with optional per-row overrides. Same member across multiple rows shares remaining contribution in
+            order.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -687,9 +706,9 @@ export default function BulkEquityAssetRepaymentsPage() {
             >
               <RadioGroupItem value="full_wallet" id="mode-full" className="mt-1" />
               <div>
-                <div className="font-medium">Full equity wallet</div>
+                <div className="font-medium">Full contribution wallet</div>
                 <p className="text-sm text-muted-foreground">
-                  Apply available equity up to each holding&apos;s outstanding balance
+                  Apply available contribution up to each holding&apos;s outstanding balance
                 </p>
               </div>
             </Label>
@@ -754,7 +773,7 @@ export default function BulkEquityAssetRepaymentsPage() {
                   <TableRow>
                     <TableHead>Member / Asset</TableHead>
                     <TableHead className="text-right">Requested</TableHead>
-                    <TableHead className="text-right">Equity avail.</TableHead>
+                    <TableHead className="text-right">Contribution avail.</TableHead>
                     <TableHead className="text-right">Outstanding</TableHead>
                     <TableHead className="text-right">Payable</TableHead>
                     <TableHead>Status</TableHead>
@@ -770,7 +789,7 @@ export default function BulkEquityAssetRepaymentsPage() {
                         </div>
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{money(r.requested)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{money(r.equity_available)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{money(previewAvailable(r))}</TableCell>
                       <TableCell className="text-right tabular-nums">{money(r.outstanding)}</TableCell>
                       <TableCell className="text-right tabular-nums font-medium">{money(r.payable)}</TableCell>
                       <TableCell>
@@ -845,9 +864,9 @@ export default function BulkEquityAssetRepaymentsPage() {
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Confirm bulk equity repayment</DialogTitle>
+            <DialogTitle>Confirm bulk contribution repayment</DialogTitle>
             <DialogDescription>
-              This will debit equity wallets and post house/land repayments for{" "}
+              This will debit contribution wallets and post house/land repayments for{" "}
               {preview?.payable_count ?? 0} row(s), totaling {money(preview?.total_payable ?? 0)}. This cannot
               be undone from this screen.
             </DialogDescription>

@@ -132,6 +132,7 @@ const navItems: NavItem[] = [
       { href: "/admin/wallets/transactions", label: "Wallet Transactions", icon: ScrollText },
       { href: "/admin/wallet-transfer", label: "Wallet Transfer", icon: ArrowRightLeft },
       { href: "/admin/bulk-upload/wallet-transfers", label: "Bulk Wallet Transfer", icon: Upload },
+      { href: "/admin/bulk-upload/rollbacks", label: "Financial Rollbacks", icon: RotateCcw },
     ],
   },
   {
@@ -142,6 +143,8 @@ const navItems: NavItem[] = [
       { href: "/admin/post-contribution", label: "Post Contribution", icon: Plus },
       { href: "/admin/contribution-plans", label: "Contribution Plans", icon: Package },
       { href: "/admin/bulk-upload/contributions", label: "Bulk Upload Contribution", icon: Upload },
+      { href: "/admin/bulk-upload/contribution-asset-repayments", label: "Bulk Contribution Repayments", icon: Upload },
+      { href: "/admin/bulk-upload/rollbacks", label: "Financial Rollbacks", icon: RotateCcw },
     ],
   },
   {
@@ -199,6 +202,7 @@ const navItems: NavItem[] = [
       { href: "/admin/bulk-upload/property-subscribers", label: "Bulk House Subscribers", icon: Upload },
       { href: "/admin/bulk-upload/property-payments", label: "Bulk House Repayments", icon: Upload },
       { href: "/admin/bulk-upload/equity-asset-repayments", label: "Bulk Equity Repayments", icon: Upload },
+      { href: "/admin/bulk-upload/contribution-asset-repayments", label: "Bulk Contribution Repayments", icon: Upload },
       { href: "/admin/house-repayments", label: "Record House/Land Repayment", icon: CreditCard },
       { href: "/admin/property-management/allottees/new", label: "Assign House to Member", icon: UserCheck },
       { href: "/admin/property-management/allottees", label: "Manage House Allottees", icon: UserCheck },

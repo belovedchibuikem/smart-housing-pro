@@ -18,6 +18,10 @@ export const TENANT_ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
   "bulk.property-payments": "view_properties|manage_property_allottees|manage_payments",
   "bulk.equity-asset-repayments":
     "view_properties|manage_property_allottees|manage_payments|view_equity_contributions",
+  "bulk.contribution-asset-repayments":
+    "view_properties|manage_property_allottees|manage_payments|view_contributions",
+  "bulk.rollbacks": "rollback_financial_transactions|manage_payments",
+  "financial-rollbacks": "rollback_financial_transactions|manage_payments",
   "bulk.lands": "view_properties|create_properties|edit_properties|manage_property_estates",
   "bulk.land-subscriptions": "view_properties|manage_property_allottees|approve_allotments",
   "land-subscriptions": "view_properties|manage_property_allottees|approve_allotments|manage_payments",
@@ -31,6 +35,8 @@ export const TENANT_ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
   "bulk.internal-mortgage-repayments": "manage_loan_repayments|view_loans",
   "bulk.refund": "manage_payments|view_wallets|view_contributions",
   "bulk.wallet-transfers": "manage_wallets|manage_payments|view_wallets",
+  "bulk.rollbacks": "rollback_financial_transactions|manage_payments",
+  "financial-rollbacks": "rollback_financial_transactions|manage_payments",
   "bulk.internal-mortgages": "view_loans|create_loans|approve_loans",
   "bulk.investments": "view_investments|create_investments|approve_investments|create_investment_plans",
 
