@@ -108,6 +108,10 @@ export default function BulkEquityAssetRepaymentsPage() {
   const [minOutstandingInput, setMinOutstandingInput] = useState("")
   const [minEquity, setMinEquity] = useState("")
   const [minOutstanding, setMinOutstanding] = useState("")
+  const [dateFromInput, setDateFromInput] = useState("")
+  const [dateToInput, setDateToInput] = useState("")
+  const [dateFrom, setDateFrom] = useState("")
+  const [dateTo, setDateTo] = useState("")
   const [page, setPage] = useState(1)
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [pagination, setPagination] = useState<PaginationMeta>({
@@ -143,12 +147,14 @@ export default function BulkEquityAssetRepaymentsPage() {
       if (minOutstanding.trim() && Number(minOutstanding) > 0) {
         qs.set("min_outstanding", String(Number(minOutstanding)))
       }
+      if (dateFrom.trim()) qs.set("date_from", dateFrom.trim())
+      if (dateTo.trim()) qs.set("date_to", dateTo.trim())
       qs.set("page", String(opts?.page ?? page))
       qs.set("per_page", String(PER_PAGE))
       if (opts?.keysOnly) qs.set("keys_only", "1")
       return qs
     },
-    [search, assetType, equityOnly, minEquity, minOutstanding, page],
+    [search, assetType, equityOnly, minEquity, minOutstanding, dateFrom, dateTo, page],
   )
 
   const loadCandidates = useCallback(async () => {
@@ -263,6 +269,8 @@ export default function BulkEquityAssetRepaymentsPage() {
     setSearch(searchInput.trim())
     setMinEquity(minEquityInput.trim())
     setMinOutstanding(minOutstandingInput.trim())
+    setDateFrom(dateFromInput.trim())
+    setDateTo(dateToInput.trim())
     setPage(1)
   }
 
@@ -275,6 +283,10 @@ export default function BulkEquityAssetRepaymentsPage() {
     setMinOutstandingInput("")
     setMinEquity("")
     setMinOutstanding("")
+    setDateFromInput("")
+    setDateToInput("")
+    setDateFrom("")
+    setDateTo("")
     setPage(1)
   }
 
@@ -509,6 +521,26 @@ export default function BulkEquityAssetRepaymentsPage() {
                 placeholder="e.g. 100000"
                 value={minOutstandingInput}
                 onChange={(e) => setMinOutstandingInput(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="date-from">Allocation from</Label>
+              <Input
+                id="date-from"
+                type="date"
+                value={dateFromInput}
+                onChange={(e) => setDateFromInput(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="date-to">Allocation to</Label>
+              <Input
+                id="date-to"
+                type="date"
+                value={dateToInput}
+                onChange={(e) => setDateToInput(e.target.value)}
               />
             </div>
 
