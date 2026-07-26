@@ -367,8 +367,12 @@ export function IssuedDocumentsPanel({
 								</Button>
 							</div>
 							{previewHtml && (
-								<div className="rounded border bg-white overflow-auto max-h-[420px]">
-									<iframe title="Document preview" className="w-full min-h-[400px]" srcDoc={previewHtml} />
+								<div className="rounded border bg-muted/30 overflow-auto p-3">
+									<iframe
+										title="Document preview"
+										className="w-full min-h-[720px] bg-white"
+										srcDoc={previewHtml}
+									/>
 								</div>
 							)}
 						</div>
