@@ -210,37 +210,33 @@ export default function LetterheadSettingsPage() {
 								</span>
 								<span>QR</span>
 							</div>
-							<div className="flex flex-wrap justify-center gap-2 text-[11px] text-slate-600">
-								{[
-									["Facebook", form.letterhead_facebook, "#1877F2", "f"],
-									["Instagram", form.letterhead_instagram, "#E4405F", "ig"],
-									["LinkedIn", form.letterhead_linkedin, "#0A66C2", "in"],
-									["X", form.letterhead_twitter, "#111111", "X"],
-									["YouTube", form.letterhead_youtube, "#FF0000", "yt"],
-									["WhatsApp", form.letterhead_whatsapp, "#25D366", "wa"],
-								]
-									.filter(([, value]) => Boolean(value && String(value).trim()))
-									.map(([label, value, color, abbr]) => (
-										<span key={String(label)} className="inline-flex items-center gap-1">
-											<span
-												className="inline-flex h-4 min-w-4 items-center justify-center rounded px-1 text-[9px] font-bold text-white"
-												style={{ background: String(color) }}
-											>
-												{String(abbr)}
-											</span>
-											{String(value)}
+							<div className="flex flex-wrap justify-center gap-1.5">
+								{(() => {
+									const platforms = [
+										["Facebook", form.letterhead_facebook, "#1877F2", "f"],
+										["Instagram", form.letterhead_instagram, "#E4405F", "ig"],
+										["LinkedIn", form.letterhead_linkedin, "#0A66C2", "in"],
+										["X", form.letterhead_twitter, "#111111", "X"],
+										["YouTube", form.letterhead_youtube, "#FF0000", "yt"],
+										["WhatsApp", form.letterhead_whatsapp, "#25D366", "wa"],
+									] as const
+									const filled = platforms.filter(([, value]) => Boolean(value && String(value).trim()))
+									const handleSet = Boolean(form.letterhead_social_handle?.trim())
+									const icons = filled.length > 0 ? filled : handleSet ? platforms : []
+									if (icons.length === 0) {
+										return <span className="text-muted-foreground text-[11px]">Social icons appear here</span>
+									}
+									return icons.map(([label, , color, abbr]) => (
+										<span
+											key={label}
+											title={label}
+											className="inline-flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold text-white"
+											style={{ background: color }}
+										>
+											{abbr}
 										</span>
-									))}
-								{![
-									form.letterhead_facebook,
-									form.letterhead_instagram,
-									form.letterhead_linkedin,
-									form.letterhead_twitter,
-									form.letterhead_youtube,
-									form.letterhead_whatsapp,
-								].some((v) => v && String(v).trim()) && (
-									<span className="text-muted-foreground">Social handles appear here when filled</span>
-								)}
+									))
+								})()}
 							</div>
 						</div>
 					</div>
