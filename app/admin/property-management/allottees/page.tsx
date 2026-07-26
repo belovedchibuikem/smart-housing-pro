@@ -1,16 +1,23 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Search, Users, Home, MapPin, Eye, Edit, Trash2, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
-import { getPropertyAllottees, getPropertyAllotteeStats, deletePropertyAllottee } from "@/lib/api/client"
+import {
+  apiFetch,
+  getPropertyAllottees,
+  getPropertyAllotteeStats,
+  deletePropertyAllottee,
+  massMovePropertyAllottees,
+} from "@/lib/api/client"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,21 +74,43 @@ export default function ManageAllotteesPage() {
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; allotteeId: string | null }>({ open: false, allotteeId: null })
   const [stats, setStats] = useState({ total_allottees: 0, approved_allottees: 0, pending_allottees: 0, rejected_allottees: 0 })
+  const [propertyFilter, setPropertyFilter] = useState("all")
+  const [properties, setProperties] = useState<Array<{ id: string; title: string; type?: string; type_label?: string }>>([])
+  const [selected, setSelected] = useState<Record<string, boolean>>({})
+  const [moveOpen, setMoveOpen] = useState(false)
+  const [targetPropertyId, setTargetPropertyId] = useState("")
+  const [moving, setMoving] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
+
+  const selectedIds = useMemo(() => Object.keys(selected).filter((id) => selected[id]), [selected])
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await apiFetch<{ success: boolean; data: Array<{ id: string; title: string; type?: string }> }>(
+          "/admin/properties?per_page=1000",
+        )
+        setProperties((res.data || []).filter((p) => p.type !== "land"))
+      } catch {
+        /* ignore */
+      }
+    })()
+  }, [])
 
   useEffect(() => {
     fetchAllottees()
     fetchStats()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, statusFilter])
+  }, [searchQuery, statusFilter, propertyFilter])
 
   const fetchAllottees = async () => {
     try {
       setLoading(true)
-      const params: any = {}
+      const params: any = { per_page: 100 }
       if (searchQuery) params.search = searchQuery
       if (statusFilter !== 'all') params.status = statusFilter
+      if (propertyFilter !== "all") params.property_id = propertyFilter
       
       const response = await getPropertyAllottees(params)
       if (response.success) {
@@ -175,10 +204,22 @@ export default function ManageAllotteesPage() {
           <p className="text-muted-foreground mt-1">View and manage property allocations</p>
         </div>
         <Can permission="manage_property_allottees|approve_allotments">
-          <Button onClick={() => router.push("/admin/property-management/allottees/new")}>
-            <Users className="h-4 w-4 mr-2" />
-            Add New Allottee
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => router.push("/admin/property-management/allottees/mass-allocate")}>
+              Mass allocate
+            </Button>
+            <Button
+              variant="outline"
+              disabled={selectedIds.length === 0}
+              onClick={() => setMoveOpen(true)}
+            >
+              Move selected ({selectedIds.length})
+            </Button>
+            <Button onClick={() => router.push("/admin/property-management/allottees/new")}>
+              <Users className="h-4 w-4 mr-2" />
+              Add New Allottee
+            </Button>
+          </div>
         </Can>
       </div>
 
@@ -254,7 +295,23 @@ export default function ManageAllotteesPage() {
                 <option value="all">All Status</option>
                 <option value="pending">Pending</option>
                 <option value="approved">Approved</option>
+                <option value="completed">Completed</option>
                 <option value="rejected">Rejected</option>
+              </select>
+              <select
+                value={propertyFilter}
+                onChange={(e) => {
+                  setPropertyFilter(e.target.value)
+                  setSelected({})
+                }}
+                className="w-56 rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="all">All properties</option>
+                {properties.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.title}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -272,6 +329,21 @@ export default function ManageAllotteesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-10">
+                    <Checkbox
+                      checked={allottees.length > 0 && allottees.every((a) => selected[a.id])}
+                      onCheckedChange={(v) => {
+                        const checked = Boolean(v)
+                        setSelected((prev) => {
+                          const next = { ...prev }
+                          allottees.forEach((a) => {
+                            next[a.id] = checked
+                          })
+                          return next
+                        })
+                      }}
+                    />
+                  </TableHead>
                   <TableHead>Member</TableHead>
                   <TableHead>Property / Slot</TableHead>
                   <TableHead>Payment progress</TableHead>
@@ -289,6 +361,14 @@ export default function ManageAllotteesPage() {
                     (allottee.slot_number != null ? `Slot #${allottee.slot_number}` : null)
                   return (
                   <TableRow key={allottee.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={Boolean(selected[allottee.id])}
+                        onCheckedChange={(v) =>
+                          setSelected((prev) => ({ ...prev, [allottee.id]: Boolean(v) }))
+                        }
+                      />
+                    </TableCell>
                     <TableCell>
                       {allottee.member ? (
                         <div>
@@ -486,6 +566,71 @@ export default function ManageAllotteesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Move selected holdings</DialogTitle>
+            <DialogDescription>
+              Move {selectedIds.length} allottee(s) to another property. Source tenures are superseded;
+              paid balances are carried to the new allocation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Target property</label>
+            <select
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={targetPropertyId}
+              onChange={(e) => setTargetPropertyId(e.target.value)}
+            >
+              <option value="">Select property…</option>
+              {properties.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.title}
+                </option>
+              ))}
+            </select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMoveOpen(false)} disabled={moving}>
+              Cancel
+            </Button>
+            <Button
+              disabled={moving || !targetPropertyId}
+              onClick={async () => {
+                setMoving(true)
+                try {
+                  const res = await massMovePropertyAllottees({
+                    allocation_ids: selectedIds,
+                    target_property_id: targetPropertyId,
+                    carry_payments: true,
+                  })
+                  toast({
+                    title: "Mass move finished",
+                    description: `${res.data.success_count} moved, ${res.data.failed_count} failed`,
+                  })
+                  setMoveOpen(false)
+                  setSelected({})
+                  setTargetPropertyId("")
+                  await fetchAllottees()
+                  await fetchStats()
+                } catch (e) {
+                  toast({
+                    title: "Move failed",
+                    description: e instanceof Error ? e.message : "Unknown error",
+                    variant: "destructive",
+                  })
+                } finally {
+                  setMoving(false)
+                }
+              }}
+            >
+              {moving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Confirm move
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

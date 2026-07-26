@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, type ComponentType } from "react"
+import { useEffect, useMemo, useState, type ComponentType } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import {
@@ -27,7 +27,16 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -43,6 +52,7 @@ import {
   recalculateAdminPropertyStatistics,
   getPropertyLocationFilterOptions,
   getLandSubscriptions,
+  massMoveLandSubscriptions,
   type AdminPropertyStatistics,
 } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
@@ -108,7 +118,17 @@ export default function AdminLandManagementPage() {
   const [loadingSubscriptions, setLoadingSubscriptions] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [subscriptionSearchQuery, setSubscriptionSearchQuery] = useState("")
+  const [subscriptionLandFilter, setSubscriptionLandFilter] = useState("all")
+  const [selectedSubs, setSelectedSubs] = useState<Record<string, boolean>>({})
+  const [moveOpen, setMoveOpen] = useState(false)
+  const [targetLandId, setTargetLandId] = useState("")
+  const [moving, setMoving] = useState(false)
   const [workspaceTab, setWorkspaceTab] = useState("parcels")
+
+  const selectedSubIds = useMemo(
+    () => Object.keys(selectedSubs).filter((id) => selectedSubs[id]),
+    [selectedSubs],
+  )
 
   useEffect(() => {
     const tab = searchParams.get("tab")
@@ -177,7 +197,7 @@ export default function AdminLandManagementPage() {
   useEffect(() => {
     void fetchSubscriptions()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locationFilters, subscriptionSearchQuery])
+  }, [locationFilters, subscriptionSearchQuery, subscriptionLandFilter])
 
   const fetchLandParcels = async () => {
     try {
@@ -213,6 +233,7 @@ export default function AdminLandManagementPage() {
       const response = await getLandSubscriptions({
         per_page: 100,
         search: subscriptionSearchQuery.trim() || undefined,
+        land_id: subscriptionLandFilter !== "all" ? subscriptionLandFilter : undefined,
         location: locationFilters.location || undefined,
         city: locationFilters.city || undefined,
         state: locationFilters.state || undefined,
@@ -338,6 +359,9 @@ export default function AdminLandManagementPage() {
                 </DropdownMenuItem>
               </Can>
               <Can permission="manage_property_allottees|approve_allotments">
+                <DropdownMenuItem asChild>
+                  <Link href="/admin/land-subscriptions/mass-allocate">Mass allocate land</Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href="/admin/bulk-upload/land-subscriptions">Bulk land subscriptions</Link>
                 </DropdownMenuItem>
@@ -635,24 +659,77 @@ export default function AdminLandManagementPage() {
                   Track plot allocations and payment progress for land subscribers.
                 </p>
               </div>
-              <div className="relative w-full max-w-md">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search member, ID, land…"
-                  value={subscriptionSearchQuery}
-                  onChange={(e) => setSubscriptionSearchQuery(e.target.value)}
-                  className="h-9 bg-background pl-9"
-                />
+              <div className="flex w-full flex-col gap-2 sm:max-w-xl sm:flex-row sm:items-center">
+                <Can permission="manage_property_allottees|approve_allotments">
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href="/admin/land-subscriptions/mass-allocate">Mass allocate</Link>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={selectedSubIds.length === 0}
+                      onClick={() => setMoveOpen(true)}
+                    >
+                      Move selected ({selectedSubIds.length})
+                    </Button>
+                  </div>
+                </Can>
+                <div className="relative w-full flex-1">
+                  <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Search member, ID, land…"
+                    value={subscriptionSearchQuery}
+                    onChange={(e) => setSubscriptionSearchQuery(e.target.value)}
+                    className="h-9 bg-background pl-9"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="border-b px-4 py-3 sm:px-5">
+            <div className="space-y-3 border-b px-4 py-3 sm:px-5">
               <PropertyLocationFilters
                 filters={locationFilters}
                 options={filterOptions}
                 onChange={handleLocationFiltersChange}
                 showStatus={false}
               />
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="text-xs font-medium text-muted-foreground">Filter by land</label>
+                <select
+                  className="h-9 max-w-md rounded-md border border-input bg-background px-3 text-sm"
+                  value={subscriptionLandFilter}
+                  onChange={(e) => {
+                    setSubscriptionLandFilter(e.target.value)
+                    setSelectedSubs({})
+                  }}
+                >
+                  <option value="all">All lands</option>
+                  {landParcels.map((land) => (
+                    <option key={land.id} value={land.id}>
+                      {land.land_title || land.land_code || land.id}
+                    </option>
+                  ))}
+                </select>
+                {subscriptions.length > 0 ? (
+                  <label className="ml-auto inline-flex items-center gap-2 text-sm text-muted-foreground">
+                    <Checkbox
+                      checked={subscriptions.length > 0 && subscriptions.every((s) => selectedSubs[s.id])}
+                      onCheckedChange={(v) => {
+                        const checked = Boolean(v)
+                        setSelectedSubs((prev) => {
+                          const next = { ...prev }
+                          subscriptions.forEach((s) => {
+                            next[s.id] = checked
+                          })
+                          return next
+                        })
+                      }}
+                    />
+                    Select page
+                  </label>
+                ) : null}
+              </div>
             </div>
 
             <div className="p-4 sm:p-5">
@@ -673,8 +750,15 @@ export default function AdminLandManagementPage() {
                   {subscriptions.map((sub) => (
                     <div
                       key={sub.id}
-                      className="grid gap-4 rounded-xl border bg-background p-4 transition-colors hover:bg-muted/20 lg:grid-cols-[1fr_auto] lg:items-center"
+                      className="grid gap-4 rounded-xl border bg-background p-4 transition-colors hover:bg-muted/20 lg:grid-cols-[auto_1fr_auto] lg:items-center"
                     >
+                      <Checkbox
+                        checked={Boolean(selectedSubs[sub.id])}
+                        onCheckedChange={(v) =>
+                          setSelectedSubs((prev) => ({ ...prev, [sub.id]: Boolean(v) }))
+                        }
+                        aria-label={`Select ${sub.memberName}`}
+                      />
                       <div className="min-w-0 space-y-3">
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <div className="min-w-0">
@@ -749,6 +833,12 @@ export default function AdminLandManagementPage() {
               icon={UserCheck}
             />
             <ToolCard
+              title="Mass allocate land"
+              description="Select many members and assign them to one land parcel."
+              href="/admin/land-subscriptions/mass-allocate"
+              icon={Users}
+            />
+            <ToolCard
               title="Bulk land parcels"
               description="Import many parcels from CSV."
               href="/admin/bulk-upload/lands"
@@ -800,6 +890,70 @@ export default function AdminLandManagementPage() {
           </div>
         ) : null}
       </section>
+
+      <Dialog open={moveOpen} onOpenChange={setMoveOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Move selected land holdings</DialogTitle>
+            <DialogDescription>
+              Move {selectedSubIds.length} subscription(s) to another land parcel. Source tenures are
+              superseded; paid balances are carried to the new subscription.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Target land</label>
+            <select
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={targetLandId}
+              onChange={(e) => setTargetLandId(e.target.value)}
+            >
+              <option value="">Select land…</option>
+              {landParcels.map((land) => (
+                <option key={land.id} value={land.id}>
+                  {land.land_title || land.land_code || land.id}
+                </option>
+              ))}
+            </select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMoveOpen(false)} disabled={moving}>
+              Cancel
+            </Button>
+            <Button
+              disabled={moving || !targetLandId}
+              onClick={async () => {
+                setMoving(true)
+                try {
+                  const res = await massMoveLandSubscriptions({
+                    subscription_ids: selectedSubIds,
+                    target_land_id: targetLandId,
+                    carry_payments: true,
+                  })
+                  toast({
+                    title: "Mass move finished",
+                    description: `${res.data.success_count} moved, ${res.data.failed_count} failed`,
+                  })
+                  setMoveOpen(false)
+                  setSelectedSubs({})
+                  setTargetLandId("")
+                  await fetchSubscriptions()
+                } catch (e) {
+                  toast({
+                    title: "Move failed",
+                    description: e instanceof Error ? e.message : "Unknown error",
+                    variant: "destructive",
+                  })
+                } finally {
+                  setMoving(false)
+                }
+              }}
+            >
+              {moving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Confirm move
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

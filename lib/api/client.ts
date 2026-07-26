@@ -3202,6 +3202,48 @@ export async function createPropertyAllottee(data: any) {
 	return apiFetch<{ success: boolean; message: string; data: any }>("/admin/property-management/allottees", { method: "POST", body: data })
 }
 
+export async function massAllocatePropertyAllottees(body: {
+	property_id: string
+	allocation_date: string
+	status?: string
+	items: Array<{
+		member_id: string
+		property_slot_id?: string
+		sale_price?: number
+		amount_paid?: number
+		unit_address?: string
+		notes?: string
+	}>
+}) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		data: {
+			success_count: number
+			failed_count: number
+			results: Array<{ member_id: string; status: string; message: string; allocation_id?: string }>
+		}
+	}>("/admin/property-management/allottees/mass-allocate", { method: "POST", body })
+}
+
+export async function massMovePropertyAllottees(body: {
+	allocation_ids: string[]
+	target_property_id: string
+	allocation_date?: string
+	slot_mapping?: Record<string, string>
+	carry_payments?: boolean
+}) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		data: {
+			success_count: number
+			failed_count: number
+			results: Array<{ allocation_id: string; status: string; message: string; new_allocation_id?: string }>
+		}
+	}>("/admin/property-management/allottees/mass-move", { method: "POST", body })
+}
+
 export async function getLandSubscriptions(params?: {
 	search?: string
 	land_id?: string
@@ -3261,6 +3303,45 @@ export async function createLandSubscription(data: {
 		method: "POST",
 		body: data,
 	})
+}
+
+export async function massAllocateLandSubscriptions(body: {
+	land_id: string
+	items: Array<{
+		member_id: string
+		land_slot_id?: string
+		allocated_land_size?: string
+		allocation_total_cost?: number
+		amount_paid?: number
+		payment_description?: string
+	}>
+}) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		data: {
+			success_count: number
+			failed_count: number
+			results: Array<{ member_id: string; status: string; message: string; subscription_id?: string }>
+		}
+	}>("/admin/land-subscriptions/mass-allocate", { method: "POST", body })
+}
+
+export async function massMoveLandSubscriptions(body: {
+	subscription_ids: string[]
+	target_land_id: string
+	slot_mapping?: Record<string, string>
+	carry_payments?: boolean
+}) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		data: {
+			success_count: number
+			failed_count: number
+			results: Array<{ subscription_id: string; status: string; message: string; new_subscription_id?: string }>
+		}
+	}>("/admin/land-subscriptions/mass-move", { method: "POST", body })
 }
 
 export async function updatePropertyAllottee(id: string, data: any) {
