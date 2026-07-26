@@ -159,7 +159,14 @@ export default function LetterheadSettingsPage() {
 						style={{ borderTopColor: form.letterhead_primary_color || "#1B5E20", borderTopWidth: 3 }}
 					>
 						<div className="grid grid-cols-[80px_1fr_180px] gap-3 border-b border-black pb-3 mb-3">
-							<div className="text-xs text-muted-foreground">Logo(s)</div>
+							<div className="text-xs text-muted-foreground">
+								{previewLogo ? (
+									// eslint-disable-next-line @next/next/no-img-element
+									<img src={previewLogo} alt="Logo" className="h-14 w-14 object-contain" />
+								) : (
+									"Logo"
+								)}
+							</div>
 							<div>
 								<div className="font-bold uppercase text-sm" style={{ color: form.letterhead_primary_color || "#1B5E20" }}>
 									{form.letterhead_full_name || "Tenant full name"}
@@ -193,10 +200,48 @@ export default function LetterheadSettingsPage() {
 							</span>
 							Document body appears here
 						</div>
-						<div className="mt-3 border-t pt-2 text-xs flex justify-between" style={{ color: form.letterhead_secondary_color || "#1565C0" }}>
-							<span style={{ color: form.letterhead_accent_color || "#C62828" }}>{form.letterhead_short_name || "Short name"}</span>
-							<span>{form.letterhead_social_handle || "@handle"} | {form.letterhead_email || "email"}</span>
-							<span>QR</span>
+						<div className="mt-3 border-t pt-2 text-xs space-y-1">
+							<div className="flex justify-between gap-2" style={{ color: form.letterhead_secondary_color || "#1565C0" }}>
+								<span style={{ color: form.letterhead_accent_color || "#C62828" }}>
+									{form.letterhead_short_name || "Short name"}
+								</span>
+								<span>
+									{form.letterhead_social_handle || "@handle"} | {form.letterhead_email || "email"}
+								</span>
+								<span>QR</span>
+							</div>
+							<div className="flex flex-wrap justify-center gap-2 text-[11px] text-slate-600">
+								{[
+									["Facebook", form.letterhead_facebook, "#1877F2", "f"],
+									["Instagram", form.letterhead_instagram, "#E4405F", "ig"],
+									["LinkedIn", form.letterhead_linkedin, "#0A66C2", "in"],
+									["X", form.letterhead_twitter, "#111111", "X"],
+									["YouTube", form.letterhead_youtube, "#FF0000", "yt"],
+									["WhatsApp", form.letterhead_whatsapp, "#25D366", "wa"],
+								]
+									.filter(([, value]) => Boolean(value && String(value).trim()))
+									.map(([label, value, color, abbr]) => (
+										<span key={String(label)} className="inline-flex items-center gap-1">
+											<span
+												className="inline-flex h-4 min-w-4 items-center justify-center rounded px-1 text-[9px] font-bold text-white"
+												style={{ background: String(color) }}
+											>
+												{String(abbr)}
+											</span>
+											{String(value)}
+										</span>
+									))}
+								{![
+									form.letterhead_facebook,
+									form.letterhead_instagram,
+									form.letterhead_linkedin,
+									form.letterhead_twitter,
+									form.letterhead_youtube,
+									form.letterhead_whatsapp,
+								].some((v) => v && String(v).trim()) && (
+									<span className="text-muted-foreground">Social handles appear here when filled</span>
+								)}
+							</div>
 						</div>
 					</div>
 				</CardContent>
