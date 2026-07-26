@@ -68,8 +68,18 @@ export default function MassAllocateLandPage() {
 		if (!q) return members
 		return members.filter((m) => {
 			const name = `${m.user?.first_name ?? ""} ${m.user?.last_name ?? ""}`.toLowerCase()
-			const id = (formatMemberDisplayIdentifier(m) ?? "").toLowerCase()
-			return name.includes(q) || id.includes(q) || (m.user?.email ?? "").toLowerCase().includes(q)
+			const haystack = [
+				name,
+				m.user?.email,
+				formatMemberDisplayIdentifier(m),
+				m.member_number,
+				m.staff_id,
+				m.ippis_number,
+			]
+				.filter(Boolean)
+				.join(" ")
+				.toLowerCase()
+			return haystack.includes(q)
 		})
 	}, [members, memberSearch])
 
@@ -202,7 +212,7 @@ export default function MassAllocateLandPage() {
 					</CardHeader>
 					<CardContent className="space-y-3">
 						<Input
-							placeholder="Filter members…"
+							placeholder="Filter by name, email, member no, staff ID, or IPPIS…"
 							value={memberSearch}
 							onChange={(e) => setMemberSearch(e.target.value)}
 						/>

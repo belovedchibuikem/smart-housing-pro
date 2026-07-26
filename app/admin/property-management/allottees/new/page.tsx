@@ -24,6 +24,9 @@ import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
 
 interface Member {
   id: string
+  first_name?: string
+  last_name?: string
+  email?: string
   user?: {
     first_name?: string
     last_name?: string
@@ -32,6 +35,9 @@ interface Member {
   member_number?: string
   member_id?: string
   staff_id?: string
+  ippis_number?: string
+  frsc_pin?: string
+  id_number?: string
 }
 
 interface PropertyOption {
@@ -260,7 +266,7 @@ export default function NewAllotteePage() {
                     onValueChange={(value) => setFormData({ ...formData, member_id: value })}
                     options={memberOptions}
                     placeholder="Select a member"
-                    searchPlaceholder="Search by name, number, email…"
+                    searchPlaceholder="Search by name, email, member no, staff ID, or IPPIS…"
                     emptyText="No members match your search."
                   />
                 </div>

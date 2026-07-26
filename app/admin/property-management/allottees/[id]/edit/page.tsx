@@ -219,7 +219,7 @@ export default function EditAllotteePage() {
                   onValueChange={(value) => setFormData({ ...formData, member_id: value })}
                   options={memberOptions}
                   placeholder="Select a member"
-                  searchPlaceholder="Search by name, number, email…"
+                  searchPlaceholder="Search by name, email, member no, staff ID, or IPPIS…"
                   emptyText="No members match your search."
                 />
               </div>

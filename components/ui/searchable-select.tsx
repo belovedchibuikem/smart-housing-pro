@@ -33,11 +33,19 @@ type SearchableSelectProps = {
 	emptyValueLabel?: string
 }
 
+function normalizeSearchToken(value: string): string {
+	return value.toLowerCase().replace(/[\s\-_/.,]/g, "")
+}
+
 function defaultFilter(query: string, opt: SearchableSelectOption): boolean {
 	if (!query.trim()) return true
-	const q = query.toLowerCase()
+	const q = query.toLowerCase().trim()
 	const hay = [opt.label, opt.searchText, opt.description, opt.value].filter(Boolean).join(" ").toLowerCase()
-	return hay.includes(q)
+	if (hay.includes(q)) return true
+	// Identifier-friendly match (IPPIS / staff IDs often typed without separators)
+	const qCompact = normalizeSearchToken(q)
+	if (!qCompact) return true
+	return normalizeSearchToken(hay).includes(qCompact)
 }
 
 export function SearchableSelect({
@@ -145,23 +153,53 @@ export function SearchableSelect({
 export function membersToSearchableOptions(
 	members: Array<{
 		id: string
+		first_name?: string | null
+		last_name?: string | null
+		email?: string | null
 		user?: { first_name?: string | null; last_name?: string | null; email?: string | null } | null
 		member_number?: string | null
 		member_id?: string | null
 		staff_id?: string | null
 		ippis_number?: string | null
 		frsc_pin?: string | null
+		id_number?: string | null
 	}>
 ): SearchableSelectOption[] {
 	return members.map((m) => {
-		const name = `${m.user?.first_name ?? ""} ${m.user?.last_name ?? ""}`.trim() || "Member"
-		const idPart = m.member_number || m.member_id || m.staff_id || m.ippis_number || m.id
-		const label = `${name} (${idPart})`
-		const searchText = [name, idPart, m.user?.email, m.staff_id, m.member_number, m.ippis_number, m.frsc_pin].filter(Boolean).join(" ")
+		const first = m.user?.first_name ?? m.first_name ?? ""
+		const last = m.user?.last_name ?? m.last_name ?? ""
+		const email = m.user?.email ?? m.email ?? ""
+		const name = `${first} ${last}`.trim() || "Member"
+		const idParts = [
+			m.member_number ? `Member No: ${m.member_number}` : null,
+			m.staff_id ? `Staff ID: ${m.staff_id}` : null,
+			m.ippis_number ? `IPPIS: ${m.ippis_number}` : null,
+			m.frsc_pin ? `PIN: ${m.frsc_pin}` : null,
+			m.id_number ? `ID: ${m.id_number}` : null,
+			!m.member_number && m.member_id ? m.member_id : null,
+		].filter(Boolean) as string[]
+		const description = idParts.join(" · ") || m.id
+		const searchText = [
+			name,
+			email,
+			description,
+			m.member_number,
+			m.member_id,
+			m.staff_id,
+			m.ippis_number,
+			m.frsc_pin,
+			m.id_number,
+			m.id,
+			// Explicit tokens so partial typed queries still hit
+			m.ippis_number ? `ippis ${m.ippis_number}` : null,
+			m.staff_id ? `staff ${m.staff_id}` : null,
+		]
+			.filter(Boolean)
+			.join(" ")
 		return {
 			value: m.id,
 			label: name,
-			description: idPart,
+			description,
 			searchText,
 		}
 	})
