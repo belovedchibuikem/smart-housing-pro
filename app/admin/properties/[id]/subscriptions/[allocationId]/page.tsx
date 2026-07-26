@@ -10,9 +10,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { getPropertySubscription, generatePropertySubscriptionCertificate } from "@/lib/api/client"
+import { downloadAndSaveAdminIssuedDocument } from "@/lib/api/issued-documents"
 import { openSubscriptionCertificate } from "@/lib/properties/subscription-certificate"
 import { AdminAssetRepaymentForm } from "@/components/admin/admin-asset-repayment-form"
 import { PropertyDocuments } from "@/components/properties/property-documents"
+import { IssuedDocumentsPanel } from "@/components/documents/issued-documents-panel"
 
 interface SubscriptionDetail {
   allocation: {
@@ -132,7 +134,23 @@ export default function SubscriptionDetailPage() {
       setGeneratingCertificate(true)
       const response = await generatePropertySubscriptionCertificate(allocationId)
 
-      if (response.success && response.certificate) {
+      if (!response.success) {
+        throw new Error(response.message || "Failed to generate certificate")
+      }
+
+      if (response.issued_document?.id && response.issued_document.has_pdf) {
+        await downloadAndSaveAdminIssuedDocument(
+          response.issued_document.id,
+          `${response.issued_document.document_number || "certificate"}.pdf`,
+        )
+        toast({
+          title: "Certificate PDF ready",
+          description: `${response.issued_document.document_number} downloaded with letterhead and verification QR.`,
+        })
+        return
+      }
+
+      if (response.certificate) {
         const delivery = openSubscriptionCertificate(response.certificate)
         toast({
           title: "Certificate ready",
@@ -141,9 +159,10 @@ export default function SubscriptionDetailPage() {
               ? `Certificate ${response.certificate.certificate_number} opened for print or save as PDF.`
               : `Pop-ups blocked — certificate ${response.certificate.certificate_number} downloaded as HTML. Open the file to view or print.`,
         })
-      } else {
-        throw new Error(response.message || "Failed to generate certificate")
+        return
       }
+
+      throw new Error(response.message || "Failed to generate certificate")
     } catch (error: unknown) {
       const message =
         error instanceof Error && error.message.trim()
@@ -565,6 +584,11 @@ export default function SubscriptionDetailPage() {
         </TabsContent>
 
         <TabsContent value="documents" className="space-y-4">
+          <IssuedDocumentsPanel
+            scope={{ role: "admin", kind: "house", id: data.allocation.id }}
+            title="Official issued documents"
+            description="Issue offer letters, allocation letters, acceptance forms, and payment confirmations on the tenant letterhead for this house slot."
+          />
           <PropertyDocuments
             propertyId={data.property.id}
             canUpload
@@ -579,8 +603,8 @@ export default function SubscriptionDetailPage() {
                 label: memberLabel,
               },
             ]}
-            title={`${slotLabel} documents`}
-            description="Upload and view documents for this subscription / slot allottee account."
+            title={`${slotLabel} uploaded documents`}
+            description="Upload and view supporting documents for this subscription / slot allottee account."
           />
         </TabsContent>
       </Tabs>

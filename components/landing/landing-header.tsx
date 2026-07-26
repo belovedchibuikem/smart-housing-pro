@@ -40,6 +40,9 @@ export function LandingHeader({ isTenantPage = true }: LandingHeaderProps) {
             <Link href="#about" className="text-sm font-medium hover:text-primary transition-colors">
               About
             </Link>
+            <Link href="/verify" className="text-sm font-medium hover:text-primary transition-colors">
+              Verify Document
+            </Link>
           </nav>
 
           {/* Desktop Auth Buttons */}
@@ -102,6 +105,13 @@ export function LandingHeader({ isTenantPage = true }: LandingHeaderProps) {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 About
+              </Link>
+              <Link
+                href="/verify"
+                className="text-sm font-medium hover:text-primary transition-colors py-2 px-3 hover:bg-accent rounded-lg"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Verify Document
               </Link>
             </nav>
             <div className="flex flex-col gap-2 pt-2 border-t">

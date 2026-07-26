@@ -1789,6 +1789,15 @@ export async function generatePropertySubscriptionCertificate(allocationId: stri
 			sold_at?: string | null
 			completion_date?: string
 		}
+		issued_document?: {
+			id: string
+			document_number: string
+			verification_number?: string | null
+			document_type: string
+			status: string
+			has_pdf: boolean
+		} | null
+		download_path?: string | null
 	}>(`/admin/property-subscriptions/${allocationId}/certificate`, {
 		method: "POST",
 	})

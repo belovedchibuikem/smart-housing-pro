@@ -28,6 +28,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowLeft, Loader2, Upload } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { PropertyDocuments } from "@/components/properties/property-documents"
+import { IssuedDocumentsPanel } from "@/components/documents/issued-documents-panel"
 import { isRepaymentReversed, repaymentStatusLabel } from "@/lib/utils/repayment-status"
 
 export default function MemberHouseAccountPage() {
@@ -320,6 +321,12 @@ export default function MemberHouseAccountPage() {
 				</CardContent>
 			</Card>
 
+			<IssuedDocumentsPanel
+				scope={{ role: "member", kind: "house", id: row.allocation_id || row.id || allocationId }}
+				title="Official documents"
+				description="Offer letters, allocation letters, acceptance forms, and payment confirmations issued for this house."
+			/>
+
 			{row.property_id ? (
 				<PropertyDocuments
 					propertyId={row.property_id}
@@ -329,8 +336,8 @@ export default function MemberHouseAccountPage() {
 					memberId={undefined}
 					propertySlotId={row.property_slot_id ?? null}
 					propertyAllocationId={row.allocation_id || row.id || allocationId}
-					title={`${row.slot_label || "Slot"} documents`}
-					description="View and upload documents for your property slot / block."
+					title={`${row.slot_label || "Slot"} uploaded documents`}
+					description="View and upload supporting documents for your property slot / block."
 				/>
 			) : null}
 

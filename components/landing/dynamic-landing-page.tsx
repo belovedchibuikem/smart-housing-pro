@@ -9,13 +9,14 @@ import { PropertyListings } from "@/components/landing/property-listings"
 import { InvestmentOpportunities } from "@/components/landing/investment-opportunities"
 import { LoanOfferings } from "@/components/landing/loan-offerings"
 import { LandingHeader } from "@/components/landing/landing-header"
+import { VerifyDocumentSection } from "@/components/landing/verify-document-section"
 import { TenantBrandLogo } from "@/components/branding/tenant-brand-logo"
 import { useWhiteLabel } from "@/lib/hooks/use-white-label"
 import type { TenantLandingStats } from "@/lib/api/public-properties"
 
 interface PageSection {
   id: string
-  type: "hero" | "features" | "testimonials" | "cta" | "properties" | "investments" | "loans" | "stats" | "how-it-works"
+  type: "hero" | "features" | "testimonials" | "cta" | "properties" | "investments" | "loans" | "stats" | "how-it-works" | "verify-document"
   name: string
   visible: boolean
   position: number
@@ -302,6 +303,8 @@ export function DynamicLandingPage({ isTenantPage = true }: DynamicLandingPagePr
         )
       case "testimonials":
         return <TestimonialsSection key={section.id} config={section.config} templateId={templateId} />
+      case "verify-document":
+        return <VerifyDocumentSection key={section.id} config={section.config} />
       default:
         return null
     }

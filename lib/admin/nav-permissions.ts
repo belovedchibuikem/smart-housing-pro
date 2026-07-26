@@ -20,6 +20,7 @@ export const TENANT_ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
     "view_properties|manage_property_allottees|manage_payments|view_equity_contributions",
   "bulk.contribution-asset-repayments":
     "view_properties|manage_property_allottees|manage_payments|view_contributions",
+  "bulk.issued-documents": "issue_documents|view_issued_documents",
   "bulk.rollbacks": "rollback_financial_transactions|manage_payments",
   "financial-rollbacks": "rollback_financial_transactions|manage_payments",
   "bulk.lands": "view_properties|create_properties|edit_properties|manage_property_estates",
@@ -99,6 +100,8 @@ export const TENANT_ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
   "activity-logs": "view_activity_logs|manage_settings",
   "audit-logs": "view_activity_logs|manage_settings",
   documents: "view_documents|upload_documents|approve_documents|reject_documents|delete_documents",
+  "issued-documents":
+    "view_issued_documents|issue_documents|approve_issued_documents|revoke_issued_documents|reissue_documents|download_issued_documents|verify_documents_admin|manage_letterhead_settings|manage_document_templates",
   notifications: "view_users|view_members|create_users|manage_settings",
 }
 
@@ -122,6 +125,7 @@ export function adminHrefToPermissionKey(href: string): string | null {
     { prefix: "tools/mortgage-calculators", key: "mortgages" },
     { prefix: "post-contribution", key: "contributions" },
     { prefix: "financial-reports", key: "reports" },
+    { prefix: "issued-documents", key: "issued-documents" },
   ]
   for (const { prefix, key } of prefixOverrides) {
     if (rest === prefix || rest.startsWith(`${prefix}/`)) {
@@ -162,6 +166,7 @@ const ADMIN_HREF_ACTION_RULES: Array<{ test: (href: string) => boolean; permissi
   { test: (h) => /^\/admin\/bulk-upload\/contributions/.test(h), permission: "create_contributions" },
   { test: (h) => /^\/admin\/bulk-upload\/loans/.test(h), permission: "create_loans" },
   { test: (h) => /^\/admin\/bulk-upload\/properties/.test(h), permission: "create_properties" },
+  { test: (h) => /^\/admin\/bulk-upload\/issued-documents/.test(h), permission: "issue_documents" },
   { test: (h) => /^\/admin\/statutory-charges\/new/.test(h), permission: "create_statutory_charges" },
   { test: (h) => /^\/admin\/statutory-charges\/[^/]+\/edit$/.test(h), permission: "edit_statutory_charges" },
   { test: (h) => /^\/admin\/investment-plans\/new/.test(h), permission: "create_investment_plans" },

@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
 import { Can } from "@/components/admin/can-permission"
 import { AdminAssetRepaymentForm } from "@/components/admin/admin-asset-repayment-form"
+import { IssuedDocumentsPanel } from "@/components/documents/issued-documents-panel"
 
 type LandTenureSummary = {
 	sale_price: number
@@ -274,6 +275,12 @@ export default function LandSubscriptionTenurePage() {
 					</CardContent>
 				</Card>
 			</div>
+
+			<IssuedDocumentsPanel
+				scope={{ role: "admin", kind: "land", id: subscriptionId }}
+				title="Official issued documents"
+				description="Issue offer letters, allocation letters, acceptance forms, and payment confirmations for this land slot."
+			/>
 
 			<Card>
 				<CardHeader>

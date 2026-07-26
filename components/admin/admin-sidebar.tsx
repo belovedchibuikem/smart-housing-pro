@@ -202,6 +202,7 @@ const navItems: NavItem[] = [
       { href: "/admin/bulk-upload/property-payments", label: "Bulk House Repayments", icon: Upload },
       { href: "/admin/bulk-upload/equity-asset-repayments", label: "Bulk Equity Repayments", icon: Upload },
       { href: "/admin/bulk-upload/contribution-asset-repayments", label: "Bulk Contribution Repayments", icon: Upload },
+      { href: "/admin/bulk-upload/issued-documents", label: "Bulk Document Issuance", icon: Upload },
       { href: "/admin/house-repayments", label: "Record House/Land Repayment", icon: CreditCard },
       { href: "/admin/property-management/allottees/new", label: "Assign House to Member", icon: UserCheck },
       { href: "/admin/property-management/allottees", label: "Manage House Allottees", icon: UserCheck },
@@ -292,6 +293,16 @@ const navItems: NavItem[] = [
   },
   { href: "/admin/notifications", label: "Notifications", icon: Bell },
   { href: "/admin/documents", label: "Documents", icon: FileText },
+  {
+    label: "Document Issuing",
+    icon: FileText,
+    subItems: [
+      { href: "/admin/issued-documents", label: "Dashboard", icon: FileText },
+      { href: "/admin/issued-documents/letterhead", label: "Letterhead", icon: Settings },
+      { href: "/admin/issued-documents/templates", label: "Templates", icon: FileText },
+      { href: "/admin/bulk-upload/issued-documents", label: "Bulk Issue", icon: Upload },
+    ],
+  },
   {
     label: "Landing Page",
     icon: Layout,

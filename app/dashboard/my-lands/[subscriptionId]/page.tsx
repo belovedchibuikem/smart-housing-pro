@@ -26,6 +26,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowLeft, Loader2, Upload } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { isRepaymentReversed, repaymentStatusLabel } from "@/lib/utils/repayment-status"
+import { IssuedDocumentsPanel } from "@/components/documents/issued-documents-panel"
 
 export default function MemberLandAccountPage() {
 	const params = useParams()
@@ -282,6 +283,12 @@ export default function MemberLandAccountPage() {
 					</Button>
 				</CardContent>
 			</Card>
+
+			<IssuedDocumentsPanel
+				scope={{ role: "member", kind: "land", id: subscriptionId }}
+				title="Official documents"
+				description="Offer letters, allocation letters, acceptance forms, and payment confirmations issued for this land."
+			/>
 
 			<Card>
 				<CardHeader>

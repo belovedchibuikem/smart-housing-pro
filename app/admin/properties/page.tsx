@@ -48,6 +48,7 @@ import {
   getPropertyLocationFilterOptions,
   type AdminPropertyStatistics,
 } from "@/lib/api/client"
+import { downloadAndSaveAdminIssuedDocument } from "@/lib/api/issued-documents"
 import { openSubscriptionCertificate } from "@/lib/properties/subscription-certificate"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
@@ -348,7 +349,23 @@ export default function AdminPropertiesPage() {
       setIssuingCertificateId(allocationId)
       const response = await generatePropertySubscriptionCertificate(allocationId)
 
-      if (response.success && response.certificate) {
+      if (!response.success) {
+        throw new Error(response.message || "Failed to generate certificate")
+      }
+
+      if (response.issued_document?.id && response.issued_document.has_pdf) {
+        await downloadAndSaveAdminIssuedDocument(
+          response.issued_document.id,
+          `${response.issued_document.document_number || "certificate"}.pdf`,
+        )
+        toast({
+          title: "Certificate PDF ready",
+          description: `${response.issued_document.document_number} downloaded with letterhead and verification QR.`,
+        })
+        return
+      }
+
+      if (response.certificate) {
         const delivery = openSubscriptionCertificate(response.certificate)
         toast({
           title: "Certificate ready",
@@ -357,9 +374,10 @@ export default function AdminPropertiesPage() {
               ? `Certificate ${response.certificate.certificate_number} opened for print or save as PDF.`
               : `Pop-ups blocked — certificate ${response.certificate.certificate_number} downloaded as HTML. Open the file to view or print.`,
         })
-      } else {
-        throw new Error(response.message || "Failed to generate certificate")
+        return
       }
+
+      throw new Error(response.message || "Failed to generate certificate")
     } catch (error: unknown) {
       const message =
         error instanceof Error && error.message.trim()
