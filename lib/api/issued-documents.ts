@@ -222,7 +222,7 @@ export async function updateDocumentLetterhead(body: Record<string, unknown>) {
 	)
 }
 
-export async function uploadDocumentLetterheadAsset(field: "secondary_logo" | "official_seal", file: File) {
+export async function uploadDocumentLetterheadAsset(field: "secondary_logo" | "official_seal" | "official_stamp", file: File) {
 	const form = new FormData()
 	form.append("field", field)
 	form.append("file", file)

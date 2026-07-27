@@ -119,3 +119,28 @@ export function formatMemberDisplayIdentifier(member: {
 
   return null
 }
+
+/** All known identifiers (member no, staff, IPPIS) for search UIs and detail rows. */
+export function formatMemberIdentifierDetails(member: {
+  member_id?: string | null
+  member_number?: string | null
+  staff_id?: string | null
+  ippis_number?: string | null
+  frsc_pin?: string | null
+} | null | undefined): string | null {
+  if (!member) return null
+
+  const parts = [
+    member.member_number?.trim() ? `Member No: ${member.member_number.trim()}` : null,
+    member.staff_id?.trim() ? `Staff ID: ${member.staff_id.trim()}` : null,
+    member.ippis_number?.trim() ? `IPPIS: ${member.ippis_number.trim()}` : null,
+    member.frsc_pin?.trim() ? `PIN: ${member.frsc_pin.trim()}` : null,
+  ].filter(Boolean) as string[]
+
+  if (parts.length > 0) return parts.join(" · ")
+
+  const legacy = member.member_id?.trim()
+  if (legacy && legacy !== "—") return legacy
+
+  return null
+}

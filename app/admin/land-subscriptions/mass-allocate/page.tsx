@@ -14,14 +14,18 @@ import { Can } from "@/components/admin/can-permission"
 import { SearchableSelect, propertiesToSearchableOptions } from "@/components/ui/searchable-select"
 import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
 import { apiFetch, massAllocateLandSubscriptions } from "@/lib/api/client"
-import { formatMemberDisplayIdentifier } from "@/hooks/use-sidebar-navigation"
+import { formatMemberIdentifierDetails } from "@/hooks/use-sidebar-navigation"
 
 type Member = {
 	id: string
+	first_name?: string
+	last_name?: string
+	email?: string
 	user?: { first_name?: string; last_name?: string; email?: string }
 	member_number?: string
 	staff_id?: string
 	ippis_number?: string
+	frsc_pin?: string
 }
 
 type LandOption = {
@@ -35,10 +39,22 @@ type LandOption = {
 
 const CHUNK = 100
 
+function memberName(m: Member) {
+	return (
+		`${m.user?.first_name ?? m.first_name ?? ""} ${m.user?.last_name ?? m.last_name ?? ""}`.trim() || "—"
+	)
+}
+
+function memberEmail(m: Member) {
+	return m.user?.email || m.email || "—"
+}
+
 export default function MassAllocateLandPage() {
 	const { toast } = useToast()
 	const [loadingData, setLoadingData] = useState(true)
-	const [members, setMembers] = useState<Member[]>([])
+	const [searchLoading, setSearchLoading] = useState(false)
+	const [baseMembers, setBaseMembers] = useState<Member[]>([])
+	const [searchResults, setSearchResults] = useState<Member[] | null>(null)
 	const [lands, setLands] = useState<LandOption[]>([])
 	const [landId, setLandId] = useState("")
 	const [memberSearch, setMemberSearch] = useState("")
@@ -50,10 +66,10 @@ export default function MassAllocateLandPage() {
 		void (async () => {
 			try {
 				const [membersRes, landsRes] = await Promise.all([
-					apiFetch<{ success: boolean }>("/admin/members?per_page=1000"),
+					apiFetch<{ success: boolean }>("/admin/members?per_page=100"),
 					apiFetch<{ success: boolean; data: LandOption[] }>("/admin/lands?per_page=1000"),
 				])
-				setMembers(normalizeAdminMembersList(membersRes) as Member[])
+				setBaseMembers(normalizeAdminMembersList(membersRes) as Member[])
 				setLands(landsRes.data || [])
 			} catch {
 				toast({ title: "Failed to load data", variant: "destructive" })
@@ -63,26 +79,31 @@ export default function MassAllocateLandPage() {
 		})()
 	}, [toast])
 
-	const filteredMembers = useMemo(() => {
-		const q = memberSearch.trim().toLowerCase()
-		if (!q) return members
-		return members.filter((m) => {
-			const name = `${m.user?.first_name ?? ""} ${m.user?.last_name ?? ""}`.toLowerCase()
-			const haystack = [
-				name,
-				m.user?.email,
-				formatMemberDisplayIdentifier(m),
-				m.member_number,
-				m.staff_id,
-				m.ippis_number,
-			]
-				.filter(Boolean)
-				.join(" ")
-				.toLowerCase()
-			return haystack.includes(q)
-		})
-	}, [members, memberSearch])
+	useEffect(() => {
+		const q = memberSearch.trim()
+		if (!q) {
+			setSearchResults(null)
+			return
+		}
+		const handle = window.setTimeout(() => {
+			void (async () => {
+				setSearchLoading(true)
+				try {
+					const res = await apiFetch<{ success: boolean }>(
+						`/admin/members?search=${encodeURIComponent(q)}&per_page=100`,
+					)
+					setSearchResults(normalizeAdminMembersList(res) as Member[])
+				} catch {
+					toast({ title: "Member search failed", variant: "destructive" })
+				} finally {
+					setSearchLoading(false)
+				}
+			})()
+		}, 300)
+		return () => window.clearTimeout(handle)
+	}, [memberSearch, toast])
 
+	const displayedMembers = searchResults ?? baseMembers
 	const selectedIds = useMemo(() => Object.keys(selected).filter((id) => selected[id]), [selected])
 
 	const landOptions = useMemo(
@@ -107,7 +128,7 @@ export default function MassAllocateLandPage() {
 	const togglePage = (checked: boolean) => {
 		setSelected((prev) => {
 			const next = { ...prev }
-			filteredMembers.forEach((m) => {
+			displayedMembers.forEach((m) => {
 				next[m.id] = checked
 			})
 			return next
@@ -211,11 +232,16 @@ export default function MassAllocateLandPage() {
 						</Button>
 					</CardHeader>
 					<CardContent className="space-y-3">
-						<Input
-							placeholder="Filter by name, email, member no, staff ID, or IPPIS…"
-							value={memberSearch}
-							onChange={(e) => setMemberSearch(e.target.value)}
-						/>
+						<div className="relative">
+							<Input
+								placeholder="Search by IPPIS, member no, staff ID, name, or email…"
+								value={memberSearch}
+								onChange={(e) => setMemberSearch(e.target.value)}
+							/>
+							{searchLoading ? (
+								<Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+							) : null}
+						</div>
 						<div className="rounded border max-h-[480px] overflow-auto">
 							<Table>
 								<TableHeader>
@@ -223,8 +249,8 @@ export default function MassAllocateLandPage() {
 										<TableHead className="w-10">
 											<Checkbox
 												checked={
-													filteredMembers.length > 0 &&
-													filteredMembers.every((m) => selected[m.id])
+													displayedMembers.length > 0 &&
+													displayedMembers.every((m) => selected[m.id])
 												}
 												onCheckedChange={(v) => togglePage(Boolean(v))}
 											/>
@@ -235,23 +261,31 @@ export default function MassAllocateLandPage() {
 									</TableRow>
 								</TableHeader>
 								<TableBody>
-									{filteredMembers.map((m) => (
-										<TableRow key={m.id}>
-											<TableCell>
-												<Checkbox
-													checked={Boolean(selected[m.id])}
-													onCheckedChange={(v) => toggle(m.id, Boolean(v))}
-												/>
+									{displayedMembers.length === 0 ? (
+										<TableRow>
+											<TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+												{memberSearch.trim()
+													? "No members match that search (try IPPIS, member no, or staff ID)."
+													: "No members found."}
 											</TableCell>
-											<TableCell>
-												{`${m.user?.first_name ?? ""} ${m.user?.last_name ?? ""}`.trim() || "—"}
-											</TableCell>
-											<TableCell className="text-sm text-muted-foreground">
-												{formatMemberDisplayIdentifier(m)}
-											</TableCell>
-											<TableCell className="text-sm text-muted-foreground">{m.user?.email || "—"}</TableCell>
 										</TableRow>
-									))}
+									) : (
+										displayedMembers.map((m) => (
+											<TableRow key={m.id}>
+												<TableCell>
+													<Checkbox
+														checked={Boolean(selected[m.id])}
+														onCheckedChange={(v) => toggle(m.id, Boolean(v))}
+													/>
+												</TableCell>
+												<TableCell>{memberName(m)}</TableCell>
+												<TableCell className="text-sm text-muted-foreground">
+													{formatMemberIdentifierDetails(m) || "—"}
+												</TableCell>
+												<TableCell className="text-sm text-muted-foreground">{memberEmail(m)}</TableCell>
+											</TableRow>
+										))
+									)}
 								</TableBody>
 							</Table>
 						</div>

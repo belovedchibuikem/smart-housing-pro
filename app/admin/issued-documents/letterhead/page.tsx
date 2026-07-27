@@ -18,6 +18,7 @@ const TEXT_FIELDS: Array<{ key: string; label: string; textarea?: boolean }> = [
 	{ key: "letterhead_full_name", label: "Tenant full name" },
 	{ key: "letterhead_short_name", label: "Short name (footer)" },
 	{ key: "letterhead_parent_org", label: "Parent / ministry line" },
+	{ key: "letterhead_department", label: "Department" },
 	{ key: "letterhead_hq_label", label: "HQ / estate label" },
 	{ key: "letterhead_address", label: "Address", textarea: true },
 	{ key: "letterhead_phone_1", label: "Phone 1" },
@@ -38,14 +39,19 @@ const TEXT_FIELDS: Array<{ key: string; label: string; textarea?: boolean }> = [
 	{ key: "letterhead_primary_color", label: "Primary color" },
 	{ key: "letterhead_secondary_color", label: "Secondary color" },
 	{ key: "letterhead_accent_color", label: "Accent color" },
-	{ key: "letterhead_watermark_opacity", label: "Watermark opacity (0.08–0.12)" },
+	{ key: "letterhead_divider_color", label: "Divider color" },
+	{ key: "letterhead_watermark_opacity", label: "Watermark opacity (0.05–0.12)" },
+	{ key: "letterhead_background", label: "Header background" },
+	{ key: "letterhead_footer_background", label: "Footer background" },
+	{ key: "letterhead_qr_verification_url", label: "QR verification base URL" },
 	{ key: "letterhead_footer_text", label: "Footer text", textarea: true },
+	{ key: "letterhead_footer_copyright", label: "Footer copyright" },
 	{ key: "letterhead_legal_disclaimer", label: "Legal disclaimer", textarea: true },
 	{ key: "letterhead_acceptance_days", label: "Offer acceptance days" },
 	{ key: "letterhead_construction_months", label: "Construction months" },
 	{ key: "letterhead_building_approval_fee", label: "Building approval fee" },
-	{ key: "letterhead_header_height", label: "Header height (px)" },
-	{ key: "letterhead_footer_height", label: "Footer height (px)" },
+	{ key: "letterhead_header_height", label: "Header height (px, 150–220)" },
+	{ key: "letterhead_footer_height", label: "Footer height (px, 70–140)" },
 ]
 
 export default function LetterheadSettingsPage() {
@@ -94,7 +100,7 @@ export default function LetterheadSettingsPage() {
 		}
 	}
 
-	const upload = async (field: "secondary_logo" | "official_seal", file: File | null) => {
+	const upload = async (field: "secondary_logo" | "official_seal" | "official_stamp", file: File | null) => {
 		if (!file) return
 		try {
 			await uploadDocumentLetterheadAsset(field, file)
@@ -152,6 +158,8 @@ export default function LetterheadSettingsPage() {
 							<Input type="file" accept="image/*" onChange={(e) => void upload("secondary_logo", e.target.files?.[0] || null)} />
 							<Label>Official seal</Label>
 							<Input type="file" accept="image/*" onChange={(e) => void upload("official_seal", e.target.files?.[0] || null)} />
+							<Label>Official stamp</Label>
+							<Input type="file" accept="image/*" onChange={(e) => void upload("official_stamp", e.target.files?.[0] || null)} />
 						</div>
 					</div>
 					<div
@@ -174,6 +182,9 @@ export default function LetterheadSettingsPage() {
 								<div className="text-sm" style={{ color: form.letterhead_secondary_color || "#1565C0" }}>
 									{form.letterhead_parent_org || "Parent organization"}
 								</div>
+								{form.letterhead_department ? (
+									<div className="text-xs text-muted-foreground">{form.letterhead_department}</div>
+								) : null}
 								<div className="text-xs font-semibold uppercase" style={{ color: form.letterhead_accent_color || "#C62828" }}>
 									{form.letterhead_hq_label || "HQ label"}
 								</div>
@@ -272,3 +283,4 @@ export default function LetterheadSettingsPage() {
 		</div>
 	)
 }
+
