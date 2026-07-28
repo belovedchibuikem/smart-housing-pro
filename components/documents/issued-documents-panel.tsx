@@ -302,6 +302,8 @@ export function IssuedDocumentsPanel({
 		for (const doc of list) {
 			await handleDownload(doc)
 		}
+	}
+
 	return (
 		<div className="space-y-4">
 			{scope.role === "admin" && ledger && (
