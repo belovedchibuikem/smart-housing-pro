@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useCallback } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,16 +11,22 @@ import { ArrowLeft, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter, useParams } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
-import { getPropertyAllottee, updatePropertyAllottee } from "@/lib/api/client"
+import {
+  getPropertyAllottee,
+  updatePropertyAllottee,
+  getAdminPropertySlots,
+  type AssetSlotSummary,
+} from "@/lib/api/client"
 import { apiFetch } from "@/lib/api/client"
 import { Can } from "@/components/admin/can-permission"
 import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
 import {
-	SearchableSelect,
-	membersToSearchableOptions,
-	propertiesToSearchableOptions,
-	type SearchableSelectOption,
+  SearchableSelect,
+  membersToSearchableOptions,
+  propertiesToSearchableOptions,
+  type SearchableSelectOption,
 } from "@/components/ui/searchable-select"
+import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
 
 interface Member {
   id: string
@@ -39,11 +45,16 @@ interface Member {
   frsc_pin?: string
 }
 
-interface Property {
+interface PropertyOption {
   id: string
   title: string
-  location: string
-  type: string
+  location?: string
+  type?: string
+  property_type?: string
+  type_label?: string
+  price?: number
+  total_slots?: number | null
+  slots_available?: number | null
 }
 
 export default function EditAllotteePage() {
@@ -54,15 +65,65 @@ export default function EditAllotteePage() {
   const [fetching, setFetching] = useState(true)
   const [mounted, setMounted] = useState(false)
   const [members, setMembers] = useState<Member[]>([])
-  const [properties, setProperties] = useState<Property[]>([])
+  const [properties, setProperties] = useState<PropertyOption[]>([])
+  const [slots, setSlots] = useState<AssetSlotSummary[]>([])
+  const [loadingSlots, setLoadingSlots] = useState(false)
   const allotteeId = params?.id as string
+  const originalPropertyId = useRef<string>("")
+  const originalSlotId = useRef<string>("")
+
+  const [formData, setFormData] = useState({
+    property_id: "",
+    member_id: "",
+    property_slot_id: "",
+    allocation_date: "",
+    status: "pending",
+    unit_address: "",
+    notes: "",
+    sale_price: "",
+    amount_paid: "",
+  })
 
   const memberOptions = useMemo(() => membersToSearchableOptions(members), [members])
-  const propertyOptions = useMemo(() => propertiesToSearchableOptions(properties), [properties])
+  const propertyOptions = useMemo(
+    () =>
+      propertiesToSearchableOptions(
+        properties.map((property) => ({
+          ...property,
+          type_label: property.type_label || getPropertyTypeLabel(property),
+        }))
+      ),
+    [properties]
+  )
+
+  const selectableSlots = useMemo(() => {
+    return slots.filter(
+      (slot) =>
+        slot.status === "available" ||
+        slot.id === formData.property_slot_id ||
+        slot.id === originalSlotId.current ||
+        slot.current_allocation_id === allotteeId
+    )
+  }, [slots, formData.property_slot_id, allotteeId])
+
+  const selectedProperty = useMemo(
+    () => properties.find((property) => property.id === formData.property_id) ?? null,
+    [properties, formData.property_id]
+  )
+
+  const selectedSlot = useMemo(
+    () => slots.find((slot) => slot.id === formData.property_slot_id) ?? null,
+    [slots, formData.property_slot_id]
+  )
+
+  const propertyChanged =
+    !!formData.property_id &&
+    !!originalPropertyId.current &&
+    formData.property_id !== originalPropertyId.current
 
   const searchMembers = useCallback(async (query: string): Promise<SearchableSelectOption[]> => {
     const res = await apiFetch<{ success?: boolean }>(
-      `/admin/members?search=${encodeURIComponent(query)}&per_page=50`,
+      `/admin/members?search=${encodeURIComponent(query)}&per_page=50`
     )
     const rows = normalizeAdminMembersList(res) as Member[]
     setMembers((prev) => {
@@ -77,28 +138,48 @@ export default function EditAllotteePage() {
     setMounted(true)
   }, [])
 
-  const [slotLabel, setSlotLabel] = useState<string | null>(null)
-  const [slotNumber, setSlotNumber] = useState<number | null>(null)
-
-  const [formData, setFormData] = useState({
-    property_id: "",
-    member_id: "",
-    allocation_date: "",
-    status: "pending",
-    unit_address: "",
-    notes: "",
-    sale_price: "",
-    amount_paid: "",
-  })
-
   useEffect(() => {
     if (allotteeId) {
-      fetchAllottee()
-      fetchMembers()
-      fetchProperties()
+      void fetchAllottee()
+      void fetchMembers()
+      void fetchProperties()
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allotteeId])
+
+  useEffect(() => {
+    if (!formData.property_id) {
+      setSlots([])
+      return
+    }
+
+    let cancelled = false
+    const loadSlots = async () => {
+      setLoadingSlots(true)
+      try {
+        const response = await getAdminPropertySlots(formData.property_id)
+        if (!cancelled && response.success) {
+          setSlots(response.data.slots ?? [])
+        }
+      } catch {
+        if (!cancelled) {
+          setSlots([])
+          toast({
+            title: "Error",
+            description: "Failed to load property slots",
+            variant: "destructive",
+          })
+        }
+      } finally {
+        if (!cancelled) setLoadingSlots(false)
+      }
+    }
+
+    void loadSlots()
+    return () => {
+      cancelled = true
+    }
+  }, [formData.property_id, toast])
 
   const fetchAllottee = async () => {
     try {
@@ -106,12 +187,11 @@ export default function EditAllotteePage() {
       const response = await getPropertyAllottee(allotteeId)
       if (response.success && response.data) {
         const allottee = response.data
-        setSlotLabel(allottee.slot_label ?? null)
-        setSlotNumber(
-          allottee.slot_number != null && allottee.slot_number !== ""
-            ? Number(allottee.slot_number)
-            : null
-        )
+        const propertyId = allottee.property?.id || ""
+        const slotId = allottee.property_slot_id || ""
+        originalPropertyId.current = propertyId
+        originalSlotId.current = slotId
+
         const currentMember = allottee.member as Member | undefined
         if (currentMember?.id) {
           setMembers((prev) => {
@@ -119,9 +199,11 @@ export default function EditAllotteePage() {
             return [currentMember, ...prev]
           })
         }
+
         setFormData({
-          property_id: allottee.property?.id || "",
+          property_id: propertyId,
           member_id: allottee.member?.id || "",
+          property_slot_id: slotId,
           allocation_date: allottee.allocation_date ? allottee.allocation_date.split("T")[0] : "",
           status: allottee.status || "pending",
           unit_address: allottee.unit_address || "",
@@ -129,11 +211,17 @@ export default function EditAllotteePage() {
           sale_price: allottee.sale_price != null ? String(allottee.sale_price) : "",
           amount_paid: allottee.amount_paid != null ? String(allottee.amount_paid) : "",
         })
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to load allocation",
+          variant: "destructive",
+        })
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error?.message || "Failed to load allocation",
+        description: error instanceof Error ? error.message : "Failed to load allocation",
         variant: "destructive",
       })
     } finally {
@@ -157,9 +245,12 @@ export default function EditAllotteePage() {
 
   const fetchProperties = async () => {
     try {
-      const response = await apiFetch<{ success: boolean; data: any[] }>("/admin/properties?per_page=1000")
+      const response = await apiFetch<{ success: boolean; data: PropertyOption[] }>(
+        "/admin/properties?per_page=1000"
+      )
       if (response.success) {
-        setProperties(response.data || [])
+        const houses = (response.data || []).filter((property) => property.type !== "land")
+        setProperties(houses)
       }
     } catch (error) {
       console.error("Failed to load properties", error)
@@ -178,33 +269,79 @@ export default function EditAllotteePage() {
       return
     }
 
+    if (!formData.allocation_date) {
+      toast({
+        title: "Validation Error",
+        description: "Please set an allocation date",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (propertyChanged && !loadingSlots && selectableSlots.length === 0) {
+      toast({
+        title: "No free slots",
+        description: "The destination property has no available slots. Free a slot or pick another property.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (propertyChanged && !formData.property_slot_id) {
+      toast({
+        title: "Slot required",
+        description: "Select a free slot on the new property before updating.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setLoading(true)
     try {
       const payload: Record<string, unknown> = {
+        property_id: formData.property_id,
         member_id: formData.member_id,
         allocation_date: formData.allocation_date,
         status: formData.status,
         unit_address: formData.unit_address || undefined,
         notes: formData.notes || undefined,
+        carry_payments: true,
       }
+
+      if (formData.property_slot_id) {
+        payload.property_slot_id = formData.property_slot_id
+      }
+
       if (formData.sale_price.trim() !== "") {
         payload.sale_price = Number(formData.sale_price)
       }
       if (formData.amount_paid.trim() !== "") {
         payload.amount_paid = Number(formData.amount_paid)
       }
+
       const response = await updatePropertyAllottee(allotteeId, payload)
       if (response.success) {
         toast({
           title: "Success",
           description: response.message || "Property allocation updated successfully",
         })
-        router.push("/admin/property-management/allottees")
+        const newId = response.data?.id
+        if (newId && newId !== allotteeId) {
+          router.push(`/admin/property-management/allottees/${newId}/edit`)
+        } else {
+          router.push("/admin/property-management/allottees")
+        }
+      } else {
+        toast({
+          title: "Update failed",
+          description: response.message || "Failed to update property allocation",
+          variant: "destructive",
+        })
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error?.message || "Failed to update property allocation",
+        description: error instanceof Error ? error.message : "Failed to update property allocation",
         variant: "destructive",
       })
     } finally {
@@ -230,7 +367,9 @@ export default function EditAllotteePage() {
         </Link>
         <div>
           <h1 className="text-3xl font-bold">Edit Property Allocation</h1>
-          <p className="text-muted-foreground mt-1">Update allocation details</p>
+          <p className="text-muted-foreground mt-1">
+            Update member, property, slot, or tenure details
+          </p>
         </div>
       </div>
 
@@ -238,7 +377,10 @@ export default function EditAllotteePage() {
         <Card>
           <CardHeader>
             <CardTitle>Allocation Information</CardTitle>
-            <CardDescription>Update the details for the property allocation</CardDescription>
+            <CardDescription>
+              Changing property (e.g. 2 Bedroom → 3 Bedroom) creates a new tenure and preserves the
+              previous ownership history. Payments can be carried across.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -262,31 +404,86 @@ export default function EditAllotteePage() {
                 </Label>
                 <SearchableSelect
                   value={formData.property_id}
-                  onValueChange={(value) => setFormData({ ...formData, property_id: value })}
+                  onValueChange={(value) =>
+                    setFormData({
+                      ...formData,
+                      property_id: value,
+                      property_slot_id: value === originalPropertyId.current ? originalSlotId.current : "",
+                      unit_address:
+                        value === originalPropertyId.current ? formData.unit_address : "",
+                    })
+                  }
                   options={propertyOptions}
                   placeholder="Select a property"
-                  searchPlaceholder="Search by title or location…"
+                  searchPlaceholder="Search by title, type, or location…"
                   emptyText="No properties match your search."
                 />
+                {selectedProperty ? (
+                  <p className="text-xs text-muted-foreground">
+                    {getPropertyTypeLabel(selectedProperty)} · ₦
+                    {Number(selectedProperty.price ?? 0).toLocaleString()}
+                    {selectedProperty.total_slots != null
+                      ? ` · ${selectedProperty.slots_available ?? 0} of ${selectedProperty.total_slots} slots free`
+                      : " · Unlimited slots"}
+                    {propertyChanged ? " · Moving to a new property" : ""}
+                  </p>
+                ) : null}
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Slot</Label>
-                <Input
-                  value={
-                    slotLabel
-                      ? slotNumber != null
-                        ? `${slotLabel} (#${slotNumber})`
-                        : slotLabel
-                      : "—"
-                  }
-                  disabled
-                  readOnly
-                />
+                <Label htmlFor="property_slot_id">
+                  Slot {propertyChanged ? <span className="text-red-500">*</span> : null}
+                </Label>
+                <Select
+                  value={formData.property_slot_id || undefined}
+                  onValueChange={(value) => {
+                    const slot = slots.find((item) => item.id === value)
+                    setFormData({
+                      ...formData,
+                      property_slot_id: value,
+                      unit_address:
+                        formData.unit_address && !propertyChanged
+                          ? formData.unit_address
+                          : slot?.label || formData.unit_address,
+                    })
+                  }}
+                  disabled={!formData.property_id || loadingSlots || selectableSlots.length === 0}
+                >
+                  <SelectTrigger id="property_slot_id">
+                    <SelectValue
+                      placeholder={
+                        loadingSlots
+                          ? "Loading slots…"
+                          : !formData.property_id
+                            ? "Select a property first"
+                            : selectableSlots.length === 0
+                              ? "No free slots"
+                              : "Select a slot"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {selectableSlots.map((slot) => (
+                      <SelectItem key={slot.id} value={slot.id}>
+                        {slot.label}
+                        {slot.slot_number ? ` (#${slot.slot_number})` : ""}
+                        {slot.id === originalSlotId.current &&
+                        formData.property_id === originalPropertyId.current
+                          ? " · current"
+                          : slot.status === "available"
+                            ? " · free"
+                            : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <p className="text-xs text-muted-foreground">
-                  Slot is fixed for this allotment (one slot per allocation).
+                  {propertyChanged
+                    ? "Pick a free slot on the destination property."
+                    : "You can move this allottee to another free slot on the same property."}
+                  {selectedSlot ? ` Selected: ${selectedSlot.label}.` : ""}
                 </p>
               </div>
               <div className="space-y-2">
@@ -316,7 +513,9 @@ export default function EditAllotteePage() {
                   <SelectContent>
                     <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
                     <SelectItem value="rejected">Rejected</SelectItem>
+                    <SelectItem value="deallocated">Deallocated</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -324,7 +523,7 @@ export default function EditAllotteePage() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="sale_price">New sale price (on reallocation)</Label>
+                <Label htmlFor="sale_price">Sale price</Label>
                 <Input
                   id="sale_price"
                   type="number"
@@ -334,11 +533,13 @@ export default function EditAllotteePage() {
                   onChange={(e) => setFormData({ ...formData, sale_price: e.target.value })}
                 />
                 <p className="text-xs text-muted-foreground">
-                  Used when changing the allottee. Prior owner payments stay on their sealed tenure.
+                  {propertyChanged
+                    ? "When moving property, paid amounts are carried by default unless you change them here for a member reassignment."
+                    : "Used when reallocating to a different member."}
                 </p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="amount_paid">Opening amount paid (new tenure)</Label>
+                <Label htmlFor="amount_paid">Amount paid</Label>
                 <Input
                   id="amount_paid"
                   type="number"
@@ -358,9 +559,6 @@ export default function EditAllotteePage() {
                 value={formData.unit_address}
                 onChange={(e) => setFormData({ ...formData, unit_address: e.target.value })}
               />
-              <p className="text-xs text-muted-foreground">
-                Optional. Shown to the member instead of the general property location.
-              </p>
             </div>
 
             <div className="space-y-2">
@@ -383,7 +581,7 @@ export default function EditAllotteePage() {
               <Can permission="manage_property_allottees|approve_allotments">
                 <Button type="submit" disabled={loading}>
                   {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  Update Allocation
+                  {propertyChanged ? "Move & Update Allocation" : "Update Allocation"}
                 </Button>
               </Can>
             </div>
