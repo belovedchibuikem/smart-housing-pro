@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,7 +11,11 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch, createLandSubscription } from "@/lib/api/client"
 import { Can } from "@/components/admin/can-permission"
-import { SearchableSelect, membersToSearchableOptions } from "@/components/ui/searchable-select"
+import {
+  SearchableSelect,
+  membersToSearchableOptions,
+  type SearchableSelectOption,
+} from "@/components/ui/searchable-select"
 import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
 
 interface Member {
@@ -62,7 +66,7 @@ export default function NewLandSubscriptionPage() {
 
   const fetchMembers = async () => {
     try {
-      const response = await apiFetch<{ success: boolean }>("/admin/members?per_page=1000")
+      const response = await apiFetch<{ success: boolean }>("/admin/members?per_page=50")
       setMembers(normalizeAdminMembersList(response) as Member[])
     } catch {
       toast({ title: "Error", description: "Failed to load members", variant: "destructive" })
@@ -70,6 +74,19 @@ export default function NewLandSubscriptionPage() {
       setLoadingData(false)
     }
   }
+
+  const searchMembers = useCallback(async (query: string): Promise<SearchableSelectOption[]> => {
+    const res = await apiFetch<{ success?: boolean }>(
+      `/admin/members?search=${encodeURIComponent(query)}&per_page=50`,
+    )
+    const rows = normalizeAdminMembersList(res) as Member[]
+    setMembers((prev) => {
+      const byId = new Map(prev.map((m) => [m.id, m]))
+      for (const m of rows) byId.set(m.id, m)
+      return Array.from(byId.values())
+    })
+    return membersToSearchableOptions(rows)
+  }, [])
 
   const fetchLands = async () => {
     try {
@@ -166,6 +183,7 @@ export default function NewLandSubscriptionPage() {
                     value={formData.member_id}
                     onValueChange={(value) => setFormData({ ...formData, member_id: value })}
                     options={memberOptions}
+                    onSearch={searchMembers}
                     placeholder="Select a member"
                     searchPlaceholder="Search by name, email, member no, staff ID, or IPPIS…"
                     emptyText="No members match your search."

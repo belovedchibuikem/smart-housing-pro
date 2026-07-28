@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,17 +19,24 @@ import {
 	SearchableSelect,
 	membersToSearchableOptions,
 	propertiesToSearchableOptions,
+	type SearchableSelectOption,
 } from "@/components/ui/searchable-select"
 
 interface Member {
   id: string
-  user: {
-    first_name: string
-    last_name: string
-    email: string
+  user?: {
+    first_name?: string
+    last_name?: string
+    email?: string
   }
+  first_name?: string
+  last_name?: string
+  email?: string
+  member_number?: string
   member_id?: string
   staff_id?: string
+  ippis_number?: string
+  frsc_pin?: string
 }
 
 interface Property {
@@ -53,10 +60,23 @@ export default function EditAllotteePage() {
   const memberOptions = useMemo(() => membersToSearchableOptions(members), [members])
   const propertyOptions = useMemo(() => propertiesToSearchableOptions(properties), [properties])
 
+  const searchMembers = useCallback(async (query: string): Promise<SearchableSelectOption[]> => {
+    const res = await apiFetch<{ success?: boolean }>(
+      `/admin/members?search=${encodeURIComponent(query)}&per_page=50`,
+    )
+    const rows = normalizeAdminMembersList(res) as Member[]
+    setMembers((prev) => {
+      const byId = new Map(prev.map((m) => [m.id, m]))
+      for (const m of rows) byId.set(m.id, m)
+      return Array.from(byId.values())
+    })
+    return membersToSearchableOptions(rows)
+  }, [])
+
   useEffect(() => {
     setMounted(true)
   }, [])
-  
+
   const [slotLabel, setSlotLabel] = useState<string | null>(null)
   const [slotNumber, setSlotNumber] = useState<number | null>(null)
 
@@ -92,10 +112,17 @@ export default function EditAllotteePage() {
             ? Number(allottee.slot_number)
             : null
         )
+        const currentMember = allottee.member as Member | undefined
+        if (currentMember?.id) {
+          setMembers((prev) => {
+            if (prev.some((m) => m.id === currentMember.id)) return prev
+            return [currentMember, ...prev]
+          })
+        }
         setFormData({
           property_id: allottee.property?.id || "",
           member_id: allottee.member?.id || "",
-          allocation_date: allottee.allocation_date ? allottee.allocation_date.split('T')[0] : "",
+          allocation_date: allottee.allocation_date ? allottee.allocation_date.split("T")[0] : "",
           status: allottee.status || "pending",
           unit_address: allottee.unit_address || "",
           notes: allottee.notes || "",
@@ -116,8 +143,13 @@ export default function EditAllotteePage() {
 
   const fetchMembers = async () => {
     try {
-      const response = await apiFetch<{ success: boolean }>("/admin/members?per_page=1000")
-      setMembers(normalizeAdminMembersList(response) as Member[])
+      const response = await apiFetch<{ success: boolean }>("/admin/members?per_page=50")
+      setMembers((prev) => {
+        const rows = normalizeAdminMembersList(response) as Member[]
+        const byId = new Map(prev.map((m) => [m.id, m]))
+        for (const m of rows) byId.set(m.id, m)
+        return Array.from(byId.values())
+      })
     } catch (error) {
       console.error("Failed to load members", error)
     }
@@ -136,7 +168,7 @@ export default function EditAllotteePage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!formData.property_id || !formData.member_id) {
       toast({
         title: "Validation Error",
@@ -218,6 +250,7 @@ export default function EditAllotteePage() {
                   value={formData.member_id}
                   onValueChange={(value) => setFormData({ ...formData, member_id: value })}
                   options={memberOptions}
+                  onSearch={searchMembers}
                   placeholder="Select a member"
                   searchPlaceholder="Search by name, email, member no, staff ID, or IPPIS…"
                   emptyText="No members match your search."
@@ -360,4 +393,3 @@ export default function EditAllotteePage() {
     </div>
   )
 }
-

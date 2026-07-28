@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Check, ChevronsUpDown, Search } from "lucide-react"
+import { Check, ChevronsUpDown, Loader2, Search } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { formatCompactNaira } from "@/lib/utils/currency"
@@ -31,6 +31,13 @@ type SearchableSelectProps = {
 	/** When true, shows a clear / unselect action when value is set */
 	allowEmpty?: boolean
 	emptyValueLabel?: string
+	/**
+	 * Server-side search. When provided, typing queries the API instead of
+	 * filtering only the preloaded `options` list (needed for large member directories).
+	 */
+	onSearch?: (query: string) => Promise<SearchableSelectOption[]>
+	/** Debounce for remote search in ms (default 300) */
+	searchDebounceMs?: number
 }
 
 function normalizeSearchToken(value: string): string {
@@ -42,7 +49,6 @@ function defaultFilter(query: string, opt: SearchableSelectOption): boolean {
 	const q = query.toLowerCase().trim()
 	const hay = [opt.label, opt.searchText, opt.description, opt.value].filter(Boolean).join(" ").toLowerCase()
 	if (hay.includes(q)) return true
-	// Identifier-friendly match (IPPIS / staff IDs often typed without separators)
 	const qCompact = normalizeSearchToken(q)
 	if (!qCompact) return true
 	return normalizeSearchToken(hay).includes(qCompact)
@@ -60,20 +66,76 @@ export function SearchableSelect({
 	triggerClassName,
 	allowEmpty = false,
 	emptyValueLabel = "—",
+	onSearch,
+	searchDebounceMs = 300,
 }: SearchableSelectProps) {
 	const [open, setOpen] = React.useState(false)
 	const [query, setQuery] = React.useState("")
+	const [remoteOptions, setRemoteOptions] = React.useState<SearchableSelectOption[] | null>(null)
+	const [searching, setSearching] = React.useState(false)
+	const searchSeq = React.useRef(0)
+
+	const useRemote = typeof onSearch === "function"
+
+	React.useEffect(() => {
+		if (!open || !useRemote || !onSearch) {
+			return
+		}
+		const q = query.trim()
+		if (!q) {
+			setRemoteOptions(null)
+			setSearching(false)
+			return
+		}
+
+		const seq = ++searchSeq.current
+		const handle = window.setTimeout(() => {
+			setSearching(true)
+			void onSearch(q)
+				.then((rows) => {
+					if (searchSeq.current !== seq) return
+					setRemoteOptions(Array.isArray(rows) ? rows : [])
+				})
+				.catch(() => {
+					if (searchSeq.current !== seq) return
+					setRemoteOptions([])
+				})
+				.finally(() => {
+					if (searchSeq.current === seq) setSearching(false)
+				})
+		}, searchDebounceMs)
+
+		return () => window.clearTimeout(handle)
+	}, [open, onSearch, query, searchDebounceMs, useRemote])
+
+	const listOptions = React.useMemo(() => {
+		if (useRemote && remoteOptions) {
+			const selected = options.find((o) => o.value === value)
+			if (selected && !remoteOptions.some((o) => o.value === selected.value)) {
+				return [selected, ...remoteOptions]
+			}
+			return remoteOptions
+		}
+		return options
+	}, [options, remoteOptions, useRemote, value])
 
 	const filtered = React.useMemo(() => {
-		return options.filter((o) => defaultFilter(query, o))
-	}, [options, query])
+		if (useRemote && query.trim()) {
+			return listOptions
+		}
+		return listOptions.filter((o) => defaultFilter(query, o))
+	}, [listOptions, query, useRemote])
 
-	const selected = options.find((o) => o.value === value)
+	const selected = options.find((o) => o.value === value) || listOptions.find((o) => o.value === value)
 	const displayLabel =
 		value && selected ? selected.label : allowEmpty && !value ? emptyValueLabel : placeholder
 
 	React.useEffect(() => {
-		if (!open) setQuery("")
+		if (!open) {
+			setQuery("")
+			setRemoteOptions(null)
+			setSearching(false)
+		}
 	}, [open])
 
 	return (
@@ -93,12 +155,17 @@ export function SearchableSelect({
 			</PopoverTrigger>
 			<PopoverContent className={cn("w-[var(--radix-popover-trigger-width)] p-0", className)} align="start">
 				<div className="flex items-center border-b px-3">
-					<Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+					{searching ? (
+						<Loader2 className="mr-2 h-4 w-4 shrink-0 animate-spin opacity-70" />
+					) : (
+						<Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+					)}
 					<Input
 						placeholder={searchPlaceholder}
 						value={query}
 						onChange={(e) => setQuery(e.target.value)}
 						className="border-0 focus-visible:ring-0"
+						autoComplete="off"
 					/>
 				</div>
 				<div className="max-h-[min(320px,50vh)] overflow-y-auto p-1">
@@ -118,7 +185,15 @@ export function SearchableSelect({
 						</button>
 					)}
 					{filtered.length === 0 ? (
-						<div className="py-6 text-center text-sm text-muted-foreground">{emptyText}</div>
+						<div className="py-6 text-center text-sm text-muted-foreground">
+							{searching
+								? "Searching…"
+								: useRemote && query.trim()
+									? emptyText
+									: useRemote
+										? "Type to search all members…"
+										: emptyText}
+						</div>
 					) : (
 						filtered.map((opt) => (
 							<button
@@ -190,7 +265,6 @@ export function membersToSearchableOptions(
 			m.frsc_pin,
 			m.id_number,
 			m.id,
-			// Explicit tokens so partial typed queries still hit
 			m.ippis_number ? `ippis ${m.ippis_number}` : null,
 			m.staff_id ? `staff ${m.staff_id}` : null,
 		]
@@ -210,7 +284,6 @@ export function usersToSearchableOptions(
 ): SearchableSelectOption[] {
 	return users.map((u) => {
 		const name = `${u.first_name ?? ""} ${u.last_name ?? ""}`.trim() || "User"
-		const label = u.email ? `${name} (${u.email})` : name
 		return {
 			value: u.id,
 			label: name,

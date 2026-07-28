@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,7 +18,12 @@ import {
 } from "@/lib/api/client"
 import { apiFetch } from "@/lib/api/client"
 import { Can } from "@/components/admin/can-permission"
-import { SearchableSelect, membersToSearchableOptions, propertiesToSearchableOptions } from "@/components/ui/searchable-select"
+import {
+  SearchableSelect,
+  membersToSearchableOptions,
+  propertiesToSearchableOptions,
+  type SearchableSelectOption,
+} from "@/components/ui/searchable-select"
 import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
 import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
 
@@ -123,7 +128,7 @@ export default function NewAllotteePage() {
 
   const fetchMembers = async () => {
     try {
-      const response = await apiFetch<{ success: boolean }>("/admin/members?per_page=1000")
+      const response = await apiFetch<{ success: boolean }>("/admin/members?per_page=50")
       setMembers(normalizeAdminMembersList(response) as Member[])
     } catch {
       toast({
@@ -135,6 +140,19 @@ export default function NewAllotteePage() {
       setLoadingData(false)
     }
   }
+
+  const searchMembers = useCallback(async (query: string): Promise<SearchableSelectOption[]> => {
+    const res = await apiFetch<{ success?: boolean }>(
+      `/admin/members?search=${encodeURIComponent(query)}&per_page=50`,
+    )
+    const rows = normalizeAdminMembersList(res) as Member[]
+    setMembers((prev) => {
+      const byId = new Map(prev.map((m) => [m.id, m]))
+      for (const m of rows) byId.set(m.id, m)
+      return Array.from(byId.values())
+    })
+    return membersToSearchableOptions(rows)
+  }, [])
 
   const fetchProperties = async () => {
     try {
@@ -265,6 +283,7 @@ export default function NewAllotteePage() {
                     value={formData.member_id}
                     onValueChange={(value) => setFormData({ ...formData, member_id: value })}
                     options={memberOptions}
+                    onSearch={searchMembers}
                     placeholder="Select a member"
                     searchPlaceholder="Search by name, email, member no, staff ID, or IPPIS…"
                     emptyText="No members match your search."
