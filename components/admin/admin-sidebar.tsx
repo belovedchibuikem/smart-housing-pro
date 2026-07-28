@@ -300,6 +300,7 @@ const navItems: NavItem[] = [
     icon: FileText,
     subItems: [
       { href: "/admin/issued-documents", label: "Dashboard", icon: FileText },
+      { href: "/admin/payment-receipts", label: "Payment Receipts", icon: FileText },
       { href: "/admin/issued-documents/letterhead", label: "Letterhead", icon: Settings },
       { href: "/admin/issued-documents/templates", label: "Templates", icon: FileText },
       { href: "/admin/bulk-upload/issued-documents", label: "Bulk Issue", icon: Upload },
@@ -319,6 +320,7 @@ const navItems: NavItem[] = [
     subItems: [
       { href: "/admin/payment-gateways", label: "Payment Gateways", icon: CreditCard },
       { href: "/admin/payment-approvals", label: "Payment Approvals", icon: CheckCircle },
+      { href: "/admin/payment-receipts", label: "Payment Receipts", icon: FileText },
     ],
   },
   { href: "/admin/white-label", label: "White Label", icon: Settings },

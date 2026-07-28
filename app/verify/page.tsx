@@ -121,7 +121,15 @@ function VerifyDocumentPageInner() {
 							{result.document && (
 								<dl className="grid grid-cols-2 gap-3 text-sm">
 									{[
-										["Document type", result.document.title || result.document.document_type],
+										["Document type", result.document.is_receipt ? "Official Payment Receipt" : (result.document.title || result.document.document_type)],
+										["Receipt number", result.document.document_number],
+										...(result.document.is_receipt
+											? [
+													["Payment amount", result.document.payment_amount],
+													["Payment date", result.document.payment_date],
+													["Payment category", result.document.payment_category],
+												]
+											: []),
 										["Issued to", result.document.issued_to],
 										["Property", result.document.property],
 										["Estate", result.document.estate_name],
@@ -129,6 +137,8 @@ function VerifyDocumentPageInner() {
 										["Status", result.document.status],
 										["Issued by", result.document.issued_by],
 										["Tenant", result.document.tenant_name],
+										["Hash verified", result.document.hash_verified ? "Yes" : "No"],
+										["Digital signature", result.document.digital_signature_status],
 										["Verification no.", result.document.verification_number],
 									].map(([label, value]) => (
 										<div key={String(label)}>

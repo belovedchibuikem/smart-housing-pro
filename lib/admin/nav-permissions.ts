@@ -125,6 +125,7 @@ export function adminHrefToPermissionKey(href: string): string | null {
     { prefix: "tools/mortgage-calculators", key: "mortgages" },
     { prefix: "post-contribution", key: "contributions" },
     { prefix: "financial-reports", key: "reports" },
+    { prefix: "payment-receipts", key: "issued-documents" },
     { prefix: "issued-documents", key: "issued-documents" },
   ]
   for (const { prefix, key } of prefixOverrides) {

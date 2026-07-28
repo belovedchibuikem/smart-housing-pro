@@ -294,6 +294,14 @@ export function IssuedDocumentsPanel({
 		}
 	}
 
+	const letterDocuments = documents.filter((d) => d.document_type !== "payment_receipt")
+	const receiptDocuments = documents.filter((d) => d.document_type === "payment_receipt")
+
+	const handleDownloadAllReceipts = async () => {
+		const list = receiptDocuments.length ? receiptDocuments : ledger?.receipts || []
+		for (const doc of list) {
+			await handleDownload(doc)
+		}
 	return (
 		<div className="space-y-4">
 			{scope.role === "admin" && ledger && (
@@ -312,6 +320,60 @@ export function IssuedDocumentsPanel({
 						</Card>
 					))}
 				</div>
+			)}
+
+			{(receiptDocuments.length > 0 || (ledger?.receipts?.length ?? 0) > 0) && (
+				<Card>
+					<CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+						<div>
+							<CardTitle className="text-base">Payment Receipt Timeline</CardTitle>
+							<CardDescription>
+								Every successful payment generates its own official receipt — newest first.
+							</CardDescription>
+						</div>
+						<Button size="sm" variant="outline" onClick={() => void handleDownloadAllReceipts()}>
+							<Download className="h-4 w-4 mr-2" />
+							Download All Receipts
+						</Button>
+					</CardHeader>
+					<CardContent>
+						<Table>
+							<TableHeader>
+								<TableRow>
+									<TableHead>Receipt</TableHead>
+									<TableHead>Category</TableHead>
+									<TableHead>Amount</TableHead>
+									<TableHead>Date</TableHead>
+									<TableHead className="text-right">Actions</TableHead>
+								</TableRow>
+							</TableHeader>
+							<TableBody>
+								{(receiptDocuments.length ? receiptDocuments : ledger?.receipts || []).map((doc) => (
+									<TableRow key={doc.id}>
+										<TableCell>
+											<div className="font-medium">{doc.document_number}</div>
+											<div className="text-xs text-muted-foreground">{doc.verification_number}</div>
+										</TableCell>
+										<TableCell className="text-sm">
+											{doc.resolved_variables?.payment_category || "Payment"}
+										</TableCell>
+										<TableCell className="font-medium">
+											{doc.resolved_variables?.payment_amount || doc.resolved_variables?.amount_paid || "—"}
+										</TableCell>
+										<TableCell className="text-sm">
+											{doc.issued_at ? new Date(doc.issued_at).toLocaleDateString() : "—"}
+										</TableCell>
+										<TableCell className="text-right">
+											<Button size="sm" variant="outline" onClick={() => void handleDownload(doc)}>
+												<Download className="h-4 w-4" />
+											</Button>
+										</TableCell>
+									</TableRow>
+								))}
+							</TableBody>
+						</Table>
+					</CardContent>
+				</Card>
 			)}
 
 			<Card>
@@ -383,7 +445,7 @@ export function IssuedDocumentsPanel({
 							<Loader2 className="h-5 w-5 mr-2 animate-spin" />
 							Loading documents…
 						</div>
-					) : documents.length === 0 ? (
+					) : letterDocuments.length === 0 ? (
 						<div className="text-center py-10 text-muted-foreground">
 							No official documents issued for this {scope.kind === "house" ? "house" : "land"} yet.
 						</div>
@@ -399,7 +461,7 @@ export function IssuedDocumentsPanel({
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{documents.map((doc) => (
+								{letterDocuments.map((doc) => (
 									<TableRow key={doc.id}>
 										<TableCell>
 											<div className="font-medium">{DOCUMENT_TYPE_LABELS[doc.document_type] || doc.title}</div>
