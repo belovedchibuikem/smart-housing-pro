@@ -3060,10 +3060,10 @@ export async function applyStatutoryChargeDefinition(id: string) {
 			created_count: number
 			skipped: number
 			failed: Array<{ member_id: string; message: string }>
+			scanned?: number
 		}
 	}>(`/admin/statutory-charges/definitions/${id}/apply`, {
 		method: "POST",
-		body: {},
 	})
 }
 

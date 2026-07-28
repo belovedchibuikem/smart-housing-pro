@@ -244,18 +244,34 @@ export default function StatutoryChargeDefinitionsPage() {
     }
   }
 
-  const handleApplyExisting = async () => {
-    if (!applyDialog.id) return
+  const handleApplyExisting = async (event?: { preventDefault: () => void }) => {
+    event?.preventDefault()
+    const definitionId = applyDialog.id
+    if (!definitionId) {
+      toast({
+        title: "Error",
+        description: "No charge definition selected.",
+        variant: "destructive",
+      })
+      return
+    }
     setApplying(true)
     try {
-      const response = await applyStatutoryChargeDefinition(applyDialog.id)
-      if (response.success) {
-        toast({
-          title: "Applied to existing holders",
-          description: response.message,
-        })
-        setApplyDialog({ open: false, id: null, name: "" })
-      }
+      const response = await applyStatutoryChargeDefinition(definitionId)
+      const created = response.data?.created_count ?? 0
+      const skipped = response.data?.skipped ?? 0
+      const failed = response.data?.failed?.length ?? 0
+      const scanned = (response.data as { scanned?: number } | undefined)?.scanned
+
+      toast({
+        title: created > 0 ? "Charges created" : "Apply finished",
+        description:
+          response.message ||
+          `Created ${created}, skipped ${skipped}, failed ${failed}` +
+            (typeof scanned === "number" ? ` (scanned ${scanned})` : ""),
+        variant: created > 0 || skipped > 0 ? "default" : "destructive",
+      })
+      setApplyDialog({ open: false, id: null, name: "" })
     } catch (error: any) {
       toast({
         title: "Error",
@@ -456,7 +472,14 @@ export default function StatutoryChargeDefinitionsPage() {
 
       <AlertDialog
         open={applyDialog.open}
-        onOpenChange={(open) => setApplyDialog({ open, id: open ? applyDialog.id : null, name: open ? applyDialog.name : "" })}
+        onOpenChange={(open) => {
+          if (applying) return
+          setApplyDialog({
+            open,
+            id: open ? applyDialog.id : null,
+            name: open ? applyDialog.name : "",
+          })
+        }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -467,10 +490,17 @@ export default function StatutoryChargeDefinitionsPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleApplyExisting} disabled={applying}>
-              {applying ? "Applying…" : "Apply now"}
-            </AlertDialogAction>
+            <AlertDialogCancel disabled={applying}>Cancel</AlertDialogCancel>
+            <Button onClick={(e) => void handleApplyExisting(e)} disabled={applying}>
+              {applying ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Applying…
+                </>
+              ) : (
+                "Apply now"
+              )}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
