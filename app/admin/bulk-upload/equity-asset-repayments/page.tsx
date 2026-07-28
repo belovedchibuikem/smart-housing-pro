@@ -40,6 +40,8 @@ type Candidate = {
   outstanding: number
   equity_balance: number
   suggested_payable: number
+  exceeds_outstanding?: boolean
+  overpay_amount?: number
 }
 
 type PreviewRow = {
@@ -58,6 +60,8 @@ type PreviewRow = {
   status: "payable" | "skipped"
   skip_reason?: string | null
   equity_after?: number
+  exceeds_outstanding?: boolean
+  overpay_amount?: number
   result?: "success" | "failed" | "skipped"
   message?: string
   paid_amount?: number
@@ -68,6 +72,8 @@ type PreviewData = {
   payable_count: number
   skipped_count: number
   total_payable: number
+  overpay_count?: number
+  total_overpay?: number
   member_count: number
   amount_mode: AmountMode
 }
@@ -416,7 +422,8 @@ export default function BulkEquityAssetRepaymentsPage() {
         <h1 className="text-3xl font-bold tracking-tight">Bulk Equity → House/Land Repayment</h1>
         <p className="mt-2 text-muted-foreground">
           Filter holdings, select many at once (page or all matching), then repay from equity wallets in one
-          batch. Members with equity balances appear first.
+          batch. Members with equity balances appear first. Equity may exceed house/land cost (e.g. mortgage);
+          you will see a warning before confirming those overpayments.
         </p>
       </div>
 
@@ -662,7 +669,16 @@ export default function BulkEquityAssetRepaymentsPage() {
                           {money(c.equity_balance)}
                         </span>
                       </TableCell>
-                      <TableCell className="text-right tabular-nums">{money(c.suggested_payable)}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        <div className="flex flex-col items-end gap-1">
+                          <span>{money(c.suggested_payable)}</span>
+                          {(c.exceeds_outstanding ?? c.equity_balance > c.outstanding + 0.009) ? (
+                            <Badge variant="outline" className="border-amber-500 text-amber-700">
+                              Above due · {money(c.overpay_amount ?? Math.max(0, c.equity_balance - c.outstanding))}
+                            </Badge>
+                          ) : null}
+                        </div>
+                      </TableCell>
                       {amountMode === "part" ? (
                         <TableCell className="text-right">
                           <Input
@@ -703,8 +719,9 @@ export default function BulkEquityAssetRepaymentsPage() {
         <CardHeader>
           <CardTitle>2. Amount mode</CardTitle>
           <CardDescription>
-            Full wallet pays min(equity, outstanding) per selected row in order. Part uses a shared amount,
-            with optional per-row overrides. Same member across multiple rows shares remaining equity in order.
+            Full wallet applies available equity per selected row (may exceed outstanding for mortgage cases).
+            Part uses a shared amount, with optional per-row overrides. Same member across multiple rows shares
+            remaining equity in order.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -721,7 +738,8 @@ export default function BulkEquityAssetRepaymentsPage() {
               <div>
                 <div className="font-medium">Full equity wallet</div>
                 <p className="text-sm text-muted-foreground">
-                  Apply available equity up to each holding&apos;s outstanding balance
+                  Apply the full equity balance. If equity is higher than the house/land due amount, the extra
+                  is recorded as an overpayment (common for mortgage).
                 </p>
               </div>
             </Label>
@@ -733,7 +751,8 @@ export default function BulkEquityAssetRepaymentsPage() {
               <div>
                 <div className="font-medium">Part amount</div>
                 <p className="text-sm text-muted-foreground">
-                  One amount for all selected, or override specific members in the table
+                  One amount for all selected, or override specific members in the table (also allowed above
+                  due)
                 </p>
               </div>
             </Label>
@@ -777,9 +796,22 @@ export default function BulkEquityAssetRepaymentsPage() {
             <CardDescription>
               {preview.payable_count} payable · {preview.skipped_count} skipped · {preview.member_count}{" "}
               members · total {money(preview.total_payable)}
+              {(preview.overpay_count ?? 0) > 0
+                ? ` · ${preview.overpay_count} above due (${money(preview.total_overpay ?? 0)} over)`
+                : ""}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {(preview.overpay_count ?? 0) > 0 ? (
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {preview.overpay_count} repayment(s) are higher than the house/land due amount (total over by{" "}
+                  {money(preview.total_overpay ?? 0)}). This is allowed for mortgage or intentional overpay.
+                  Confirm carefully before executing.
+                </AlertDescription>
+              </Alert>
+            ) : null}
             <div className="rounded-md border">
               <Table>
                 <TableHeader>
@@ -804,7 +836,16 @@ export default function BulkEquityAssetRepaymentsPage() {
                       <TableCell className="text-right tabular-nums">{money(r.requested)}</TableCell>
                       <TableCell className="text-right tabular-nums">{money(r.equity_available)}</TableCell>
                       <TableCell className="text-right tabular-nums">{money(r.outstanding)}</TableCell>
-                      <TableCell className="text-right tabular-nums font-medium">{money(r.payable)}</TableCell>
+                      <TableCell className="text-right tabular-nums font-medium">
+                        <div className="flex flex-col items-end gap-1">
+                          <span>{money(r.payable)}</span>
+                          {r.status === "payable" && (r.exceeds_outstanding || (r.overpay_amount ?? 0) > 0.009) ? (
+                            <Badge variant="outline" className="border-amber-500 text-amber-700">
+                              Above due · {money(r.overpay_amount ?? 0)}
+                            </Badge>
+                          ) : null}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         {r.status === "payable" ? (
                           <Badge className="bg-green-600 hover:bg-green-600">Payable</Badge>
@@ -878,10 +919,24 @@ export default function BulkEquityAssetRepaymentsPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirm bulk equity repayment</DialogTitle>
-            <DialogDescription>
-              This will debit equity wallets and post house/land repayments for{" "}
-              {preview?.payable_count ?? 0} row(s), totaling {money(preview?.total_payable ?? 0)}. This cannot
-              be undone from this screen.
+            <DialogDescription asChild>
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <p>
+                  This will debit equity wallets and post house/land repayments for{" "}
+                  {preview?.payable_count ?? 0} row(s), totaling {money(preview?.total_payable ?? 0)}. This
+                  cannot be undone from this screen.
+                </p>
+                {(preview?.overpay_count ?? 0) > 0 ? (
+                  <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-50">
+                    <p className="font-medium">Overpayment notice</p>
+                    <p className="mt-1">
+                      {preview?.overpay_count} selected repayment(s) are higher than the listed due amount
+                      (total excess {money(preview?.total_overpay ?? 0)}). This is expected for some mortgage
+                      cases where equity exceeds house cost. Proceed only if that is intentional.
+                    </p>
+                  </div>
+                ) : null}
+              </div>
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -890,7 +945,7 @@ export default function BulkEquityAssetRepaymentsPage() {
             </Button>
             <Button onClick={() => void handleExecute()} disabled={executing}>
               {executing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Execute repayments
+              {(preview?.overpay_count ?? 0) > 0 ? "I understand — execute" : "Execute repayments"}
             </Button>
           </DialogFooter>
         </DialogContent>
