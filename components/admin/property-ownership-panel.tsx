@@ -801,30 +801,32 @@ export function PropertyOwnershipPanel({ assetType, assetId }: PropertyOwnership
                 </section>
 
                 {assetType === "house" ? (
-                  <PropertyDocuments
-                    propertyId={assetId}
-                    canUpload
-                    allowDelete
-                    role="admin"
-                    propertySlotId={selectedSlot.id}
-                    propertyAllocationId={currentAllocationId}
-                    memberId={currentOwners[0]?.member_id ?? null}
-                    memberOptions={currentOwners
-                      .filter((o) => o.member_id)
-                      .map((o) => ({
-                        id: o.member_id as string,
-                        label: o.owner_name || o.member_number || "Member",
-                      }))}
-                    title={`${selectedSlot.label} documents`}
-                    description="Upload and view documents for this slot / block and its allottee account."
-                  />
-                  {currentAllocationId ? (
-                    <IssuedDocumentsPanel
-                      scope={{ role: "admin", kind: "house", id: currentAllocationId }}
-                      title={`${selectedSlot.label} official documents`}
-                      description="Official letters and payment receipts issued for the current allottee of this slot."
+                  <>
+                    <PropertyDocuments
+                      propertyId={assetId}
+                      canUpload
+                      allowDelete
+                      role="admin"
+                      propertySlotId={selectedSlot.id}
+                      propertyAllocationId={currentAllocationId}
+                      memberId={currentOwners[0]?.member_id ?? null}
+                      memberOptions={currentOwners
+                        .filter((o) => o.member_id)
+                        .map((o) => ({
+                          id: o.member_id as string,
+                          label: o.owner_name || o.member_number || "Member",
+                        }))}
+                      title={`${selectedSlot.label} documents`}
+                      description="Upload and view documents for this slot / block and its allottee account."
                     />
-                  ) : null}
+                    {currentAllocationId ? (
+                      <IssuedDocumentsPanel
+                        scope={{ role: "admin", kind: "house", id: currentAllocationId }}
+                        title={`${selectedSlot.label} official documents`}
+                        description="Official letters and payment receipts issued for the current allottee of this slot."
+                      />
+                    ) : null}
+                  </>
                 ) : null}
               </div>
             </>
