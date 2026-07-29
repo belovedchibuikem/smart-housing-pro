@@ -111,6 +111,22 @@ export async function reissuePaymentReceipt(id: string) {
 	})
 }
 
+export async function bulkReissuePaymentReceipts(limit = 500) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		data: {
+			reissued: number
+			failed: number
+			has_more: boolean
+			failures: Array<{ id: string; message: string }>
+		}
+	}>("/admin/payment-receipts/bulk-reissue", {
+		method: "POST",
+		body: { confirm: true, limit },
+	})
+}
+
 export async function resendPaymentReceipt(id: string) {
 	return apiFetch<{ success: boolean; message: string }>(`/admin/payment-receipts/${id}/resend`, {
 		method: "POST",

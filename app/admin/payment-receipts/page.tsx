@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast"
 import {
 	downloadPaymentReceipt,
 	exportPaymentReceipts,
+	bulkReissuePaymentReceipts,
 	getPaymentReceiptSettings,
 	getPaymentReceiptsDashboard,
 	resendPaymentReceipt,
@@ -61,6 +62,7 @@ export default function PaymentReceiptsPage() {
 	const [verifyResult, setVerifyResult] = useState<{ success: boolean; status: string; document: Record<string, unknown> | null } | null>(null)
 	const [settingsOpen, setSettingsOpen] = useState(false)
 	const [savingSettings, setSavingSettings] = useState(false)
+	const [reissuingLegacy, setReissuingLegacy] = useState(false)
 
 	const load = useCallback(async () => {
 		setLoading(true)
@@ -111,6 +113,35 @@ export default function PaymentReceiptsPage() {
 		}
 	}
 
+	const handleBulkReissue = async () => {
+		const confirmed = window.confirm(
+			"Replace up to 500 active receipt PDFs with the current receipt design?\n\n" +
+				"Each old receipt will be retained as superseded and a replacement receipt will be issued. " +
+				"Members will not receive bulk notifications.",
+		)
+		if (!confirmed) return
+
+		setReissuingLegacy(true)
+		try {
+			const res = await bulkReissuePaymentReceipts()
+			toast({
+				title: "Receipt replacement completed",
+				description: `${res.data.reissued} reissued, ${res.data.failed} failed.${
+					res.data.has_more ? " Run it again to continue with the next batch." : ""
+				}`,
+			})
+			await load()
+		} catch (e) {
+			toast({
+				title: "Bulk reissue failed",
+				description: e instanceof Error ? e.message : "Please try again",
+				variant: "destructive",
+			})
+		} finally {
+			setReissuingLegacy(false)
+		}
+	}
+
 	const handleVerify = async () => {
 		if (!verifyQ.trim()) return
 		try {
@@ -153,6 +184,10 @@ export default function PaymentReceiptsPage() {
 					<Button variant="outline" size="sm" onClick={() => void handleExport()}>
 						<Download className="h-4 w-4 mr-2" />
 						Export CSV
+					</Button>
+					<Button variant="outline" size="sm" onClick={() => void handleBulkReissue()} disabled={reissuingLegacy}>
+						{reissuingLegacy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+						Replace legacy PDFs
 					</Button>
 					<Button variant="outline" size="sm" onClick={() => setSettingsOpen((v) => !v)}>
 						<Settings2 className="h-4 w-4 mr-2" />

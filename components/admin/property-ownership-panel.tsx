@@ -41,6 +41,7 @@ import {
   type PropertyOwnershipTimelineEntry,
 } from "@/lib/api/client"
 import { PropertyDocuments } from "@/components/properties/property-documents"
+import { IssuedDocumentsPanel } from "@/components/documents/issued-documents-panel"
 
 interface PropertyOwnershipPanelProps {
   assetType: "house" | "land"
@@ -586,6 +587,10 @@ export function PropertyOwnershipPanel({ assetType, assetId }: PropertyOwnership
   const selectedSlot = slots.find((slot) => slot.id === selectedSlotId) ?? null
   const currentOwners = (slotOwnership?.owner_periods ?? []).filter((period) => period.is_current)
   const timeline = (slotOwnership?.timeline ?? []) as PropertyOwnershipTimelineEntry[]
+  const currentAllocationId =
+    (slotOwnership?.current_tenure?.allocation_id as string | undefined) ??
+    (currentOwners[0]?.allocation_id as string | undefined) ??
+    null
 
   return (
     <div className="space-y-6">
@@ -802,11 +807,7 @@ export function PropertyOwnershipPanel({ assetType, assetId }: PropertyOwnership
                     allowDelete
                     role="admin"
                     propertySlotId={selectedSlot.id}
-                    propertyAllocationId={
-                      (slotOwnership?.current_tenure?.allocation_id as string | undefined) ??
-                      (currentOwners[0]?.allocation_id as string | undefined) ??
-                      null
-                    }
+                    propertyAllocationId={currentAllocationId}
                     memberId={currentOwners[0]?.member_id ?? null}
                     memberOptions={currentOwners
                       .filter((o) => o.member_id)
@@ -817,6 +818,13 @@ export function PropertyOwnershipPanel({ assetType, assetId }: PropertyOwnership
                     title={`${selectedSlot.label} documents`}
                     description="Upload and view documents for this slot / block and its allottee account."
                   />
+                  {currentAllocationId ? (
+                    <IssuedDocumentsPanel
+                      scope={{ role: "admin", kind: "house", id: currentAllocationId }}
+                      title={`${selectedSlot.label} official documents`}
+                      description="Official letters and payment receipts issued for the current allottee of this slot."
+                    />
+                  ) : null}
                 ) : null}
               </div>
             </>
