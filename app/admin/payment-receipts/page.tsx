@@ -115,25 +115,35 @@ export default function PaymentReceiptsPage() {
 
 	const handleBulkReissue = async () => {
 		const confirmed = window.confirm(
-			"Replace up to 500 active receipt PDFs with the current receipt design?\n\n" +
-				"Each old receipt will be retained as superseded and a replacement receipt will be issued. " +
-				"Members will not receive bulk notifications.",
+			"Refresh active receipt PDFs with the current receipt design?\n\n" +
+				"PDFs are regenerated on the same receipt records — no new receipt numbers are created " +
+				"and the receipt count will not increase. Members are not notified.",
 		)
 		if (!confirmed) return
 
 		setReissuingLegacy(true)
 		try {
-			const res = await bulkReissuePaymentReceipts()
+			let offset = 0
+			let total = 0
+			let failed = 0
+			let hasMore = true
+
+			while (hasMore) {
+				const res = await bulkReissuePaymentReceipts(500, offset)
+				total += res.data.regenerated ?? res.data.reissued
+				failed += res.data.failed
+				hasMore = Boolean(res.data.has_more)
+				offset = res.data.next_offset ?? offset + 500
+			}
+
 			toast({
-				title: "Receipt replacement completed",
-				description: `${res.data.reissued} reissued, ${res.data.failed} failed.${
-					res.data.has_more ? " Run it again to continue with the next batch." : ""
-				}`,
+				title: "Receipt PDFs refreshed",
+				description: `${total} PDF(s) regenerated, ${failed} failed. Receipt count unchanged.`,
 			})
 			await load()
 		} catch (e) {
 			toast({
-				title: "Bulk reissue failed",
+				title: "PDF refresh failed",
 				description: e instanceof Error ? e.message : "Please try again",
 				variant: "destructive",
 			})
@@ -187,7 +197,7 @@ export default function PaymentReceiptsPage() {
 					</Button>
 					<Button variant="outline" size="sm" onClick={() => void handleBulkReissue()} disabled={reissuingLegacy}>
 						{reissuingLegacy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
-						Replace legacy PDFs
+						Refresh receipt PDFs
 					</Button>
 					<Button variant="outline" size="sm" onClick={() => setSettingsOpen((v) => !v)}>
 						<Settings2 className="h-4 w-4 mr-2" />
