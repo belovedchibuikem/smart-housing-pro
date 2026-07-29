@@ -111,7 +111,7 @@ export async function reissuePaymentReceipt(id: string) {
 	})
 }
 
-export async function bulkReissuePaymentReceipts(limit = 500, offset = 0) {
+export async function bulkReissuePaymentReceipts(limit = 10, offset = 0) {
 	return apiFetch<{
 		success: boolean
 		message: string
@@ -121,6 +121,8 @@ export async function bulkReissuePaymentReceipts(limit = 500, offset = 0) {
 			failed: number
 			has_more: boolean
 			next_offset?: number
+			total?: number
+			processed_through?: number
 			failures: Array<{ id: string; message: string }>
 		}
 	}>("/admin/payment-receipts/bulk-reissue", {

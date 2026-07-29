@@ -63,6 +63,7 @@ export default function PaymentReceiptsPage() {
 	const [settingsOpen, setSettingsOpen] = useState(false)
 	const [savingSettings, setSavingSettings] = useState(false)
 	const [reissuingLegacy, setReissuingLegacy] = useState(false)
+	const [reissueProgress, setReissueProgress] = useState<string | null>(null)
 
 	const load = useCallback(async () => {
 		setLoading(true)
@@ -116,29 +117,50 @@ export default function PaymentReceiptsPage() {
 	const handleBulkReissue = async () => {
 		const confirmed = window.confirm(
 			"Refresh active receipt PDFs with the current receipt design?\n\n" +
-				"PDFs are regenerated on the same receipt records — no new receipt numbers are created " +
-				"and the receipt count will not increase. Members are not notified.",
+				"PDFs are regenerated in small batches on the same receipt records — no new receipt numbers " +
+				"are created and the receipt count will not increase. Members are not notified.\n\n" +
+				"This can take several minutes on large tenants; keep this tab open.",
 		)
 		if (!confirmed) return
 
 		setReissuingLegacy(true)
+		setReissueProgress("Starting…")
 		try {
+			const batchSize = 10
 			let offset = 0
-			let total = 0
+			let regenerated = 0
 			let failed = 0
 			let hasMore = true
+			let catalogTotal: number | null = null
+			const sampleFailures: string[] = []
 
 			while (hasMore) {
-				const res = await bulkReissuePaymentReceipts(500, offset)
-				total += res.data.regenerated ?? res.data.reissued
+				const res = await bulkReissuePaymentReceipts(batchSize, offset)
+				regenerated += res.data.regenerated ?? res.data.reissued
 				failed += res.data.failed
+				catalogTotal = res.data.total ?? catalogTotal
 				hasMore = Boolean(res.data.has_more)
-				offset = res.data.next_offset ?? offset + 500
+				offset = res.data.next_offset ?? offset + batchSize
+
+				for (const failure of res.data.failures ?? []) {
+					if (sampleFailures.length < 3) {
+						sampleFailures.push(failure.message)
+					}
+				}
+
+				const through = res.data.processed_through ?? offset
+				setReissueProgress(
+					catalogTotal != null
+						? `Refreshed ${through} of ${catalogTotal}… (${regenerated} ok, ${failed} failed)`
+						: `Refreshed ${through}… (${regenerated} ok, ${failed} failed)`,
+				)
 			}
 
 			toast({
 				title: "Receipt PDFs refreshed",
-				description: `${total} PDF(s) regenerated, ${failed} failed. Receipt count unchanged.`,
+				description:
+					`${regenerated} PDF(s) regenerated, ${failed} failed. Receipt count unchanged.` +
+					(sampleFailures.length ? ` First errors: ${sampleFailures.join("; ")}` : ""),
 			})
 			await load()
 		} catch (e) {
@@ -149,6 +171,7 @@ export default function PaymentReceiptsPage() {
 			})
 		} finally {
 			setReissuingLegacy(false)
+			setReissueProgress(null)
 		}
 	}
 
@@ -197,7 +220,7 @@ export default function PaymentReceiptsPage() {
 					</Button>
 					<Button variant="outline" size="sm" onClick={() => void handleBulkReissue()} disabled={reissuingLegacy}>
 						{reissuingLegacy ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
-						Refresh receipt PDFs
+						{reissueProgress ?? "Refresh receipt PDFs"}
 					</Button>
 					<Button variant="outline" size="sm" onClick={() => setSettingsOpen((v) => !v)}>
 						<Settings2 className="h-4 w-4 mr-2" />
