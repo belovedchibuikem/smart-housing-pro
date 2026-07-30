@@ -41,6 +41,26 @@ export async function bootstrapAccounting() {
 	)
 }
 
+export async function backfillHistoricalGl(body: {
+	dry_run?: boolean
+	types?: string[]
+	from?: string
+	to?: string
+	chunk?: number
+}) {
+	return apiFetch<{
+		success: boolean
+		message?: string
+		data: {
+			run_id: string
+			dry_run: boolean
+			totals: { scanned: number; posted: number; skipped: number; failed: number }
+			by_type: Record<string, { scanned: number; posted: number; skipped: number; failed: number }>
+			failures: Array<{ type?: string; idempotency_key?: string; error: string }>
+		}
+	}>("/admin/accounting/backfill", { method: "POST", body })
+}
+
 export async function getAccountingDashboard(params?: { from?: string; to?: string }) {
 	return apiFetch<{ success: boolean; data: Record<string, any> }>(
 		`/admin/accounting/dashboard${toQuery(params)}`

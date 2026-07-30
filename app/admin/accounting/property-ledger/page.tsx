@@ -1,14 +1,22 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  SearchableSelect,
+  membersToSearchableOptions,
+  propertiesToSearchableOptions,
+  type SearchableSelectOption,
+} from "@/components/ui/searchable-select"
 import { Loader2 } from "lucide-react"
 import { getPropertyFinancialLedger } from "@/lib/api/accounting"
+import { apiFetch } from "@/lib/api/client"
+import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
 import { useToast } from "@/hooks/use-toast"
 
 function money(n: number | undefined) {
@@ -22,6 +30,20 @@ function formatDate(value?: string | null): string {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
 }
 
+function landsToSearchableOptions(
+  lands: Array<{ id: string; title?: string; name?: string; location?: string; price?: number | string }>
+): SearchableSelectOption[] {
+  return propertiesToSearchableOptions(
+    lands.map((land) => ({
+      id: land.id,
+      title: land.title || land.name || "Land",
+      location: land.location,
+      type_label: "Land",
+      price: land.price,
+    }))
+  )
+}
+
 export default function PropertyFinancialLedgerPage() {
   const { toast } = useToast()
   const [filters, setFilters] = useState({
@@ -31,12 +53,52 @@ export default function PropertyFinancialLedgerPage() {
     from: "",
     to: "",
   })
+  const [memberOptions, setMemberOptions] = useState<SearchableSelectOption[]>([])
+  const [propertyOptions, setPropertyOptions] = useState<SearchableSelectOption[]>([])
   const [rows, setRows] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
+  const searchMembers = useCallback(async (query: string): Promise<SearchableSelectOption[]> => {
+    const res = await apiFetch(`/admin/members?search=${encodeURIComponent(query)}&per_page=50`)
+    const rows = normalizeAdminMembersList(res) as Array<{ id: string; first_name?: string; last_name?: string; email?: string; member_number?: string }>
+    const opts = membersToSearchableOptions(rows)
+    setMemberOptions((prev) => {
+      const map = new Map(prev.map((o) => [o.value, o]))
+      opts.forEach((o) => map.set(o.value, o))
+      return Array.from(map.values())
+    })
+    return opts
+  }, [])
+
+  const searchProperties = useCallback(async (query: string): Promise<SearchableSelectOption[]> => {
+    if (filters.property_type === "land") {
+      const res = await apiFetch<{ success?: boolean; data?: any[] }>(
+        `/admin/lands?search=${encodeURIComponent(query)}&per_page=50`
+      )
+      const opts = landsToSearchableOptions(res.data || [])
+      setPropertyOptions((prev) => {
+        const map = new Map(prev.map((o) => [o.value, o]))
+        opts.forEach((o) => map.set(o.value, o))
+        return Array.from(map.values())
+      })
+      return opts
+    }
+
+    const res = await apiFetch<{ success?: boolean; data?: any[] }>(
+      `/admin/properties?search=${encodeURIComponent(query)}&per_page=50`
+    )
+    const opts = propertiesToSearchableOptions(res.data || [])
+    setPropertyOptions((prev) => {
+      const map = new Map(prev.map((o) => [o.value, o]))
+      opts.forEach((o) => map.set(o.value, o))
+      return Array.from(map.values())
+    })
+    return opts
+  }, [filters.property_type])
+
   const load = async () => {
     if (!filters.property_id.trim()) {
-      toast({ title: "Property ID required", variant: "destructive" })
+      toast({ title: "Select a property", variant: "destructive" })
       return
     }
     try {
@@ -57,6 +119,9 @@ export default function PropertyFinancialLedgerPage() {
     }
   }
 
+  const selectedPropertyOptions = useMemo(() => propertyOptions, [propertyOptions])
+  const selectedMemberOptions = useMemo(() => memberOptions, [memberOptions])
+
   return (
     <div className="max-w-7xl mx-auto space-y-6">
       <div>
@@ -73,7 +138,7 @@ export default function PropertyFinancialLedgerPage() {
             <Label>Property type</Label>
             <Select
               value={filters.property_type}
-              onValueChange={(v) => setFilters({ ...filters, property_type: v })}
+              onValueChange={(v) => setFilters({ ...filters, property_type: v, property_id: "" })}
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -83,19 +148,29 @@ export default function PropertyFinancialLedgerPage() {
             </Select>
           </div>
           <div>
-            <Label>Property ID</Label>
-            <Input
+            <Label>{filters.property_type === "land" ? "Land" : "Property"}</Label>
+            <SearchableSelect
               value={filters.property_id}
-              onChange={(e) => setFilters({ ...filters, property_id: e.target.value })}
-              placeholder="UUID"
+              onValueChange={(value) => setFilters({ ...filters, property_id: value })}
+              options={selectedPropertyOptions}
+              onSearch={searchProperties}
+              placeholder={filters.property_type === "land" ? "Search and select land" : "Search and select property"}
+              searchPlaceholder="Search by title, location…"
+              emptyText="No matches."
             />
           </div>
           <div>
-            <Label>Member ID (optional)</Label>
-            <Input
+            <Label>Member (optional)</Label>
+            <SearchableSelect
               value={filters.member_id}
-              onChange={(e) => setFilters({ ...filters, member_id: e.target.value })}
-              placeholder="UUID"
+              onValueChange={(value) => setFilters({ ...filters, member_id: value })}
+              options={selectedMemberOptions}
+              onSearch={searchMembers}
+              allowEmpty
+              emptyValueLabel="All members"
+              placeholder="Search and select member"
+              searchPlaceholder="Search by name, email, member no…"
+              emptyText="No members match."
             />
           </div>
           <div>

@@ -1,18 +1,40 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  SearchableSelect,
+  membersToSearchableOptions,
+  propertiesToSearchableOptions,
+  type SearchableSelectOption,
+} from "@/components/ui/searchable-select"
 import { Download, ExternalLink, FileSpreadsheet, FileText, Loader2 } from "lucide-react"
 import { downloadMemberStatementPdf, exportMemberStatementCsv, generateMemberStatement } from "@/lib/api/accounting"
+import { apiFetch } from "@/lib/api/client"
+import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
 import { useToast } from "@/hooks/use-toast"
 
 function money(n: number) {
   return Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function landsToSearchableOptions(
+  lands: Array<{ id: string; title?: string; name?: string; location?: string; price?: number | string }>
+): SearchableSelectOption[] {
+  return propertiesToSearchableOptions(
+    lands.map((land) => ({
+      id: land.id,
+      title: land.title || land.name || "Land",
+      location: land.location,
+      type_label: "Land",
+      price: land.price,
+    }))
+  )
 }
 
 export default function MemberStatementsAdminPage() {
@@ -25,8 +47,42 @@ export default function MemberStatementsAdminPage() {
     property_type: "",
     property_id: "",
   })
+  const [memberOptions, setMemberOptions] = useState<SearchableSelectOption[]>([])
+  const [propertyOptions, setPropertyOptions] = useState<SearchableSelectOption[]>([])
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<any>(null)
+
+  const searchMembers = useCallback(async (query: string): Promise<SearchableSelectOption[]> => {
+    const res = await apiFetch(`/admin/members?search=${encodeURIComponent(query)}&per_page=50`)
+    const rows = normalizeAdminMembersList(res) as Array<{ id: string; first_name?: string; last_name?: string; email?: string; member_number?: string }>
+    const opts = membersToSearchableOptions(rows)
+    setMemberOptions((prev) => {
+      const map = new Map(prev.map((o) => [o.value, o]))
+      opts.forEach((o) => map.set(o.value, o))
+      return Array.from(map.values())
+    })
+    return opts
+  }, [])
+
+  const searchProperties = useCallback(async (query: string): Promise<SearchableSelectOption[]> => {
+    if (form.property_type === "land") {
+      const res = await apiFetch<{ success?: boolean; data?: any[] }>(
+        `/admin/lands?search=${encodeURIComponent(query)}&per_page=50`
+      )
+      const opts = landsToSearchableOptions(res.data || [])
+      setPropertyOptions(opts)
+      return opts
+    }
+    if (form.property_type === "house") {
+      const res = await apiFetch<{ success?: boolean; data?: any[] }>(
+        `/admin/properties?search=${encodeURIComponent(query)}&per_page=50`
+      )
+      const opts = propertiesToSearchableOptions(res.data || [])
+      setPropertyOptions(opts)
+      return opts
+    }
+    return []
+  }, [form.property_type])
 
   const payload = () => ({
     member_id: form.member_id,
@@ -46,6 +102,9 @@ export default function MemberStatementsAdminPage() {
     URL.revokeObjectURL(url)
   }
 
+  const memberSelectOptions = useMemo(() => memberOptions, [memberOptions])
+  const propertySelectOptions = useMemo(() => propertyOptions, [propertyOptions])
+
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
@@ -59,8 +118,16 @@ export default function MemberStatementsAdminPage() {
         <CardHeader><CardTitle className="text-base">Generate statement</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div>
-            <Label>Member ID</Label>
-            <Input value={form.member_id} onChange={(e) => setForm({ ...form, member_id: e.target.value })} placeholder="UUID" />
+            <Label>Member</Label>
+            <SearchableSelect
+              value={form.member_id}
+              onValueChange={(value) => setForm({ ...form, member_id: value })}
+              options={memberSelectOptions}
+              onSearch={searchMembers}
+              placeholder="Search and select member"
+              searchPlaceholder="Search by name, email, member no…"
+              emptyText="No members match."
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div><Label>From</Label><Input type="date" value={form.from} onChange={(e) => setForm({ ...form, from: e.target.value })} /></div>
@@ -89,7 +156,7 @@ export default function MemberStatementsAdminPage() {
               <Label>Property type</Label>
               <Select
                 value={form.property_type || "all"}
-                onValueChange={(v) => setForm({ ...form, property_type: v === "all" ? "" : v })}
+                onValueChange={(v) => setForm({ ...form, property_type: v === "all" ? "" : v, property_id: "" })}
               >
                 <SelectTrigger><SelectValue placeholder="Any" /></SelectTrigger>
                 <SelectContent>
@@ -100,8 +167,19 @@ export default function MemberStatementsAdminPage() {
               </Select>
             </div>
             <div>
-              <Label>Property ID</Label>
-              <Input value={form.property_id} onChange={(e) => setForm({ ...form, property_id: e.target.value })} placeholder="Optional UUID" />
+              <Label>Property (optional)</Label>
+              <SearchableSelect
+                value={form.property_id}
+                onValueChange={(value) => setForm({ ...form, property_id: value })}
+                options={propertySelectOptions}
+                onSearch={form.property_type ? searchProperties : undefined}
+                allowEmpty
+                emptyValueLabel="Any property"
+                disabled={!form.property_type}
+                placeholder={form.property_type ? "Search and select" : "Select type first"}
+                searchPlaceholder="Search…"
+                emptyText="No matches."
+              />
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
