@@ -218,6 +218,7 @@ const navItems: NavItem[] = [
     ],
   },
   { href: "/dashboard/withdraw-membership", label: "Withdraw Membership", displayKey: "nav.withdrawMembership", icon: UserMinus },
+  { href: "/dashboard/digital-file", label: "My Digital File", icon: FileText },
   { href: "/dashboard/settings", label: "Settings", displayKey: "nav.settings", icon: Settings },
 ]
 

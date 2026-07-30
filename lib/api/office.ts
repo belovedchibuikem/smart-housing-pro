@@ -1,0 +1,340 @@
+import { apiFetch, apiFetchBlob, getAuthToken, getTenantSlug } from "@/lib/api/client"
+import { getApiBaseUrl } from "@/lib/api/config"
+
+type Query = Record<string, string | number | boolean | undefined | null>
+
+function toQuery(params?: Query): string {
+  if (!params) return ""
+  const q = new URLSearchParams()
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== null && v !== "") q.set(k, String(v))
+  })
+  const s = q.toString()
+  return s ? `?${s}` : ""
+}
+
+export async function bootstrapOffice() {
+  return apiFetch<{ success: boolean; message?: string; data: Record<string, number> }>(
+    "/admin/office/bootstrap",
+    { method: "POST" }
+  )
+}
+
+export async function getOfficeDashboard() {
+  return apiFetch<{ success: boolean; data: Record<string, number> }>("/admin/office/dashboard")
+}
+
+export async function getOfficeInbox(params?: Query) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/inbox${toQuery(params)}`)
+}
+
+export async function getOfficeOutbox(params?: Query) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/outbox${toQuery(params)}`)
+}
+
+export async function getOfficeMyTasks() {
+  return apiFetch<{ success: boolean; data: any }>("/admin/office/my-tasks")
+}
+
+export async function getOfficeDocuments(params?: Query) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/documents${toQuery(params)}`)
+}
+
+export async function getOfficeDocument(id: string) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/documents/${id}`)
+}
+
+export async function createOfficeDocument(body: Record<string, unknown>) {
+  return apiFetch<{ success: boolean; data: any }>("/admin/office/documents", {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateOfficeDocument(id: string, body: Record<string, unknown>) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/documents/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function submitOfficeDocument(id: string, comments?: string) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/documents/${id}/submit`, {
+    method: "POST",
+    body: JSON.stringify({ comments }),
+  })
+}
+
+export async function recallOfficeDocument(id: string, comments?: string) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/documents/${id}/recall`, {
+    method: "POST",
+    body: JSON.stringify({ comments }),
+  })
+}
+
+export async function actOnOfficeTask(
+  taskId: string,
+  body: { action: string; comments?: string; forward_to_user_id?: string }
+) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/tasks/${taskId}/act`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function addOfficeMinute(id: string, body: Record<string, unknown>) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/documents/${id}/minutes`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function completeMinuteAction(actionId: string) {
+  return apiFetch<{ success: boolean; data: any }>(
+    `/admin/office/minute-actions/${actionId}/complete`,
+    { method: "POST" }
+  )
+}
+
+export async function signOfficeDocument(id: string, signature: string, role_label?: string) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/documents/${id}/sign`, {
+    method: "POST",
+    body: JSON.stringify({ signature, role_label }),
+  })
+}
+
+export async function archiveOfficeDocument(id: string, comments?: string) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/documents/${id}/archive`, {
+    method: "POST",
+    body: JSON.stringify({ comments }),
+  })
+}
+
+export async function downloadOfficeDocument(id: string) {
+  return apiFetchBlob(`/admin/office/documents/${id}/download`)
+}
+
+export async function getMemberOfficeFile(memberId: string, params?: Query) {
+  return apiFetch<{ success: boolean; data: any }>(
+    `/admin/office/member-file/${memberId}${toQuery(params)}`
+  )
+}
+
+export async function getOfficeOrgUnits() {
+  return apiFetch<{ success: boolean; data: any[] }>("/admin/office/org-units")
+}
+
+export async function createOfficeOrgUnit(body: Record<string, unknown>) {
+  return apiFetch<{ success: boolean; data: any }>("/admin/office/org-units", {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateOfficeOrgUnit(id: string, body: Record<string, unknown>) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/org-units/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function getOfficeCategories() {
+  return apiFetch<{ success: boolean; data: any[] }>("/admin/office/categories")
+}
+
+export async function createOfficeCategory(body: { name: string; description?: string }) {
+  return apiFetch<{ success: boolean; data: any }>("/admin/office/categories", {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function getOfficeTemplates() {
+  return apiFetch<{ success: boolean; data: any[] }>("/admin/office/templates")
+}
+
+export async function updateOfficeTemplate(id: string, body: Record<string, unknown>) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/templates/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function getOfficeStaffUsers(q?: string) {
+  return apiFetch<{ success: boolean; data: Array<{ id: string; name: string; email: string }> }>(
+    `/admin/office/staff-users${toQuery({ q })}`
+  )
+}
+
+export async function uploadOfficeAttachment(documentId: string, file: File) {
+  const form = new FormData()
+  form.append("file", file)
+  const url = `${getApiBaseUrl()}/admin/office/documents/${documentId}/attachments`
+  const headers: Record<string, string> = { Accept: "application/json" }
+  const token = getAuthToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+  if (typeof window !== "undefined") {
+    headers["X-Forwarded-Host"] = window.location.host
+    const slug = getTenantSlug()
+    if (slug) headers["X-Tenant-Slug"] = slug
+  }
+  const response = await fetch(url, { method: "POST", headers, body: form })
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw new Error(payload.message || "Upload failed")
+  }
+  return payload as { success: boolean; data: any }
+}
+
+export async function getOfficeWorkflows() {
+  return apiFetch<{ success: boolean; data: any[] }>("/admin/office/workflows")
+}
+
+export async function createOfficeWorkflow(body: Record<string, unknown>) {
+  return apiFetch<{ success: boolean; data: any }>("/admin/office/workflows", {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function updateOfficeWorkflow(id: string, body: Record<string, unknown>) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/workflows/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function getOfficeFolders(parent_id?: string) {
+  return apiFetch<{ success: boolean; data: any[] }>(`/admin/office/folders${toQuery({ parent_id })}`)
+}
+
+export async function createOfficeFolder(body: Record<string, unknown>) {
+  return apiFetch<{ success: boolean; data: any }>("/admin/office/folders", {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function getOfficeTags() {
+  return apiFetch<{ success: boolean; data: any[] }>("/admin/office/tags")
+}
+
+export async function createOfficeTag(body: Record<string, unknown>) {
+  return apiFetch<{ success: boolean; data: any }>("/admin/office/tags", {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function checkoutOfficeDocument(id: string) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/documents/${id}/checkout`, { method: "POST" })
+}
+
+export async function checkinOfficeDocument(id: string, body?: Record<string, unknown>) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/documents/${id}/checkin`, {
+    method: "POST",
+    body: JSON.stringify(body || {}),
+  })
+}
+
+export async function compareOfficeVersions(id: string, left: number, right: number) {
+  return apiFetch<{ success: boolean; data: any }>(
+    `/admin/office/documents/${id}/compare-versions${toQuery({ left, right })}`
+  )
+}
+
+export async function syncMemberOfficeSources(memberId: string) {
+  return apiFetch<{ success: boolean; data: { synced: number; skipped: number } }>(
+    `/admin/office/members/${memberId}/sync-sources`,
+    { method: "POST" }
+  )
+}
+
+export async function getOfficeCorrespondence(params?: Query) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/correspondence${toQuery(params)}`)
+}
+
+export async function createOfficeCorrespondence(body: Record<string, unknown>) {
+  return apiFetch<{ success: boolean; data: any }>("/admin/office/correspondence", {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function dispatchOfficeCorrespondence(id: string, notes?: string) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/correspondence/${id}/dispatch`, {
+    method: "POST",
+    body: JSON.stringify({ notes }),
+  })
+}
+
+export async function ackOfficeCorrespondence(id: string, notes?: string) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/correspondence/${id}/acknowledge`, {
+    method: "POST",
+    body: JSON.stringify({ notes }),
+  })
+}
+
+export async function getOfficeRetentionPolicies() {
+  return apiFetch<{ success: boolean; data: any[] }>("/admin/office/retention-policies")
+}
+
+export async function setOfficeLegalHold(id: string, legal_hold: boolean, notes?: string) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/documents/${id}/legal-hold`, {
+    method: "POST",
+    body: JSON.stringify({ legal_hold, notes }),
+  })
+}
+
+export async function getOfficeReportSummary() {
+  return apiFetch<{ success: boolean; data: Record<string, any> }>("/admin/office/reports/summary")
+}
+
+export async function exportOfficeReport(type: string = "documents") {
+  return apiFetchBlob(`/admin/office/reports/export${toQuery({ type })}`)
+}
+
+export async function getOfficeCirculars() {
+  return apiFetch<{ success: boolean; data: any }>("/admin/office/circulars")
+}
+
+export async function createOfficeCircular(body: Record<string, unknown>) {
+  return apiFetch<{ success: boolean; data: any }>("/admin/office/circulars", {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function publishOfficeCircular(id: string) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/circulars/${id}/publish`, { method: "POST" })
+}
+
+export async function getOfficeBranchMonitor() {
+  return apiFetch<{ success: boolean; data: any }>("/admin/office/branch-monitor")
+}
+
+export async function advancedOfficeSearch(params?: Query) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/search${toQuery(params)}`)
+}
+
+export async function officeAiSuggest(body: Record<string, unknown>) {
+  return apiFetch<{ success: boolean; data: any; message?: string }>("/admin/office/ai/suggest", {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function officeAiReview(id: string, decision: "accepted" | "rejected") {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/ai/suggestions/${id}/review`, {
+    method: "POST",
+    body: JSON.stringify({ decision }),
+  })
+}
+
+export async function getMemberDigitalFile(params?: Query) {
+  return apiFetch<{ success: boolean; data: any }>(`/member/digital-file${toQuery(params)}`)
+}
+
+export async function downloadMemberDigitalFile(id: string) {
+  return apiFetchBlob(`/member/digital-file/${id}/download`)
+}

@@ -63,13 +63,20 @@ export default function AccountingHubPage() {
     try {
       setBackfilling(true)
       const res = await backfillHistoricalGl({ dry_run: true })
+      if (!res.success) {
+        throw new Error(res.message || "Dry-run failed")
+      }
       setPreview(res.data)
       toast({
         title: "Dry-run complete",
         description: `Would post ${res.data?.totals?.posted ?? 0}, skip ${res.data?.totals?.skipped ?? 0}, fail ${res.data?.totals?.failed ?? 0}`,
       })
     } catch (e: any) {
-      toast({ title: "Dry-run failed", description: e.message, variant: "destructive" })
+      const detail =
+        e?.payload?.message ||
+        e?.message ||
+        "Dry-run failed"
+      toast({ title: "Dry-run failed", description: detail, variant: "destructive" })
     } finally {
       setBackfilling(false)
     }
@@ -88,6 +95,9 @@ export default function AccountingHubPage() {
     try {
       setBackfilling(true)
       const res = await backfillHistoricalGl({ dry_run: false })
+      if (!res.success) {
+        throw new Error(res.message || "Backfill failed")
+      }
       setPreview(res.data)
       toast({
         title: "Backfill complete",
@@ -95,7 +105,11 @@ export default function AccountingHubPage() {
       })
       await load()
     } catch (e: any) {
-      toast({ title: "Backfill failed", description: e.message, variant: "destructive" })
+      const detail =
+        e?.payload?.message ||
+        e?.message ||
+        "Backfill failed"
+      toast({ title: "Backfill failed", description: detail, variant: "destructive" })
     } finally {
       setBackfilling(false)
     }

@@ -18,6 +18,7 @@ export const ALWAYS_VISIBLE_ADMIN_HREFS = new Set([
   "/admin/white-label",
   "/admin/custom-domains",
   "/admin/accounting",
+  "/admin/office",
 ])
 
 /** Always shown in tenant admin sidebar/API — not gated by business package modules. */
@@ -32,6 +33,7 @@ export const CORE_ADMIN_MODULE_SLUGS = new Set([
   "landing_page",
   "white_label",
   "accounting",
+  "office",
 ])
 
 export const ALWAYS_VISIBLE_MEMBER_HREFS = new Set([
@@ -62,6 +64,7 @@ export const ADMIN_NAV_MODULE_MAP: Record<string, string> = {
   "Mail Service": "mail",
   Reports: "reports",
   Accounting: "accounting",
+  "Digital Office": "office",
   "Activity Logs": "activity_logs",
   Notifications: "notifications",
   Documents: "documents",
@@ -138,6 +141,7 @@ export const ADMIN_HREF_MODULE_MAP: Record<string, string> = {
   "mail-service": "mail",
   reports: "reports",
   accounting: "accounting",
+  office: "office",
   "activity-logs": "activity_logs",
   notifications: "notifications",
   documents: "documents",

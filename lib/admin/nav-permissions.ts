@@ -99,6 +99,8 @@ export const TENANT_ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
     "view_reports|export_reports|view_analytics|view_financial_reports|view_contributions|view_loan_reports|view_property_reports|view_investment_reports|view_equity_reports",
   accounting:
     "view_accounting|manage_chart_of_accounts|manage_posting_rules|manage_financial_periods|post_journal_entries|view_gl_reports|generate_member_statements|reopen_locked_periods|view_financial_reports",
+  office:
+    "view_office|manage_office_org_units|create_office_documents|route_office_documents|approve_office_documents|minute_office_documents|sign_office_documents|archive_office_documents|manage_office_workflows|manage_office_templates|view_office_audit|manage_office_folders|manage_office_tags|checkout_office_documents|manage_office_correspondence|manage_office_retention|approve_office_disposal|view_office_reports|manage_office_circulars|use_office_ai|sync_office_source_files",
   "activity-logs": "view_activity_logs|manage_settings",
   "audit-logs": "view_activity_logs|manage_settings",
   documents: "view_documents|upload_documents|approve_documents|reject_documents|delete_documents",
@@ -128,6 +130,7 @@ export function adminHrefToPermissionKey(href: string): string | null {
     { prefix: "post-contribution", key: "contributions" },
     { prefix: "financial-reports", key: "reports" },
     { prefix: "accounting", key: "accounting" },
+    { prefix: "office", key: "office" },
     { prefix: "payment-receipts", key: "issued-documents" },
     { prefix: "issued-documents", key: "issued-documents" },
   ]
