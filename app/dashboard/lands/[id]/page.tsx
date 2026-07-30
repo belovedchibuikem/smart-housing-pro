@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast"
 import { PropertyGallery } from "@/app/dashboard/properties/[id]/(components)/property-gallery"
 import { LandDetailsTab } from "@/components/lands/land-details-tab"
 import { LandDocuments } from "@/components/properties/land-documents"
+import { IssuedDocumentsPanel } from "@/components/documents/issued-documents-panel"
 import { LandPaymentTab } from "@/components/lands/land-payment-tab"
 import { LandPaymentJourney } from "@/components/lands/land-payment-journey"
 import { SimilarLands, type SimilarLandItem } from "@/components/lands/similar-lands"
@@ -222,7 +223,16 @@ export default function TenantLandDetailPage() {
 
         <TabsContent value="documents">
           {hasAccess && landId ? (
-            <LandDocuments landId={landId} />
+            <div className="space-y-6">
+              {activeSubscription?.subscription_id ? (
+                <IssuedDocumentsPanel
+                  scope={{ role: "member", kind: "land", id: activeSubscription.subscription_id }}
+                  title="Official documents"
+                  description="Offer letters, allocation letters, acceptance forms, payment receipts, and other documents issued for your land account."
+                />
+              ) : null}
+              <LandDocuments landId={landId} />
+            </div>
           ) : (
             <div className="rounded-lg border p-6 text-sm text-muted-foreground">
               Documents are available once you have an active land subscription.

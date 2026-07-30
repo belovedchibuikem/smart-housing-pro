@@ -11,6 +11,7 @@ import { PropertyPaymentJourney } from "./(components)/property-payment-journey"
 import { PropertyDetailsTab } from "@/components/properties/property-details-tab"
 import { MyProperties } from "@/components/properties/my-properties"
 import { PropertyDocuments } from "@/components/properties/property-documents"
+import { IssuedDocumentsPanel } from "@/components/documents/issued-documents-panel"
 import { PropertyPaymentTab } from "@/components/properties/property-payment-tab"
 import {
   getMemberProperties,
@@ -308,7 +309,29 @@ export default function PropertyDetailPage() {
 
         <TabsContent value="documents">
           {activeHouse ? (
-            <PropertyDocuments propertyId={propertyId!} canUpload allowDelete={false} role="member" />
+            <div className="space-y-6">
+              {activeHouse.allocation_id ? (
+                <IssuedDocumentsPanel
+                  scope={{ role: "member", kind: "house", id: activeHouse.allocation_id }}
+                  title="Official documents"
+                  description="Offer letters, allocation letters, acceptance forms, payment receipts, and other documents issued for your house account."
+                />
+              ) : (
+                <div className="rounded-lg border p-6 text-sm text-muted-foreground">
+                  Official issued documents will appear here once your house allocation is active.
+                </div>
+              )}
+              <PropertyDocuments
+                propertyId={propertyId!}
+                canUpload
+                allowDelete={false}
+                role="member"
+                propertySlotId={activeHouse.property_slot_id ?? null}
+                propertyAllocationId={activeHouse.allocation_id ?? null}
+                title="Uploaded supporting documents"
+                description="View and upload supporting documents for this property."
+              />
+            </div>
           ) : (
             <div className="rounded-lg border p-6 text-sm text-muted-foreground">
               Documents are only available for properties you have subscribed to.

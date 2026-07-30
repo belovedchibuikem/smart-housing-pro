@@ -449,7 +449,9 @@ export function IssuedDocumentsPanel({
 						</div>
 					) : letterDocuments.length === 0 ? (
 						<div className="text-center py-10 text-muted-foreground">
-							No official documents issued for this {scope.kind === "house" ? "house" : "land"} yet.
+							{receiptDocuments.length > 0
+								? "Letters and certificates will appear here when issued. Payment receipts are listed above."
+								: `No official documents issued for this ${scope.kind === "house" ? "house" : "land"} yet.`}
 						</div>
 					) : (
 						<Table>

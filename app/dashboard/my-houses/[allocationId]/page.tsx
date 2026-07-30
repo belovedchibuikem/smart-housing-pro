@@ -324,7 +324,7 @@ export default function MemberHouseAccountPage() {
 			<IssuedDocumentsPanel
 				scope={{ role: "member", kind: "house", id: row.allocation_id || row.id || allocationId }}
 				title="Official documents"
-				description="Offer letters, allocation letters, acceptance forms, and payment confirmations issued for this house."
+				description="Offer letters, allocation letters, acceptance forms, payment receipts, and other documents issued for this house."
 			/>
 
 			{row.property_id ? (
