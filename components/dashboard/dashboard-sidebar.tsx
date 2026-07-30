@@ -203,6 +203,7 @@ const navItems: NavItem[] = [
       { href: "/dashboard/reports/mortgages", label: "Mortgage Report", icon: Banknote },
       { href: "/dashboard/reports/properties", label: "Property Report", icon: Home },
       { href: "/dashboard/reports/financial-summary", label: "Financial Summary", icon: PieChart },
+      { href: "/dashboard/financial", label: "Statement of Account", icon: FileText },
     ],
   },
   { href: "/dashboard/ai-recommendations", label: "AI", displayKey: "nav.ai", icon: Sparkles },

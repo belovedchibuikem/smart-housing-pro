@@ -48,6 +48,7 @@ import {
 	approveInternalMortgageSchedule,
 } from "@/lib/api/client"
 import { useToast } from "@/hooks/use-toast"
+import { GlPropertyLedgerPanel } from "@/components/financial/gl-property-ledger-panel"
 
 type PropertyPaymentTabProps = {
 	propertyId: string
@@ -1537,7 +1538,7 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 				<CardHeader>
 					<CardTitle>Property Ledger</CardTitle>
 					<CardDescription>
-						Consolidated entries from all funding sources (loans, mortgage, cooperative deductions, equity wallet, cash).
+						Operational funding-source ledger (loans, mortgage, cooperative deductions, equity wallet, cash).
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
@@ -1599,6 +1600,8 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 					)}
 				</CardContent>
 			</Card>
+
+			<GlPropertyLedgerPanel propertyType="house" propertyId={propertyId} />
 		</div>
 	)
 }

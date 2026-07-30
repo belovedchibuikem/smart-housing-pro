@@ -41,6 +41,12 @@ interface DashboardData {
     monthly_revenue: number
     revenue_growth: number
     member_growth: number
+    gl_contribution_balance?: number
+    gl_equity_balance?: number
+    gl_outstanding_loans?: number
+    gl_outstanding_house?: number
+    gl_outstanding_land?: number
+    gl_outstanding_statutory?: number
   }
   refund_history?: Array<{
     id: string
@@ -88,6 +94,12 @@ function emptyDashboardPayload(): DashboardData {
       monthly_revenue: 0,
       revenue_growth: 0,
       member_growth: 0,
+      gl_contribution_balance: 0,
+      gl_equity_balance: 0,
+      gl_outstanding_loans: 0,
+      gl_outstanding_house: 0,
+      gl_outstanding_land: 0,
+      gl_outstanding_statutory: 0,
     },
     pending_approvals: { kyc: 0, loans: 0, withdrawals: 0 },
     recent_activities: [],
@@ -120,6 +132,12 @@ function normalizeAdminDashboardPayload(raw: unknown): DashboardData {
       monthly_revenue: Number(stats.monthly_revenue) || 0,
       revenue_growth: Number(stats.revenue_growth) || 0,
       member_growth: Number(stats.member_growth) || 0,
+      gl_contribution_balance: Number(stats.gl_contribution_balance) || 0,
+      gl_equity_balance: Number(stats.gl_equity_balance) || 0,
+      gl_outstanding_loans: Number(stats.gl_outstanding_loans) || 0,
+      gl_outstanding_house: Number(stats.gl_outstanding_house) || 0,
+      gl_outstanding_land: Number(stats.gl_outstanding_land) || 0,
+      gl_outstanding_statutory: Number(stats.gl_outstanding_statutory) || 0,
     }
   }
   const pending = inner.pending_approvals as Record<string, unknown> | undefined
@@ -388,6 +406,31 @@ export default function AdminDashboardPage() {
             <p className="text-xs text-muted-foreground mt-1">Credited through contribution wallets</p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Enterprise GL KPIs */}
+      <div>
+        <h2 className="text-lg font-semibold mb-3">General Ledger balances</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+          {[
+            { title: "GL Contributions", value: data?.stats?.gl_contribution_balance ?? 0, hint: "Member contribution liability" },
+            { title: "GL Equity", value: data?.stats?.gl_equity_balance ?? 0, hint: "Member equity liability" },
+            { title: "Outstanding loans (GL)", value: data?.stats?.gl_outstanding_loans ?? 0, hint: "Loan receivables" },
+            { title: "House outstanding (GL)", value: data?.stats?.gl_outstanding_house ?? 0, hint: "House receivables" },
+            { title: "Land outstanding (GL)", value: data?.stats?.gl_outstanding_land ?? 0, hint: "Land receivables" },
+            { title: "Statutory outstanding (GL)", value: data?.stats?.gl_outstanding_statutory ?? 0, hint: "Statutory charge receivables" },
+          ].map((card) => (
+            <Card key={card.title}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">{card.title}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(card.value)}</div>
+                <p className="text-xs text-muted-foreground mt-1">{card.hint}</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
 
       <Card>

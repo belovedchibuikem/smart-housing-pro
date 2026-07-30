@@ -14,6 +14,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import type { MemberLandSubscriptionRow } from "@/lib/api/client"
 import { isRepaymentReversed, repaymentStatusLabel } from "@/lib/utils/repayment-status"
+import { GlPropertyLedgerPanel } from "@/components/financial/gl-property-ledger-panel"
 
 type LandPaymentTabProps = {
   subscription?: MemberLandSubscriptionRow | null
@@ -106,6 +107,8 @@ export function LandPaymentTab({ subscription }: LandPaymentTabProps) {
           <Link href={`/dashboard/my-lands/${subscription.subscription_id}`}>Open full land account</Link>
         </Button>
       )}
+
+      <GlPropertyLedgerPanel propertyType="land" propertyId={subscription.land_id} />
     </div>
   )
 }

@@ -45,6 +45,7 @@ export const DOCUMENT_TYPE_LABELS: Record<string, string> = {
 	memorandum_of_acceptance: "Memorandum of Acceptance",
 	allocation_letter: "Allocation Letter",
 	payment_receipt: "Payment Receipt",
+	statement_of_account: "Statement of Account",
 }
 
 export async function getIssuedDocumentsDashboard() {

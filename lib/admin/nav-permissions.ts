@@ -97,6 +97,8 @@ export const TENANT_ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
     "view_mail|compose_mail|reply_mail|assign_mail|bulk_mail|delete_mail",
   reports:
     "view_reports|export_reports|view_analytics|view_financial_reports|view_contributions|view_loan_reports|view_property_reports|view_investment_reports|view_equity_reports",
+  accounting:
+    "view_accounting|manage_chart_of_accounts|manage_posting_rules|manage_financial_periods|post_journal_entries|view_gl_reports|generate_member_statements|reopen_locked_periods|view_financial_reports",
   "activity-logs": "view_activity_logs|manage_settings",
   "audit-logs": "view_activity_logs|manage_settings",
   documents: "view_documents|upload_documents|approve_documents|reject_documents|delete_documents",
@@ -125,6 +127,7 @@ export function adminHrefToPermissionKey(href: string): string | null {
     { prefix: "tools/mortgage-calculators", key: "mortgages" },
     { prefix: "post-contribution", key: "contributions" },
     { prefix: "financial-reports", key: "reports" },
+    { prefix: "accounting", key: "accounting" },
     { prefix: "payment-receipts", key: "issued-documents" },
     { prefix: "issued-documents", key: "issued-documents" },
   ]

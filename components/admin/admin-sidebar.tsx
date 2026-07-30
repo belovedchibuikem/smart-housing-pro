@@ -44,6 +44,10 @@ import {
   MapPinned,
   RotateCcw,
   ArrowRightLeft,
+  Landmark,
+  BookOpen,
+  CalendarRange,
+  Scale,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -91,6 +95,7 @@ interface NavItem {
   label: string
   icon: any
   subItems?: NavItem[]
+  module?: string
 }
 
 const navItems: NavItem[] = [
@@ -291,6 +296,21 @@ const navItems: NavItem[] = [
       { href: "/admin/reports/loans", label: "Loan Reports", icon: HandCoins },
       { href: "/admin/reports/mail-service", label: "Mail Service Reports", icon: Mail },
       { href: "/admin/reports/audit", label: "Audit Reports", icon: FileBarChart },
+    ],
+  },
+  {
+    label: "Accounting",
+    icon: Landmark,
+    module: "accounting",
+    subItems: [
+      { href: "/admin/accounting", label: "Accounting Hub", icon: Landmark },
+      { href: "/admin/accounting/accounts", label: "Chart of Accounts", icon: BookOpen },
+      { href: "/admin/accounting/rules", label: "Posting Rules", icon: Settings },
+      { href: "/admin/accounting/periods", label: "Financial Periods", icon: CalendarRange },
+      { href: "/admin/accounting/journals", label: "Journals", icon: Scale },
+      { href: "/admin/accounting/reports", label: "GL Reports", icon: FileBarChart },
+      { href: "/admin/accounting/statements", label: "Member Statements", icon: Wallet },
+      { href: "/admin/accounting/property-ledger", label: "Property Ledger", icon: Home },
     ],
   },
   { href: "/admin/notifications", label: "Notifications", icon: Bell },

@@ -17,6 +17,7 @@ export const ALWAYS_VISIBLE_ADMIN_HREFS = new Set([
   "/admin/landing-page/templates",
   "/admin/white-label",
   "/admin/custom-domains",
+  "/admin/accounting",
 ])
 
 /** Always shown in tenant admin sidebar/API — not gated by business package modules. */
@@ -30,11 +31,13 @@ export const CORE_ADMIN_MODULE_SLUGS = new Set([
   "payment_manager",
   "landing_page",
   "white_label",
+  "accounting",
 ])
 
 export const ALWAYS_VISIBLE_MEMBER_HREFS = new Set([
   "/dashboard",
   "/dashboard/subscriptions",
+  "/dashboard/financial",
 ])
 
 /** Admin nav group label → module slug */
@@ -58,6 +61,7 @@ export const ADMIN_NAV_MODULE_MAP: Record<string, string> = {
   Blockchain: "blockchain",
   "Mail Service": "mail",
   Reports: "reports",
+  Accounting: "accounting",
   "Activity Logs": "activity_logs",
   Notifications: "notifications",
   Documents: "documents",
@@ -133,6 +137,7 @@ export const ADMIN_HREF_MODULE_MAP: Record<string, string> = {
   blockchain: "blockchain",
   "mail-service": "mail",
   reports: "reports",
+  accounting: "accounting",
   "activity-logs": "activity_logs",
   notifications: "notifications",
   documents: "documents",
