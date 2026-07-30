@@ -15,6 +15,13 @@ function money(n: number | undefined) {
   return Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+function formatDate(value?: string | null): string {
+  if (!value) return "—"
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return String(value).slice(0, 10)
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+}
+
 export default function PropertyFinancialLedgerPage() {
   const { toast } = useToast()
   const [filters, setFilters] = useState({
@@ -130,7 +137,7 @@ export default function PropertyFinancialLedgerPage() {
               <TableBody>
                 {rows.map((row: any) => (
                   <TableRow key={row.id}>
-                    <TableCell>{row.entry_date}</TableCell>
+                    <TableCell>{formatDate(row.entry_date)}</TableCell>
                     <TableCell className="capitalize">{String(row.transaction_type || "").replace(/_/g, " ")}</TableCell>
                     <TableCell>{row.description}</TableCell>
                     <TableCell className="text-right tabular-nums">{Number(row.debit) > 0 ? money(row.debit) : "—"}</TableCell>

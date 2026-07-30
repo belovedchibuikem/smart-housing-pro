@@ -15,6 +15,13 @@ function money(n: number) {
   return Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+function formatDate(value?: string | null): string {
+  if (!value) return "—"
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return String(value).slice(0, 10)
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+}
+
 export default function JournalsPage() {
   const { toast } = useToast()
   const [rows, setRows] = useState<any[]>([])
@@ -100,7 +107,7 @@ export default function JournalsPage() {
             {detailLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : (
               <>
                 <p>{detail.description}</p>
-                <p className="text-muted-foreground">{detail.transaction_type} · {detail.entry_date} · {detail.status}</p>
+                <p className="text-muted-foreground">{detail.transaction_type} · {formatDate(detail.entry_date)} · {detail.status}</p>
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -148,7 +155,7 @@ export default function JournalsPage() {
                         {row.entry_number}
                       </button>
                     </TableCell>
-                    <TableCell>{row.entry_date}</TableCell>
+                    <TableCell>{formatDate(row.entry_date)}</TableCell>
                     <TableCell className="font-mono text-xs">{row.transaction_type}</TableCell>
                     <TableCell>{row.description}</TableCell>
                     <TableCell className="text-right">{money(row.total_debit)}</TableCell>

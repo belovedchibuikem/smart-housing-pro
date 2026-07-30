@@ -9,6 +9,21 @@ import { Loader2 } from "lucide-react"
 import { closeAccountingPeriod, closeFinancialYear, ensureFinancialYear, getFinancialYears, reopenAccountingPeriod } from "@/lib/api/accounting"
 import { useToast } from "@/hooks/use-toast"
 
+function formatDate(value?: string | null): string {
+  if (!value) return "—"
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return String(value).slice(0, 10)
+  return d.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  })
+}
+
+function formatDateRange(start?: string | null, end?: string | null): string {
+  return `${formatDate(start)} – ${formatDate(end)}`
+}
+
 export default function FinancialPeriodsPage() {
   const { toast } = useToast()
   const [years, setYears] = useState<any[]>([])
@@ -51,7 +66,7 @@ export default function FinancialPeriodsPage() {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>{year.name} <span className="text-sm font-normal text-muted-foreground">({year.code})</span></CardTitle>
-              <p className="text-sm text-muted-foreground">{year.start_date} → {year.end_date}</p>
+              <p className="text-sm text-muted-foreground">{formatDateRange(year.start_date, year.end_date)}</p>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant={year.status === "open" ? "default" : "secondary"}>{year.status}</Badge>
@@ -84,7 +99,7 @@ export default function FinancialPeriodsPage() {
                   <TableRow key={p.id}>
                     <TableCell>{p.period_number}</TableCell>
                     <TableCell>{p.name}</TableCell>
-                    <TableCell className="text-sm">{p.start_date} → {p.end_date}</TableCell>
+                    <TableCell className="text-sm">{formatDateRange(p.start_date, p.end_date)}</TableCell>
                     <TableCell><Badge variant={p.status === "open" ? "default" : "secondary"}>{p.status}</Badge></TableCell>
                     <TableCell className="space-x-2">
                       {p.status === "open" ? (
