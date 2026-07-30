@@ -32,6 +32,11 @@ export interface IssuedDocumentRow {
 	resolved_variables?: Record<string, string>
 	member_signed_at?: string | null
 	download_url?: string | null
+	is_receipt?: boolean
+	payment_amount?: string | null
+	payment_category?: string | null
+	payment_method?: string | null
+	payment_date?: string | null
 }
 
 export const DOCUMENT_TYPE_LABELS: Record<string, string> = {
