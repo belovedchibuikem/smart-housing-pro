@@ -17,9 +17,6 @@ export const ALWAYS_VISIBLE_ADMIN_HREFS = new Set([
   "/admin/landing-page/templates",
   "/admin/white-label",
   "/admin/custom-domains",
-  "/admin/accounting",
-  "/admin/office",
-  "/admin/ecpm",
 ])
 
 /** Always shown in tenant admin sidebar/API — not gated by business package modules. */
@@ -33,9 +30,6 @@ export const CORE_ADMIN_MODULE_SLUGS = new Set([
   "payment_manager",
   "landing_page",
   "white_label",
-  "accounting",
-  "office",
-  "ecpm",
 ])
 
 export const ALWAYS_VISIBLE_MEMBER_HREFS = new Set([
@@ -68,6 +62,7 @@ export const ADMIN_NAV_MODULE_MAP: Record<string, string> = {
   Accounting: "accounting",
   "Digital Office": "office",
   "Construction (ECPM)": "ecpm",
+  "Financial Rollbacks": "financial_rollbacks",
   "Activity Logs": "activity_logs",
   Notifications: "notifications",
   Documents: "documents",
@@ -146,6 +141,8 @@ export const ADMIN_HREF_MODULE_MAP: Record<string, string> = {
   accounting: "accounting",
   office: "office",
   ecpm: "ecpm",
+  "financial-rollbacks": "financial_rollbacks",
+  "financial-upload-batches": "financial_rollbacks",
   "activity-logs": "activity_logs",
   notifications: "notifications",
   documents: "documents",
@@ -200,8 +197,9 @@ export function resolveAdminHrefModule(href: string): string | null {
   }
   const segment = normalized.replace(/^\/admin\/?/, "").split("/")[0]
   if (!segment) return null
-  if (segment === "bulk") {
-    const sub = normalized.replace(/^\/admin\/bulk\/?/, "").split("/")[0]
+  if (segment === "bulk" || segment === "bulk-upload") {
+    const sub = normalized.replace(/^\/admin\/?/, "").split("/")[1]
+    if (sub === "rollbacks") return "financial_rollbacks"
     return sub ? ADMIN_HREF_MODULE_MAP[sub] ?? null : null
   }
   return ADMIN_HREF_MODULE_MAP[segment] ?? null

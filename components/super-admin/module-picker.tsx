@@ -23,7 +23,7 @@ interface ModulePickerProps {
 
 const CATEGORY_ORDER = [
   { key: "core", label: "Core", slugs: ["members", "wallet", "documents", "settings", "notifications", "activity_logs"] },
-  { key: "finance", label: "Finance", slugs: ["contributions", "equity", "loans", "refunds", "investments", "mortgages", "statutory", "accounting"] },
+  { key: "finance", label: "Finance", slugs: ["contributions", "equity", "loans", "refunds", "investments", "mortgages", "statutory", "accounting", "financial_rollbacks"] },
   { key: "property", label: "Property & Construction", slugs: ["properties", "property_management", "ecpm"] },
   { key: "communication", label: "Communication", slugs: ["mail", "reports", "office"] },
   { key: "admin", label: "Admin Tools", slugs: ["admin_users", "roles_permissions", "payment_manager", "landing_page"] },

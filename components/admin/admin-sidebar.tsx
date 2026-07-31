@@ -200,7 +200,7 @@ const navItems: NavItem[] = [
       { href: "/admin/tools/mortgage-calculators", label: "Mortgage Calculators", icon: Calculator },
     ],
   },
-  { href: "/admin/bulk-upload/rollbacks", label: "Financial Rollbacks", icon: RotateCcw },
+  { href: "/admin/bulk-upload/rollbacks", label: "Financial Rollbacks", icon: RotateCcw, module: "financial_rollbacks" },
   {
     label: "Houses / Buildings",
     icon: Home,

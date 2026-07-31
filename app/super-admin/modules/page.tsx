@@ -14,6 +14,9 @@ import {
   FileText,
   Receipt,
   HardHat,
+  Calculator,
+  Briefcase,
+  RotateCcw,
   Check,
   X,
 } from "lucide-react"
@@ -77,6 +80,9 @@ export default function ModulesPage() {
       FileText,
       Receipt,
       HardHat,
+      Calculator,
+      Briefcase,
+      RotateCcw,
     }
     return icons[iconName] || Users
   }
