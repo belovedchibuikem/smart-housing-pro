@@ -627,6 +627,11 @@ export interface AdminAssetRepaymentOptions {
 	sale_price?: number
 	amount_paid?: number
 	outstanding?: number
+	principal_outstanding?: number
+	principal_paid?: number
+	statutory_paid?: number
+	statutory_outstanding?: number
+	statutory_configured?: boolean
 	equity_wallet_balance?: number
 	wallet_balance?: number
 	payment_methods?: Array<{ value: string; label: string }>

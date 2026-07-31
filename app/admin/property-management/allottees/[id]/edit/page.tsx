@@ -82,6 +82,7 @@ export default function EditAllotteePage() {
     notes: "",
     sale_price: "",
     amount_paid: "",
+    carry_payments: true,
   })
 
   const memberOptions = useMemo(() => membersToSearchableOptions(members), [members])
@@ -305,7 +306,8 @@ export default function EditAllotteePage() {
         status: formData.status,
         unit_address: formData.unit_address || undefined,
         notes: formData.notes || undefined,
-        carry_payments: true,
+        carry_payments: formData.carry_payments,
+        waive_source_statutories: true,
       }
 
       if (formData.property_slot_id) {
@@ -314,6 +316,9 @@ export default function EditAllotteePage() {
 
       if (formData.sale_price.trim() !== "") {
         payload.sale_price = Number(formData.sale_price)
+      } else if (propertyChanged && selectedProperty?.price != null) {
+        // Default migration price to destination listing when not overridden.
+        payload.sale_price = Number(selectedProperty.price)
       }
       if (formData.amount_paid.trim() !== "") {
         payload.amount_paid = Number(formData.amount_paid)
@@ -521,9 +526,30 @@ export default function EditAllotteePage() {
               </div>
             </div>
 
+            {propertyChanged && (
+              <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-950 space-y-2">
+                <p className="font-medium">Property migration (A → B)</p>
+                <p className="text-xs text-amber-900/90">
+                  The member will move to the selected house. Set <strong>Sale price</strong> to the new
+                  property amount for B (defaults to B listing price). Unpaid statutories on A are waived;
+                  statutories for B are assigned automatically.
+                </p>
+                <label className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={formData.carry_payments}
+                    onChange={(e) => setFormData({ ...formData, carry_payments: e.target.checked })}
+                  />
+                  Carry previous amount paid as credit toward B
+                </label>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="sale_price">Sale price</Label>
+                <Label htmlFor="sale_price">
+                  {propertyChanged ? "New sale price (Property B)" : "Sale price"}
+                </Label>
                 <Input
                   id="sale_price"
                   type="number"
@@ -531,10 +557,15 @@ export default function EditAllotteePage() {
                   step="0.01"
                   value={formData.sale_price}
                   onChange={(e) => setFormData({ ...formData, sale_price: e.target.value })}
+                  placeholder={
+                    propertyChanged && selectedProperty?.price != null
+                      ? String(selectedProperty.price)
+                      : undefined
+                  }
                 />
                 <p className="text-xs text-muted-foreground">
                   {propertyChanged
-                    ? "When moving property, paid amounts are carried by default unless you change them here for a member reassignment."
+                    ? "Amount the member must pay for the destination property (plus B statutories)."
                     : "Used when reallocating to a different member."}
                 </p>
               </div>
@@ -581,7 +612,7 @@ export default function EditAllotteePage() {
               <Can permission="manage_property_allottees|approve_allotments">
                 <Button type="submit" disabled={loading}>
                   {loading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                  {propertyChanged ? "Move & Update Allocation" : "Update Allocation"}
+                  {propertyChanged ? "Migrate to Property B" : "Update Allocation"}
                 </Button>
               </Can>
             </div>

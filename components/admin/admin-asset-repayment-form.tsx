@@ -108,7 +108,15 @@ export function AdminAssetRepaymentForm({
 			if (!response.success) {
 				throw new Error(response.message || "Repayment failed")
 			}
-			toast.success(response.message || "Repayment recorded")
+			const split = response.data?.statutory_split as
+				| { statutory_applied?: number; principal_applied?: number }
+				| undefined
+			const statutoryApplied = Number(split?.statutory_applied ?? 0)
+			toast.success(
+				statutoryApplied > 0
+					? `Repayment recorded · ${currency.format(statutoryApplied)} applied to statutory charges`
+					: response.message || "Repayment recorded",
+			)
 			setAmount("")
 			setNotes("")
 			setPaymentDate("")
@@ -136,22 +144,37 @@ export function AdminAssetRepaymentForm({
 		return <p className="text-sm text-muted-foreground">Unable to load repayment options for this slot.</p>
 	}
 
+	const statutoryConfigured = !!options.statutory_configured
+	const statutoryOutstanding = Number(options.statutory_outstanding ?? 0)
+	const statutoryPaid = Number(options.statutory_paid ?? 0)
+	const principalOutstanding = Number(options.principal_outstanding ?? outstanding)
+
 	return (
 		<div className={compact ? "space-y-3" : "space-y-4"}>
 			<div className="grid gap-2 sm:grid-cols-3 text-sm">
 				<div className="rounded-md border px-3 py-2">
-					<p className="text-muted-foreground">Outstanding</p>
+					<p className="text-muted-foreground">Total payable</p>
 					<p className="font-semibold">{currency.format(outstanding)}</p>
 				</div>
 				<div className="rounded-md border px-3 py-2">
-					<p className="text-muted-foreground">Paid</p>
-					<p className="font-semibold">{currency.format(Number(options.amount_paid ?? 0))}</p>
+					<p className="text-muted-foreground">Principal outstanding</p>
+					<p className="font-semibold">{currency.format(principalOutstanding)}</p>
 				</div>
 				<div className="rounded-md border px-3 py-2">
 					<p className="text-muted-foreground">Equity wallet</p>
 					<p className="font-semibold">{currency.format(equityBalance)}</p>
 				</div>
 			</div>
+
+			{statutoryConfigured && (
+				<div className="rounded-md border border-emerald-200 bg-emerald-50/70 px-3 py-2 text-sm space-y-1">
+					<p className="font-medium text-emerald-950">Statutory charges on this holding</p>
+					<p className="text-xs text-emerald-900/90">
+						Paid {currency.format(statutoryPaid)} · Outstanding {currency.format(statutoryOutstanding)}.
+						Repayments apply to open statutories first, then principal — and mark each charge paid in Statutory Charges.
+					</p>
+				</div>
+			)}
 
 			<div className="grid gap-4 sm:grid-cols-2">
 				<div className="space-y-2">
