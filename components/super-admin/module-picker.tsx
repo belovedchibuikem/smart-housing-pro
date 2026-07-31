@@ -23,9 +23,9 @@ interface ModulePickerProps {
 
 const CATEGORY_ORDER = [
   { key: "core", label: "Core", slugs: ["members", "wallet", "documents", "settings", "notifications", "activity_logs"] },
-  { key: "finance", label: "Finance", slugs: ["contributions", "equity", "loans", "refunds", "investments", "mortgages", "statutory"] },
-  { key: "property", label: "Property", slugs: ["properties", "property_management"] },
-  { key: "communication", label: "Communication", slugs: ["mail", "reports"] },
+  { key: "finance", label: "Finance", slugs: ["contributions", "equity", "loans", "refunds", "investments", "mortgages", "statutory", "accounting"] },
+  { key: "property", label: "Property & Construction", slugs: ["properties", "property_management", "ecpm"] },
+  { key: "communication", label: "Communication", slugs: ["mail", "reports", "office"] },
   { key: "admin", label: "Admin Tools", slugs: ["admin_users", "roles_permissions", "payment_manager", "landing_page"] },
   { key: "branding", label: "Branding & Advanced", slugs: ["white_label", "blockchain", "ai", "withdraw_membership"] },
 ]
@@ -57,7 +57,7 @@ export function ModulePicker({ selectedIds, onChange }: ModulePickerProps) {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await apiFetch<{ modules: ModuleItem[] }>("/super-admin/modules")
+        const res = await apiFetch<{ modules: ModuleItem[] }>("/super-admin/modules?all=1")
         setModules((res.modules || []).filter((m) => m.is_active))
       } catch {
         setModules([])

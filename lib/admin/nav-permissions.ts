@@ -101,6 +101,8 @@ export const TENANT_ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
     "view_accounting|manage_chart_of_accounts|manage_posting_rules|manage_financial_periods|post_journal_entries|view_gl_reports|generate_member_statements|reopen_locked_periods|view_financial_reports",
   office:
     "view_office|manage_office_org_units|create_office_documents|route_office_documents|approve_office_documents|minute_office_documents|sign_office_documents|archive_office_documents|manage_office_workflows|manage_office_templates|view_office_audit|manage_office_folders|manage_office_tags|checkout_office_documents|manage_office_correspondence|manage_office_retention|approve_office_disposal|view_office_reports|manage_office_circulars|use_office_ai|sync_office_source_files",
+  ecpm:
+    "view_ecpm|manage_ecpm_estates|manage_ecpm_projects|manage_ecpm_parties|manage_ecpm_drawings|manage_ecpm_boqs|manage_ecpm_quotations|manage_ecpm_contracts|approve_ecpm_documents|view_ecpm_audit|manage_ecpm_settings|manage_ecpm_site_ops|manage_ecpm_procurement|manage_ecpm_handover|view_ecpm_client_portal|manage_ecpm_ai|view_ecpm_reports",
   "activity-logs": "view_activity_logs|manage_settings",
   "audit-logs": "view_activity_logs|manage_settings",
   documents: "view_documents|upload_documents|approve_documents|reject_documents|delete_documents",
@@ -131,6 +133,7 @@ export function adminHrefToPermissionKey(href: string): string | null {
     { prefix: "financial-reports", key: "reports" },
     { prefix: "accounting", key: "accounting" },
     { prefix: "office", key: "office" },
+    { prefix: "ecpm", key: "ecpm" },
     { prefix: "payment-receipts", key: "issued-documents" },
     { prefix: "issued-documents", key: "issued-documents" },
   ]

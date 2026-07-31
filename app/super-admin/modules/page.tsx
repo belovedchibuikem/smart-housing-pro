@@ -13,6 +13,7 @@ import {
   BarChart,
   FileText,
   Receipt,
+  HardHat,
   Check,
   X,
 } from "lucide-react"
@@ -37,7 +38,7 @@ export default function ModulesPage() {
 
   useEffect(() => {
     loadData(async () => {
-      const response = await apiFetch<{ modules: Module[] }>("/super-admin/modules")
+      const response = await apiFetch<{ modules: Module[] }>("/super-admin/modules?all=1")
       return response
     })
   }, [loadData])
@@ -55,7 +56,7 @@ export default function ModulesPage() {
       })
       // Reload modules
       loadData(async () => {
-        const response = await apiFetch<{ modules: Module[] }>("/super-admin/modules")
+        const response = await apiFetch<{ modules: Module[] }>("/super-admin/modules?all=1")
         return response
       })
     } catch (error) {
@@ -75,6 +76,7 @@ export default function ModulesPage() {
       BarChart,
       FileText,
       Receipt,
+      HardHat,
     }
     return icons[iconName] || Users
   }
