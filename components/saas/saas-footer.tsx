@@ -36,6 +36,11 @@ export function SaaSFooter() {
                   Request Demo
                 </Link>
               </li>
+              <li>
+                <Link href="/saas/download" className="hover:text-primary transition-colors">
+                  Download App
+                </Link>
+              </li>
             </ul>
           </div>
           <div>

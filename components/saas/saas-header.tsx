@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { Menu, Home, Sparkles, CreditCard, Users, Info, LogIn, Mail, Store } from "lucide-react"
+import { Menu, Home, Sparkles, CreditCard, Users, Info, LogIn, Mail, Store, Smartphone } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Separator } from "@/components/ui/separator"
 import { useSaasBranding } from "@/hooks/use-saas-branding"
@@ -57,6 +57,12 @@ export function SaaSHeader() {
       icon: Mail,
       description: "Sales, support, and general inquiries",
     },
+    {
+      href: "/saas/download",
+      label: "Get the App",
+      icon: Smartphone,
+      description: "QR code & Google Play download",
+    },
   ]
 
   const navLinks =
@@ -89,6 +95,9 @@ export function SaaSHeader() {
           </Link>
           <Link href="/saas/contact" className="text-sm font-medium hover:text-primary transition-colors">
             Contact
+          </Link>
+          <Link href="/saas/download" className="text-sm font-medium hover:text-primary transition-colors">
+            Get the App
           </Link>
           <Link href="/saas#testimonials" className="text-sm font-medium hover:text-primary transition-colors">
             Testimonials

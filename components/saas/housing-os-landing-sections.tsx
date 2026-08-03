@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -215,21 +216,36 @@ export function HousingOsLandingSections() {
         </div>
       </section>
 
-      <section className="container mx-auto px-4 py-16 text-center" aria-labelledby="app-heading">
-        <Smartphone className="h-10 w-10 text-primary mx-auto mb-4" />
-        <h2 id="app-heading" className="text-3xl font-bold">
-          Download the mobile app
-        </h2>
-        <p className="text-muted-foreground mt-3 max-w-xl mx-auto">
-          Members already manage wallets, contributions, and marketplace discovery on iOS and Android via Smart Housing.
-        </p>
-        <div className="flex flex-wrap justify-center gap-3 mt-6">
-          <Button asChild>
-            <Link href="/saas/marketplace">Open marketplace</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/saas/contact">Contact sales</Link>
-          </Button>
+      <section className="container mx-auto px-4 py-16" aria-labelledby="app-heading">
+        <div className="max-w-4xl mx-auto flex flex-col md:flex-row items-center gap-10 text-center md:text-left">
+          <div className="shrink-0 rounded-xl bg-muted/40 p-4 ring-1 ring-border">
+            <Image
+              src="/branding/smart-housing-app-qr-plain.png"
+              alt="QR code to install Smart Housing from Google Play"
+              width={180}
+              height={180}
+              className="w-[160px] h-[160px] mx-auto"
+            />
+            <p className="text-xs text-muted-foreground mt-2 text-center">Scan to install</p>
+          </div>
+          <div className="flex-1">
+            <Smartphone className="h-10 w-10 text-primary mx-auto md:mx-0 mb-4" />
+            <h2 id="app-heading" className="text-3xl font-bold">
+              Download Smart Housing
+            </h2>
+            <p className="text-muted-foreground mt-3 max-w-xl">
+              Wallet, contributions, house &amp; land accounts, deed uploads, and verified marketplace — free on Google
+              Play. Already allotted? Upload your existing documents in the app.
+            </p>
+            <div className="flex flex-wrap justify-center md:justify-start gap-3 mt-6">
+              <Button asChild>
+                <Link href="/saas/download">Get the app &amp; QR</Link>
+              </Button>
+              <Button asChild variant="outline">
+                <Link href="/saas/marketplace">Open marketplace</Link>
+              </Button>
+            </div>
+          </div>
         </div>
       </section>
     </>
