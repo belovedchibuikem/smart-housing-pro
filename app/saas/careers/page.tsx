@@ -103,7 +103,7 @@ export default function SaaSCareersPage() {
                     </CardDescription>
                   </div>
                   <Button variant="outline" size="sm" className="shrink-0 w-fit" asChild>
-                    <a href={`mailto:careers@coophub.com?subject=Application%3A%20${encodeURIComponent(role.title)}`}>
+                    <a href={`mailto:careers@smarthousing.com.ng?subject=Application%3A%20${encodeURIComponent(role.title)}`}>
                       Apply by email
                     </a>
                   </Button>
@@ -119,10 +119,10 @@ export default function SaaSCareersPage() {
         <div className="rounded-xl bg-primary text-primary-foreground p-8 text-center space-y-4">
           <h2 className="text-xl font-semibold">General applications</h2>
           <p className="text-sm opacity-90 max-w-xl mx-auto">
-            Share your CV, portfolio, or GitHub profile and a short note on why CoopHub interests you.
+            Share your CV, portfolio, or GitHub profile and a short note on why Smart Housing interests you.
           </p>
           <Button size="lg" variant="secondary" asChild>
-            <a href="mailto:careers@coophub.com?subject=General%20application%20%E2%80%93%20CoopHub">careers@coophub.com</a>
+            <a href="mailto:careers@smarthousing.com.ng?subject=General%20application%20%E2%80%93%20Smart%20Housing">careers@smarthousing.com.ng</a>
           </Button>
         </div>
       </div>

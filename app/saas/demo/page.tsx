@@ -65,8 +65,8 @@ export default function SaaSDemoPage() {
             business day.
           </p>
           <Button size="lg" asChild>
-            <a href="mailto:sales@coophub.com?subject=CoopHub%20demo%20request">
-              Email sales@coophub.com
+            <a href="mailto:sales@smarthousing.com.ng?subject=Smart%20Housing%20demo%20request">
+              Email sales@smarthousing.com.ng
             </a>
           </Button>
           <p className="text-sm text-muted-foreground">

@@ -42,8 +42,8 @@ export default function SaaSContactPage() {
               <CardDescription>New subscriptions, demos, partnerships, and media.</CardDescription>
             </CardHeader>
             <CardContent>
-              <a href="mailto:sales@coophub.com" className="text-primary font-medium hover:underline">
-                sales@coophub.com
+              <a href="mailto:sales@smarthousing.com.ng" className="text-primary font-medium hover:underline">
+                sales@smarthousing.com.ng
               </a>
               <p className="text-sm text-muted-foreground mt-2">We typically reply within one business day.</p>
             </CardContent>
@@ -57,11 +57,11 @@ export default function SaaSContactPage() {
               <CardDescription>Help signing in, billing, and using the platform.</CardDescription>
             </CardHeader>
             <CardContent>
-              <a href="mailto:support@coophub.com" className="text-primary font-medium hover:underline">
-                support@coophub.com
+              <a href="mailto:support@smarthousing.com.ng" className="text-primary font-medium hover:underline">
+                support@smarthousing.com.ng
               </a>
               <p className="text-sm text-muted-foreground mt-2">
-                Prefer in-app help? Use the support link from your organization’s CoopHub workspace when logged in.
+                Prefer in-app help? Use the support link from your organization’s Smart Housing workspace when logged in.
               </p>
             </CardContent>
           </Card>

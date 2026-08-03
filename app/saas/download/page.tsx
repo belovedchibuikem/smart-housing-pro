@@ -16,7 +16,6 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { SaaSHeader } from "@/components/saas/saas-header"
-import { SaaSFooter } from "@/components/saas/saas-footer"
 import { DEFAULT_ANDROID_PLAY_STORE_URL } from "@/lib/pwa/mobile-app-store"
 
 const BENEFITS = [
@@ -264,8 +263,6 @@ export default function DownloadAppPage() {
           </div>
         </div>
       </section>
-
-      <SaaSFooter />
     </div>
   )
 }
