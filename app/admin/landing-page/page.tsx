@@ -28,7 +28,19 @@ import {
 
 interface PageSection {
   id: string
-  type: "hero" | "features" | "testimonials" | "cta" | "properties" | "investments" | "loans" | "stats" | "how-it-works"
+  type:
+    | "hero"
+    | "features"
+    | "testimonials"
+    | "cta"
+    | "properties"
+    | "investments"
+    | "loans"
+    | "stats"
+    | "how-it-works"
+    | "verify-document"
+    | "app-download"
+    | "document-upload"
   name: string
   visible: boolean
   position: number
@@ -62,6 +74,9 @@ const SECTION_TYPES = [
   { value: "stats", label: "Statistics", icon: "📊" },
   { value: "testimonials", label: "Testimonials", icon: "💬" },
   { value: "how-it-works", label: "How It Works", icon: "🔄" },
+  { value: "app-download", label: "Mobile App Download", icon: "📱" },
+  { value: "document-upload", label: "Document Upload Campaign", icon: "📄" },
+  { value: "verify-document", label: "Verify Document", icon: "✅" },
   { value: "cta", label: "Call to Action", icon: "📢" },
 ]
 
@@ -80,9 +95,10 @@ export default function LandingPageBuilderPage() {
       font_family: "Inter",
     },
     seo: {
-      title: "FRSC Housing Management System",
-      description: "Your trusted partner in housing solutions",
-      keywords: "housing, cooperative, FRSC, properties, loans",
+      title: "{cooperative_name} — Housing Cooperative Portal",
+      description:
+        "Join {cooperative_name}. Manage contributions, loans, property allotments, and upload your house or land documents.",
+      keywords: "housing, cooperative, property, loans, contributions, documents",
     },
   })
   const [activeSection, setActiveSection] = useState<string | null>(null)
@@ -663,7 +679,8 @@ export default function LandingPageBuilderPage() {
       case "hero":
         return {
           title: "Your Path to Homeownership Made Simple",
-          subtitle: "Join the FRSC Housing Cooperative",
+          subtitle:
+            "Join {cooperative_name} and start your journey to owning your dream home. Manage contributions, loans, property allotments, and documents in one place.",
           cta_text: "Get Started",
           cta_link: "/register",
           show_stats: true,
@@ -671,17 +688,74 @@ export default function LandingPageBuilderPage() {
       case "features":
         return {
           title: "Everything You Need",
-          subtitle: "Comprehensive tools for your housing journey",
+          subtitle: "Comprehensive tools for your {cooperative_name} membership",
           features: [
-            { icon: "Users", title: "Membership Management", description: "Easy registration with KYC verification" },
-            { icon: "Wallet", title: "Digital Wallet", description: "Automated monthly contributions" },
-            { icon: "TrendingUp", title: "Loan & Mortgage", description: "Access affordable housing loans" },
+            {
+              icon: "Wallet",
+              title: "One wallet for everything",
+              description: "Fund contributions, equity, loans, and property repayments from a single balance.",
+            },
+            {
+              icon: "Building2",
+              title: "House & land clarity",
+              description: "Track allotments, repayments, and statutory charges with {cooperative_name}.",
+            },
+            {
+              icon: "FileCheck",
+              title: "Deeds & documents",
+              description: "Upload deeds, surveys, and ownership proofs to your property account.",
+            },
+            {
+              icon: "Smartphone",
+              title: "Member app",
+              description: "Manage your {cooperative_name} membership on the free mobile app.",
+            },
           ],
+        }
+      case "app-download":
+        return {
+          eyebrow: "{cooperative_name}",
+          title: "Your cooperative. Your property. Your documents — in your pocket.",
+          subtitle:
+            "Download the free member app for {cooperative_name}. Track contributions, loans, and allotments — then upload your house or land documents securely.",
+          cta_text: "Get it on Google Play",
+          secondary_cta_text: "Upload your documents",
+          secondary_cta_anchor: "#upload-docs",
+          show_qr: true,
+          play_store_url: "",
+        }
+      case "document-upload":
+        return {
+          eyebrow: "Deed-ready for {cooperative_name}",
+          title: "Already allotted a house or land with {cooperative_name}?",
+          subtitle:
+            "Stop keeping title papers in drawers and WhatsApp folders. Open the app, go to your property or land account, and upload your existing documents today.",
+          cta_text: "Install the app",
+          steps_title: "3 steps",
+          upload_items: [
+            "Deed of Assignment (house or land)",
+            "Survey plans & title documents",
+            "Slot ownership / supporting property docs",
+            "KYC: ID, passport, utility bill, bank statement",
+            "Signed offer, allocation, or acceptance letters",
+          ],
+          steps: [
+            "Install from Google Play or scan the QR above",
+            "Sign in with your {cooperative_name} member account",
+            "Open Properties → your slot → Upload deed / document",
+          ],
+        }
+      case "verify-document":
+        return {
+          title: "Verify a {cooperative_name} document",
+          subtitle:
+            "Confirm the authenticity of official {cooperative_name} letters and certificates using a verification number or QR code.",
+          cta_text: "Verify now",
         }
       case "cta":
         return {
-          title: "Ready to Start Your Journey?",
-          description: "Join thousands of FRSC personnel building their future",
+          title: "Ready to start your homeownership journey with {cooperative_name}?",
+          description: "Join members who manage contributions, property, and documents without the paper chase.",
           cta_text: "Register Now",
           cta_link: "/register",
         }
@@ -981,6 +1055,10 @@ export default function LandingPageBuilderPage() {
               </DialogHeader>
               {activeSecData && (
                 <div className="space-y-4 mt-4">
+                  <p className="text-xs text-muted-foreground rounded-md border bg-muted/40 px-3 py-2">
+                    Use <code className="text-xs">{"{cooperative_name}"}</code> anywhere in text — it is replaced
+                    automatically with this tenant&apos;s White Label company name on the public landing page.
+                  </p>
                   {activeSecData.type === "hero" && (
                     <>
                       <div className="space-y-2">
@@ -1055,6 +1133,122 @@ export default function LandingPageBuilderPage() {
                             onChange={(e) => updateSectionConfig(activeSecData.id, { cta_link: e.target.value })}
                           />
                         </div>
+                      </div>
+                    </>
+                  )}
+                  {(activeSecData.type === "app-download" || activeSecData.type === "document-upload") && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Eyebrow</Label>
+                        <Input
+                          value={activeSecData.config.eyebrow || ""}
+                          onChange={(e) => updateSectionConfig(activeSecData.id, { eyebrow: e.target.value })}
+                          placeholder="{cooperative_name}"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Title</Label>
+                        <Input
+                          value={activeSecData.config.title || ""}
+                          onChange={(e) => updateSectionConfig(activeSecData.id, { title: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Subtitle</Label>
+                        <Textarea
+                          value={activeSecData.config.subtitle || ""}
+                          onChange={(e) => updateSectionConfig(activeSecData.id, { subtitle: e.target.value })}
+                          rows={3}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Primary CTA text</Label>
+                        <Input
+                          value={activeSecData.config.cta_text || ""}
+                          onChange={(e) => updateSectionConfig(activeSecData.id, { cta_text: e.target.value })}
+                        />
+                      </div>
+                      {activeSecData.type === "app-download" && (
+                        <>
+                          <div className="space-y-2">
+                            <Label>Secondary CTA text</Label>
+                            <Input
+                              value={activeSecData.config.secondary_cta_text || ""}
+                              onChange={(e) =>
+                                updateSectionConfig(activeSecData.id, { secondary_cta_text: e.target.value })
+                              }
+                            />
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <Label>Show QR code</Label>
+                            <Switch
+                              checked={activeSecData.config.show_qr !== false}
+                              onCheckedChange={(checked) =>
+                                updateSectionConfig(activeSecData.id, { show_qr: checked })
+                              }
+                            />
+                          </div>
+                        </>
+                      )}
+                      {activeSecData.type === "document-upload" && (
+                        <>
+                          <div className="space-y-2">
+                            <Label>Upload items (JSON array of strings)</Label>
+                            <Textarea
+                              value={JSON.stringify(activeSecData.config.upload_items || [], null, 2)}
+                              onChange={(e) => {
+                                try {
+                                  updateSectionConfig(activeSecData.id, {
+                                    upload_items: JSON.parse(e.target.value),
+                                  })
+                                } catch {
+                                  // ignore invalid JSON while typing
+                                }
+                              }}
+                              rows={6}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Steps (JSON array of strings)</Label>
+                            <Textarea
+                              value={JSON.stringify(activeSecData.config.steps || [], null, 2)}
+                              onChange={(e) => {
+                                try {
+                                  updateSectionConfig(activeSecData.id, { steps: JSON.parse(e.target.value) })
+                                } catch {
+                                  // ignore invalid JSON while typing
+                                }
+                              }}
+                              rows={5}
+                            />
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
+                  {activeSecData.type === "verify-document" && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Title</Label>
+                        <Input
+                          value={activeSecData.config.title || ""}
+                          onChange={(e) => updateSectionConfig(activeSecData.id, { title: e.target.value })}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Subtitle</Label>
+                        <Textarea
+                          value={activeSecData.config.subtitle || ""}
+                          onChange={(e) => updateSectionConfig(activeSecData.id, { subtitle: e.target.value })}
+                          rows={2}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>CTA text</Label>
+                        <Input
+                          value={activeSecData.config.cta_text || ""}
+                          onChange={(e) => updateSectionConfig(activeSecData.id, { cta_text: e.target.value })}
+                        />
                       </div>
                     </>
                   )}

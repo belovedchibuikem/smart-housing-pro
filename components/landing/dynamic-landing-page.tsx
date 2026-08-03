@@ -10,13 +10,28 @@ import { InvestmentOpportunities } from "@/components/landing/investment-opportu
 import { LoanOfferings } from "@/components/landing/loan-offerings"
 import { LandingHeader } from "@/components/landing/landing-header"
 import { VerifyDocumentSection } from "@/components/landing/verify-document-section"
+import { AppDownloadSection } from "@/components/landing/app-download-section"
+import { DocumentUploadSection } from "@/components/landing/document-upload-section"
 import { TenantBrandLogo } from "@/components/branding/tenant-brand-logo"
 import { useWhiteLabel } from "@/lib/hooks/use-white-label"
+import { resolveTenantCopyDeep } from "@/lib/landing/tenant-copy"
 import type { TenantLandingStats } from "@/lib/api/public-properties"
 
 interface PageSection {
   id: string
-  type: "hero" | "features" | "testimonials" | "cta" | "properties" | "investments" | "loans" | "stats" | "how-it-works" | "verify-document"
+  type:
+    | "hero"
+    | "features"
+    | "testimonials"
+    | "cta"
+    | "properties"
+    | "investments"
+    | "loans"
+    | "stats"
+    | "how-it-works"
+    | "verify-document"
+    | "app-download"
+    | "document-upload"
   name: string
   visible: boolean
   position: number
@@ -256,55 +271,62 @@ export function DynamicLandingPage({ isTenantPage = true }: DynamicLandingPagePr
     }
   }
 
+  const cooperativeName = whiteLabelSettings?.company_name || "our cooperative"
+
   const renderSection = (section: PageSection) => {
     if (!section.visible) return null
     const templateId = pageData?.template_id || "default"
+    const config = resolveTenantCopyDeep(section.config || {}, cooperativeName)
 
     switch (section.type) {
       case "hero":
         return (
           <HeroSection
             key={section.id}
-            config={{ ...section.config, live_stats: tenantStats?.hero }}
+            config={{ ...config, live_stats: tenantStats?.hero }}
             templateId={templateId}
           />
         )
       case "properties":
         return (
           <div key={section.id} id="properties">
-            <PropertyListings properties={propertiesData} config={section.config} />
+            <PropertyListings properties={propertiesData} config={config} />
           </div>
         )
       case "investments":
         return (
           <div key={section.id} id="investments">
-            <InvestmentOpportunities plans={plansData.investments} config={section.config} />
+            <InvestmentOpportunities plans={plansData.investments} config={config} />
           </div>
         )
       case "loans":
         return (
           <div key={section.id} id="loans">
-            <LoanOfferings products={plansData.loans} config={section.config} />
+            <LoanOfferings products={plansData.loans} config={config} />
           </div>
         )
       case "features":
-        return <FeaturesSection key={section.id} config={section.config} templateId={templateId} />
+        return <FeaturesSection key={section.id} config={config} templateId={templateId} />
       case "how-it-works":
-        return <HowItWorksSection key={section.id} config={section.config} templateId={templateId} />
+        return <HowItWorksSection key={section.id} config={config} templateId={templateId} />
       case "cta":
-        return <CTASection key={section.id} config={section.config} templateId={templateId} />
+        return <CTASection key={section.id} config={config} templateId={templateId} />
       case "stats":
         return (
           <StatsSection
             key={section.id}
-            config={{ ...section.config, live_stats: tenantStats?.impact }}
+            config={{ ...config, live_stats: tenantStats?.impact }}
             templateId={templateId}
           />
         )
       case "testimonials":
-        return <TestimonialsSection key={section.id} config={section.config} templateId={templateId} />
+        return <TestimonialsSection key={section.id} config={config} templateId={templateId} />
+      case "app-download":
+        return <AppDownloadSection key={section.id} config={config} />
+      case "document-upload":
+        return <DocumentUploadSection key={section.id} config={config} />
       case "verify-document":
-        return <VerifyDocumentSection key={section.id} config={section.config} />
+        return <VerifyDocumentSection key={section.id} config={config} />
       default:
         return null
     }
@@ -1203,6 +1225,8 @@ function Footer({ isTenantPage = true }: { isTenantPage?: boolean }) {
 function DefaultLandingPage() {
   const [propertiesData, setPropertiesData] = useState<any[]>([])
   const [tenantStats, setTenantStats] = useState<TenantLandingStats | null>(null)
+  const { settings } = useWhiteLabel()
+  const coop = settings?.company_name || "our cooperative"
 
   useEffect(() => {
     Promise.all([
@@ -1228,8 +1252,10 @@ function DefaultLandingPage() {
       <HeroSection
         config={{
           title: "Your Path to Homeownership Made Simple",
-          subtitle:
-            "Join the FRSC Housing Cooperative. Save systematically, access affordable loans, and invest in quality properties.",
+          subtitle: resolveTenantCopyDeep(
+            "Join {cooperative_name}. Save systematically, access affordable loans, track house and land allotments, and keep your documents secure.",
+            coop,
+          ),
           cta_text: "Become a Member",
           cta_link: "/register",
           show_stats: true,
@@ -1248,10 +1274,42 @@ function DefaultLandingPage() {
       <FeaturesSection
         config={{
           title: "Everything You Need",
-          subtitle: "Comprehensive tools to manage your housing cooperative membership",
+          subtitle: resolveTenantCopyDeep(
+            "Comprehensive tools to manage your {cooperative_name} membership",
+            coop,
+          ),
+          features: resolveTenantCopyDeep(
+            [
+              {
+                icon: "Wallet",
+                title: "One wallet for everything",
+                description:
+                  "Fund contributions, equity, loans, and property repayments from a single balance.",
+              },
+              {
+                icon: "Building2",
+                title: "House & land clarity",
+                description:
+                  "Track allotments, repayments, and statutory charges with {cooperative_name}.",
+              },
+              {
+                icon: "FileCheck",
+                title: "Deeds & documents",
+                description: "Upload deeds, surveys, and ownership proofs to your property account.",
+              },
+              {
+                icon: "Shield",
+                title: "QR-verified letters",
+                description: "Official {cooperative_name} letters and receipts you can verify publicly.",
+              },
+            ],
+            coop,
+          ),
         }}
       />
       <HowItWorksSection config={{}} />
+      <AppDownloadSection />
+      <DocumentUploadSection />
       <StatsSection
         config={{
           title: "Our Impact",
@@ -1259,10 +1317,24 @@ function DefaultLandingPage() {
           live_stats: tenantStats?.impact,
         }}
       />
+      <VerifyDocumentSection
+        config={{
+          title: resolveTenantCopyDeep("Verify a {cooperative_name} document", coop),
+          subtitle: resolveTenantCopyDeep(
+            "Confirm the authenticity of official {cooperative_name} letters and certificates using a verification number or QR code.",
+            coop,
+          ),
+          cta_text: "Verify now",
+        }}
+      />
       <CTASection
         config={{
-          title: "Ready to Start Your Homeownership Journey?",
-          description: "Join thousands of FRSC personnel who are building their future",
+          title: resolveTenantCopyDeep(
+            "Ready to start your homeownership journey with {cooperative_name}?",
+            coop,
+          ),
+          description:
+            "Join members who manage contributions, property, and documents without the paper chase.",
           cta_text: "Register Now",
           cta_link: "/register",
         }}

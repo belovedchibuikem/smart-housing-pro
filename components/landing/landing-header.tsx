@@ -37,8 +37,11 @@ export function LandingHeader({ isTenantPage = true }: LandingHeaderProps) {
             <Link href="#features" className="text-sm font-medium hover:text-primary transition-colors">
               Features
             </Link>
-            <Link href="#about" className="text-sm font-medium hover:text-primary transition-colors">
-              About
+            <Link href="#download-app" className="text-sm font-medium hover:text-primary transition-colors">
+              Get the App
+            </Link>
+            <Link href="#upload-docs" className="text-sm font-medium hover:text-primary transition-colors">
+              Upload Docs
             </Link>
             <Link href="/verify" className="text-sm font-medium hover:text-primary transition-colors">
               Verify Document
@@ -100,11 +103,18 @@ export function LandingHeader({ isTenantPage = true }: LandingHeaderProps) {
                 Features
               </Link>
               <Link
-                href="#about"
+                href="#download-app"
                 className="text-sm font-medium hover:text-primary transition-colors py-2 px-3 hover:bg-accent rounded-lg"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                About
+                Get the App
+              </Link>
+              <Link
+                href="#upload-docs"
+                className="text-sm font-medium hover:text-primary transition-colors py-2 px-3 hover:bg-accent rounded-lg"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Upload Docs
               </Link>
               <Link
                 href="/verify"
