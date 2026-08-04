@@ -55,6 +55,8 @@ import {
   ClipboardCheck,
   FileSignature,
   Sparkles,
+  Megaphone,
+  Phone,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -220,6 +222,9 @@ const navItems: NavItem[] = [
       { href: "/admin/property-management/allottees", label: "Manage House Allottees", icon: UserCheck },
       { href: "/admin/property-management/allottees/mass-allocate", label: "Mass Allocate Houses", icon: Users },
       { href: "/admin/reports/properties", label: "Building Reports", icon: FileBarChart },
+      { href: "/admin/valuations", label: "Property Valuations", icon: Calculator },
+      { href: "/admin/change-requests", label: "Change Request Center", icon: ClipboardList },
+      { href: "/admin/property-improvements", label: "Property Improvements", icon: Wrench },
     ],
   },
   {
@@ -244,6 +249,7 @@ const navItems: NavItem[] = [
     subItems: [
       { href: "/admin/investment-plans", label: "Investment Plans", icon: Package },
       { href: "/admin/investments", label: "All Investments", icon: TrendingUp },
+      { href: "/admin/collaterals", label: "Collateral Register", icon: Shield },
       { href: "/admin/bulk-upload/investments", label: "Bulk Upload Investments", icon: Upload },
       { href: "/admin/investment-withdrawal-requests", label: "Withdrawal Requests", icon: DollarSign },
     ],
@@ -365,6 +371,7 @@ const navItems: NavItem[] = [
     ],
   },
   { href: "/admin/notifications", label: "Notifications", icon: Bell },
+  { href: "/admin/announcements", label: "Public Notices", icon: Megaphone },
   { href: "/admin/documents", label: "Documents", icon: FileText },
   {
     label: "Document Issuing",
@@ -403,6 +410,9 @@ const navItems: NavItem[] = [
       { href: "/admin/audit-logs", label: "Audit Logs", icon: Shield },
       { href: "/admin/activity-logs", label: "Activity Logs", icon: ScrollText },
       { href: "/admin/settings", label: "Settings", icon: Settings },
+      { href: "/admin/platform-config", label: "Platform Configuration", icon: Settings },
+      { href: "/admin/payment-routing", label: "Payment Routing", icon: CreditCard },
+      { href: "/admin/contact-centre", label: "Contact Centre", icon: Phone },
     ],
   },
 ]

@@ -153,6 +153,7 @@ const navItems: NavItem[] = [
     subItems: [
       { href: "/dashboard/my-property", label: "My Portfolio", displayKey: "nav.myPortfolio", icon: Home },
       { href: "/dashboard/my-property?tab=land", label: "My Land Parcels", displayKey: "nav.myLandParcels", icon: LandPlot },
+      { href: "/dashboard/ownership", label: "Ownership & Approvals", displayKey: "nav.ownership", icon: Users },
       { href: "/dashboard/properties/manage", label: "Manage My Property", displayKey: "nav.manageMyProperty", icon: UserCog },
       { href: "/dashboard/properties/sell", label: "Sell My Property", displayKey: "nav.sellMyProperty", icon: DollarSign },
       {

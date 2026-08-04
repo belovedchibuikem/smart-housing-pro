@@ -271,12 +271,13 @@ export default function AdminSettingsPage() {
       </div>
 
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-5">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-6">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="email">Email</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="housing-certificates">Certificates</TabsTrigger>
+          <TabsTrigger value="phase-ii">Phase II</TabsTrigger>
         </TabsList>
 
         <TabsContent value="general">
@@ -856,6 +857,136 @@ export default function AdminSettingsPage() {
                     />
                   </div>
                 ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="phase-ii">
+          <Card>
+            <CardHeader>
+              <CardTitle>Phase II Configuration</CardTitle>
+              <CardDescription>
+                Valuation weights, collateral rules, announcement defaults, and email-change policy
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>AI valuation enabled</Label>
+                  <Switch
+                    checked={Boolean(settings.valuation_ai_enabled ?? true)}
+                    onCheckedChange={(v) => updateSetting("valuation_ai_enabled", v)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Public property valuation links</Label>
+                  <Switch
+                    checked={Boolean(settings.valuation_public_link_enabled ?? true)}
+                    onCheckedChange={(v) => updateSetting("valuation_public_link_enabled", v)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="valuation_default_confidence_threshold">Default confidence threshold</Label>
+                  <Input
+                    id="valuation_default_confidence_threshold"
+                    type="number"
+                    value={settings.valuation_default_confidence_threshold ?? 60}
+                    onChange={(e) => updateSetting("valuation_default_confidence_threshold", Number(e.target.value))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="valuation_market_index_frequency_hours">Market index frequency (hours)</Label>
+                  <Input
+                    id="valuation_market_index_frequency_hours"
+                    type="number"
+                    value={settings.valuation_market_index_frequency_hours ?? 24}
+                    onChange={(e) => updateSetting("valuation_market_index_frequency_hours", Number(e.target.value))}
+                  />
+                </div>
+                {[
+                  ["valuation_weight_location", "Weight: location"],
+                  ["valuation_weight_size", "Weight: size"],
+                  ["valuation_weight_building", "Weight: building"],
+                  ["valuation_weight_amenities", "Weight: amenities"],
+                  ["valuation_weight_demand", "Weight: demand"],
+                  ["valuation_weight_recent_sales", "Weight: recent sales"],
+                ].map(([key, label]) => (
+                  <div key={key} className="space-y-2">
+                    <Label htmlFor={key}>{label}</Label>
+                    <Input
+                      id={key}
+                      type="number"
+                      value={settings[key] ?? ""}
+                      onChange={(e) => updateSetting(key, Number(e.target.value))}
+                    />
+                  </div>
+                ))}
+                <div className="space-y-2">
+                  <Label>Require collateral verification</Label>
+                  <Switch
+                    checked={Boolean(settings.collateral_require_verification ?? true)}
+                    onCheckedChange={(v) => updateSetting("collateral_require_verification", v)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="collateral_default_max_ltv">Max collateral LTV %</Label>
+                  <Input
+                    id="collateral_default_max_ltv"
+                    type="number"
+                    value={settings.collateral_default_max_ltv ?? 70}
+                    onChange={(e) => updateSetting("collateral_default_max_ltv", Number(e.target.value))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="announcement_default_expiry_days">Announcement expiry (days)</Label>
+                  <Input
+                    id="announcement_default_expiry_days"
+                    type="number"
+                    value={settings.announcement_default_expiry_days ?? 30}
+                    onChange={(e) => updateSetting("announcement_default_expiry_days", Number(e.target.value))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Allow announcement popups</Label>
+                  <Switch
+                    checked={Boolean(settings.announcement_allow_popup ?? true)}
+                    onCheckedChange={(v) => updateSetting("announcement_allow_popup", v)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Email change requires OTP</Label>
+                  <Switch
+                    checked={Boolean(settings.email_change_require_otp ?? true)}
+                    onCheckedChange={(v) => updateSetting("email_change_require_otp", v)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email_change_otp_ttl_minutes">Email OTP TTL (minutes)</Label>
+                  <Input
+                    id="email_change_otp_ttl_minutes"
+                    type="number"
+                    value={settings.email_change_otp_ttl_minutes ?? 15}
+                    onChange={(e) => updateSetting("email_change_otp_ttl_minutes", Number(e.target.value))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="document_retention_days">Document retention (days)</Label>
+                  <Input
+                    id="document_retention_days"
+                    type="number"
+                    value={settings.document_retention_days ?? 2555}
+                    onChange={(e) => updateSetting("document_retention_days", Number(e.target.value))}
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="receipt_number_format_phase_ii">Receipt number format</Label>
+                  <Input
+                    id="receipt_number_format_phase_ii"
+                    value={settings.receipt_number_format_phase_ii ?? "{PREFIX}-RCP-{YEAR}-{SERIAL}"}
+                    onChange={(e) => updateSetting("receipt_number_format_phase_ii", e.target.value)}
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>

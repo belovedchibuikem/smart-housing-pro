@@ -334,6 +334,7 @@ export async function verifyDocumentPublic(query: string) {
 		success: boolean
 		status: string
 		document: Record<string, unknown> | null
+		message?: string | null
 		branding?: Record<string, unknown>
 	}>("/verify-document", {
 		method: "POST",
@@ -350,6 +351,7 @@ export async function verifyDocumentByToken(token: string) {
 		success: boolean
 		status: string
 		document: Record<string, unknown> | null
+		message?: string | null
 		branding?: Record<string, unknown>
 	}>(`/verify-document/${encodeURIComponent(token)}`)
 }

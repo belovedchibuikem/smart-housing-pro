@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { PropertyTypePriceRow } from "@/components/properties/property-type-price-row"
+import { ValuePropertyButton } from "@/components/properties/value-property-button"
 
 type LandDetailsTabProps = {
   land?: {
@@ -164,6 +165,7 @@ export function LandDetailsTab({ land }: LandDetailsTabProps) {
                 </Link>
               )}
             </Button>
+            {land.id ? <ValuePropertyButton propertyId={land.id} kind="land" /> : null}
             <p className="text-center text-xs text-muted-foreground">
               {hasPendingInterest
                 ? "You have a pending expression of interest. Wait for approval before requesting another slot."

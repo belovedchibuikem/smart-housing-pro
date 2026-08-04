@@ -108,7 +108,17 @@ export const TENANT_ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
   documents: "view_documents|upload_documents|approve_documents|reject_documents|delete_documents",
   "issued-documents":
     "view_issued_documents|issue_documents|approve_issued_documents|revoke_issued_documents|reissue_documents|download_issued_documents|verify_documents_admin|manage_letterhead_settings|manage_document_templates",
-  notifications: "view_users|view_members|create_users|manage_settings",
+  notifications: "view_users|view_members|create_users|manage_settings|manage_notifications|create_announcement|publish_announcement",
+  valuations: "view_valuations|run_valuation|override_valuation|approve_valuation|manage_valuation_settings",
+  "change-requests": "view_change_requests|manage_change_requests|view_ownership|manage_ownership",
+  ownership: "view_ownership|manage_ownership|manage_ownership_settings|view_change_requests",
+  "property-improvements": "view_property_improvements|manage_property_improvements|view_valuations",
+  "payment-routing": "manage_payment_routing|manage_payments|view_payment_gateways",
+  "contact-centre": "manage_contact_centre|manage_settings|manage_white_label",
+  "platform-config": "manage_settings|manage_ownership_settings|manage_payment_routing|manage_contact_centre",
+  collaterals: "view_collateral|create_collateral|verify_collateral|manage_collateral_transfer|manage_collateral_rules",
+  announcements: "create_announcement|publish_announcement|manage_announcement_settings|manage_notification_templates|manage_notifications",
+  "payment-receipts": "issue_receipt|cancel_receipt|view_receipts|issue_documents|view_issued_documents",
 }
 
 /**
@@ -134,8 +144,16 @@ export function adminHrefToPermissionKey(href: string): string | null {
     { prefix: "accounting", key: "accounting" },
     { prefix: "office", key: "office" },
     { prefix: "ecpm", key: "ecpm" },
-    { prefix: "payment-receipts", key: "issued-documents" },
+    { prefix: "payment-receipts", key: "payment-receipts" },
     { prefix: "issued-documents", key: "issued-documents" },
+    { prefix: "valuations", key: "valuations" },
+    { prefix: "collaterals", key: "collaterals" },
+    { prefix: "announcements", key: "announcements" },
+    { prefix: "change-requests", key: "change-requests" },
+    { prefix: "property-improvements", key: "property-improvements" },
+    { prefix: "payment-routing", key: "payment-routing" },
+    { prefix: "contact-centre", key: "contact-centre" },
+    { prefix: "platform-config", key: "platform-config" },
   ]
   for (const { prefix, key } of prefixOverrides) {
     if (rest === prefix || rest.startsWith(`${prefix}/`)) {

@@ -31,6 +31,7 @@ function VerifyDocumentPageInner() {
 		success: boolean
 		status: string
 		document: Record<string, unknown> | null
+		message?: string | null
 	} | null>(null)
 
 	useEffect(() => {
@@ -53,10 +54,15 @@ function VerifyDocumentPageInner() {
 		setLoading(true)
 		try {
 			const res = byToken ? await verifyDocumentByToken(trimmed) : await verifyDocumentPublic(trimmed)
-			setResult({ success: res.success, status: res.status, document: res.document })
+			setResult({
+				success: res.success,
+				status: res.status,
+				document: res.document,
+				message: (res as { message?: string | null }).message ?? null,
+			})
 			if (res.branding) setBranding(res.branding)
 		} catch {
-			setResult({ success: false, status: "not_found", document: null })
+			setResult({ success: false, status: "not_found", document: null, message: null })
 		} finally {
 			setLoading(false)
 		}
@@ -223,7 +229,8 @@ function VerifyDocumentPageInner() {
 								Enter verification details
 							</h2>
 							<p className="mt-1.5 text-sm text-slate-500 leading-relaxed">
-								Enter a verification number, document number, or reference number.
+								Prefer the Verification No. under the QR (e.g. FSH-2026-FHG-…). Receipt numbers
+								like DOC-RCP-… may match more than one estate.
 								Sensitive personal data is never disclosed publicly.
 							</p>
 						</div>
@@ -239,7 +246,7 @@ function VerifyDocumentPageInner() {
 								onKeyDown={(e) => {
 									if (e.key === "Enter") void runVerify(query)
 								}}
-								placeholder="e.g. SH-2026-ORZ-8DJ3K91A"
+								placeholder="e.g. FSH-2026-FHG-CW4X06SP"
 								className="h-12 text-base focus-visible:ring-offset-0 font-mono tracking-wide"
 								style={{ boxShadow: "inset 0 1px 2px rgba(15,23,42,0.04)", borderColor: `${primary}66` }}
 							/>
@@ -262,17 +269,21 @@ function VerifyDocumentPageInner() {
 						{result && (
 							<div
 								className={`rounded-sm border p-5 space-y-4 ${
-									result.success
-										? "border"
-										: "border-red-300 bg-red-50/70"
+									result.status === "superseded"
+										? "border-amber-300 bg-amber-50/80"
+										: result.status === "ambiguous"
+											? "border-amber-300 bg-amber-50/80"
+											: result.success
+												? "border"
+												: "border-red-300 bg-red-50/70"
 								}`}
 								style={
-									result.success
+									result.success && result.status !== "superseded"
 										? { borderColor: `${primary}66`, backgroundColor: `${primary}10` }
 										: undefined
 								}
 							>
-								{result.success ? (
+								{result.success && result.status !== "superseded" ? (
 									<div className="flex items-start gap-3">
 										<div
 											className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white"
@@ -282,10 +293,29 @@ function VerifyDocumentPageInner() {
 										</div>
 										<div>
 											<p className="font-semibold tracking-wide" style={{ color: primary }}>
-												DOCUMENT AUTHENTIC
+												{result.document?.is_receipt
+													? "RECEIPT AUTHENTIC"
+													: "DOCUMENT AUTHENTIC"}
 											</p>
 											<p className="text-sm" style={{ color: secondary }}>
 												Status: {String(result.status).replace(/_/g, " ").toUpperCase()}
+											</p>
+										</div>
+									</div>
+								) : result.status === "superseded" ? (
+									<div className="flex items-start gap-3">
+										<div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-amber-600 text-white">
+											<ShieldAlert className="h-5 w-5" />
+										</div>
+										<div>
+											<p className="font-semibold text-amber-950 tracking-wide">
+												{result.document?.is_receipt
+													? "RECEIPT SUPERSEDED"
+													: "DOCUMENT SUPERSEDED"}
+											</p>
+											<p className="text-sm text-amber-900/80">
+												{result.message ||
+													"This copy was replaced. Use the Verification No. under the QR on the latest receipt."}
 											</p>
 										</div>
 									</div>
@@ -302,10 +332,15 @@ function VerifyDocumentPageInner() {
 														? "DOCUMENT CANCELLED"
 														: result.status === "integrity_failed"
 															? "TAMPERED / INTEGRITY FAILED"
-															: "DOCUMENT NOT FOUND"}
+															: result.status === "ambiguous"
+																? "MULTIPLE MATCHES — USE VERIFICATION NO."
+																: "DOCUMENT NOT FOUND"}
 											</p>
 											<p className="text-sm text-red-800/80">
-												This code could not be authenticated against official records.
+												{result.message ||
+													(result.status === "ambiguous"
+														? "This receipt number is used on more than one estate. Enter the unique Verification No. under the QR code."
+														: "This code could not be authenticated against official records.")}
 											</p>
 										</div>
 									</div>

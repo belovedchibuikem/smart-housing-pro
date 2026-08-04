@@ -34,6 +34,7 @@ import { useTenantSettings } from "@/lib/context/tenant-settings-context"
 import { useTenant } from "@/lib/tenant/tenant-context"
 import { SharePublicPropertyDialog } from "@/components/properties/share-public-property-dialog"
 import { PublicPropertyRequestDialog } from "@/components/properties/public-property-request-dialog"
+import { ValuePropertyButton } from "@/components/properties/value-property-button"
 
 interface PropertyDetailViewProps {
   property: PublicPropertyListing
@@ -249,6 +250,10 @@ export function PropertyDetailView({ property }: PropertyDetailViewProps) {
                   mode="inspection"
                   triggerLabel="Book inspection"
                   triggerVariant="outline"
+                />
+                <ValuePropertyButton
+                  propertyId={property.id}
+                  kind={isLand ? "land" : "house"}
                 />
                 <Button asChild variant="outline" className="w-full bg-transparent">
                   <Link href={`/register?next=${encodeURIComponent(propertyDetailPath(property))}`}>

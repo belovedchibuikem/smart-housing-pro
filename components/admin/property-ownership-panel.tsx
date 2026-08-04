@@ -42,6 +42,7 @@ import {
 } from "@/lib/api/client"
 import { PropertyDocuments } from "@/components/properties/property-documents"
 import { IssuedDocumentsPanel } from "@/components/documents/issued-documents-panel"
+import { JointOwnershipCard } from "@/components/admin/joint-ownership-card"
 
 interface PropertyOwnershipPanelProps {
   assetType: "house" | "land"
@@ -431,6 +432,7 @@ export function PropertyOwnershipPanel({ assetType, assetId }: PropertyOwnership
 
     return (
       <div className="space-y-6">
+        <JointOwnershipCard assetType={assetType} assetId={assetId} />
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -594,6 +596,7 @@ export function PropertyOwnershipPanel({ assetType, assetId }: PropertyOwnership
 
   return (
     <div className="space-y-6">
+      <JointOwnershipCard assetType={assetType} assetId={assetId} slotId={selectedSlotId} />
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

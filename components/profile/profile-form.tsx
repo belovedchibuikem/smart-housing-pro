@@ -16,6 +16,7 @@ import type { UpdateUserProfilePayload } from "@/lib/api/user-profile"
 import type { UseMemberKycResult } from "@/lib/hooks/use-member-kyc"
 import { ArrowRight, CheckCircle2, FileText, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { confirmEmailChange, requestEmailChange } from "@/lib/api/email-change"
 
 type TabKey = "personal" | "employment" | "next-of-kin" | "documents" | "account"
 
@@ -91,6 +92,7 @@ export function ProfileForm({
 	const [personalForm, setPersonalForm] = useState<PersonalFormState>({
 		first_name: "",
 		last_name: "",
+		email: "",
 		phone: "",
 		date_of_birth: "",
 		gender: "",
@@ -102,6 +104,7 @@ export function ProfileForm({
 		city: "",
 		state: "",
 	})
+	const [emailChange, setEmailChange] = useState({ newEmail: "", otp: "", step: "idle" as "idle" | "otp", busy: false })
 
 	const [employmentForm, setEmploymentForm] = useState<EmploymentFormState>({
 		staff_id: "",
@@ -210,7 +213,6 @@ const [nextOfKinForm, setNextOfKinForm] = useState({
 			await updateProfile({
 				first_name: personalForm.first_name,
 				last_name: personalForm.last_name,
-				email: personalForm.email,
 				phone: personalForm.phone,
 				date_of_birth: personalForm.date_of_birth || null,
 				gender: personalForm.gender || null,
@@ -349,16 +351,16 @@ const [nextOfKinForm, setNextOfKinForm] = useState({
 					) : (
 						<form onSubmit={handlePersonalSubmit} className="space-y-6">
 							<div className="grid gap-4 md:grid-cols-2">
+								<div className="space-y-2 md:col-span-2">
+									<Label htmlFor="email-display">Email Address</Label>
+									<Input id="email-display" value={personalForm.email} readOnly className="bg-muted/40" />
+									<p className="text-muted-foreground text-xs">
+										Change your email from the Account tab using OTP verification.
+									</p>
+								</div>
 								{[
 									{ id: "firstName", label: "First Name", value: personalForm.first_name, required: true },
 									{ id: "lastName", label: "Last Name", value: personalForm.last_name, required: true },
-									{
-										id: "email",
-										label: "Email Address",
-										value: personalForm.email,
-										required: true,
-										type: "email",
-									},
 									{ id: "phone", label: "Phone Number", value: personalForm.phone, required: true, type: "tel" },
 									{ id: "dob", label: "Date of Birth", value: personalForm.date_of_birth, type: "date" },
 									{ id: "gender", label: "Gender", value: personalForm.gender, placeholder: "e.g. male, female" },
@@ -664,42 +666,121 @@ const [nextOfKinForm, setNextOfKinForm] = useState({
       </TabsContent>
 
 			<TabsContent value="account">
-        <Card className="p-6">
-					<form onSubmit={handleSecuritySubmit} className="space-y-6">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="newPassword">New Password</Label>
+				<div className="space-y-6">
+					<Card className="p-6 space-y-4">
+						<div>
+							<h3 className="font-semibold">Change email address</h3>
+							<p className="text-muted-foreground text-sm">
+								Current email: <span className="font-medium text-foreground">{personalForm.email || "—"}</span>
+							</p>
+						</div>
+						{emailChange.step === "idle" ? (
+							<div className="flex flex-col gap-3 sm:flex-row">
 								<Input
-									id="newPassword"
-									type="password"
-									minLength={8}
-									value={securityForm.password}
-									onChange={(event) =>
-										setSecurityForm((prev) => ({ ...prev, password: event.target.value }))
-									}
-									required
+									type="email"
+									placeholder="New email address"
+									value={emailChange.newEmail}
+									onChange={(e) => setEmailChange((s) => ({ ...s, newEmail: e.target.value }))}
 								/>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm New Password</Label>
+								<Button
+									type="button"
+									disabled={emailChange.busy || !emailChange.newEmail.trim()}
+									onClick={async () => {
+										setEmailChange((s) => ({ ...s, busy: true }))
+										try {
+											await requestEmailChange(emailChange.newEmail.trim())
+											toast({ title: "OTP sent", description: "Enter the code sent to your new email." })
+											setEmailChange((s) => ({ ...s, step: "otp", busy: false }))
+										} catch (err: any) {
+											toast({
+												title: "Could not start email change",
+												description: err?.message ?? "Try again.",
+												variant: "destructive",
+											})
+											setEmailChange((s) => ({ ...s, busy: false }))
+										}
+									}}
+								>
+									{emailChange.busy ? "Sending…" : "Send OTP"}
+								</Button>
+							</div>
+						) : (
+							<div className="flex flex-col gap-3 sm:flex-row">
 								<Input
-									id="confirmPassword"
-									type="password"
-									minLength={8}
-									value={securityForm.confirmPassword}
-									onChange={(event) =>
-										setSecurityForm((prev) => ({ ...prev, confirmPassword: event.target.value }))
-									}
-									required
+									placeholder="6-digit OTP"
+									value={emailChange.otp}
+									onChange={(e) => setEmailChange((s) => ({ ...s, otp: e.target.value }))}
+									maxLength={12}
 								/>
-              </div>
-            </div>
-						<Button type="submit" disabled={isBusy}>
-							{isBusy ? "Updating..." : "Update Password"}
-            </Button>
-          </form>
-        </Card>
-      </TabsContent>
+								<Button
+									type="button"
+									disabled={emailChange.busy || !emailChange.otp.trim()}
+									onClick={async () => {
+										setEmailChange((s) => ({ ...s, busy: true }))
+										try {
+											const res = await confirmEmailChange(emailChange.otp.trim())
+											setPersonalForm((prev) => ({ ...prev, email: res.user.email }))
+											toast({ title: "Email updated", description: res.message })
+											setEmailChange({ newEmail: "", otp: "", step: "idle", busy: false })
+										} catch (err: any) {
+											toast({
+												title: "Verification failed",
+												description: err?.message ?? "Invalid code.",
+												variant: "destructive",
+											})
+											setEmailChange((s) => ({ ...s, busy: false }))
+										}
+									}}
+								>
+									{emailChange.busy ? "Verifying…" : "Confirm email"}
+								</Button>
+								<Button
+									type="button"
+									variant="ghost"
+									onClick={() => setEmailChange({ newEmail: "", otp: "", step: "idle", busy: false })}
+								>
+									Cancel
+								</Button>
+							</div>
+						)}
+					</Card>
+					<Card className="p-6">
+						<form onSubmit={handleSecuritySubmit} className="space-y-6">
+							<div className="space-y-4">
+								<div className="space-y-2">
+									<Label htmlFor="newPassword">New Password</Label>
+									<Input
+										id="newPassword"
+										type="password"
+										minLength={8}
+										value={securityForm.password}
+										onChange={(event) =>
+											setSecurityForm((prev) => ({ ...prev, password: event.target.value }))
+										}
+										required
+									/>
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="confirmPassword">Confirm New Password</Label>
+									<Input
+										id="confirmPassword"
+										type="password"
+										minLength={8}
+										value={securityForm.confirmPassword}
+										onChange={(event) =>
+											setSecurityForm((prev) => ({ ...prev, confirmPassword: event.target.value }))
+										}
+										required
+									/>
+								</div>
+							</div>
+							<Button type="submit" disabled={isBusy}>
+								{isBusy ? "Updating..." : "Update Password"}
+							</Button>
+						</form>
+					</Card>
+				</div>
+			</TabsContent>
     </Tabs>
   )
 }
