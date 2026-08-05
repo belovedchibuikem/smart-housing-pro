@@ -14,6 +14,35 @@ export interface JointOwner {
 	verified_at?: string | null
 }
 
+export interface OwnershipInvitation {
+	id: string
+	asset_type: string
+	property_id?: string | null
+	land_id?: string | null
+	property_slot_id?: string | null
+	land_slot_id?: string | null
+	property_title?: string | null
+	land_title?: string | null
+	invitee_member_id: string
+	invitee_name?: string | null
+	invitee_member_number?: string | null
+	invited_by_member_id?: string | null
+	invited_by_name?: string | null
+	invitee_percentage: number
+	primary_percentage: number
+	invitee_role?: string
+	status: string
+	expires_at?: string | null
+	message?: string | null
+	channels_delivered?: {
+		in_app?: boolean
+		email?: boolean
+		push?: boolean
+		email_skipped_reason?: string | null
+	} | null
+	created_at?: string | null
+}
+
 export interface JointOwnershipDashboard {
 	ownership_type: OwnershipType | string
 	property?: { id: string; title?: string }
@@ -24,6 +53,7 @@ export interface JointOwnershipDashboard {
 	owners: JointOwner[]
 	verification_status: string
 	pending_requests: ChangeRequest[]
+	pending_invitations?: OwnershipInvitation[]
 	ownership_history: OwnershipAuditRow[]
 }
 
@@ -97,6 +127,47 @@ export async function syncAdminPropertyOwners(
 	})
 }
 
+export async function inviteAdminPropertyCoOwner(
+	propertyId: string,
+	body: {
+		property_slot_id?: string
+		property_allocation_id?: string
+		invitee_member_id: string
+		invitee_percentage: number
+		primary_percentage?: number
+		message?: string
+	},
+) {
+	return apiFetch<{ success: boolean; data: OwnershipInvitation; channels: Record<string, unknown> }>(
+		`/admin/properties/${propertyId}/owners/invite`,
+		{ method: "POST", body: JSON.stringify(body) },
+	)
+}
+
+export async function inviteAdminLandCoOwner(
+	landId: string,
+	body: {
+		land_slot_id?: string
+		land_subscription_id?: string
+		invitee_member_id: string
+		invitee_percentage: number
+		primary_percentage?: number
+		message?: string
+	},
+) {
+	return apiFetch<{ success: boolean; data: OwnershipInvitation; channels: Record<string, unknown> }>(
+		`/admin/lands/${landId}/owners/invite`,
+		{ method: "POST", body: JSON.stringify(body) },
+	)
+}
+
+export async function cancelAdminOwnershipInvitation(invitationId: string) {
+	return apiFetch<{ success: boolean; data: OwnershipInvitation }>(
+		`/admin/ownership/invitations/${invitationId}/cancel`,
+		{ method: "POST", body: "{}" },
+	)
+}
+
 export async function listAdminChangeRequests(params: Record<string, string | number | undefined> = {}) {
 	const qs = new URLSearchParams()
 	for (const [k, v] of Object.entries(params)) {
@@ -158,7 +229,29 @@ export async function getMemberOwnershipAssets() {
 }
 
 export async function getMemberPendingApprovals() {
-	return apiFetch<{ success: boolean; data: ChangeRequestApproval[] }>(`/member/ownership/pending-approvals`)
+	return apiFetch<{
+		success: boolean
+		data: ChangeRequestApproval[]
+		invitations?: OwnershipInvitation[]
+	}>(`/member/ownership/pending-approvals`)
+}
+
+export async function getMemberOwnershipInvitations() {
+	return apiFetch<{ success: boolean; data: OwnershipInvitation[] }>(`/member/ownership/invitations`)
+}
+
+export async function acceptMemberOwnershipInvitation(id: string) {
+	return apiFetch<{ success: boolean; data: OwnershipInvitation }>(`/member/ownership/invitations/${id}/accept`, {
+		method: "POST",
+		body: "{}",
+	})
+}
+
+export async function declineMemberOwnershipInvitation(id: string) {
+	return apiFetch<{ success: boolean; data: OwnershipInvitation }>(`/member/ownership/invitations/${id}/decline`, {
+		method: "POST",
+		body: "{}",
+	})
 }
 
 export async function getMemberChangeRequests(params: Record<string, string | number | undefined> = {}) {

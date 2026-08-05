@@ -10,10 +10,13 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import {
+	acceptMemberOwnershipInvitation,
 	decideMemberChangeRequest,
+	declineMemberOwnershipInvitation,
 	getMemberOwnershipAssets,
 	getMemberPendingApprovals,
 	type ChangeRequestApproval,
+	type OwnershipInvitation,
 } from "@/lib/api/ownership"
 
 export default function MemberOwnershipPage() {
@@ -24,6 +27,7 @@ export default function MemberOwnershipPage() {
 		lands: [],
 	})
 	const [pending, setPending] = useState<ChangeRequestApproval[]>([])
+	const [invitations, setInvitations] = useState<OwnershipInvitation[]>([])
 	const [pin, setPin] = useState("")
 	const [comment, setComment] = useState("")
 	const [actingId, setActingId] = useState<string | null>(null)
@@ -34,6 +38,7 @@ export default function MemberOwnershipPage() {
 			const [a, p] = await Promise.all([getMemberOwnershipAssets(), getMemberPendingApprovals()])
 			setAssets(a.data || { properties: [], lands: [] })
 			setPending(p.data || [])
+			setInvitations(p.invitations || [])
 		} catch (e) {
 			toast({ title: "Failed to load ownership", description: String(e), variant: "destructive" })
 		} finally {
@@ -77,7 +82,7 @@ export default function MemberOwnershipPage() {
 				<div>
 					<h1 className="text-2xl font-semibold">My Ownership</h1>
 					<p className="text-sm text-muted-foreground">
-						Properties you own or co-own, plus pending joint-approval requests.
+						Properties you own or co-own, co-owner invitations (in-app), and joint-approval requests.
 					</p>
 				</div>
 				<Button variant="outline" onClick={() => void load()} disabled={loading}>
@@ -131,6 +136,73 @@ export default function MemberOwnershipPage() {
 					</CardContent>
 				</Card>
 			</div>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>Co-ownership invitations</CardTitle>
+					<CardDescription>
+						These always appear here and in Notifications — email is optional if your address is missing or outdated.
+					</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-3">
+					{invitations.length === 0 ? (
+						<p className="text-sm text-muted-foreground">No pending co-ownership invitations.</p>
+					) : (
+						invitations.map((inv) => (
+							<div key={inv.id} className="rounded-md border p-4 space-y-3">
+								<div>
+									<div className="font-medium">
+										{inv.property_title || inv.land_title || "Asset"} · {inv.invitee_percentage}%
+									</div>
+									<div className="text-sm text-muted-foreground">
+										Invited by {inv.invited_by_name || "owner"}
+										{inv.message ? ` — ${inv.message}` : ""}
+									</div>
+								</div>
+								<div className="flex flex-wrap gap-2">
+									<Button
+										size="sm"
+										disabled={actingId === inv.id}
+										onClick={async () => {
+											setActingId(inv.id)
+											try {
+												await acceptMemberOwnershipInvitation(inv.id)
+												toast({ title: "You are now a co-owner" })
+												await load()
+											} catch (e) {
+												toast({ title: "Accept failed", description: String(e), variant: "destructive" })
+											} finally {
+												setActingId(null)
+											}
+										}}
+									>
+										<Check className="h-4 w-4 mr-1" /> Accept
+									</Button>
+									<Button
+										size="sm"
+										variant="destructive"
+										disabled={actingId === inv.id}
+										onClick={async () => {
+											setActingId(inv.id)
+											try {
+												await declineMemberOwnershipInvitation(inv.id)
+												toast({ title: "Invitation declined" })
+												await load()
+											} catch (e) {
+												toast({ title: "Decline failed", description: String(e), variant: "destructive" })
+											} finally {
+												setActingId(null)
+											}
+										}}
+									>
+										<X className="h-4 w-4 mr-1" /> Decline
+									</Button>
+								</div>
+							</div>
+						))
+					)}
+				</CardContent>
+			</Card>
 
 			<Card>
 				<CardHeader>
