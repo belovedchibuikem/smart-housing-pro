@@ -47,28 +47,28 @@ export async function getOfficeDocument(id: string) {
 export async function createOfficeDocument(body: Record<string, unknown>) {
   return apiFetch<{ success: boolean; data: any }>("/admin/office/documents", {
     method: "POST",
-    body: JSON.stringify(body),
+    body: body,
   })
 }
 
 export async function updateOfficeDocument(id: string, body: Record<string, unknown>) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/documents/${id}`, {
     method: "PUT",
-    body: JSON.stringify(body),
+    body: body,
   })
 }
 
 export async function submitOfficeDocument(id: string, comments?: string) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/documents/${id}/submit`, {
     method: "POST",
-    body: JSON.stringify({ comments }),
+    body: { comments },
   })
 }
 
 export async function recallOfficeDocument(id: string, comments?: string) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/documents/${id}/recall`, {
     method: "POST",
-    body: JSON.stringify({ comments }),
+    body: { comments },
   })
 }
 
@@ -78,14 +78,14 @@ export async function actOnOfficeTask(
 ) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/tasks/${taskId}/act`, {
     method: "POST",
-    body: JSON.stringify(body),
+    body: body,
   })
 }
 
 export async function addOfficeMinute(id: string, body: Record<string, unknown>) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/documents/${id}/minutes`, {
     method: "POST",
-    body: JSON.stringify(body),
+    body: body,
   })
 }
 
@@ -99,14 +99,14 @@ export async function completeMinuteAction(actionId: string) {
 export async function signOfficeDocument(id: string, signature: string, role_label?: string) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/documents/${id}/sign`, {
     method: "POST",
-    body: JSON.stringify({ signature, role_label }),
+    body: { signature, role_label },
   })
 }
 
 export async function archiveOfficeDocument(id: string, comments?: string) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/documents/${id}/archive`, {
     method: "POST",
-    body: JSON.stringify({ comments }),
+    body: { comments },
   })
 }
 
@@ -127,14 +127,14 @@ export async function getOfficeOrgUnits() {
 export async function createOfficeOrgUnit(body: Record<string, unknown>) {
   return apiFetch<{ success: boolean; data: any }>("/admin/office/org-units", {
     method: "POST",
-    body: JSON.stringify(body),
+    body: body,
   })
 }
 
 export async function updateOfficeOrgUnit(id: string, body: Record<string, unknown>) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/org-units/${id}`, {
     method: "PUT",
-    body: JSON.stringify(body),
+    body: body,
   })
 }
 
@@ -145,7 +145,7 @@ export async function getOfficeCategories() {
 export async function createOfficeCategory(body: { name: string; description?: string }) {
   return apiFetch<{ success: boolean; data: any }>("/admin/office/categories", {
     method: "POST",
-    body: JSON.stringify(body),
+    body: body,
   })
 }
 
@@ -156,7 +156,7 @@ export async function getOfficeTemplates() {
 export async function updateOfficeTemplate(id: string, body: Record<string, unknown>) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/templates/${id}`, {
     method: "PUT",
-    body: JSON.stringify(body),
+    body: body,
   })
 }
 
@@ -193,14 +193,14 @@ export async function getOfficeWorkflows() {
 export async function createOfficeWorkflow(body: Record<string, unknown>) {
   return apiFetch<{ success: boolean; data: any }>("/admin/office/workflows", {
     method: "POST",
-    body: JSON.stringify(body),
+    body: body,
   })
 }
 
 export async function updateOfficeWorkflow(id: string, body: Record<string, unknown>) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/workflows/${id}`, {
     method: "PUT",
-    body: JSON.stringify(body),
+    body: body,
   })
 }
 
@@ -211,7 +211,7 @@ export async function getOfficeFolders(parent_id?: string) {
 export async function createOfficeFolder(body: Record<string, unknown>) {
   return apiFetch<{ success: boolean; data: any }>("/admin/office/folders", {
     method: "POST",
-    body: JSON.stringify(body),
+    body: body,
   })
 }
 
@@ -222,7 +222,7 @@ export async function getOfficeTags() {
 export async function createOfficeTag(body: Record<string, unknown>) {
   return apiFetch<{ success: boolean; data: any }>("/admin/office/tags", {
     method: "POST",
-    body: JSON.stringify(body),
+    body: body,
   })
 }
 
@@ -233,7 +233,7 @@ export async function checkoutOfficeDocument(id: string) {
 export async function checkinOfficeDocument(id: string, body?: Record<string, unknown>) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/documents/${id}/checkin`, {
     method: "POST",
-    body: JSON.stringify(body || {}),
+    body: body || {},
   })
 }
 
@@ -257,21 +257,21 @@ export async function getOfficeCorrespondence(params?: Query) {
 export async function createOfficeCorrespondence(body: Record<string, unknown>) {
   return apiFetch<{ success: boolean; data: any }>("/admin/office/correspondence", {
     method: "POST",
-    body: JSON.stringify(body),
+    body: body,
   })
 }
 
 export async function dispatchOfficeCorrespondence(id: string, notes?: string) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/correspondence/${id}/dispatch`, {
     method: "POST",
-    body: JSON.stringify({ notes }),
+    body: { notes },
   })
 }
 
 export async function ackOfficeCorrespondence(id: string, notes?: string) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/correspondence/${id}/acknowledge`, {
     method: "POST",
-    body: JSON.stringify({ notes }),
+    body: { notes },
   })
 }
 
@@ -282,7 +282,7 @@ export async function getOfficeRetentionPolicies() {
 export async function setOfficeLegalHold(id: string, legal_hold: boolean, notes?: string) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/documents/${id}/legal-hold`, {
     method: "POST",
-    body: JSON.stringify({ legal_hold, notes }),
+    body: { legal_hold, notes },
   })
 }
 
@@ -301,7 +301,7 @@ export async function getOfficeCirculars() {
 export async function createOfficeCircular(body: Record<string, unknown>) {
   return apiFetch<{ success: boolean; data: any }>("/admin/office/circulars", {
     method: "POST",
-    body: JSON.stringify(body),
+    body: body,
   })
 }
 
@@ -320,14 +320,14 @@ export async function advancedOfficeSearch(params?: Query) {
 export async function officeAiSuggest(body: Record<string, unknown>) {
   return apiFetch<{ success: boolean; data: any; message?: string }>("/admin/office/ai/suggest", {
     method: "POST",
-    body: JSON.stringify(body),
+    body: body,
   })
 }
 
 export async function officeAiReview(id: string, decision: "accepted" | "rejected") {
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/ai/suggestions/${id}/review`, {
     method: "POST",
-    body: JSON.stringify({ decision }),
+    body: { decision },
   })
 }
 
@@ -352,42 +352,42 @@ export async function getOfficeCase(id: string) {
 export async function createOfficeCase(body: Record<string, unknown>) {
   return apiFetch<{ success: boolean; data: any }>("/admin/office/cases", {
     method: "POST",
-    body: JSON.stringify(body),
+    body: body,
   })
 }
 
 export async function assignOfficeCase(id: string, body: { assigned_to_user_id: string; note?: string }) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/cases/${id}/assign`, {
     method: "POST",
-    body: JSON.stringify(body),
+    body: body,
   })
 }
 
 export async function replyOfficeCase(id: string, body: { body: string; visibility?: string }) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/cases/${id}/reply`, {
     method: "POST",
-    body: JSON.stringify(body),
+    body: body,
   })
 }
 
 export async function resolveOfficeCase(id: string, body: { resolution_summary: string; close?: boolean }) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/cases/${id}/resolve`, {
     method: "POST",
-    body: JSON.stringify(body),
+    body: body,
   })
 }
 
 export async function transitionOfficeCase(id: string, body: { status: string; note?: string }) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/cases/${id}/transition`, {
     method: "POST",
-    body: JSON.stringify(body),
+    body: body,
   })
 }
 
 export async function createOfficeCaseLetter(id: string, body?: Record<string, unknown>) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/cases/${id}/create-letter`, {
     method: "POST",
-    body: JSON.stringify(body || {}),
+    body: body || {},
   })
 }
 
@@ -405,7 +405,7 @@ export async function issueOfficeCaseLetterhead(
     `/admin/office/cases/${id}/issue-letterhead`,
     {
       method: "POST",
-      body: JSON.stringify(body || { use_tenant_signatory: true }),
+      body: body || { use_tenant_signatory: true },
     },
   )
 }
@@ -413,7 +413,7 @@ export async function issueOfficeCaseLetterhead(
 export async function renderOfficeDocumentPdf(id: string) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/documents/${id}/render-pdf`, {
     method: "POST",
-    body: JSON.stringify({}),
+    body: {},
   })
 }
 
