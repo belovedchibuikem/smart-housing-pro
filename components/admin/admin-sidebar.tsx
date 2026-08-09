@@ -57,10 +57,13 @@ import {
   Sparkles,
   Megaphone,
   Phone,
+  Search,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
+import { filterNavTreeByQuery } from "@/lib/navigation/nav-search"
+import { Input } from "@/components/ui/input"
 import type { UserRole } from "@/lib/roles"
 import { useSidebarNavigation } from "@/hooks/use-sidebar-navigation"
 import { itemMatchesPathname } from "@/lib/navigation/sidebar-nav"
@@ -107,7 +110,7 @@ interface NavItem {
   module?: string
 }
 
-const navItems: NavItem[] = [
+export const ADMIN_NAV_ITEMS: NavItem[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/subscriptions", label: "Subscription", icon: Package },
   {
@@ -524,12 +527,12 @@ export function AdminSidebar({
   // Permission-based nav matches /api/admin/* checks; super_admin sees all. Otherwise require Spatie permission slugs (no legacy route-only fallback).
   const superAdmin = isTenantSuperAdminContext(roleNames, roleSlug)
   const roleFilteredItems = superAdmin
-    ? navItems
+    ? ADMIN_NAV_ITEMS
     : permissions.length > 0
       ? getPermissionFilteredNavItems(
           permissions,
           roleNames.length ? roleNames : [],
-          navItems,
+          ADMIN_NAV_ITEMS,
           roleSlug,
         )
       : MINIMAL_STAFF_NAV
@@ -541,12 +544,18 @@ export function AdminSidebar({
     ? subscriptionFiltered
     : filterAdminNavByModules(subscriptionFiltered, enabledModules)
 
+  const [navQuery, setNavQuery] = useState("")
+  const visibleNavItems = useMemo(
+    () => filterNavTreeByQuery(filteredNavItems, navQuery),
+    [filteredNavItems, navQuery],
+  )
+
   const { toggleMenu, isMenuOpen } = useSidebarNavigation(filteredNavItems, pathname, "flat")
 
   const renderNavItem = (item: NavItem) => {
     const Icon = item.icon
     const hasSubItems = item.subItems && item.subItems.length > 0
-    const isOpen = isMenuOpen(item.label)
+    const isOpen = Boolean(navQuery.trim()) || isMenuOpen(item.label)
     const isActive = item.href ? pathname === item.href || pathname.startsWith(item.href + "/") : false
     const hasActiveChild = hasSubItems && item.subItems!.some((sub) => itemMatchesPathname(sub, pathname))
 
@@ -653,7 +662,26 @@ export function AdminSidebar({
           </Button>
         </div>
 
-        <nav className="p-4 space-y-2">{filteredNavItems.map((item) => renderNavItem(item))}</nav>
+        <div className="p-4 pb-0">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={navQuery}
+              onChange={(e) => setNavQuery(e.target.value)}
+              placeholder="Filter menu…"
+              className="h-9 pl-9"
+              aria-label="Filter menu"
+            />
+          </div>
+        </div>
+
+        <nav className="p-4 space-y-2">
+          {visibleNavItems.length > 0 ? (
+            visibleNavItems.map((item) => renderNavItem(item))
+          ) : (
+            <p className="px-2 py-4 text-sm text-muted-foreground">No matching menu items.</p>
+          )}
+        </nav>
       </aside>
     </>
   )

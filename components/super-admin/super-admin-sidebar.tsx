@@ -30,13 +30,16 @@ import {
   Heart,
   Smartphone,
   Store,
+  Search,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { getSuperAdminPendingBadges, type SuperAdminPendingBadgeCounts } from "@/lib/api/client"
 import { useSidebarNavigation } from "@/hooks/use-sidebar-navigation"
 import { itemMatchesPathname } from "@/lib/navigation/sidebar-nav"
+import { filterNavTreeByQuery } from "@/lib/navigation/nav-search"
+import { Input } from "@/components/ui/input"
 
 const SUPER_ADMIN_BADGE_BY_HREF: Partial<Record<string, keyof SuperAdminPendingBadgeCounts>> = {
   "/super-admin/payment-approvals": "platform_payment_approvals_pending",
@@ -62,7 +65,7 @@ interface NavItem {
   subItems?: NavItem[]
 }
 
-const navItems: NavItem[] = [
+export const SUPER_ADMIN_NAV_ITEMS: NavItem[] = [
   { href: "/super-admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/super-admin/businesses", label: "Businesses", icon: Building2 },
   { href: "/super-admin/marketplace", label: "Marketplace", icon: Store },
@@ -127,7 +130,12 @@ interface SuperAdminSidebarProps {
 export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAdminSidebarProps) {
   const pathname = usePathname()
   const [pendingBadges, setPendingBadges] = useState<SuperAdminPendingBadgeCounts | null>(null)
-  const { toggleMenu, isMenuOpen } = useSidebarNavigation(navItems, pathname, "flat")
+  const [navQuery, setNavQuery] = useState("")
+  const visibleNavItems = useMemo(
+    () => filterNavTreeByQuery(SUPER_ADMIN_NAV_ITEMS, navQuery),
+    [navQuery],
+  )
+  const { toggleMenu, isMenuOpen } = useSidebarNavigation(SUPER_ADMIN_NAV_ITEMS, pathname, "flat")
 
   useEffect(() => {
     let cancelled = false
@@ -160,7 +168,7 @@ export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAd
   const renderNavItem = (item: NavItem) => {
     const Icon = item.icon
     const hasSubItems = item.subItems && item.subItems.length > 0
-    const isOpen = isMenuOpen(item.label)
+    const isOpen = Boolean(navQuery.trim()) || isMenuOpen(item.label)
     
     // Enhanced active state logic
     const isActive = item.href ? (() => {
@@ -285,7 +293,26 @@ export function SuperAdminSidebar({ mobileMenuOpen, setMobileMenuOpen }: SuperAd
           </Button>
         </div>
 
-        <nav className="p-4 space-y-2">{navItems.map((item) => renderNavItem(item))}</nav>
+        <div className="p-4 pb-0">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={navQuery}
+              onChange={(e) => setNavQuery(e.target.value)}
+              placeholder="Filter menu…"
+              className="h-9 pl-9"
+              aria-label="Filter menu"
+            />
+          </div>
+        </div>
+
+        <nav className="p-4 space-y-2">
+          {visibleNavItems.length > 0 ? (
+            visibleNavItems.map((item) => renderNavItem(item))
+          ) : (
+            <p className="px-2 py-4 text-sm text-muted-foreground">No matching menu items.</p>
+          )}
+        </nav>
       </aside>
     </>
   )

@@ -108,7 +108,13 @@ export default function AdminLayout({
     <AuthGuard requireStaffDashboardAccess>
       <IdleSessionGuard />
       <div className="min-h-screen bg-background">
-        <AdminHeader mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
+        <AdminHeader
+          mobileMenuOpen={mobileMenuOpen}
+          setMobileMenuOpen={setMobileMenuOpen}
+          userRole={userRole}
+          permissions={permissions}
+          roleNames={roleNames}
+        />
         <div className="flex">
           <AdminSidebar
             mobileMenuOpen={mobileMenuOpen}
