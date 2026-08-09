@@ -215,7 +215,7 @@ export default function EditMemberPage({ params }: { params: Promise<{ id: strin
 								onChange={(e) => setForm((f) => ({ ...f, ippis_number: e.target.value }))}
 								placeholder="Civil servants (federal/state)"
 							/>
-							<p className="text-xs text-muted-foreground">For all civil servants using IPPIS.</p>
+							<p className="text-xs text-muted-foreground">Optional. Either IPPIS or FRSC PIN may be present.</p>
 						</div>
 						<div className="space-y-2 sm:col-span-2">
 							<Label htmlFor="frsc_pin">FRSC PIN</Label>
@@ -225,7 +225,7 @@ export default function EditMemberPage({ params }: { params: Promise<{ id: strin
 								onChange={(e) => setForm((f) => ({ ...f, frsc_pin: e.target.value }))}
 								placeholder="FRSC staff only"
 							/>
-							<p className="text-xs text-muted-foreground">Strictly for FRSC personnel.</p>
+							<p className="text-xs text-muted-foreground">Optional. Either IPPIS or FRSC PIN may be present.</p>
 						</div>
 						{field("staff_id", "Legacy reference ID (optional)")}
 						<div className="space-y-2">

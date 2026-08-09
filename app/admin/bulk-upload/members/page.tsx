@@ -513,9 +513,10 @@ export default function BulkUploadMembersPage() {
 						<h3 className="font-medium">1. Mandatory file (new members)</h3>
 						<p className="text-sm text-muted-foreground">
 							Always includes <strong>First Name</strong> and <strong>Last Name</strong> (required),{" "}
-							<strong>Email</strong> and <strong>Phone</strong> (optional—leave blank if unknown), plus any fields
-							your admin marked <em>Mandatory</em> for bulk upload in
-							settings. All of those columns are required in each row.
+							<strong>Email</strong> and <strong>Phone</strong> (optional—leave blank if unknown),{" "}
+							<strong>IPPIS Number</strong> and <strong>FRSC PIN</strong> (optional—either may be present),
+							plus any fields your admin marked <em>Mandatory</em> for bulk upload in settings. Those
+							mandatory columns are required in each row.
 						</p>
 						<div className="flex flex-wrap gap-2">
 							<Button type="button" variant="outline" onClick={() => downloadTemplate("mandatory")}>

@@ -16,10 +16,15 @@ import { apiFetch } from "@/lib/api/client"
 import { Can } from "@/components/admin/can-permission"
 import { Textarea } from "@/components/ui/textarea"
 
-/** Keys must match api/app/Services/Tenant/BulkMemberFieldRulesService::fieldCatalog */
-const BULK_MEMBER_FIELD_OPTIONS: { key: string; label: string }[] = [
+/** Keys must match api/app/Services/Tenant/BulkMemberFieldRulesService::fieldCatalog.
+ * IPPIS / FRSC PIN are always optional on the new-members file (either may be present).
+ */
+const BULK_MEMBER_IDENTIFIER_FIELDS: { key: string; label: string }[] = [
   { key: "ippis_number", label: "IPPIS number" },
   { key: "frsc_pin", label: "FRSC PIN" },
+]
+
+const BULK_MEMBER_FIELD_OPTIONS: { key: string; label: string }[] = [
   { key: "date_of_birth", label: "Date of birth" },
   { key: "gender", label: "Gender" },
   { key: "marital_status", label: "Marital status" },
@@ -382,6 +387,17 @@ export default function AdminSettingsPage() {
                     <strong>Mandatory</strong> columns appear on the <em>new members</em> CSV/Excel (with First/Last/Email/Phone) and every row must fill them.{" "}
                     <strong className="font-normal">Optional</strong> columns appear only on the <em>additional details</em> file (keyed by Email, no First Name).
                   </p>
+                </div>
+                <div className="rounded-lg border p-3 space-y-2 bg-muted/30">
+                  <p className="text-sm font-medium">Staff identifiers (always optional)</p>
+                  <p className="text-xs text-muted-foreground">
+                    IPPIS number and FRSC PIN always appear on the new-members file. Neither is required — fill either, both, or leave blank.
+                  </p>
+                  <ul className="text-sm list-disc pl-5 space-y-1">
+                    {BULK_MEMBER_IDENTIFIER_FIELDS.map(({ label }) => (
+                      <li key={label}>{label}</li>
+                    ))}
+                  </ul>
                 </div>
                 <div className="rounded-lg border divide-y max-h-[420px] overflow-y-auto">
                   {BULK_MEMBER_FIELD_OPTIONS.map(({ key, label }) => (

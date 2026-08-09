@@ -28,6 +28,7 @@ export default function NewMemberPage() {
     // Member fields
     staff_id: '',
     ippis_number: '',
+    frsc_pin: '',
     date_of_birth: '',
     gender: '',
     marital_status: '',
@@ -83,6 +84,7 @@ export default function NewMemberPage() {
       const memberData = {
         staff_id: formData.staff_id || null,
         ippis_number: formData.ippis_number || null,
+        frsc_pin: formData.frsc_pin || null,
         date_of_birth: formData.date_of_birth || null,
         gender: formData.gender || null,
         marital_status: formData.marital_status || null,
@@ -285,6 +287,14 @@ export default function NewMemberPage() {
                   <div className="space-y-2">
                     <Label htmlFor="ippis_number">IPPIS Number</Label>
                     <Input id="ippis_number" name="ippis_number" value={formData.ippis_number} onChange={handleChange} placeholder="1234567890" />
+                    <p className="text-xs text-muted-foreground">Optional — use IPPIS and/or FRSC PIN</p>
+                  </div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="frsc_pin">FRSC PIN</Label>
+                    <Input id="frsc_pin" name="frsc_pin" value={formData.frsc_pin} onChange={handleChange} placeholder="Optional" />
+                    <p className="text-xs text-muted-foreground">Optional — either identifier may be present</p>
                   </div>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
