@@ -19,6 +19,8 @@ export interface AuthUser {
 	permissions?: string[]
 	/** Set by API UserResource; mirrors User::isAdmin() */
 	is_staff?: boolean
+	must_change_password?: boolean
+	password_changed_at?: string | null
 	/** `tenant` = cooperative user; `platform` = central SuperAdmin operator */
 	auth_context?: "tenant" | "platform"
 }

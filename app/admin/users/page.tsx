@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search, UserPlus, Shield, Mail, Phone, Edit, Trash2, MoreHorizontal, User } from "lucide-react"
 import Link from "next/link"
 import { EditUserModal } from "@/components/admin/edit-user-modal"
+import { ResetPasswordDialog } from "@/components/admin/reset-password-dialog"
 import { useUsers, useUserStats, useDeleteUser, useToggleUserStatus } from "@/lib/hooks/use-users"
 import { User as UserType } from "@/lib/types/user"
 import { toast } from "sonner"
@@ -29,7 +30,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Loader2 } from "lucide-react"
+import { Loader2, KeyRound } from "lucide-react"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
 
 export default function UsersPage() {
@@ -40,6 +41,7 @@ export default function UsersPage() {
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null)
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null)
+  const [resetUser, setResetUser] = useState<UserType | null>(null)
 
   const { users, loading, error, pagination, refetch } = useUsers({
     search: searchQuery,
@@ -344,6 +346,12 @@ export default function UsersPage() {
                                 Edit
                               </DropdownMenuItem>
                             )}
+                            {can("reset_user_passwords") && (
+                              <DropdownMenuItem onClick={() => setResetUser(user)}>
+                                <KeyRound className="h-4 w-4 mr-2" />
+                                Reset password
+                              </DropdownMenuItem>
+                            )}
                             {can("edit_users") && (
                               <DropdownMenuItem 
                                 onClick={() => handleToggleStatus(user.id)}
@@ -414,6 +422,16 @@ export default function UsersPage() {
           setShowEditModal(false)
           setSelectedUser(null)
         }}
+      />
+
+      <ResetPasswordDialog
+        open={!!resetUser}
+        onOpenChange={(open) => {
+          if (!open) setResetUser(null)
+        }}
+        userId={resetUser?.id}
+        displayName={resetUser ? `${resetUser.first_name} ${resetUser.last_name}` : undefined}
+        email={resetUser?.email}
       />
 
       {/* Delete Confirmation Dialog */}

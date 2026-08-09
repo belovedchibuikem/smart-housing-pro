@@ -96,6 +96,16 @@ export function AuthGuard({
 					}
 				}
 
+				// Admin-forced temporary password must be changed before app access
+				if (userData?.must_change_password) {
+					const path =
+						typeof window !== "undefined" ? window.location.pathname : ""
+					if (!path.startsWith("/force-change-password")) {
+						if (!cancelled) router.replace("/force-change-password")
+						return
+					}
+				}
+
 				// Both token and user data exist, and role matches (if required)
 				if (!cancelled) {
 					persistAuthSessionFromStorage()

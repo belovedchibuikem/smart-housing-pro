@@ -81,16 +81,20 @@ export function LoginForm({ allowRegistration = true }: LoginFormProps) {
         setTenantSlug(null)
       }
 
-      const fallbackRoute = getDashboardRoute(user)
+      const fallbackRoute = user?.must_change_password
+        ? "/force-change-password"
+        : getDashboardRoute(user)
       const requestedRedirect =
         typeof window !== "undefined"
           ? new URLSearchParams(window.location.search).get("redirect")
           : null
       const dashboardRoute =
-        requestedRedirect &&
-        requestedRedirect.startsWith("/") &&
-        !requestedRedirect.startsWith("//") &&
-        hasRouteAccess(user, requestedRedirect.split("?")[0])
+        user?.must_change_password
+          ? "/force-change-password"
+          : requestedRedirect &&
+            requestedRedirect.startsWith("/") &&
+            !requestedRedirect.startsWith("//") &&
+            hasRouteAccess(user, requestedRedirect.split("?")[0])
           ? requestedRedirect
           : fallbackRoute
       

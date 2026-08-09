@@ -354,6 +354,8 @@ const navItems: NavItem[] = [
     module: "office",
     subItems: [
       { href: "/admin/office", label: "Office Hub", icon: Briefcase },
+      { href: "/admin/office/cases", label: "Case Desk", icon: ListTodo },
+      { href: "/admin/office/contributions", label: "Contributions Office", icon: CreditCard },
       { href: "/admin/office/inbox", label: "Inbox", icon: Inbox },
       { href: "/admin/office/outbox", label: "Outbox", icon: Send },
       { href: "/admin/office/tasks", label: "My Tasks", icon: ListTodo },

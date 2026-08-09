@@ -19,6 +19,7 @@ import {
   getOfficeDocument,
   getOfficeStaffUsers,
   recallOfficeDocument,
+  renderOfficeDocumentPdf,
   setOfficeLegalHold,
   signOfficeDocument,
   submitOfficeDocument,
@@ -159,6 +160,15 @@ export default function OfficeDocumentDetailPage() {
               Apply e-signature
             </Button>
           )}
+          <Button
+            variant="outline"
+            disabled={busy}
+            onClick={() =>
+              run(() => renderOfficeDocumentPdf(doc.id), "Letterhead PDF generated")
+            }
+          >
+            Generate letterhead PDF
+          </Button>
           {doc.status !== "archived" && (
             <Button
               variant="outline"

@@ -19,6 +19,8 @@ import {
 } from "lucide-react"
 
 const links = [
+  { href: "/admin/office/cases", label: "Case Desk", icon: ListTodo, desc: "Requests, complaints, letters — assign, process, resolve" },
+  { href: "/admin/office/contributions", label: "Contributions Office", icon: Briefcase, desc: "Stoppage, schedules, and contribution desk cases" },
   { href: "/admin/office/inbox", label: "Inbox", icon: Inbox, desc: "Pending reviews and approvals assigned to you" },
   { href: "/admin/office/outbox", label: "Outbox", icon: Send, desc: "Documents you created and routed" },
   { href: "/admin/office/tasks", label: "My Tasks", icon: ListTodo, desc: "Reviews, minutes, drafts, and overdue actions" },

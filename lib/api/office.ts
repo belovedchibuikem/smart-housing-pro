@@ -338,3 +338,91 @@ export async function getMemberDigitalFile(params?: Query) {
 export async function downloadMemberDigitalFile(id: string) {
   return apiFetchBlob(`/member/digital-file/${id}/download`)
 }
+
+// ── Office Case Desk ──
+
+export async function getOfficeCases(params?: Query) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/cases${toQuery(params)}`)
+}
+
+export async function getOfficeCase(id: string) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/cases/${id}`)
+}
+
+export async function createOfficeCase(body: Record<string, unknown>) {
+  return apiFetch<{ success: boolean; data: any }>("/admin/office/cases", {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function assignOfficeCase(id: string, body: { assigned_to_user_id: string; note?: string }) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/cases/${id}/assign`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function replyOfficeCase(id: string, body: { body: string; visibility?: string }) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/cases/${id}/reply`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function resolveOfficeCase(id: string, body: { resolution_summary: string; close?: boolean }) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/cases/${id}/resolve`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function transitionOfficeCase(id: string, body: { status: string; note?: string }) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/cases/${id}/transition`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export async function createOfficeCaseLetter(id: string, body?: Record<string, unknown>) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/cases/${id}/create-letter`, {
+    method: "POST",
+    body: JSON.stringify(body || {}),
+  })
+}
+
+export async function issueOfficeCaseLetterhead(
+  id: string,
+  body?: {
+    subject?: string
+    body_html?: string
+    use_tenant_signatory?: boolean
+    signature?: string
+    role_label?: string
+  },
+) {
+  return apiFetch<{ success: boolean; message?: string; data: any }>(
+    `/admin/office/cases/${id}/issue-letterhead`,
+    {
+      method: "POST",
+      body: JSON.stringify(body || { use_tenant_signatory: true }),
+    },
+  )
+}
+
+export async function renderOfficeDocumentPdf(id: string) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/documents/${id}/render-pdf`, {
+    method: "POST",
+    body: JSON.stringify({}),
+  })
+}
+
+export async function uploadOfficeCaseAttachment(id: string, file: File) {
+  const form = new FormData()
+  form.append("file", file)
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/cases/${id}/attachments`, {
+    method: "POST",
+    body: form,
+  })
+}
+

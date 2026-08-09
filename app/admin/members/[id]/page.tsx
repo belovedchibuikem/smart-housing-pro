@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, Mail, Phone, MapPin, Calendar, CheckCircle, XCircle, AlertCircle, Upload, Download, Eye, Trash2, RefreshCw, User, Building, FileText, DollarSign, Pencil, Undo2, Home } from "lucide-react"
+import { ArrowLeft, Mail, Phone, MapPin, Calendar, CheckCircle, XCircle, AlertCircle, Upload, Download, Eye, Trash2, RefreshCw, User, Building, FileText, DollarSign, Pencil, Undo2, Home, KeyRound } from "lucide-react"
 import Link from "next/link"
 import {
   Dialog,
@@ -32,6 +32,7 @@ import { getAdminRefundMemberSummary } from "@/lib/api/client"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useTenantPermissions } from "@/components/admin/can-permission"
 import { MemberPropertiesSection } from "@/components/admin/member-properties-section"
+import { ResetPasswordDialog } from "@/components/admin/reset-password-dialog"
 
 const currencyFormatter = new Intl.NumberFormat("en-NG", {
   style: "currency",
@@ -65,6 +66,7 @@ export default function MemberDetailPage() {
   const [showReverseDialog, setShowReverseDialog] = useState(false)
   const [showDocumentUploadDialog, setShowDocumentUploadDialog] = useState(false)
   const [showDocumentViewDialog, setShowDocumentViewDialog] = useState(false)
+  const [showResetPassword, setShowResetPassword] = useState(false)
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
   const [openingKycIndex, setOpeningKycIndex] = useState<number | null>(null)
   
@@ -356,6 +358,12 @@ export default function MemberDetailPage() {
                 <Pencil className="h-4 w-4 mr-2" />
                 Edit
               </Link>
+            </Button>
+          )}
+          {can("reset_user_passwords") && (
+            <Button variant="outline" size="sm" onClick={() => setShowResetPassword(true)}>
+              <KeyRound className="h-4 w-4 mr-2" />
+              Reset password
             </Button>
           )}
           <Badge
@@ -1025,6 +1033,15 @@ export default function MemberDetailPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ResetPasswordDialog
+        open={showResetPassword}
+        onOpenChange={setShowResetPassword}
+        memberId={id}
+        userId={(member as any)?.user_id || (member as any)?.user?.id}
+        displayName={`${member.first_name || ""} ${member.last_name || ""}`.trim()}
+        email={member.email || (member as any)?.user?.email}
+      />
     </div>
   )
 }

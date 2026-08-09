@@ -5,6 +5,8 @@ export interface User {
   email: string
   phone: string
   status: 'active' | 'inactive' | 'suspended'
+  must_change_password?: boolean
+  password_changed_at?: string
   avatar_url?: string
   email_verified_at?: string
   last_login?: string
