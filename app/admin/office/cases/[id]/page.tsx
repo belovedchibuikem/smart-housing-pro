@@ -10,19 +10,34 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
 import {
   assignOfficeCase,
+  claimOfficeCase,
   createOfficeCaseLetter,
   downloadOfficeDocument,
+  escalateOfficeCase,
   getOfficeCase,
   getOfficeStaffUsers,
   issueOfficeCaseLetterhead,
   replyOfficeCase,
   resolveOfficeCase,
+  transitionOfficeCase,
   uploadOfficeCaseAttachment,
 } from "@/lib/api/office"
 import { ArrowLeft, Loader2 } from "lucide-react"
+
+const TRANSITION_STATUSES = [
+  "submitted",
+  "assigned",
+  "in_progress",
+  "awaiting_member",
+  "pending_signature",
+  "resolved",
+  "closed",
+  "rejected",
+]
 
 export default function OfficeCaseDetailPage() {
   const params = useParams()
@@ -35,6 +50,8 @@ export default function OfficeCaseDetailPage() {
   const [visibility, setVisibility] = useState("member")
   const [assignee, setAssignee] = useState("")
   const [resolution, setResolution] = useState("")
+  const [nextStatus, setNextStatus] = useState("")
+  const [applyDomainAction, setApplyDomainAction] = useState(false)
   const [busy, setBusy] = useState(false)
 
   const load = async () => {
@@ -46,6 +63,7 @@ export default function OfficeCaseDetailPage() {
       setStaff(users.data || [])
       setAssignee(res.data?.assigned_to_user_id || "")
       setResolution(res.data?.resolution_summary || "")
+      setNextStatus(res.data?.status || "")
     } catch (e: any) {
       toast({ title: "Failed to load case", description: e.message, variant: "destructive" })
     } finally {
@@ -79,6 +97,24 @@ export default function OfficeCaseDetailPage() {
   }
 
   const events = caseData.events || []
+  const openStatuses = ["submitted", "assigned", "in_progress", "awaiting_member", "pending_signature"]
+  const isOpen = openStatuses.includes(caseData.status)
+  const slaPaused = caseData.status === "awaiting_member"
+  const slaOverdue =
+    Boolean(caseData.due_at) &&
+    isOpen &&
+    !slaPaused &&
+    new Date(caseData.due_at).getTime() < Date.now()
+  const linkedDomain =
+    caseData.source_type ||
+    caseData.meta?.source_type ||
+    caseData.linked_entity_type ||
+    caseData.meta?.domain
+  const canApplyDomain =
+    Boolean(linkedDomain) &&
+    ["refund", "stoppage", "finance", "payment", "withdrawal"].some((k) =>
+      String(linkedDomain).toLowerCase().includes(k),
+    )
 
   return (
     <div className="space-y-6">
@@ -93,6 +129,11 @@ export default function OfficeCaseDetailPage() {
             <h1 className="text-2xl font-bold">{caseData.case_number}</h1>
             <Badge>{caseData.status}</Badge>
             <Badge variant="outline">{caseData.case_type}</Badge>
+            {slaOverdue ? <Badge variant="destructive">SLA overdue</Badge> : null}
+            {slaPaused ? <Badge variant="outline">SLA paused</Badge> : null}
+            {caseData.priority && caseData.priority !== "normal" ? (
+              <Badge variant="secondary">Priority: {caseData.priority}</Badge>
+            ) : null}
           </div>
           <p className="text-muted-foreground">{caseData.subject}</p>
           <p className="text-sm mt-1">
@@ -101,6 +142,13 @@ export default function OfficeCaseDetailPage() {
               ? `${caseData.assignee.first_name || ""} ${caseData.assignee.last_name || ""}`.trim()
               : "Unassigned"}
             {caseData.owning_org_unit?.name ? ` · Desk: ${caseData.owning_org_unit.name}` : ""}
+          </p>
+          <p className="text-sm text-muted-foreground mt-1">
+            Due:{" "}
+            <span className={slaOverdue ? "text-destructive font-medium" : undefined}>
+              {caseData.due_at ? new Date(caseData.due_at).toLocaleString() : "—"}
+            </span>
+            {slaPaused ? " (clock paused while awaiting member)" : ""}
           </p>
         </div>
       </div>
@@ -135,6 +183,69 @@ export default function OfficeCaseDetailPage() {
         </Card>
 
         <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Status</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Select value={nextStatus} onValueChange={setNextStatus}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TRANSITION_STATUSES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s.replace(/_/g, " ")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                className="w-full"
+                variant="secondary"
+                disabled={busy || !nextStatus || nextStatus === caseData.status}
+                onClick={() =>
+                  run(async () => {
+                    await transitionOfficeCase(id, { status: nextStatus })
+                    toast({ title: "Status updated" })
+                  })
+                }
+              >
+                Update status
+              </Button>
+              <div className="grid grid-cols-2 gap-2">
+                {!caseData.assigned_to_user_id && isOpen ? (
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() =>
+                      run(async () => {
+                        await claimOfficeCase(id)
+                        toast({ title: "Case claimed" })
+                      })
+                    }
+                  >
+                    Claim
+                  </Button>
+                ) : null}
+                {isOpen ? (
+                  <Button
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() =>
+                      run(async () => {
+                        await escalateOfficeCase(id, { reassign_to_head: true })
+                        toast({ title: "Case escalated" })
+                      })
+                    }
+                  >
+                    Escalate
+                  </Button>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Assign</CardTitle>
@@ -232,8 +343,8 @@ export default function OfficeCaseDetailPage() {
                     toast({
                       title: "Letterhead document issued",
                       description: ref
-                        ? `${ref} — printed on tenant letterhead with signature and sent to member.`
-                        : "Branded PDF issued to member digital file.",
+                        ? `${ref} — issued without workflow approval (audited).`
+                        : "Branded PDF issued (audited bypass of case_letter workflow).",
                     })
                   })
                 }
@@ -241,7 +352,7 @@ export default function OfficeCaseDetailPage() {
                 Issue / print on letterhead &amp; send
               </Button>
               <p className="text-xs text-muted-foreground">
-                Uses the cooperative letterhead (logo, seal, footer) and official signature from Document Issuing → Letterhead settings. Member receives it in My Digital File.
+                Direct letterhead issue is audited as issued without workflow approval. Prefer Create letter draft when multi-step approval is required.
               </p>
               <div>
                 <Label>Upload schedule / attachment</Label>
@@ -305,13 +416,33 @@ export default function OfficeCaseDetailPage() {
                 value={resolution}
                 onChange={(e) => setResolution(e.target.value)}
               />
+              {canApplyDomain ? (
+                <label className="flex items-start gap-2 text-sm">
+                  <Checkbox
+                    checked={applyDomainAction}
+                    onCheckedChange={(v) => setApplyDomainAction(v === true)}
+                  />
+                  <span>
+                    Also apply domain finance action (e.g. approve linked refund). Leave unchecked to close the case only — no silent money mutation.
+                  </span>
+                </label>
+              ) : null}
               <Button
                 className="w-full"
                 disabled={busy || !resolution.trim()}
                 onClick={() =>
                   run(async () => {
-                    await resolveOfficeCase(id, { resolution_summary: resolution, close: true })
-                    toast({ title: "Case resolved and closed" })
+                    await resolveOfficeCase(id, {
+                      resolution_summary: resolution,
+                      close: true,
+                      apply_domain_action: applyDomainAction || undefined,
+                    })
+                    toast({
+                      title: "Case resolved and closed",
+                      description: applyDomainAction
+                        ? "Domain action was requested explicitly."
+                        : "Case closed without mutating finance.",
+                    })
                   })
                 }
               >

@@ -161,9 +161,12 @@ export async function updateOfficeTemplate(id: string, body: Record<string, unkn
 }
 
 export async function getOfficeStaffUsers(q?: string) {
-  return apiFetch<{ success: boolean; data: Array<{ id: string; name: string; email: string }> }>(
-    `/admin/office/staff-users${toQuery({ q })}`
-  )
+  return apiFetch<{
+    success: boolean
+    data: Array<{ id: string; name: string; email: string; first_name?: string; last_name?: string; roles?: string[] }>
+    highest_admin?: { id: string; name: string; email: string; roles?: string[] } | null
+    current_user?: { id: string; name: string; email: string } | null
+  }>(`/admin/office/staff-users${toQuery({ q })}`)
 }
 
 export async function uploadOfficeAttachment(documentId: string, file: File) {
@@ -363,6 +366,23 @@ export async function assignOfficeCase(id: string, body: { assigned_to_user_id: 
   })
 }
 
+export async function claimOfficeCase(id: string, body?: { note?: string }) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/cases/${id}/claim`, {
+    method: "POST",
+    body: body || {},
+  })
+}
+
+export async function escalateOfficeCase(
+  id: string,
+  body?: { note?: string; reassign_to_head?: boolean },
+) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/cases/${id}/escalate`, {
+    method: "POST",
+    body: body || {},
+  })
+}
+
 export async function replyOfficeCase(id: string, body: { body: string; visibility?: string }) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/cases/${id}/reply`, {
     method: "POST",
@@ -370,7 +390,10 @@ export async function replyOfficeCase(id: string, body: { body: string; visibili
   })
 }
 
-export async function resolveOfficeCase(id: string, body: { resolution_summary: string; close?: boolean }) {
+export async function resolveOfficeCase(
+  id: string,
+  body: { resolution_summary: string; close?: boolean; apply_domain_action?: boolean },
+) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/cases/${id}/resolve`, {
     method: "POST",
     body: body,
@@ -381,6 +404,17 @@ export async function transitionOfficeCase(id: string, body: { status: string; n
   return apiFetch<{ success: boolean; data: any }>(`/admin/office/cases/${id}/transition`, {
     method: "POST",
     body: body,
+  })
+}
+
+export async function getOfficeCaseSlaSettings() {
+  return apiFetch<{ success: boolean; data: any }>("/admin/office/cases/sla-settings")
+}
+
+export async function updateOfficeCaseSlaSettings(hours: Record<string, number>) {
+  return apiFetch<{ success: boolean; data: any }>("/admin/office/cases/sla-settings", {
+    method: "PUT",
+    body: { hours },
   })
 }
 

@@ -1,43 +1,82 @@
 "use client"
 
+import { useEffect, useState } from "react"
+import { useParams, useRouter } from "next/navigation"
+import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, Reply, Forward, Trash2, Archive, Star } from "lucide-react"
-import Link from "next/link"
+import { ArrowLeft, Reply, Forward, Loader2, Briefcase } from "lucide-react"
 import { Can } from "@/components/admin/can-permission"
+import { getMessage } from "@/lib/api/client"
+import { convertMailToOfficeCase } from "@/lib/api/office"
+import { useToast } from "@/hooks/use-toast"
 
-export default function AdminMessageDetailPage({ params }: { params: { id: string } }) {
-  // Mock data - replace with actual data fetching
-  const message = {
-    id: params.id,
-    from: "John Doe",
-    fromEmail: "john.doe@example.com",
-    to: "FRSC Housing Admin",
-    subject: "Property Payment Inquiry",
-    date: "January 12, 2024",
-    time: "10:30 AM",
-    category: "Property",
-    isStarred: false,
-    content: `Dear FRSC Housing Team,
+export default function AdminMessageDetailPage() {
+  const params = useParams()
+  const id = typeof params?.id === "string" ? params.id : ""
+  const router = useRouter()
+  const { toast } = useToast()
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState<any>(null)
 
-I hope this message finds you well. I am writing to inquire about the payment schedule for the property I recently expressed interest in (Property ID: APO-2024-001).
+  useEffect(() => {
+    if (!id) return
+    ;(async () => {
+      try {
+        setLoading(true)
+        const res = await getMessage(id)
+        setMessage(res.data)
+      } catch (e: any) {
+        toast({ title: "Failed to load message", description: e.message, variant: "destructive" })
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [id])
 
-I would like to know:
-1. What are the available payment options?
-2. Can I use a combination of cash and cooperative deduction?
-3. What is the timeline for completing the payment?
-4. Are there any additional fees I should be aware of?
-
-I am very interested in proceeding with this property and would appreciate your guidance on the next steps.
-
-Thank you for your assistance.
-
-Best regards,
-John Doe
-Member ID: FRSC-2024-1234`,
+  const convertToCase = async () => {
+    if (!id) return
+    setBusy(true)
+    try {
+      const res = await convertMailToOfficeCase(id)
+      toast({
+        title: "Converted to case",
+        description: res.data?.case_number || res.message,
+      })
+      const caseId = res.data?.case_id
+      if (caseId) router.push(`/admin/office/cases/${caseId}`)
+    } catch (e: any) {
+      toast({ title: "Convert failed", description: e.message, variant: "destructive" })
+    } finally {
+      setBusy(false)
+    }
   }
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-2 p-6 text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin" /> Loading message…
+      </div>
+    )
+  }
+
+  if (!message) {
+    return (
+      <div className="space-y-4 p-6">
+        <Button variant="ghost" asChild>
+          <Link href="/admin/mail-service/inbox">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to inbox
+          </Link>
+        </Button>
+        <p>Message not found.</p>
+      </div>
+    )
+  }
+
+  const body = message.content || message.preview || message.body || ""
 
   return (
     <div className="space-y-6">
@@ -48,18 +87,13 @@ Member ID: FRSC-2024-1234`,
           </Link>
         </Button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold">{message.subject}</h1>
+          <h1 className="text-2xl font-bold">{message.subject || "(No subject)"}</h1>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="icon">
-            <Star className={message.isStarred ? "fill-yellow-400 text-yellow-400" : ""} />
-          </Button>
-          <Button variant="outline" size="icon">
-            <Archive className="h-4 w-4" />
-          </Button>
-          <Can permission="delete_mail">
-            <Button variant="outline" size="icon">
-              <Trash2 className="h-4 w-4" />
+        <div className="flex flex-wrap gap-2">
+          <Can permission="view_office_cases|manage_office_cases|create_office_cases">
+            <Button variant="secondary" disabled={busy} onClick={convertToCase}>
+              {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Briefcase className="mr-2 h-4 w-4" />}
+              Convert to case
             </Button>
           </Can>
         </div>
@@ -67,26 +101,37 @@ Member ID: FRSC-2024-1234`,
 
       <Card>
         <CardHeader>
-          <div className="flex items-start justify-between">
+          <div className="flex items-start justify-between gap-4">
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <CardTitle className="text-lg">{message.from}</CardTitle>
-                <Badge variant="outline">{message.category}</Badge>
+              <div className="flex flex-wrap items-center gap-2">
+                <CardTitle className="text-lg">{message.from || "Unknown"}</CardTitle>
+                {message.category ? <Badge variant="outline">{message.category}</Badge> : null}
+                {message.is_urgent ? <Badge variant="destructive">Urgent</Badge> : null}
               </div>
-              <p className="text-sm text-muted-foreground">{message.fromEmail}</p>
+              <p className="text-sm text-muted-foreground">{message.from_email}</p>
               <p className="text-sm text-muted-foreground">To: {message.to}</p>
             </div>
-            <div className="text-right">
-              <p className="text-sm font-medium">{message.date}</p>
-              <p className="text-sm text-muted-foreground">{message.time}</p>
+            <div className="text-right text-sm">
+              <p className="font-medium">{message.date}</p>
+              <p className="text-muted-foreground">{message.time}</p>
             </div>
           </div>
         </CardHeader>
         <Separator />
         <CardContent className="pt-6">
           <div className="prose prose-sm max-w-none">
-            <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">{message.content}</pre>
+            <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">{body}</pre>
           </div>
+          {(message.attachments || []).length > 0 ? (
+            <div className="mt-6 space-y-2">
+              <p className="text-sm font-medium">Attachments</p>
+              <ul className="text-sm text-muted-foreground">
+                {(message.attachments || []).map((a: any) => (
+                  <li key={a.id || a.name}>{a.name || a.original_name || "File"}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 

@@ -252,6 +252,44 @@ export default function OfficeDocumentDetailPage() {
         </div>
       </div>
 
+      {(doc.from_user || (doc.recipients || []).length > 0) && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Routing</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-2 text-sm sm:grid-cols-2">
+            <div>
+              <span className="text-muted-foreground">From: </span>
+              {doc.from_user?.name || doc.creator?.name || "—"}
+            </div>
+            <div>
+              <span className="text-muted-foreground">To: </span>
+              {(doc.recipients || [])
+                .filter((r: any) => r.role === "to")
+                .map((r: any) => r.display_name || r.user?.name)
+                .filter(Boolean)
+                .join("; ") || "—"}
+            </div>
+            <div>
+              <span className="text-muted-foreground">CC: </span>
+              {(doc.recipients || [])
+                .filter((r: any) => r.role === "cc")
+                .map((r: any) => r.display_name || r.user?.name)
+                .filter(Boolean)
+                .join("; ") || "—"}
+            </div>
+            <div>
+              <span className="text-muted-foreground">BCC: </span>
+              {(doc.recipients || [])
+                .filter((r: any) => r.role === "bcc")
+                .map((r: any) => r.display_name || r.user?.name)
+                .filter(Boolean)
+                .join("; ") || "—"}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {["draft", "returned"].includes(doc.status) && (
         <Card>
           <CardHeader>

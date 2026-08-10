@@ -3830,21 +3830,29 @@ export async function getAuditReports(params?: { date_range?: string; search?: s
 export async function exportReport(type: string, params?: Record<string, any>) {
 	const query = new URLSearchParams()
 	query.set("type", type)
-	query.set("format", "csv")
+	const format = String(params?.format || "csv").toLowerCase()
+	query.set("format", format === "excel" ? "xlsx" : format)
 	if (params) {
 		Object.entries(params).forEach(([key, value]) => {
-			if (value) query.set(key, String(value))
+			if (key === "format") return
+			if (value !== undefined && value !== null && value !== "") {
+				query.set(key, String(value))
+			}
 		})
 	}
 	
 	const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
 	const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '/api'
+	const accept =
+		format === "xlsx" || format === "excel"
+			? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+			: "text/csv"
 	
 	try {
 		const response = await fetch(`${apiUrl}/admin/reports/export?${query.toString()}`, {
 			method: 'POST',
 			headers: {
-				'Accept': 'text/csv',
+				'Accept': accept,
 				...(token && { 'Authorization': `Bearer ${token}` }),
 			},
 		})
@@ -3856,10 +3864,11 @@ export async function exportReport(type: string, params?: Record<string, any>) {
 		
 		const blob = await response.blob()
 		const contentDisposition = response.headers.get('content-disposition')
-		let filename = `${type}_${new Date().toISOString().split('T')[0]}.csv`
+		const ext = format === "xlsx" || format === "excel" ? "xlsx" : "csv"
+		let filename = `${type}_${new Date().toISOString().split('T')[0]}.${ext}`
 		
 		if (contentDisposition) {
-			const filenameMatch = contentDisposition.match(/filename="(.+)"/)
+			const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/)
 			if (filenameMatch) {
 				filename = filenameMatch[1]
 			}

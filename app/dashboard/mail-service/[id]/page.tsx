@@ -1,53 +1,62 @@
 "use client"
 
+import { useEffect, useState } from "react"
+import { useParams } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, Reply, Forward, Trash2, Download } from "lucide-react"
-import Link from "next/link"
+import { ArrowLeft, Reply, Forward, Download, Loader2 } from "lucide-react"
+import { getMailMessage } from "@/lib/api/client"
+import { toast } from "sonner"
 
 export default function MessageDetailPage() {
-  const message = {
-    id: 1,
-    from: "Housing Admin",
-    to: "You",
-    subject: "New Investment Opportunity Available",
-    date: "January 15, 2024 at 10:30 AM",
-    category: "Investment",
-    content: `Dear Member,
+  const params = useParams()
+  const id = typeof params?.id === "string" ? params.id : ""
+  const [loading, setLoading] = useState(true)
+  const [message, setMessage] = useState<any>(null)
 
-We are pleased to announce a new investment opportunity for Q1 2024. This investment plan offers attractive returns and is designed to help our members grow their wealth while supporting the cooperative's housing projects.
+  useEffect(() => {
+    if (!id) return
+    ;(async () => {
+      try {
+        setLoading(true)
+        const res = await getMailMessage(id)
+        setMessage((res as any).mail || (res as any).data || res)
+      } catch (e: any) {
+        toast.error(e.message || "Failed to load message")
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [id])
 
-Investment Details:
-- Investment Plan: Housing Development Project Phase 3
-- Minimum Investment: ₦100,000
-- Maximum Investment: ₦5,000,000
-- Expected ROI: 15% per annum
-- Investment Window: January 15 - March 31, 2024
-- Moratorium Period: 6 months
-- ROI Payment Mode: Quarterly
-
-Key Features:
-1. Multiple investment installments allowed
-2. Investment certificate issued upon completion
-3. Secure and transparent investment tracking
-4. Regular updates on project progress
-
-You can invest using your contribution balance or make direct payments through any of our supported payment gateways (Paystack, Remita, Bank Transfer, USSD, or Wallet).
-
-To participate in this investment opportunity, please visit the Properties & Investments section of your dashboard.
-
-For any questions or clarifications, please feel free to reply to this message.
-
-Best regards,
-FRSC Housing Cooperative
-Housing Admin Department`,
-    attachments: [
-      { name: "Investment_Plan_Details.pdf", size: "245 KB" },
-      { name: "Project_Overview.pdf", size: "1.2 MB" },
-    ],
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center gap-2 py-20 text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin" /> Loading…
+      </div>
+    )
   }
+
+  if (!message) {
+    return (
+      <div className="space-y-4 p-6">
+        <Link href="/dashboard/mail-service/inbox">
+          <Button variant="ghost">
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back
+          </Button>
+        </Link>
+        <p>Message not found.</p>
+      </div>
+    )
+  }
+
+  const subject = message.subject || "(No subject)"
+  const from = message.from || message.sender_name || message.sender?.name || "Sender"
+  const body = message.content || message.body || message.preview || ""
+  const attachments = message.attachments || []
 
   return (
     <div className="space-y-6">
@@ -58,76 +67,54 @@ Housing Admin Department`,
           </Button>
         </Link>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold">{message.subject}</h1>
+          <h1 className="text-2xl font-bold">{subject}</h1>
         </div>
-        <Button variant="ghost" size="icon">
-          <Trash2 className="h-5 w-5" />
-        </Button>
       </div>
 
       <Card className="p-6">
         <div className="space-y-4">
-          <div className="flex items-start justify-between">
+          <div className="flex items-start justify-between gap-4">
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <p className="font-semibold text-lg">{message.from}</p>
-                <Badge variant="outline">{message.category}</Badge>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="font-semibold text-lg">{from}</p>
+                {message.category ? <Badge variant="outline">{message.category}</Badge> : null}
               </div>
-              <p className="text-sm text-muted-foreground">To: {message.to}</p>
-              <p className="text-sm text-muted-foreground">{message.date}</p>
+              <p className="text-sm text-muted-foreground">
+                To: {message.to || "You"}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {message.date || message.sent_at || message.created_at || ""}
+              </p>
             </div>
           </div>
-
           <Separator />
-
-          <div className="prose prose-sm max-w-none">
-            <div className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</div>
-          </div>
-
-          {message.attachments.length > 0 && (
-            <>
-              <Separator />
-              <div>
-                <p className="text-sm font-medium mb-3">Attachments ({message.attachments.length})</p>
-                <div className="space-y-2">
-                  {message.attachments.map((attachment, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 rounded-lg border bg-accent/50">
-                      <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded bg-primary/10 flex items-center justify-center">
-                          <Download className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium">{attachment.name}</p>
-                          <p className="text-xs text-muted-foreground">{attachment.size}</p>
-                        </div>
-                      </div>
-                      <Button variant="outline" size="sm">
-                        <Download className="h-4 w-4 mr-2" />
-                        Download
-                      </Button>
-                    </div>
-                  ))}
+          <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed">{body}</pre>
+          {attachments.length > 0 ? (
+            <div className="space-y-2 pt-2">
+              <p className="text-sm font-medium">Attachments</p>
+              {attachments.map((a: any) => (
+                <div key={a.id || a.name} className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Download className="h-4 w-4" />
+                  {a.name || a.original_name || "Attachment"}
                 </div>
-              </div>
-            </>
-          )}
-
-          <Separator />
-
-          <div className="flex gap-3">
-            <Link href="/dashboard/mail-service/compose">
-              <Button>
-                <Reply className="h-4 w-4 mr-2" />
-                Reply
-              </Button>
-            </Link>
-            <Button variant="outline">
-              <Forward className="h-4 w-4 mr-2" />
-              Forward
-            </Button>
-          </div>
+              ))}
+            </div>
+          ) : null}
         </div>
       </Card>
+
+      <div className="flex gap-2">
+        <Button asChild>
+          <Link href={`/dashboard/mail-service/compose?reply=${id}`}>
+            <Reply className="mr-2 h-4 w-4" /> Reply
+          </Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link href={`/dashboard/mail-service/compose?forward=${id}`}>
+            <Forward className="mr-2 h-4 w-4" /> Forward
+          </Link>
+        </Button>
+      </div>
     </div>
   )
 }

@@ -10,7 +10,12 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
-import { createOfficeCase, getOfficeCases, getOfficeStaffUsers } from "@/lib/api/office"
+import {
+  claimOfficeCase,
+  createOfficeCase,
+  getOfficeCases,
+  getOfficeStaffUsers,
+} from "@/lib/api/office"
 import { Loader2, Plus } from "lucide-react"
 import {
   Dialog,
@@ -62,8 +67,10 @@ export default function OfficeCasesPage({
   const [caseType, setCaseType] = useState(defaultCaseType || "all")
   const [q, setQ] = useState("")
   const [overdueOnly, setOverdueOnly] = useState(false)
+  const [unassignedOnly, setUnassignedOnly] = useState(false)
   const [showNew, setShowNew] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [claimingId, setClaimingId] = useState<string | null>(null)
   const [staff, setStaff] = useState<any[]>([])
   const [form, setForm] = useState({
     case_type: defaultCaseType || "general",
@@ -74,6 +81,12 @@ export default function OfficeCasesPage({
     priority: "normal",
   })
 
+  const isSlaOverdue = (row: any) => {
+    if (!row?.due_at) return false
+    if (["resolved", "closed", "awaiting_member"].includes(row.status)) return false
+    return new Date(row.due_at).getTime() < Date.now()
+  }
+
   const load = async () => {
     try {
       setLoading(true)
@@ -83,6 +96,7 @@ export default function OfficeCasesPage({
         case_type: caseType === "all" ? undefined : caseType,
         org_unit_code: forcedOrg,
         overdue: overdueOnly ? 1 : undefined,
+        unassigned: unassignedOnly ? 1 : undefined,
         q: q || undefined,
       })
       setRows(res.data?.data || res.data || [])
@@ -99,7 +113,20 @@ export default function OfficeCasesPage({
       .then((r) => setStaff(r.data || []))
       .catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, caseType, overdueOnly, forcedOrg])
+  }, [status, caseType, overdueOnly, unassignedOnly, forcedOrg])
+
+  const handleClaim = async (caseId: string) => {
+    setClaimingId(caseId)
+    try {
+      await claimOfficeCase(caseId)
+      toast({ title: "Case claimed" })
+      await load()
+    } catch (e: any) {
+      toast({ title: "Claim failed", description: e.message, variant: "destructive" })
+    } finally {
+      setClaimingId(null)
+    }
+  }
 
   const handleCreate = async () => {
     if (!form.subject.trim()) {
@@ -134,10 +161,15 @@ export default function OfficeCasesPage({
           <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
           <p className="text-muted-foreground">{description}</p>
         </div>
-        <Button onClick={() => setShowNew(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          New case
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/admin/office/cases/sla">SLA settings</Link>
+          </Button>
+          <Button onClick={() => setShowNew(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New case
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -183,6 +215,12 @@ export default function OfficeCasesPage({
           <Button variant={overdueOnly ? "default" : "outline"} onClick={() => setOverdueOnly((v) => !v)}>
             Overdue SLA
           </Button>
+          <Button
+            variant={unassignedOnly ? "default" : "outline"}
+            onClick={() => setUnassignedOnly((v) => !v)}
+          >
+            Unassigned
+          </Button>
           <Button variant="secondary" onClick={load}>
             Apply
           </Button>
@@ -204,43 +242,77 @@ export default function OfficeCasesPage({
                   <TableHead>Status</TableHead>
                   <TableHead>Member</TableHead>
                   <TableHead>Attending</TableHead>
-                  <TableHead>Due</TableHead>
+                  <TableHead>Due / SLA</TableHead>
+                  <TableHead className="w-[100px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
                       No cases found
                     </TableCell>
                   </TableRow>
                 ) : (
-                  rows.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell>
-                        <Link className="font-medium text-primary hover:underline" href={`/admin/office/cases/${row.id}`}>
-                          {row.display_reference || `CS-${row.case_number}`}
-                        </Link>
-                        <div className="text-xs text-muted-foreground truncate max-w-[220px]">{row.subject}</div>
-                        <div className="text-sm text-muted-foreground line-clamp-1">{row.subject}</div>
-                      </TableCell>
-                      <TableCell>{TYPE_LABELS[row.case_type] || row.case_type}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{row.status}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        {row.member?.user
-                          ? `${row.member.user.first_name || ""} ${row.member.user.last_name || ""}`.trim()
-                          : row.member?.member_number || "—"}
-                      </TableCell>
-                      <TableCell>
-                        {row.assignee
-                          ? `${row.assignee.first_name || ""} ${row.assignee.last_name || ""}`.trim()
-                          : "Unassigned"}
-                      </TableCell>
-                      <TableCell>{row.due_at ? new Date(row.due_at).toLocaleDateString() : "—"}</TableCell>
-                    </TableRow>
-                  ))
+                  rows.map((row) => {
+                    const overdue = isSlaOverdue(row)
+                    const paused = row.status === "awaiting_member"
+                    return (
+                      <TableRow key={row.id} className={overdue ? "bg-destructive/5" : undefined}>
+                        <TableCell>
+                          <Link
+                            className="font-medium text-primary hover:underline"
+                            href={`/admin/office/cases/${row.id}`}
+                          >
+                            {row.display_reference || `CS-${row.case_number}`}
+                          </Link>
+                          <div className="text-xs text-muted-foreground truncate max-w-[220px]">
+                            {row.subject}
+                          </div>
+                        </TableCell>
+                        <TableCell>{TYPE_LABELS[row.case_type] || row.case_type}</TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">{row.status}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {row.member?.user
+                            ? `${row.member.user.first_name || ""} ${row.member.user.last_name || ""}`.trim()
+                            : row.member?.member_number || "—"}
+                        </TableCell>
+                        <TableCell>
+                          {row.assignee
+                            ? `${row.assignee.first_name || ""} ${row.assignee.last_name || ""}`.trim()
+                            : "Unassigned"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap items-center gap-1">
+                            <span className={overdue ? "text-destructive font-medium" : undefined}>
+                              {row.due_at ? new Date(row.due_at).toLocaleDateString() : "—"}
+                            </span>
+                            {overdue ? <Badge variant="destructive">Overdue</Badge> : null}
+                            {paused ? <Badge variant="outline">SLA paused</Badge> : null}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {!row.assigned_to_user_id &&
+                          !["resolved", "closed"].includes(row.status) ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={claimingId === row.id}
+                              onClick={() => handleClaim(row.id)}
+                            >
+                              {claimingId === row.id ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                              ) : (
+                                "Claim"
+                              )}
+                            </Button>
+                          ) : null}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })
                 )}
               </TableBody>
             </Table>
