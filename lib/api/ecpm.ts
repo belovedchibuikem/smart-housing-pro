@@ -129,6 +129,44 @@ export async function listEcpmDrawings(params?: Query) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/ecpm/drawings${toQuery(params)}`)
 }
 
+export async function uploadEcpmDrawing(fields: {
+  project_id: string
+  title: string
+  file: File
+  drawing_number?: string
+  discipline?: string
+  description?: string
+  change_notes?: string
+}) {
+  const form = new FormData()
+  form.append("project_id", fields.project_id)
+  form.append("title", fields.title)
+  form.append("file", fields.file)
+  if (fields.drawing_number) form.append("drawing_number", fields.drawing_number)
+  if (fields.discipline) form.append("discipline", fields.discipline)
+  if (fields.description) form.append("description", fields.description)
+  if (fields.change_notes) form.append("change_notes", fields.change_notes)
+
+  return apiFetch<{ success: boolean; data: any }>("/admin/ecpm/drawings", {
+    method: "POST",
+    body: form,
+  })
+}
+
+export async function reviseEcpmDrawing(
+  id: string,
+  fields: { file: File; change_notes?: string },
+) {
+  const form = new FormData()
+  form.append("file", fields.file)
+  if (fields.change_notes) form.append("change_notes", fields.change_notes)
+
+  return apiFetch<{ success: boolean; data: any }>(`/admin/ecpm/drawings/${id}/revise`, {
+    method: "POST",
+    body: form,
+  })
+}
+
 export async function listEcpmApprovals(params?: Query) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/ecpm/approvals${toQuery(params)}`)
 }
