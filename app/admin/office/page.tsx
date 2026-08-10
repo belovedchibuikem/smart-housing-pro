@@ -41,7 +41,7 @@ export default function OfficeHubPage() {
   const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [bootstrapping, setBootstrapping] = useState(false)
-  const [data, setData] = useState<Record<string, number> | null>(null)
+  const [data, setData] = useState<Record<string, any> | null>(null)
 
   const load = async () => {
     try {
@@ -85,7 +85,7 @@ export default function OfficeHubPage() {
             Digital Office
           </h1>
           <p className="text-muted-foreground mt-1 max-w-2xl">
-            Enterprise Office Automation &amp; EDMS — create, route, minute, approve, sign, and archive documents.
+            Operational command centre — cases, document workflows, departments, and member service in one place.
           </p>
         </div>
         <Button onClick={handleBootstrap} disabled={bootstrapping}>
@@ -99,25 +99,52 @@ export default function OfficeHubPage() {
           <Loader2 className="h-4 w-4 animate-spin" /> Loading dashboard…
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            ["Pending tasks", data?.pending_tasks],
-            ["My drafts", data?.drafts],
-            ["Returned", data?.returned],
-            ["Open minute actions", data?.open_minute_actions],
-            ["In review (tenant)", data?.in_review],
-            ["Approved / issued", data?.approved],
-            ["Archived", data?.archived],
-            ["Org units", data?.org_units],
-          ].map(([label, value]) => (
-            <Card key={String(label)}>
-              <CardHeader className="pb-2">
-                <CardDescription>{label}</CardDescription>
-                <CardTitle className="text-3xl">{value ?? 0}</CardTitle>
-              </CardHeader>
-            </Card>
-          ))}
-        </div>
+        <>
+          <div>
+            <h2 className="text-sm font-semibold text-muted-foreground mb-3">Case operations</h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                ["Open cases", data?.cases_open],
+                ["Assigned to me", data?.cases_assigned_to_me],
+                ["Unassigned queue", data?.cases_unassigned],
+                ["Overdue SLA", data?.cases_overdue],
+                ["Awaiting member", data?.cases_awaiting_member],
+                ["Pending signature", data?.cases_pending_signature],
+                ["Due today", data?.cases_due_today],
+                ["Org units", data?.org_units],
+              ].map(([label, value]) => (
+                <Card key={String(label)}>
+                  <CardHeader className="pb-2">
+                    <CardDescription>{label}</CardDescription>
+                    <CardTitle className="text-3xl">{value ?? 0}</CardTitle>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-muted-foreground mb-3">Document workflows</h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {[
+                ["Pending tasks", data?.pending_tasks],
+                ["My drafts", data?.drafts],
+                ["Returned", data?.returned],
+                ["Open minute actions", data?.open_minute_actions],
+                ["In review (tenant)", data?.in_review],
+                ["Approved / issued", data?.approved],
+                ["Archived", data?.archived],
+                ["Overdue actions", data?.overdue_actions],
+              ].map(([label, value]) => (
+                <Card key={String(label)}>
+                  <CardHeader className="pb-2">
+                    <CardDescription>{label}</CardDescription>
+                    <CardTitle className="text-3xl">{value ?? 0}</CardTitle>
+                  </CardHeader>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </>
       )}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

@@ -51,10 +51,63 @@ export default function OfficeTasksPage() {
     <div className="space-y-6 p-6">
       <div>
         <h1 className="text-2xl font-semibold">My Tasks</h1>
-        <p className="text-muted-foreground">Pending reviews, minute actions, drafts, and overdue items.</p>
+        <p className="text-muted-foreground">
+          Awaiting your action — document reviews, assigned cases, minute actions, and drafts.
+        </p>
       </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Awaiting my action</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {(data?.awaiting_my_action || []).length === 0 && (
+            <p className="text-sm text-muted-foreground">Nothing waiting on you right now.</p>
+          )}
+          {(data?.awaiting_my_action || []).map((item: any) => (
+            <Link
+              key={`${item.kind}-${item.id}`}
+              href={item.href}
+              className="block rounded border p-3 text-sm hover:bg-muted/40"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="font-medium truncate">{item.title}</div>
+                <span className="text-xs text-muted-foreground shrink-0">
+                  {item.kind === "office_case" ? "Case" : "Document"}
+                </span>
+              </div>
+              <div className="text-muted-foreground">{item.subtitle}</div>
+            </Link>
+          ))}
+        </CardContent>
+      </Card>
+
       <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Assigned cases</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {(data?.assigned_cases || []).length === 0 && (
+              <p className="text-sm text-muted-foreground">None</p>
+            )}
+            {(data?.assigned_cases || []).map((c: any) => (
+              <Link
+                key={c.id}
+                href={`/admin/office/cases/${c.id}`}
+                className="block rounded border p-3 text-sm hover:bg-muted/40"
+              >
+                <div className="font-medium">{c.case_number}</div>
+                <div className="text-muted-foreground">{c.subject}</div>
+                <div className="text-xs mt-1">
+                  {c.status}
+                  {c.due_at ? ` · due ${String(c.due_at).slice(0, 10)}` : ""}
+                </div>
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Pending reviews / approvals</CardTitle>
@@ -66,7 +119,7 @@ export default function OfficeTasksPage() {
             {(data?.pending_reviews || []).map((t: any) => (
               <Link
                 key={t.id}
-                href={`/admin/office/documents/${t.office_document_id}`}
+                href={`/admin/office/documents/${t.office_document_id || t.document?.id}`}
                 className="block rounded border p-3 text-sm hover:bg-muted/40"
               >
                 <div className="font-medium">{t.document?.reference_number}</div>
@@ -93,7 +146,7 @@ export default function OfficeTasksPage() {
                   {a.deadline ? ` · due ${new Date(a.deadline).toLocaleDateString()}` : ""}
                 </div>
                 <div className="mt-2 flex gap-2">
-                  <Link href={`/admin/office/documents/${a.office_document_id}`}>
+                  <Link href={`/admin/office/documents/${a.office_document_id || a.document?.id}`}>
                     <Button size="sm" variant="outline">
                       Open
                     </Button>

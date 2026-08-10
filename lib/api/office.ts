@@ -426,3 +426,11 @@ export async function uploadOfficeCaseAttachment(id: string, file: File) {
   })
 }
 
+/** Promote a mail thread into an OfficeCase (also files to registry). */
+export async function convertMailToOfficeCase(mailId: string) {
+  return apiFetch<{ success: boolean; message?: string; data: any }>(
+    `/admin/mail-service/${mailId}/convert-to-case`,
+    { method: "POST", body: {} },
+  )
+}
+

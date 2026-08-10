@@ -30,6 +30,13 @@ const TYPE_LABELS: Record<string, string> = {
   schedule: "Schedule",
   general: "General",
   other: "Other",
+  technical: "Technical Issue",
+  property: "Housing / Property",
+  finance: "Finance / Payment",
+  investment: "Investment",
+  document: "Document",
+  account: "Account / Membership",
+  enquiry: "General Enquiry",
 }
 
 type Props = {
@@ -212,8 +219,9 @@ export default function OfficeCasesPage({
                     <TableRow key={row.id}>
                       <TableCell>
                         <Link className="font-medium text-primary hover:underline" href={`/admin/office/cases/${row.id}`}>
-                          {row.case_number}
+                          {row.display_reference || `CS-${row.case_number}`}
                         </Link>
+                        <div className="text-xs text-muted-foreground truncate max-w-[220px]">{row.subject}</div>
                         <div className="text-sm text-muted-foreground line-clamp-1">{row.subject}</div>
                       </TableCell>
                       <TableCell>{TYPE_LABELS[row.case_type] || row.case_type}</TableCell>

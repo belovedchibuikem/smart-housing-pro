@@ -27,7 +27,7 @@ export default function MyRequestsPage() {
   const [showNew, setShowNew] = useState(false)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState({
-    case_type: "general",
+    case_type: "enquiry",
     subject: "",
     body: "",
   })
@@ -58,7 +58,7 @@ export default function MyRequestsPage() {
       await createMemberOfficeCase(form)
       toast({ title: "Request submitted" })
       setShowNew(false)
-      setForm({ case_type: "general", subject: "", body: "" })
+      setForm({ case_type: "enquiry", subject: "", body: "" })
       load()
     } catch (e: any) {
       toast({ title: "Could not submit", description: e.message, variant: "destructive" })
@@ -100,7 +100,7 @@ export default function MyRequestsPage() {
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <CardTitle className="text-base">
                     <Link href={`/dashboard/requests/${row.id}`} className="hover:underline">
-                      {row.case_number}
+                      {row.display_reference || `CS-${row.case_number}`}
                     </Link>
                   </CardTitle>
                   <div className="flex gap-2">
@@ -150,12 +150,19 @@ export default function MyRequestsPage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="general">General</SelectItem>
+                  <SelectItem value="enquiry">General enquiry</SelectItem>
+                  <SelectItem value="technical">Technical issue</SelectItem>
+                  <SelectItem value="property">Housing / property</SelectItem>
+                  <SelectItem value="finance">Finance / payment</SelectItem>
+                  <SelectItem value="investment">Investment</SelectItem>
+                  <SelectItem value="document">Document</SelectItem>
+                  <SelectItem value="account">Account / membership</SelectItem>
+                  <SelectItem value="complaint">Complaint</SelectItem>
                   <SelectItem value="letter">Letter</SelectItem>
                   <SelectItem value="application">Application</SelectItem>
-                  <SelectItem value="complaint">Complaint</SelectItem>
                   <SelectItem value="stoppage_of_deduction">Stoppage of deduction</SelectItem>
                   <SelectItem value="schedule">Schedule</SelectItem>
+                  <SelectItem value="general">General</SelectItem>
                   <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
