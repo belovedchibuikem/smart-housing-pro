@@ -7,10 +7,11 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, UserPlus, Shield, Mail, Phone, Edit, Trash2, MoreHorizontal, User } from "lucide-react"
+import { Search, UserPlus, Shield, Mail, Phone, Edit, Trash2, MoreHorizontal, User, Download } from "lucide-react"
 import Link from "next/link"
 import { EditUserModal } from "@/components/admin/edit-user-modal"
 import { ResetPasswordDialog } from "@/components/admin/reset-password-dialog"
+import { AdminCredentialsDispatchDialog } from "@/components/admin/admin-credentials-dispatch-dialog"
 import { useUsers, useUserStats, useDeleteUser, useToggleUserStatus } from "@/lib/hooks/use-users"
 import { User as UserType } from "@/lib/types/user"
 import { toast } from "sonner"
@@ -42,6 +43,7 @@ export default function UsersPage() {
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null)
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null)
   const [resetUser, setResetUser] = useState<UserType | null>(null)
+  const [showCredentialsExport, setShowCredentialsExport] = useState(false)
 
   const { users, loading, error, pagination, refetch } = useUsers({
     search: searchQuery,
@@ -130,14 +132,22 @@ export default function UsersPage() {
           <h1 className="text-3xl font-bold text-foreground">Admin Users</h1>
           <p className="text-muted-foreground mt-1">Manage admin users and assign roles across the system</p>
         </div>
-        <Can permission="create_users">
-          <Button asChild>
-            <Link href="/admin/users/new">
-              <UserPlus className="h-4 w-4 mr-2" />
-              Add User
-            </Link>
-          </Button>
-        </Can>
+        <div className="flex flex-wrap gap-2">
+          <Can permission="reset_user_passwords">
+            <Button variant="outline" onClick={() => setShowCredentialsExport(true)}>
+              <Download className="h-4 w-4 mr-2" />
+              Export credentials
+            </Button>
+          </Can>
+          <Can permission="create_users">
+            <Button asChild>
+              <Link href="/admin/users/new">
+                <UserPlus className="h-4 w-4 mr-2" />
+                Add User
+              </Link>
+            </Button>
+          </Can>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -432,6 +442,16 @@ export default function UsersPage() {
         userId={resetUser?.id}
         displayName={resetUser ? `${resetUser.first_name} ${resetUser.last_name}` : undefined}
         email={resetUser?.email}
+      />
+
+      <AdminCredentialsDispatchDialog
+        open={showCredentialsExport}
+        onOpenChange={setShowCredentialsExport}
+        filters={{
+          search: searchQuery,
+          role: roleFilter,
+          status: statusFilter,
+        }}
       />
 
       {/* Delete Confirmation Dialog */}

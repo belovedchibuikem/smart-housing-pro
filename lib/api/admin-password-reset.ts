@@ -44,3 +44,43 @@ export async function adminSendMemberPasswordResetOtp(memberId: string) {
     { method: "POST", body: JSON.stringify({}) },
   )
 }
+
+export type AdminCredentialRow = {
+  user_id: string
+  name: string
+  email: string
+  phone?: string | null
+  roles: string
+  temporary_password: string
+}
+
+export async function exportAdminCredentialsDispatch(body: {
+  confirm: boolean
+  user_ids?: string[]
+  search?: string
+  role?: string
+  status?: string
+  format?: "json" | "csv"
+}) {
+  return apiFetch<{
+    success: boolean
+    message: string
+    data: {
+      tenant: string
+      login_url: string
+      generated_at: string
+      count: number
+      credentials: AdminCredentialRow[]
+    }
+  }>("/admin/users/credentials-dispatch", {
+    method: "POST",
+    body: {
+      confirm: body.confirm,
+      user_ids: body.user_ids,
+      search: body.search,
+      role: body.role,
+      status: body.status,
+      format: body.format || "json",
+    },
+  })
+}
