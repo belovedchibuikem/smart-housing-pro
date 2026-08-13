@@ -32,8 +32,13 @@ interface Loan {
       phone?: string
     }
   }
-  amount: number
-  interest_rate: number
+  product?: {
+    id?: string
+    name?: string
+    interest_rate?: number | string
+  }
+  amount: number | string
+  interest_rate: number | string
   duration_months: number
   type: string
   purpose?: string
@@ -42,6 +47,10 @@ interface Loan {
   approved_at?: string
   rejected_at?: string
   rejection_reason?: string
+  monthly_payment?: number | string | null
+  total_amount?: number | string | null
+  interest_amount?: number | string | null
+  processing_fee?: number | string | null
   repayments?: Array<{
     id: string
     amount: number
@@ -52,6 +61,12 @@ interface Loan {
     payment_method?: string
   }>
   created_at: string
+}
+
+const toNumber = (value: unknown): number => {
+  if (value === null || value === undefined || value === "") return 0
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : 0
 }
 
 export default function LoanDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -192,17 +207,32 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
     return 'N/A'
   }
 
-  const calculateMonthlyPayment = () => {
-    if (!loan || !loan.amount || !loan.duration_months || loan.duration_months === 0) return 0
-    const interest = loan.amount * (loan.interest_rate / 100)
-    const total = loan.amount + interest
-    return total / loan.duration_months
+  // Prefer values persisted at application time; fall back to flat tenure interest
+  // (principal × rate once, then ÷ months). Always coerce decimals — Laravel sends strings.
+  const getLoanAmount = () => toNumber(loan?.amount)
+  const getInterestRate = () => {
+    const rate = toNumber(loan?.interest_rate)
+    if (rate > 0) return rate
+    return toNumber(loan?.product?.interest_rate)
   }
+  const getTenureMonths = () => Math.max(0, Number(loan?.duration_months ?? 0))
 
   const calculateTotalRepayment = () => {
-    if (!loan || !loan.amount) return 0
-    const interest = loan.amount * (loan.interest_rate / 100)
-    return loan.amount + interest
+    if (!loan) return 0
+    const stored = toNumber(loan.total_amount)
+    if (stored > 0) return stored
+    const amount = getLoanAmount()
+    if (!amount) return 0
+    return amount + amount * (getInterestRate() / 100)
+  }
+
+  const calculateMonthlyPayment = () => {
+    if (!loan) return 0
+    const stored = toNumber(loan.monthly_payment)
+    if (stored > 0) return stored
+    const months = getTenureMonths()
+    if (!months) return 0
+    return calculateTotalRepayment() / months
   }
 
   const generateRepaymentSchedule = () => {
@@ -341,7 +371,7 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
               <div className="space-y-4">
                 <div>
                   <label className="text-sm text-muted-foreground">Loan Amount</label>
-                  <p className="text-2xl font-bold">{formatCurrency(loan.amount)}</p>
+                  <p className="text-2xl font-bold">{formatCurrency(getLoanAmount())}</p>
                 </div>
                 <div>
                   <label className="text-sm text-muted-foreground">Tenure</label>
@@ -349,7 +379,7 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
                 <div>
                   <label className="text-sm text-muted-foreground">Interest Rate</label>
-                  <p className="font-medium">{loan.interest_rate}% (Simple Interest)</p>
+                  <p className="font-medium">{getInterestRate().toFixed(2)}% (Simple Interest)</p>
                 </div>
                 {loan.purpose && (
                 <div>
@@ -366,6 +396,15 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
                 <div>
                   <label className="text-sm text-muted-foreground">Total Repayment</label>
                   <p className="font-medium">{formatCurrency(calculateTotalRepayment())}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground">Interest Amount</label>
+                  <p className="font-medium">
+                    {formatCurrency(
+                      toNumber(loan.interest_amount) ||
+                        Math.max(0, calculateTotalRepayment() - getLoanAmount())
+                    )}
+                  </p>
                 </div>
                 <div>
                   <label className="text-sm text-muted-foreground">Loan Type</label>

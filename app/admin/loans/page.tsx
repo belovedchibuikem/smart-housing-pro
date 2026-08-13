@@ -26,14 +26,22 @@ interface Loan {
       last_name?: string
     }
   }
-  amount: number
-  interest_rate: number
+  amount: number | string
+  interest_rate: number | string
   duration_months: number
   type: string
   purpose?: string
   status: string
   application_date: string
   created_at: string
+  monthly_payment?: number | string | null
+  total_amount?: number | string | null
+}
+
+const toNumber = (value: unknown): number => {
+  if (value === null || value === undefined || value === "") return 0
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : 0
 }
 
 interface Pagination {
@@ -260,10 +268,15 @@ export default function AdminLoansPage() {
   }
 
   const calculateMonthlyPayment = (loan: Loan) => {
-    if (!loan.amount || !loan.duration_months || loan.duration_months === 0) return 0
-    const interest = loan.amount * (loan.interest_rate / 100)
-    const total = loan.amount + interest
-    return total / loan.duration_months
+    const stored = toNumber(loan.monthly_payment)
+    if (stored > 0) return stored
+
+    const amount = toNumber(loan.amount)
+    const months = Number(loan.duration_months ?? 0)
+    if (!amount || !months) return 0
+
+    const interest = amount * (toNumber(loan.interest_rate) / 100)
+    return (amount + interest) / months
   }
 
   const filteredLoans = loans.filter((loan) => {
@@ -468,7 +481,7 @@ export default function AdminLoansPage() {
                           </div>
                         </TableCell>
                           <TableCell>{loan.type || '-'}</TableCell>
-                          <TableCell className="font-semibold">{formatCurrency(loan.amount)}</TableCell>
+                          <TableCell className="font-semibold">{formatCurrency(toNumber(loan.amount))}</TableCell>
                           <TableCell>{loan.duration_months} months</TableCell>
                           <TableCell>{formatCurrency(calculateMonthlyPayment(loan))}</TableCell>
                           <TableCell className="text-sm text-muted-foreground">
