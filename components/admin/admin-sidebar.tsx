@@ -94,6 +94,7 @@ const ADMIN_BADGE_BY_HREF: Partial<Record<string, keyof AdminPendingBadgeCounts>
   "/admin/change-requests": "change_requests_pending",
   "/admin/ecpm/approvals": "ecpm_approvals_pending",
   "/admin/office/tasks": "office_tasks_pending",
+  "/admin/office/workflow/queue": "office_tasks_pending",
 }
 
 function PendingBadge({ count }: { count: number }) {
@@ -362,6 +363,9 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     subItems: [
       { href: "/admin/office", label: "Office Hub", icon: Briefcase },
       { href: "/admin/office/cases", label: "Case Desk", icon: ListTodo },
+      { href: "/admin/office/workflow/queue", label: "Workflow Queue", icon: ClipboardCheck },
+      { href: "/admin/office/workflow/settings", label: "Workflow Settings", icon: Settings },
+      { href: "/admin/office/workflow/delegations", label: "Delegations", icon: Settings },
       { href: "/admin/office/cases/sla", label: "Case SLA", icon: Settings },
       { href: "/admin/office/contributions", label: "Contributions Office", icon: CreditCard },
       { href: "/admin/office/inbox", label: "Inbox", icon: Inbox },

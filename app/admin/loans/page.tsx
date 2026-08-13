@@ -168,23 +168,58 @@ export default function AdminLoansPage() {
   const handleApprove = async (loanId: string) => {
     try {
       setProcessing(loanId)
-      const response = await apiFetch<{ success: boolean; message?: string }>(
-        `/admin/loans/${loanId}/approve`,
-        { method: 'POST' }
-      )
+      const response = await apiFetch<{
+        success: boolean
+        message?: string
+        data?: { href?: string; workflow_instance_id?: string; office_case_id?: string }
+      }>(`/admin/loans/${loanId}/approve`, { method: 'POST' })
 
       if (response.success) {
-        sonnerToast.success("Loan Approved", {
-          description: response.message || "Loan has been approved successfully",
-        })
+        const href = response.data?.href
+        if (href || response.data?.workflow_instance_id) {
+          sonnerToast.success("Sent to Digital Office", {
+            description: response.message || "Complete review/approval in Digital Office",
+            action: href
+              ? {
+                  label: "Open",
+                  onClick: () => {
+                    window.location.href = href
+                  },
+                }
+              : undefined,
+          })
+        } else {
+          sonnerToast.success("Loan Approved", {
+            description: response.message || "Loan has been approved successfully",
+          })
+        }
         fetchLoans()
         fetchStats()
       }
     } catch (error: any) {
       console.error('Error approving loan:', error)
-      sonnerToast.error("Failed to approve loan", {
-        description: error.message || "Please try again later",
-      })
+      const href = error?.data?.href || error?.response?.data?.data?.href
+      if (error?.status === 409 || href) {
+        sonnerToast.message(error.message || "Use Digital Office", {
+          action: href
+            ? {
+                label: "Open",
+                onClick: () => {
+                  window.location.href = href
+                },
+              }
+            : {
+                label: "Queue",
+                onClick: () => {
+                  window.location.href = "/admin/office/workflow/queue"
+                },
+              },
+        })
+      } else {
+        sonnerToast.error("Failed to approve loan", {
+          description: error.message || "Please try again later",
+        })
+      }
     } finally {
       setProcessing(null)
     }

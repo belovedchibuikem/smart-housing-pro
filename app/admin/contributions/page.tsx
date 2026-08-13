@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation"
 import { toast as sonnerToast } from "sonner"
 import { apiFetch, exportReport } from "@/lib/api/client"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
+import { toastWorkflowError, toastWorkflowOrSuccess } from "@/lib/admin/workflow-redirect"
 
 interface Contribution {
   id: string
@@ -159,23 +160,25 @@ export default function AdminContributionsPage() {
   const handleApproveContribution = async (id: string) => {
     try {
       setProcessing(id)
-      const response = await apiFetch<{ success: boolean; message?: string }>(
-        `/admin/contributions/${id}/approve`,
-        { method: 'POST' }
-      )
+      const response = await apiFetch<{
+        success: boolean
+        message?: string
+        data?: { href?: string; workflow_instance_id?: string }
+      }>(`/admin/contributions/${id}/approve`, { method: 'POST' })
 
       if (response.success) {
-        sonnerToast.success("Contribution Approved", {
-          description: response.message || "Contribution has been approved successfully",
-        })
+        toastWorkflowOrSuccess(
+          sonnerToast,
+          response,
+          "Contribution Approved",
+          "Contribution has been approved successfully",
+        )
         fetchContributions()
         fetchStats()
       }
     } catch (error: any) {
       console.error('Error approving contribution:', error)
-      sonnerToast.error("Failed to approve contribution", {
-        description: error.message || "Please try again later",
-    })
+      toastWorkflowError(sonnerToast, error, "Failed to approve contribution")
     } finally {
       setProcessing(null)
     }
@@ -187,26 +190,28 @@ export default function AdminContributionsPage() {
 
     try {
       setProcessing(id)
-      const response = await apiFetch<{ success: boolean; message?: string }>(
-        `/admin/contributions/${id}/reject`,
-        {
+      const response = await apiFetch<{
+        success: boolean
+        message?: string
+        data?: { href?: string }
+      }>(`/admin/contributions/${id}/reject`, {
           method: 'POST',
           body: { rejection_reason: reason }
-        }
-      )
+        })
 
       if (response.success) {
-        sonnerToast.success("Contribution Rejected", {
-          description: response.message || "Contribution has been rejected",
-        })
+        toastWorkflowOrSuccess(
+          sonnerToast,
+          response,
+          "Contribution Rejected",
+          "Contribution has been rejected",
+        )
         fetchContributions()
         fetchStats()
       }
     } catch (error: any) {
       console.error('Error rejecting contribution:', error)
-      sonnerToast.error("Failed to reject contribution", {
-        description: error.message || "Please try again later",
-      })
+      toastWorkflowError(sonnerToast, error, "Failed to reject contribution")
     } finally {
       setProcessing(null)
     }

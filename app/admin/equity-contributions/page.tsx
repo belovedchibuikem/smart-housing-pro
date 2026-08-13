@@ -13,6 +13,7 @@ import { Can, useTenantPermissions } from "@/components/admin/can-permission"
 import { useRouter } from "next/navigation"
 import { toast as sonnerToast } from "sonner"
 import { apiFetch, bulkApproveEquityContributions, bulkRejectEquityContributions } from "@/lib/api/client"
+import { toastWorkflowError, toastWorkflowOrSuccess } from "@/lib/admin/workflow-redirect"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
@@ -155,23 +156,25 @@ export default function AdminEquityContributionsPage() {
   const handleApprove = async (id: string) => {
     try {
       setProcessing(id)
-      const response = await apiFetch<{ success: boolean; message?: string }>(
-        `/admin/equity-contributions/${id}/approve`,
-        { method: 'POST' }
-      )
+      const response = await apiFetch<{
+        success: boolean
+        message?: string
+        data?: { href?: string; workflow_instance_id?: string }
+      }>(`/admin/equity-contributions/${id}/approve`, { method: 'POST' })
 
       if (response.success) {
-        sonnerToast.success("Contribution Approved", {
-          description: response.message || "Equity contribution has been approved and added to wallet",
-        })
+        toastWorkflowOrSuccess(
+          sonnerToast,
+          response,
+          "Contribution Approved",
+          "Equity contribution has been approved and added to wallet",
+        )
         fetchContributions()
         fetchStats()
       }
     } catch (error: any) {
       console.error('Error approving contribution:', error)
-      sonnerToast.error("Failed to approve contribution", {
-        description: error.message || "Please try again later",
-      })
+      toastWorkflowError(sonnerToast, error, "Failed to approve contribution")
     } finally {
       setProcessing(null)
     }
@@ -227,9 +230,12 @@ export default function AdminEquityContributionsPage() {
       )
 
       if (response.success) {
-        sonnerToast.success("Contribution Rejected", {
-          description: response.message || "Equity contribution has been rejected",
-        })
+        toastWorkflowOrSuccess(
+          sonnerToast,
+          response,
+          "Contribution Rejected",
+          "Equity contribution has been rejected",
+        )
         setShowRejectDialog(false)
         setSelectedContribution(null)
         setRejectionReason("")
@@ -238,9 +244,7 @@ export default function AdminEquityContributionsPage() {
       }
     } catch (error: any) {
       console.error('Error rejecting contribution:', error)
-      sonnerToast.error("Failed to reject contribution", {
-        description: error.message || "Please try again later",
-      })
+      toastWorkflowError(sonnerToast, error, "Failed to reject contribution")
     } finally {
       setProcessing(null)
     }
@@ -278,7 +282,7 @@ export default function AdminEquityContributionsPage() {
         fetchStats()
       }
     } catch (error: unknown) {
-      sonnerToast.error(error instanceof Error ? error.message : "Bulk approve failed")
+      toastWorkflowError(sonnerToast, error, "Bulk approve failed")
     } finally {
       setBulkProcessing(false)
     }

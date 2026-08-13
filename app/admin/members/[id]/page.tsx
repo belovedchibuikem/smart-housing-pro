@@ -29,6 +29,7 @@ import {
   mergeContributionWalletIntoStats,
 } from "@/lib/api/member-service"
 import { getAdminRefundMemberSummary } from "@/lib/api/client"
+import { toastWorkflowError, toastWorkflowOrSuccess } from "@/lib/admin/workflow-redirect"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useTenantPermissions } from "@/components/admin/can-permission"
 import { MemberPropertiesSection } from "@/components/admin/member-properties-section"
@@ -183,13 +184,13 @@ export default function MemberDetailPage() {
 
   const handleApproveKyc = async () => {
     try {
-      await MemberService.approveKyc(id)
-      toast.success("KYC approved successfully")
+      const response = await MemberService.approveKyc(id)
+      toastWorkflowOrSuccess(toast, response, "KYC approved successfully", "KYC has been approved")
       setShowApproveDialog(false)
       loadMemberData() // Refresh data
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error approving KYC:", error)
-      toast.error("Failed to approve KYC")
+      toastWorkflowError(toast, error, "Failed to approve KYC")
     }
   }
 
@@ -200,14 +201,14 @@ export default function MemberDetailPage() {
     }
     
     try {
-      await MemberService.rejectKyc(id, rejectionReason)
-      toast.success("KYC rejected successfully")
+      const response = await MemberService.rejectKyc(id, rejectionReason)
+      toastWorkflowOrSuccess(toast, response, "KYC rejected successfully", "KYC has been rejected")
       setShowRejectDialog(false)
       setRejectionReason("")
       loadMemberData() // Refresh data
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error rejecting KYC:", error)
-      toast.error("Failed to reject KYC")
+      toastWorkflowError(toast, error, "Failed to reject KYC")
     }
   }
 

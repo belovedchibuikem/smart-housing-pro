@@ -468,3 +468,100 @@ export async function convertMailToOfficeCase(mailId: string) {
   )
 }
 
+/* ─── Central Workflow Engine ─── */
+
+export async function getWorkflowSettings() {
+  return apiFetch<{ success: boolean; data: any[] }>("/admin/office/workflow/settings")
+}
+
+export async function updateWorkflowSetting(processKey: string, body: Record<string, unknown>) {
+  return apiFetch<{ success: boolean; message?: string; data: any }>(
+    `/admin/office/workflow/settings/${processKey}`,
+    { method: "PUT", body },
+  )
+}
+
+export async function getWorkflowQueue(params?: Query) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/workflow/queue${toQuery(params)}`)
+}
+
+export async function getMyWorkflowReviews(params?: Query) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/workflow/my-reviews${toQuery(params)}`)
+}
+
+export async function getMyWorkflowRecommendations(params?: Query) {
+  return apiFetch<{ success: boolean; data: any }>(
+    `/admin/office/workflow/my-recommendations${toQuery(params)}`,
+  )
+}
+
+export async function getMyWorkflowApprovals(params?: Query) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/workflow/my-approvals${toQuery(params)}`)
+}
+
+export async function getWorkflowTask(taskId: string) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/office/workflow/tasks/${taskId}`)
+}
+
+export async function actOnWorkflowTask(
+  taskId: string,
+  body: { action: string; reason?: string; assignee_user_id?: string },
+) {
+  return apiFetch<{ success: boolean; message?: string; data: any }>(
+    `/admin/office/workflow/tasks/${taskId}/act`,
+    { method: "POST", body },
+  )
+}
+
+export async function bulkActWorkflowTasks(body: {
+  task_ids: string[]
+  action: string
+  reason?: string
+  confirmation_note?: string
+  process_key?: string
+}) {
+  return apiFetch<{ success: boolean; message?: string; data: any }>(
+    "/admin/office/workflow/bulk-act",
+    { method: "POST", body },
+  )
+}
+
+export async function getWorkflowDelegations(params?: Query) {
+  return apiFetch<{ success: boolean; data: any[] }>(
+    `/admin/office/workflow/delegations${toQuery(params)}`,
+  )
+}
+
+export async function createWorkflowDelegation(body: Record<string, unknown>) {
+  return apiFetch<{ success: boolean; data: any }>("/admin/office/workflow/delegations", {
+    method: "POST",
+    body,
+  })
+}
+
+export async function revokeWorkflowDelegation(id: string) {
+  return apiFetch<{ success: boolean; data: any }>(
+    `/admin/office/workflow/delegations/${id}/revoke`,
+    { method: "POST", body: {} },
+  )
+}
+
+export async function getWorkflowProcessKeys() {
+  return apiFetch<{ success: boolean; data: Array<{ key: string; label: string }> }>(
+    "/admin/office/workflow/process-keys",
+  )
+}
+
+export async function getWorkflowInstance(instanceId: string) {
+  return apiFetch<{ success: boolean; data: any }>(
+    `/admin/office/workflow/instances/${instanceId}`,
+  )
+}
+
+export async function retryWorkflowExecution(instanceId: string) {
+  return apiFetch<{ success: boolean; message?: string; data: any }>(
+    `/admin/office/workflow/instances/${instanceId}/retry-execution`,
+    { method: "POST", body: {} },
+  )
+}
+

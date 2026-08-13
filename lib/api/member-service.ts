@@ -371,8 +371,12 @@ export class MemberService {
   }
 
   // Approve KYC
-  static async approveKyc(memberId: string): Promise<{ success: boolean; message: string }> {
-    return apiFetch<{ success: boolean; message: string }>(`/admin/members/${memberId}/kyc/approve`, {
+  static async approveKyc(memberId: string): Promise<{
+    success: boolean
+    message: string
+    data?: { href?: string; workflow_instance_id?: string; office_case_id?: string }
+  }> {
+    return apiFetch(`/admin/members/${memberId}/kyc/approve`, {
       method: "POST"
     })
   }
@@ -386,8 +390,12 @@ export class MemberService {
   }
 
   // Reject KYC
-  static async rejectKyc(memberId: string, reason: string): Promise<{ success: boolean; message: string }> {
-    return apiFetch<{ success: boolean; message: string }>(`/admin/members/${memberId}/kyc/reject`, {
+  static async rejectKyc(memberId: string, reason: string): Promise<{
+    success: boolean
+    message: string
+    data?: { href?: string; workflow_instance_id?: string; office_case_id?: string }
+  }> {
+    return apiFetch(`/admin/members/${memberId}/kyc/reject`, {
       method: "POST",
       body: { reason }
     })

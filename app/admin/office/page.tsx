@@ -20,6 +20,9 @@ import {
 
 const links = [
   { href: "/admin/office/cases", label: "Case Desk", icon: ListTodo, desc: "Requests, complaints, letters — assign, process, resolve" },
+  { href: "/admin/office/workflow/queue", label: "Workflow Queue", icon: ListTodo, desc: "My reviews, recommendations, approvals, overdue & bulk actions" },
+  { href: "/admin/office/workflow/settings", label: "Workflow Settings", icon: FileEdit, desc: "Enable stages per process — tenant highest admin as final approver" },
+  { href: "/admin/office/workflow/delegations", label: "Delegations", icon: FileEdit, desc: "Stage-specific time-bound authority for review/recommend/approve" },
   { href: "/admin/office/contributions", label: "Contributions Office", icon: Briefcase, desc: "Stoppage, schedules, and contribution desk cases" },
   { href: "/admin/office/inbox", label: "Inbox", icon: Inbox, desc: "Pending reviews and approvals assigned to you" },
   { href: "/admin/office/outbox", label: "Outbox", icon: Send, desc: "Documents you created and routed" },
