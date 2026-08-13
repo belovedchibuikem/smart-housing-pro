@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { getWorkflowSettings, updateWorkflowSetting } from "@/lib/api/office"
+import { getWorkflowSettings, updateWorkflowSetting, enqueueWorkflowPending } from "@/lib/api/office"
 import { Loader2, Save } from "lucide-react"
 
 type Setting = {
@@ -50,7 +50,7 @@ export default function WorkflowSettingsPage() {
   const save = async (row: Setting) => {
     try {
       setSaving(row.process_key)
-      await updateWorkflowSetting(row.process_key, {
+      const res = await updateWorkflowSetting(row.process_key, {
         enabled: row.enabled,
         review_enabled: row.review_enabled,
         recommendation_enabled: row.recommendation_enabled,
@@ -60,10 +60,32 @@ export default function WorkflowSettingsPage() {
         prevent_self_approval: row.prevent_self_approval,
         sla_hours: row.sla_hours || null,
       })
-      toast({ title: "Saved", description: `${row.label || row.process_key} updated` })
+      const queued = res.enqueued_pending?.enqueued ?? 0
+      toast({
+        title: "Saved",
+        description:
+          queued > 0
+            ? `${row.label || row.process_key} updated · ${queued} pending item(s) sent to Digital Office`
+            : `${row.label || row.process_key} updated`,
+      })
       await load()
     } catch (e: any) {
       toast({ title: "Save failed", description: e.message, variant: "destructive" })
+    } finally {
+      setSaving(null)
+    }
+  }
+
+  const enqueuePending = async (row: Setting) => {
+    try {
+      setSaving(row.process_key)
+      const res = await enqueueWorkflowPending(row.process_key)
+      toast({
+        title: "Pending items queued",
+        description: res.message || `${res.data?.enqueued ?? 0} sent to Digital Office`,
+      })
+    } catch (e: any) {
+      toast({ title: "Enqueue failed", description: e.message, variant: "destructive" })
     } finally {
       setSaving(null)
     }
@@ -166,14 +188,26 @@ export default function WorkflowSettingsPage() {
                   />
                 </label>
               </div>
-              <Button size="sm" disabled={saving === row.process_key} onClick={() => save(row)}>
-                {saving === row.process_key ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="mr-2 h-4 w-4" />
-                )}
-                Save
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" disabled={saving === row.process_key} onClick={() => save(row)}>
+                  {saving === row.process_key ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
+                  Save
+                </Button>
+                {row.enabled && row.wired !== false ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={saving === row.process_key}
+                    onClick={() => enqueuePending(row)}
+                  >
+                    Send pending to Digital Office
+                  </Button>
+                ) : null}
+              </div>
             </div>
           ))}
         </div>

@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation"
 import { toast as sonnerToast } from "sonner"
 import { apiFetch, fetchAdminLoanDashboardMetrics } from "@/lib/api/client"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
+import { enqueueWorkflowPending, getWorkflowSettings } from "@/lib/api/office"
 
 interface Loan {
   id: string
@@ -75,12 +76,50 @@ export default function AdminLoansPage() {
   const [dashFrom, setDashFrom] = useState("")
   const [dashTo, setDashTo] = useState("")
   const [dashMember, setDashMember] = useState("")
+  const [loanWorkflowEnabled, setLoanWorkflowEnabled] = useState(false)
+  const [enqueueing, setEnqueueing] = useState(false)
 
   useEffect(() => {
     fetchLoans()
     fetchStats()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, activeTab])
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await getWorkflowSettings()
+        const loan = (res.data || []).find((r: any) => r.process_key === "loan")
+        const enabled = !!loan?.enabled
+        setLoanWorkflowEnabled(enabled)
+        if (enabled && can("approve_loans")) {
+          setEnqueueing(true)
+          try {
+            const queued = await enqueueWorkflowPending("loan")
+            const n = queued.data?.enqueued ?? 0
+            if (n > 0) {
+              sonnerToast.success("Pending loans sent to Digital Office", {
+                description: `${n} loan(s) are now in the workflow queue`,
+                action: {
+                  label: "Open queue",
+                  onClick: () => {
+                    window.location.href = "/admin/office/workflow/queue"
+                  },
+                },
+              })
+            }
+          } catch {
+            // Settings may lack permission; ignore — approve still routes to workflow
+          } finally {
+            setEnqueueing(false)
+          }
+        }
+      } catch {
+        setLoanWorkflowEnabled(false)
+      }
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     const loadDash = async () => {
@@ -348,6 +387,55 @@ export default function AdminLoansPage() {
         </div>
       </div>
 
+      {loanWorkflowEnabled ? (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
+            <div>
+              <h3 className="font-semibold">Loan Digital Office workflow is on</h3>
+              <p className="text-sm text-muted-foreground">
+                Pending approvals go to Digital Office for review / recommendation / approval
+                {enqueueing ? " · sending pending loans…" : ""}.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" asChild>
+                <Link href="/admin/office/workflow/queue">Open workflow queue</Link>
+              </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                disabled={enqueueing}
+                onClick={async () => {
+                  try {
+                    setEnqueueing(true)
+                    const queued = await enqueueWorkflowPending("loan")
+                    const n = queued.data?.enqueued ?? 0
+                    sonnerToast.success(n > 0 ? `${n} loan(s) queued` : "No new pending loans to queue", {
+                      description: queued.message,
+                      action: {
+                        label: "Open queue",
+                        onClick: () => {
+                          window.location.href = "/admin/office/workflow/queue"
+                        },
+                      },
+                    })
+                  } catch (e: any) {
+                    sonnerToast.error("Could not queue pending loans", {
+                      description: e.message,
+                    })
+                  } finally {
+                    setEnqueueing(false)
+                  }
+                }}
+              >
+                {enqueueing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Send pending to Digital Office
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle>Tenant loan dashboard</CardTitle>
@@ -544,16 +632,20 @@ export default function AdminLoansPage() {
                                     onClick={() => handleApprove(loan.id)}
                                   >
                                     <CheckCircle className="h-4 w-4 mr-2" />
-                                    Approve Loan
+                                    {loanWorkflowEnabled ? "Send to Digital Office" : "Approve Loan"}
                                   </DropdownMenuItem>
                                 )}
                                 {loan.status === 'pending' && can("reject_loans") && (
                                   <DropdownMenuItem
                                     className="text-destructive"
-                                    onClick={() => handleReject(loan.id)}
+                                    onClick={() =>
+                                      loanWorkflowEnabled
+                                        ? (window.location.href = "/admin/office/workflow/queue")
+                                        : handleReject(loan.id)
+                                    }
                                   >
                                     <XCircle className="h-4 w-4 mr-2" />
-                                    Reject Loan
+                                    {loanWorkflowEnabled ? "Reject in Digital Office" : "Reject Loan"}
                                   </DropdownMenuItem>
                                 )}
                                 {loan.status === 'approved' && can("disburse_loans|approve_loans") && (

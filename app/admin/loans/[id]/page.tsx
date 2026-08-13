@@ -20,6 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { toast as sonnerToast } from "sonner"
 import { apiFetch } from "@/lib/api/client"
 import { useTenantPermissions } from "@/components/admin/can-permission"
+import { getWorkflowSettings } from "@/lib/api/office"
 
 interface Loan {
   id: string
@@ -79,9 +80,16 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
   const [showRejectDialog, setShowRejectDialog] = useState(false)
   const [showDisburseDialog, setShowDisburseDialog] = useState(false)
   const [rejectionReason, setRejectionReason] = useState("")
+  const [loanWorkflowEnabled, setLoanWorkflowEnabled] = useState(false)
 
   useEffect(() => {
     fetchLoan()
+    void getWorkflowSettings()
+      .then((res) => {
+        const loanSetting = (res.data || []).find((r: any) => r.process_key === "loan")
+        setLoanWorkflowEnabled(!!loanSetting?.enabled)
+      })
+      .catch(() => setLoanWorkflowEnabled(false))
   }, [id])
 
   const fetchLoan = async () => {
@@ -344,21 +352,35 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-semibold">Loan Application Pending Review</h3>
-                <p className="text-sm text-muted-foreground">Review application details and approve or reject</p>
+                <h3 className="font-semibold">
+                  {loanWorkflowEnabled
+                    ? "Pending — Digital Office workflow"
+                    : "Loan Application Pending Review"}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {loanWorkflowEnabled
+                    ? "Send this loan into Digital Office for review / recommendation / approval"
+                    : "Review application details and approve or reject"}
+                </p>
               </div>
               <div className="flex gap-2">
                 {can("approve_loans") && (
                   <Button onClick={() => setShowApproveDialog(true)} disabled={processing}>
                     <CheckCircle className="h-4 w-4 mr-2" />
-                    Approve Loan
+                    {loanWorkflowEnabled ? "Send to Digital Office" : "Approve Loan"}
                   </Button>
                 )}
                 {can("reject_loans") && (
-                  <Button variant="destructive" onClick={() => setShowRejectDialog(true)} disabled={processing}>
-                    <XCircle className="h-4 w-4 mr-2" />
-                    Reject Loan
-                  </Button>
+                  loanWorkflowEnabled ? (
+                    <Button variant="outline" asChild>
+                      <Link href="/admin/office/workflow/queue">Open workflow queue</Link>
+                    </Button>
+                  ) : (
+                    <Button variant="destructive" onClick={() => setShowRejectDialog(true)} disabled={processing}>
+                      <XCircle className="h-4 w-4 mr-2" />
+                      Reject Loan
+                    </Button>
+                  )
                 )}
               </div>
             </div>
@@ -564,9 +586,13 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
       <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Approve Loan Application</DialogTitle>
+            <DialogTitle>
+              {loanWorkflowEnabled ? "Send to Digital Office" : "Approve Loan Application"}
+            </DialogTitle>
             <DialogDescription>
-              Are you sure you want to approve this loan application for {formatCurrency(loan.amount)}?
+              {loanWorkflowEnabled
+                ? `This will place the loan (${formatCurrency(loan.amount)}) into the Digital Office workflow for review / recommendation / approval.`
+                : `Are you sure you want to approve this loan application for ${formatCurrency(loan.amount)}?`}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

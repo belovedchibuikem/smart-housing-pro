@@ -112,6 +112,7 @@ export default function WorkflowDelegationsPage() {
   const [form, setForm] = useState<DelegationForm>(emptyForm)
   const [userPicker, setUserPicker] = useState("")
   const [rolePicker, setRolePicker] = useState("")
+  const [formError, setFormError] = useState<string | null>(null)
 
   const [processOptions, setProcessOptions] = useState<SearchableSelectOption[]>([])
   const [roleOptions, setRoleOptions] = useState<SearchableSelectOption[]>([])
@@ -256,24 +257,27 @@ export default function WorkflowDelegationsPage() {
   }
 
   const create = async () => {
+    setFormError(null)
+
     if (!form.stage_kinds.length) {
+      setFormError("Select at least one stage.")
       toast({ title: "Select at least one stage", variant: "destructive" })
       return
     }
     if (form.delegate_type === "user" && !form.delegate_user_ids.length) {
+      setFormError("Select at least one staff user.")
       toast({ title: "Select at least one staff user", variant: "destructive" })
       return
     }
     if (form.delegate_type === "role" && !form.delegate_roles.length) {
+      setFormError("Select at least one role.")
       toast({ title: "Select at least one role", variant: "destructive" })
       return
     }
-    if (!form.ends_at) {
-      toast({
-        title: "End date is required",
-        description: "Delegations must be time-bound.",
-        variant: "destructive",
-      })
+
+    if (form.starts_at && form.ends_at && new Date(form.ends_at) <= new Date(form.starts_at)) {
+      setFormError("Ends at must be after Starts at.")
+      toast({ title: "Ends at must be after Starts at", variant: "destructive" })
       return
     }
 
@@ -289,7 +293,8 @@ export default function WorkflowDelegationsPage() {
         ends_at: toApiDateTime(form.ends_at),
         reason: form.reason.trim() || null,
       })
-      const count = (res as any).count ?? (Array.isArray((res as any).data) ? (res as any).data.length : 1)
+      const count =
+        (res as any).count ?? (Array.isArray((res as any).data) ? (res as any).data.length : 1)
       toast({
         title: count === 1 ? "Delegation created" : `${count} delegations created`,
         description:
@@ -302,11 +307,14 @@ export default function WorkflowDelegationsPage() {
             : undefined,
       })
       setForm(emptyForm())
+      setFormError(null)
       setUserPicker("")
       setRolePicker("")
       await loadDelegations()
     } catch (e: any) {
-      toast({ title: "Create failed", description: e.message, variant: "destructive" })
+      const message = e?.message || "Create failed"
+      setFormError(message)
+      toast({ title: "Create failed", description: message, variant: "destructive" })
     } finally {
       setBusy(false)
     }
@@ -567,21 +575,30 @@ export default function WorkflowDelegationsPage() {
                 <Input
                   type="datetime-local"
                   value={form.starts_at}
-                  onChange={(e) => setForm((f) => ({ ...f, starts_at: e.target.value }))}
+                  onChange={(e) => {
+                    const starts_at = e.target.value
+                    setForm((f) => ({
+                      ...f,
+                      starts_at,
+                    }))
+                  }}
                 />
                 <p className="text-xs text-muted-foreground">Defaults to now if left blank.</p>
               </div>
 
               <div className="space-y-2">
-                <Label>
-                  Ends at <span className="text-destructive">*</span>
-                </Label>
+                <Label>Ends at (optional)</Label>
                 <Input
                   type="datetime-local"
                   value={form.ends_at}
-                  onChange={(e) => setForm((f) => ({ ...f, ends_at: e.target.value }))}
+                  onChange={(e) => {
+                    setFormError(null)
+                    setForm((f) => ({ ...f, ends_at: e.target.value }))
+                  }}
                 />
-                <p className="text-xs text-muted-foreground">Authority ends at this date and time.</p>
+                <p className="text-xs text-muted-foreground">
+                  Leave blank for open-ended authority until revoked.
+                </p>
               </div>
 
               <div className="space-y-2 sm:col-span-2">
@@ -594,8 +611,18 @@ export default function WorkflowDelegationsPage() {
                 />
               </div>
 
+              {formError ? (
+                <div className="sm:col-span-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+                  {formError}
+                </div>
+              ) : null}
+
               <div className="sm:col-span-2 flex flex-wrap items-center gap-3">
-                <Button type="button" disabled={busy || comboCount < 1} onClick={() => void create()}>
+                <Button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void create()}
+                >
                   {busy ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
@@ -611,6 +638,7 @@ export default function WorkflowDelegationsPage() {
                   disabled={busy}
                   onClick={() => {
                     setForm(emptyForm())
+                    setFormError(null)
                     setUserPicker("")
                     setRolePicker("")
                   }}

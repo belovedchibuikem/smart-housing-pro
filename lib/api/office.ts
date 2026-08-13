@@ -475,10 +475,23 @@ export async function getWorkflowSettings() {
 }
 
 export async function updateWorkflowSetting(processKey: string, body: Record<string, unknown>) {
-  return apiFetch<{ success: boolean; message?: string; data: any }>(
-    `/admin/office/workflow/settings/${processKey}`,
-    { method: "PUT", body },
-  )
+  return apiFetch<{
+    success: boolean
+    message?: string
+    data: any
+    enqueued_pending?: { enqueued: number; skipped: number; errors: number }
+  }>(`/admin/office/workflow/settings/${processKey}`, { method: "PUT", body })
+}
+
+export async function enqueueWorkflowPending(processKey: string) {
+  return apiFetch<{
+    success: boolean
+    message?: string
+    data: { enqueued: number; skipped: number; errors: number }
+  }>(`/admin/office/workflow/settings/${processKey}/enqueue-pending`, {
+    method: "POST",
+    body: {},
+  })
 }
 
 export async function getWorkflowQueue(params?: Query) {
