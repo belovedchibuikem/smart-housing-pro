@@ -160,13 +160,33 @@ export async function updateOfficeTemplate(id: string, body: Record<string, unkn
   })
 }
 
-export async function getOfficeStaffUsers(q?: string) {
+export async function getOfficeStaffUsers(q?: string, opts?: { excludeSelf?: boolean }) {
+  const excludeSelf = opts?.excludeSelf !== false
   return apiFetch<{
     success: boolean
-    data: Array<{ id: string; name: string; email: string; first_name?: string; last_name?: string; roles?: string[] }>
-    highest_admin?: { id: string; name: string; email: string; roles?: string[] } | null
+    data: Array<{
+      id: string
+      name: string
+      email: string
+      first_name?: string
+      last_name?: string
+      roles?: string[]
+      role_label?: string | null
+    }>
+    highest_admin?: {
+      id: string
+      name: string
+      email: string
+      roles?: string[]
+      role_label?: string | null
+    } | null
     current_user?: { id: string; name: string; email: string } | null
-  }>(`/admin/office/staff-users${toQuery({ q })}`)
+  }>(
+    `/admin/office/staff-users${toQuery({
+      q,
+      exclude_self: excludeSelf ? 1 : 0,
+    })}`,
+  )
 }
 
 export async function uploadOfficeAttachment(documentId: string, file: File) {
