@@ -284,6 +284,22 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     ],
   },
   {
+    label: "Resident Association",
+    icon: Users,
+    module: "resident_association",
+    subItems: [
+      { href: "/admin/resident-association", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/admin/resident-association/associations", label: "Associations", icon: Building2 },
+      { href: "/admin/resident-association/houses", label: "Houses", icon: Home },
+      { href: "/admin/resident-association/charges", label: "Charges", icon: Receipt },
+      { href: "/admin/resident-association/payments", label: "Payments", icon: CreditCard },
+      { href: "/admin/resident-association/revenue", label: "Revenue", icon: BarChart3 },
+      { href: "/admin/resident-association/expenditures", label: "Expenditure", icon: DollarSign },
+      { href: "/admin/resident-association/bank-accounts", label: "Bank Accounts", icon: Landmark },
+      { href: "/admin/resident-association/notices", label: "Notices", icon: Megaphone },
+    ],
+  },
+  {
     label: "Blockchain",
     icon: LinkIcon,
     subItems: [

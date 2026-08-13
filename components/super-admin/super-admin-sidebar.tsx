@@ -31,6 +31,7 @@ import {
   Smartphone,
   Store,
   Search,
+  Clock,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -90,6 +91,7 @@ export const SUPER_ADMIN_NAV_ITEMS: NavItem[] = [
   },
   { href: "/super-admin/payment-gateways", label: "Payment Gateways", icon: CreditCard },
   { href: "/super-admin/app-versions", label: "App Versions", icon: Smartphone },
+  { href: "/super-admin/cron-jobs", label: "Cron Jobs", icon: Clock },
   { href: "/super-admin/payment-approvals", label: "Payment Approvals", icon: CheckCircle },
   { href: "/super-admin/invoices", label: "Invoices", icon: FileText },
   { href: "/super-admin/domain-requests", label: "Domain Requests", icon: Globe },

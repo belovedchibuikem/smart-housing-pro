@@ -70,6 +70,8 @@ export function LoanApplicationForm({
 	const [guarantorRelationship, setGuarantorRelationship] = useState<string>("")
 	const [guarantorAddress, setGuarantorAddress] = useState<string>("")
 	const [additionalInfo, setAdditionalInfo] = useState<string>("")
+	const [paySlipName, setPaySlipName] = useState<string | null>(null)
+	const [paySlipDataUrl, setPaySlipDataUrl] = useState<string | null>(null)
 
   useEffect(() => {
 		if (initialProductId && products.some((product) => product.id === initialProductId)) {
@@ -120,6 +122,30 @@ export function LoanApplicationForm({
 	const requiredNetPay = repaymentSummary.monthly * 2
 	const isQualified = numericNetPay >= requiredNetPay && repaymentSummary.monthly > 0
 
+	const handlePaySlipUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0]
+		if (!file) return
+		if (file.size > 5 * 1024 * 1024) {
+			toast.error("File too large", { description: "Payslip must be 5MB or less." })
+			event.target.value = ""
+			return
+		}
+		try {
+			const dataUrl = await new Promise<string>((resolve, reject) => {
+				const reader = new FileReader()
+				reader.onload = () => resolve(String(reader.result || ""))
+				reader.onerror = () => reject(new Error("Unable to read file"))
+				reader.readAsDataURL(file)
+			})
+			setPaySlipDataUrl(dataUrl)
+			setPaySlipName(file.name)
+		} catch {
+			toast.error("Unable to read payslip", { description: "Please try another file." })
+		} finally {
+			event.target.value = ""
+		}
+	}
+
 	const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault()
 		if (!selectedProduct) return
@@ -144,6 +170,7 @@ export function LoanApplicationForm({
 				guarantor_relationship: guarantorRelationship,
 				guarantor_address: guarantorAddress,
 				additional_info: additionalInfo || undefined,
+				pay_slip: paySlipDataUrl || undefined,
 			})
 
 			toast.success(response.message || "Loan application submitted successfully")
@@ -162,6 +189,8 @@ export function LoanApplicationForm({
 			setGuarantorRelationship("")
 			setGuarantorAddress("")
 			setAdditionalInfo("")
+			setPaySlipName(null)
+			setPaySlipDataUrl(null)
 		} catch (error: any) {
 			console.error("Loan application failed", error)
 			toast.error("Loan application failed", {
@@ -399,17 +428,32 @@ export function LoanApplicationForm({
       </Card>
 
       <Card className="p-6">
-				<h2 className="mb-4 text-lg font-semibold">Supporting Documents (optional)</h2>
-				<div className="space-y-4 text-center">
-					<div className="rounded-lg border-2 border-dashed p-6">
+				<h2 className="mb-4 text-lg font-semibold">Supporting Documents</h2>
+				<div className="space-y-4">
+					<div className="rounded-lg border-2 border-dashed p-6 text-center">
 						<Upload className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-						<p className="text-sm font-medium">Upload supporting documents</p>
-						<p className="text-xs text-muted-foreground">
-							Salary slips, employment letters, bank statements (PDF, JPG, PNG up to 5MB)
+						<p className="text-sm font-medium">Upload payslip</p>
+						<p className="mb-3 text-xs text-muted-foreground">
+							Attach the payslip that matches the net pay entered above (PDF, JPG, PNG up to 5MB)
 						</p>
+						<label htmlFor="loan-payslip-upload" className="inline-flex cursor-pointer">
+							<span className="rounded-md border bg-background px-3 py-2 text-sm font-medium hover:bg-muted">
+								{paySlipName ?? "Choose payslip file"}
+							</span>
+							<input
+								id="loan-payslip-upload"
+								type="file"
+								accept=".pdf,image/png,image/jpeg,image/jpg,image/webp"
+								className="hidden"
+								onChange={handlePaySlipUpload}
+							/>
+						</label>
+						{paySlipName && (
+							<p className="mt-2 text-xs text-emerald-700">Attached: {paySlipName}</p>
+						)}
             </div>
-					<p className="text-xs text-muted-foreground">
-						Document uploads are optional at this stage. Admins may request additional documents during review.
+					<p className="text-xs text-muted-foreground text-center">
+						Payslip is recommended so loan officers can verify your stated net pay.
 					</p>
         </div>
       </Card>

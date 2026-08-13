@@ -45,6 +45,7 @@ import {
   LayoutGrid,
   Store,
   Briefcase,
+  AlertCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState, useEffect, useMemo } from "react"
@@ -177,6 +178,19 @@ const navItems: NavItem[] = [
           { href: "/dashboard/property-management/maintenance/new", label: "New Request", displayKey: "nav.newMaintenanceRequest", icon: PlusCircle },
         ],
       },
+    ],
+  },
+  {
+    label: "Resident Association",
+    displayKey: "nav.residentAssociation",
+    icon: Building2,
+    subItems: [
+      { href: "/dashboard/resident-association", label: "Dashboard", displayKey: "nav.raDashboard", icon: LayoutDashboard },
+      { href: "/dashboard/resident-association/houses", label: "Houses", displayKey: "nav.raHouses", icon: Home },
+      { href: "/dashboard/resident-association/payments", label: "Payments", displayKey: "nav.raPayments", icon: CreditCard },
+      { href: "/dashboard/resident-association/receipts", label: "Receipts", displayKey: "nav.raReceipts", icon: Receipt },
+      { href: "/dashboard/resident-association/notices", label: "Notices", displayKey: "nav.raNotices", icon: FileText },
+      { href: "/dashboard/resident-association/discrepancy", label: "Report Issue", displayKey: "nav.raDiscrepancy", icon: AlertCircle },
     ],
   },
   {

@@ -139,6 +139,10 @@ export interface LoanApplicationPayload {
 	guarantor_relationship: string
 	guarantor_address?: string
 	additional_info?: string
+	pay_slip?: string
+	documents?: {
+		pay_slip?: string
+	}
 }
 
 export interface LoanApplicationResponse {

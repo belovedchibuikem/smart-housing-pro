@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ArrowLeft, CheckCircle, XCircle, FileText, Download, Calendar, User, Loader2 } from "lucide-react"
+import { ArrowLeft, CheckCircle, XCircle, FileText, Download, Calendar, User, Loader2, ExternalLink } from "lucide-react"
 import Link from "next/link"
 import {
   Dialog,
@@ -19,6 +19,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast as sonnerToast } from "sonner"
 import { apiFetch } from "@/lib/api/client"
+import { resolveStorageUrl } from "@/lib/api/config"
 import { useTenantPermissions } from "@/components/admin/can-permission"
 import { getWorkflowSettings } from "@/lib/api/office"
 
@@ -26,6 +27,7 @@ interface Loan {
   id: string
   member?: {
     member_id?: string
+    member_number?: string
     user?: {
       first_name?: string
       last_name?: string
@@ -52,6 +54,25 @@ interface Loan {
   total_amount?: number | string | null
   interest_amount?: number | string | null
   processing_fee?: number | string | null
+  net_pay?: number | string | null
+  pay_slip?: {
+    path?: string
+    mime?: string
+    url?: string
+  } | string | null
+  application_metadata?: {
+    net_pay?: number | string
+    employment_status?: string
+    guarantor_name?: string
+    guarantor_phone?: string
+    guarantor_relationship?: string
+    guarantor_address?: string
+    pay_slip?: {
+      path?: string
+      mime?: string
+      url?: string
+    } | string | null
+  } | null
   repayments?: Array<{
     id: string
     amount: number
@@ -81,6 +102,7 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
   const [showDisburseDialog, setShowDisburseDialog] = useState(false)
   const [rejectionReason, setRejectionReason] = useState("")
   const [loanWorkflowEnabled, setLoanWorkflowEnabled] = useState(false)
+  const [showPayslipDialog, setShowPayslipDialog] = useState(false)
 
   useEffect(() => {
     fetchLoan()
@@ -241,6 +263,26 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
       return `${loan.member.user.first_name || ''} ${loan.member.user.last_name || ''}`.trim() || 'N/A'
     }
     return 'N/A'
+  }
+
+  const getNetPay = () => {
+    const raw = loan?.net_pay ?? loan?.application_metadata?.net_pay
+    return toNumber(raw)
+  }
+
+  const getPaySlip = () => {
+    const slip = loan?.pay_slip ?? loan?.application_metadata?.pay_slip
+    if (!slip) return null
+    if (typeof slip === "string") {
+      return { url: slip, mime: "" }
+    }
+    return slip
+  }
+
+  const getPaySlipUrl = () => {
+    const slip = getPaySlip()
+    if (!slip) return ""
+    return resolveStorageUrl(slip.url || slip.path || "")
   }
 
   // Prefer values persisted at application time; fall back to flat tenure interest
@@ -460,6 +502,31 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
                   <label className="text-sm text-muted-foreground">Loan Type</label>
                   <p className="font-medium">{loan.type || '-'}</p>
                 </div>
+                <div>
+                  <label className="text-sm text-muted-foreground">Net Pay</label>
+                  <p className="text-2xl font-bold">
+                    {getNetPay() > 0 ? formatCurrency(getNetPay()) : "—"}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground">Payslip</label>
+                  {getPaySlipUrl() ? (
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={() => setShowPayslipDialog(true)}>
+                        <FileText className="mr-2 h-4 w-4" />
+                        View payslip
+                      </Button>
+                      <Button type="button" variant="ghost" size="sm" asChild>
+                        <a href={getPaySlipUrl()} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="mr-2 h-4 w-4" />
+                          Open
+                        </a>
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No payslip attached</p>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -516,7 +583,13 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
                 </div>
                 <div>
                   <label className="text-sm text-muted-foreground">Member ID</label>
-                  <p className="font-medium font-mono">{loan.member?.member_id || 'N/A'}</p>
+                  <p className="font-medium font-mono">{loan.member?.member_number || loan.member?.member_id || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground">Net Pay</label>
+                  <p className="text-xl font-bold">
+                    {getNetPay() > 0 ? formatCurrency(getNetPay()) : "—"}
+                  </p>
                 </div>
               </div>
               <div className="space-y-4">
@@ -532,6 +605,17 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
                     <p className="font-medium">{loan.member.user.phone}</p>
                   </div>
                 )}
+                <div>
+                  <label className="text-sm text-muted-foreground">Payslip</label>
+                  {getPaySlipUrl() ? (
+                    <Button type="button" variant="outline" size="sm" className="mt-1" onClick={() => setShowPayslipDialog(true)}>
+                      <FileText className="mr-2 h-4 w-4" />
+                      View payslip
+                    </Button>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">No payslip attached</p>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -667,6 +751,44 @@ export default function LoanDetailPage({ params }: { params: Promise<{ id: strin
                 "Confirm Disbursement"
               )}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={showPayslipDialog} onOpenChange={setShowPayslipDialog}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Member Payslip</DialogTitle>
+            <DialogDescription>
+              Payslip attached with this loan application
+              {getNetPay() > 0 ? ` · Net pay: ${formatCurrency(getNetPay())}` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-[320px] rounded-md border bg-muted/30 p-2">
+            {(() => {
+              const url = getPaySlipUrl()
+              const mime = (getPaySlip()?.mime || "").toLowerCase()
+              if (!url) {
+                return <p className="p-4 text-sm text-muted-foreground">Payslip file is unavailable.</p>
+              }
+              if (mime.includes("pdf") || url.toLowerCase().endsWith(".pdf")) {
+                return (
+                  <iframe title="Payslip" src={url} className="h-[70vh] w-full rounded-md bg-white" />
+                )
+              }
+              return (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={url} alt="Payslip" className="mx-auto max-h-[70vh] w-auto max-w-full object-contain" />
+              )
+            })()}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" asChild>
+              <a href={getPaySlipUrl()} target="_blank" rel="noopener noreferrer">
+                <Download className="mr-2 h-4 w-4" />
+                Download / Open
+              </a>
+            </Button>
+            <Button onClick={() => setShowPayslipDialog(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
