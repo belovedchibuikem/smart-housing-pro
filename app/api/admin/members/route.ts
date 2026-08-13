@@ -43,11 +43,12 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    const response = await fetch(`${API_BASE_URL}/members`, {
+    const response = await fetch(`${API_BASE_URL.replace(/\/$/, '')}/admin/members`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': request.headers.get('Authorization') || '',
+        'X-Forwarded-Host': request.headers.get('x-forwarded-host') || request.headers.get('host') || '',
       },
       body: JSON.stringify(body),
     });

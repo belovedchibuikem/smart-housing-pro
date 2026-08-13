@@ -74,6 +74,14 @@ export default function NewMemberPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (formData.password.length < 8) {
+      toast({
+        title: "Password too short",
+        description: "Initial password must be at least 8 characters.",
+        variant: "destructive",
+      })
+      return
+    }
     setLoading(true)
 
     try {
@@ -191,6 +199,7 @@ export default function NewMemberPage() {
                       onChange={handleChange} 
                       placeholder="Enter initial password" 
                       required 
+                      minLength={8}
                       className="pr-10"
                     />
                     <button
@@ -205,7 +214,7 @@ export default function NewMemberPage() {
                       )}
                     </button>
                   </div>
-                  <p className="text-xs text-muted-foreground">Member will need to change this password on first login</p>
+                  <p className="text-xs text-muted-foreground">Minimum 8 characters. Member will need to change this password on first login.</p>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-2">

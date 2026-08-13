@@ -90,6 +90,10 @@ const ADMIN_BADGE_BY_HREF: Partial<Record<string, keyof AdminPendingBadgeCounts>
   "/admin/subscriptions": "business_subscription_payments_pending",
   "/admin/member-subscriptions/bulk": "member_subscription_payments_pending",
   "/admin/members": "kyc_pending_review",
+  "/admin/loans": "loans_pending",
+  "/admin/change-requests": "change_requests_pending",
+  "/admin/ecpm/approvals": "ecpm_approvals_pending",
+  "/admin/office/tasks": "office_tasks_pending",
 }
 
 function PendingBadge({ count }: { count: number }) {
@@ -473,6 +477,14 @@ export function AdminSidebar({
     return typeof n === "number" && n > 0 ? n : 0
   }
 
+  const badgeCountForItem = (item: NavItem): number => {
+    if (item.href) {
+      return badgeCountForHref(item.href)
+    }
+    if (!item.subItems?.length) return 0
+    return item.subItems.reduce((sum, subItem) => sum + badgeCountForItem(subItem), 0)
+  }
+
   // Check subscription status on mount
   useEffect(() => {
     const checkSubscription = async () => {
@@ -561,6 +573,7 @@ export function AdminSidebar({
     const hasActiveChild = hasSubItems && item.subItems!.some((sub) => itemMatchesPathname(sub, pathname))
 
     if (hasSubItems) {
+      const groupBadge = badgeCountForItem(item)
       return (
         <div key={item.label} className="space-y-0.5">
           <button
@@ -576,6 +589,7 @@ export function AdminSidebar({
           >
             <Icon className="h-5 w-5 shrink-0" />
             <span className="flex-1 truncate">{item.label}</span>
+            <PendingBadge count={groupBadge} />
             <ChevronDown
               className={cn(
                 "h-4 w-4 shrink-0 opacity-70 transition-transform duration-200",

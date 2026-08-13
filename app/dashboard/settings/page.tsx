@@ -528,17 +528,6 @@ export default function SettingsPage() {
 				</CardContent>
 			</Card>
 
-			<Card>
-				<CardHeader>
-					<CardTitle>{t("settings.membership")}</CardTitle>
-					<CardDescription>{t("settings.membershipWithdrawDesc")}</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<Button variant="outline" asChild>
-						<Link href="/dashboard/withdraw-membership">{t("settings.withdrawLink")}</Link>
-					</Button>
-				</CardContent>
-			</Card>
 		</div>
 	)
 }

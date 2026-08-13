@@ -4403,6 +4403,10 @@ export type AdminPendingBadgeCounts = {
 	member_subscription_payments_pending: number
 	business_subscription_payments_pending: number
 	kyc_pending_review: number
+	loans_pending: number
+	change_requests_pending: number
+	ecpm_approvals_pending: number
+	office_tasks_pending: number
 }
 
 export async function getAdminPendingBadges() {

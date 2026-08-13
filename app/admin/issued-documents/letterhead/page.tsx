@@ -7,12 +7,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import {
 	getDocumentLetterhead,
 	updateDocumentLetterhead,
 	uploadDocumentLetterheadAsset,
 } from "@/lib/api/issued-documents"
+
+const FONT_OPTIONS = ["Comic Sans MS", "Arial", "Times New Roman", "DejaVu Sans"] as const
 
 const TEXT_FIELDS: Array<{ key: string; label: string; textarea?: boolean }> = [
 	{ key: "letterhead_full_name", label: "Tenant full name" },
@@ -70,6 +73,8 @@ export default function LetterheadSettingsPage() {
 				for (const field of TEXT_FIELDS) {
 					next[field.key] = String(lh[field.key] ?? "")
 				}
+				next.letterhead_body_font_family = String(lh.body_font_family ?? lh.letterhead_body_font_family ?? "Comic Sans MS")
+				next.letterhead_heading_font_family = String(lh.heading_font_family ?? lh.letterhead_heading_font_family ?? "Comic Sans MS")
 				setForm(next)
 				setPreviewLogo((lh.primary_logo_url as string) || null)
 			} catch (e) {
@@ -209,7 +214,9 @@ export default function LetterheadSettingsPage() {
 									"Watermark"
 								)}
 							</span>
-							Document body appears here
+							<span style={{ fontFamily: form.letterhead_body_font_family || "Comic Sans MS" }}>
+								Document body appears here
+							</span>
 						</div>
 						<div className="mt-3 border-t pt-2 text-xs space-y-1">
 							<div className="flex justify-between gap-2" style={{ color: form.letterhead_secondary_color || "#1565C0" }}>
@@ -250,6 +257,53 @@ export default function LetterheadSettingsPage() {
 								})()}
 							</div>
 						</div>
+					</div>
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<CardTitle>Document typography</CardTitle>
+					<CardDescription>
+						Used for official documents, correspondence, and letterhead PDFs. Comic Sans MS is the default.
+					</CardDescription>
+				</CardHeader>
+				<CardContent className="grid gap-4 md:grid-cols-2">
+					<div className="space-y-2">
+						<Label>Body font</Label>
+						<Select
+							value={form.letterhead_body_font_family || "Comic Sans MS"}
+							onValueChange={(value) => setForm((prev) => ({ ...prev, letterhead_body_font_family: value }))}
+						>
+							<SelectTrigger>
+								<SelectValue placeholder="Select body font" />
+							</SelectTrigger>
+							<SelectContent>
+								{FONT_OPTIONS.map((font) => (
+									<SelectItem key={font} value={font}>
+										{font}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+					<div className="space-y-2">
+						<Label>Heading font</Label>
+						<Select
+							value={form.letterhead_heading_font_family || "Comic Sans MS"}
+							onValueChange={(value) => setForm((prev) => ({ ...prev, letterhead_heading_font_family: value }))}
+						>
+							<SelectTrigger>
+								<SelectValue placeholder="Select heading font" />
+							</SelectTrigger>
+							<SelectContent>
+								{FONT_OPTIONS.map((font) => (
+									<SelectItem key={font} value={font}>
+										{font}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
 					</div>
 				</CardContent>
 			</Card>

@@ -218,7 +218,8 @@ const navItems: NavItem[] = [
       { href: "/dashboard/refunds/new", label: "New Request", icon: Plus },
     ],
   },
-  { href: "/dashboard/withdraw-membership", label: "Withdraw Membership", displayKey: "nav.withdrawMembership", icon: UserMinus },
+  // Withdraw membership hidden from member navigation (feature muted).
+  // { href: "/dashboard/withdraw-membership", label: "Withdraw Membership", displayKey: "nav.withdrawMembership", icon: UserMinus },
   { href: "/dashboard/digital-file", label: "My Digital File", icon: FileText },
   { href: "/dashboard/requests", label: "My Requests", icon: FileText },
   { href: "/dashboard/settings", label: "Settings", displayKey: "nav.settings", icon: Settings },
