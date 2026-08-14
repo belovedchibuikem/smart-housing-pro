@@ -77,7 +77,7 @@ const MODE_META: Array<{
   label: string
   description: string
 }> = [
-  { key: "all", label: "All pending", description: "Every open workflow task" },
+  { key: "all", label: "My office", description: "Pending work assigned to you or your office" },
   { key: "reviews", label: "My reviews", description: "Assigned to you for review" },
   { key: "recommendations", label: "My recommendations", description: "Awaiting your recommendation" },
   { key: "approvals", label: "My approvals", description: "Ready for your final decision" },
