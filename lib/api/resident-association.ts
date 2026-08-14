@@ -109,6 +109,10 @@ export async function updateRaEstate(id: string, body: Record<string, unknown>) 
 	})
 }
 
+export async function getRaOfficerOverview() {
+	return apiFetch<RaItemResponse<any>>("/admin/resident-association/estates/overview")
+}
+
 export async function getRaEstateDashboard(
 	estateId: string,
 	params?: { from?: string; to?: string; year?: string | number }

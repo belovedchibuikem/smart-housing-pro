@@ -14,6 +14,7 @@ const STAFF_ROLE_SLUGS = new Set([
   "investment_manager",
   "system_admin",
   "staff",
+  "resident_association_officer",
 ])
 
 function normalizeRoleName(role: string | undefined | null): string {

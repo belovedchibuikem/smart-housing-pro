@@ -4,6 +4,8 @@
  * Tenant super_admin sees everything (handled via roles in the sidebar).
  */
 
+import { filterNavForRaOfficer, isResidentAssociationOfficerOnly } from "@/lib/admin/ra-officer-scope"
+
 export const TENANT_ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
   dashboard:
     "access_admin_panel|view_analytics|view_reports|view_financial_reports|view_members|view_contributions|view_loans|view_properties|view_equity_contributions|view_investments|view_documents",
@@ -209,6 +211,28 @@ const ADMIN_HREF_ACTION_RULES: Array<{ test: (href: string) => boolean; permissi
   { test: (h) => /^\/admin\/equity-plans\/[^/]+\/edit$/.test(h), permission: "manage_equity_plans" },
   { test: (h) => /^\/admin\/payment-gateways\/new/.test(h), permission: "manage_payment_gateways" },
   { test: (h) => /^\/admin\/payment-gateways\/[^/]+\/edit$/.test(h), permission: "manage_payment_gateways" },
+  { test: (h) => h === "/admin/resident-association/associations" || h.startsWith("/admin/resident-association/associations/"), permission: "ra.estate.manage" },
+  { test: (h) => h === "/admin/office/workflow/settings" || h.startsWith("/admin/office/workflow/settings/"), permission: "workflow.configure" },
+  { test: (h) => h === "/admin/office/workflow/delegations" || h.startsWith("/admin/office/workflow/delegations/"), permission: "workflow.delegate" },
+  { test: (h) => h === "/admin/office/cases/sla" || h.startsWith("/admin/office/cases/sla"), permission: "manage_office_case_sla" },
+  { test: (h) => h === "/admin/office/contributions" || h.startsWith("/admin/office/contributions/"), permission: "view_contributions" },
+  { test: (h) => h === "/admin/office/inbox", permission: "approve_office_documents" },
+  { test: (h) => h === "/admin/office/outbox", permission: "create_office_documents" },
+  { test: (h) => h === "/admin/office/documents" || h.startsWith("/admin/office/documents/"), permission: "create_office_documents" },
+  { test: (h) => h === "/admin/office/library", permission: "manage_office_folders" },
+  { test: (h) => h === "/admin/office/memos/new", permission: "create_office_documents" },
+  { test: (h) => h === "/admin/office/correspondence" || h.startsWith("/admin/office/correspondence/"), permission: "manage_office_correspondence" },
+  { test: (h) => h === "/admin/office/circulars", permission: "manage_office_circulars" },
+  { test: (h) => h === "/admin/office/reports", permission: "view_office_reports" },
+  { test: (h) => h === "/admin/office/ai", permission: "use_office_ai" },
+  { test: (h) => h === "/admin/office/org-units", permission: "manage_office_org_units" },
+  { test: (h) => h === "/admin/office/workflows", permission: "manage_office_workflows" },
+  { test: (h) => h === "/admin/office/categories", permission: "manage_office_templates" },
+  { test: (h) => h === "/admin/office/templates", permission: "manage_office_templates" },
+  { test: (h) => h === "/admin/office/workflow/queue" || h.startsWith("/admin/office/workflow/queue/"), permission: "workflow.review|workflow.recommend|workflow.approve" },
+  { test: (h) => h === "/admin/office/workflow/tasks" || h.startsWith("/admin/office/workflow/tasks/"), permission: "workflow.review|workflow.recommend|workflow.approve" },
+  { test: (h) => h === "/admin/office/tasks", permission: "workflow.review|workflow.recommend|workflow.approve|view_office_cases" },
+  { test: (h) => h === "/admin/office/cases" || h.startsWith("/admin/office/cases/"), permission: "view_office_cases|claim_office_cases" },
 ]
 
 function normalizeAdminHref(href: string): string {
@@ -257,7 +281,7 @@ export function userHasPermissionForAdminHref(
 
   for (const rule of ADMIN_HREF_ACTION_RULES) {
     if (rule.test(normalized)) {
-      return perms.includes(rule.permission)
+      return hasAnyPermission(perms, rule.permission)
     }
   }
 
@@ -313,7 +337,7 @@ export function getPermissionFilteredNavItems<T extends { href?: string; subItem
   }
   const perms = permissions ?? []
 
-  return navItems
+  const filtered = navItems
     .map((item) => {
       if (item.href) {
         return userHasPermissionForAdminHref(item.href, perms) ? item : null
@@ -328,4 +352,10 @@ export function getPermissionFilteredNavItems<T extends { href?: string; subItem
       return null
     })
     .filter((x): x is T => x !== null)
+
+  if (isResidentAssociationOfficerOnly({ roles: roleNames, role: legacyUserRole, permissions: perms })) {
+    return filterNavForRaOfficer(filtered, perms)
+  }
+
+  return filtered
 }

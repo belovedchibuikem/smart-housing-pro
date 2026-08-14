@@ -4,9 +4,52 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { completeMinuteAction, getOfficeMyTasks } from "@/lib/api/office"
 import { Loader2 } from "lucide-react"
+
+type TaskItem = {
+  kind?: string
+  id: string
+  href?: string
+  title?: string
+  subtitle?: string
+  due_at?: string | null
+  is_overdue?: boolean
+  stage_label?: string
+  process_label?: string
+  document?: { id?: string; reference_number?: string; subject?: string } | null
+  office_document_id?: string | null
+  task_type?: string
+  case_number?: string
+  subject?: string
+  status?: string
+}
+
+function kindLabel(kind?: string) {
+  switch (kind) {
+    case "central_workflow_task":
+    case "workflow_task":
+      return "Workflow"
+    case "office_case":
+      return "Case"
+    case "minute_action":
+      return "Minute"
+    default:
+      return "Document"
+  }
+}
+
+function taskHref(item: TaskItem) {
+  if (item.href) return item.href
+  if (item.kind === "office_case") return `/admin/office/cases/${item.id}`
+  if (item.kind === "central_workflow_task" || item.kind === "workflow_task") {
+    return `/admin/office/workflow/tasks/${item.id}`
+  }
+  const docId = item.office_document_id || item.document?.id
+  return docId ? `/admin/office/documents/${docId}` : "/admin/office/workflow/queue"
+}
 
 export default function OfficeTasksPage() {
   const { toast } = useToast()
@@ -47,36 +90,47 @@ export default function OfficeTasksPage() {
     )
   }
 
+  const awaiting: TaskItem[] = data?.awaiting_my_action || data?.workflow_tasks || []
+  const pendingReviews: TaskItem[] = data?.pending_reviews || []
+  const overdue: TaskItem[] = data?.overdue || []
+
   return (
     <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold">My Tasks</h1>
-        <p className="text-muted-foreground">
-          Awaiting your action — document reviews, assigned cases, minute actions, and drafts.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">My Tasks</h1>
+          <p className="text-muted-foreground">
+            Awaiting your action — workflow reviews, assigned cases, minute actions, and drafts.
+          </p>
+        </div>
+        <Link href="/admin/office/workflow/queue">
+          <Button variant="outline">Open workflow queue</Button>
+        </Link>
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle className="text-base">Awaiting my action</CardTitle>
+          {awaiting.length > 0 && <Badge variant="secondary">{awaiting.length}</Badge>}
         </CardHeader>
         <CardContent className="space-y-2">
-          {(data?.awaiting_my_action || []).length === 0 && (
+          {awaiting.length === 0 && (
             <p className="text-sm text-muted-foreground">Nothing waiting on you right now.</p>
           )}
-          {(data?.awaiting_my_action || []).map((item: any) => (
+          {awaiting.map((item) => (
             <Link
-              key={`${item.kind}-${item.id}`}
-              href={item.href}
+              key={`${item.kind || "task"}-${item.id}`}
+              href={taskHref(item)}
               className="block rounded border p-3 text-sm hover:bg-muted/40"
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="font-medium truncate">{item.title}</div>
-                <span className="text-xs text-muted-foreground shrink-0">
-                  {item.kind === "office_case" ? "Case" : "Document"}
-                </span>
+                <span className="text-xs text-muted-foreground shrink-0">{kindLabel(item.kind)}</span>
               </div>
               <div className="text-muted-foreground">{item.subtitle}</div>
+              {item.is_overdue && (
+                <div className="text-xs text-destructive mt-1">Overdue</div>
+              )}
             </Link>
           ))}
         </CardContent>
@@ -84,8 +138,11 @@ export default function OfficeTasksPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Assigned cases</CardTitle>
+            {(data?.assigned_cases || []).length > 0 && (
+              <Badge variant="secondary">{(data?.assigned_cases || []).length}</Badge>
+            )}
           </CardHeader>
           <CardContent className="space-y-2">
             {(data?.assigned_cases || []).length === 0 && (
@@ -109,22 +166,25 @@ export default function OfficeTasksPage() {
         </Card>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Pending reviews / approvals</CardTitle>
+            {pendingReviews.length > 0 && <Badge variant="secondary">{pendingReviews.length}</Badge>}
           </CardHeader>
           <CardContent className="space-y-2">
-            {(data?.pending_reviews || []).length === 0 && (
+            {pendingReviews.length === 0 && (
               <p className="text-sm text-muted-foreground">None</p>
             )}
-            {(data?.pending_reviews || []).map((t: any) => (
+            {pendingReviews.map((t) => (
               <Link
                 key={t.id}
-                href={`/admin/office/documents/${t.office_document_id || t.document?.id}`}
+                href={taskHref({ ...t, kind: t.kind || "central_workflow_task" })}
                 className="block rounded border p-3 text-sm hover:bg-muted/40"
               >
-                <div className="font-medium">{t.document?.reference_number}</div>
-                <div className="text-muted-foreground">{t.document?.subject}</div>
-                <div className="text-xs mt-1">{t.step?.name || t.task_type}</div>
+                <div className="font-medium">{t.title || t.document?.reference_number || "Workflow task"}</div>
+                <div className="text-muted-foreground">{t.subtitle || t.document?.subject}</div>
+                <div className="text-xs mt-1">
+                  {t.stage_label || t.process_label || t.task_type}
+                </div>
               </Link>
             ))}
           </CardContent>
@@ -161,17 +221,26 @@ export default function OfficeTasksPage() {
         </Card>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Overdue</CardTitle>
+            {overdue.length > 0 && (
+              <Badge variant="destructive">{overdue.length}</Badge>
+            )}
           </CardHeader>
           <CardContent className="space-y-2">
-            {(data?.overdue || []).length === 0 && (
+            {overdue.length === 0 && (
               <p className="text-sm text-muted-foreground">None</p>
             )}
-            {(data?.overdue || []).map((a: any) => (
-              <div key={a.id} className="rounded border border-destructive/30 p-3 text-sm">
-                {a.title} — {a.document?.reference_number}
-              </div>
+            {overdue.map((a) => (
+              <Link
+                key={`${a.kind || "overdue"}-${a.id}`}
+                href={taskHref(a)}
+                className="block rounded border border-destructive/30 p-3 text-sm hover:bg-destructive/5"
+              >
+                {a.title}
+                {a.subtitle ? ` — ${a.subtitle}` : ""}
+                {a.document?.reference_number ? ` — ${a.document.reference_number}` : ""}
+              </Link>
             ))}
           </CardContent>
         </Card>

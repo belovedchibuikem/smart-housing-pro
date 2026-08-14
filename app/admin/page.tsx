@@ -11,6 +11,9 @@ import { usePageLoading } from "@/hooks/use-loading"
 import { apiFetch, meRequest } from "@/lib/api/client"
 import { useWhiteLabelSettings } from "@/lib/hooks/use-white-label"
 import { persistAuthSession } from "@/lib/auth/auth-cookies"
+import { isResidentAssociationOfficerOnly } from "@/lib/admin/ra-officer-scope"
+import { RaOfficerHomeDashboard } from "@/components/admin/ra-officer-home-dashboard"
+import { getEffectiveRoleNames } from "@/lib/auth/user-roles"
 import {
   Table,
   TableBody,
@@ -165,11 +168,19 @@ export default function AdminDashboardPage() {
   const { getCompanyName } = useWhiteLabelSettings()
   const [data, setData] = useState<DashboardData | null>(null)
   const [heading, setHeading] = useState("Dashboard")
+  const [raOfficerOnly, setRaOfficerOnly] = useState(false)
 
   useEffect(() => {
     const applyHeading = () => {
       const u = getUserData() as AuthUser | null
       setHeading(getStaffDashboardHeading(u))
+      setRaOfficerOnly(
+        isResidentAssociationOfficerOnly({
+          roles: getEffectiveRoleNames(u),
+          role: typeof u?.role === "object" ? u?.role?.slug : u?.role,
+          permissions: u?.permissions,
+        }),
+      )
     }
     applyHeading()
 
@@ -187,6 +198,13 @@ export default function AdminDashboardPage() {
         }
         window.dispatchEvent(new Event("sh-auth-updated"))
         setHeading(getStaffDashboardHeading(fresh))
+        setRaOfficerOnly(
+          isResidentAssociationOfficerOnly({
+            roles: getEffectiveRoleNames(fresh),
+            role: typeof fresh.role === "object" ? fresh.role?.slug : fresh.role,
+            permissions: fresh.permissions,
+          }),
+        )
       })
       .catch(() => {
         // Keep cached heading
@@ -202,6 +220,9 @@ export default function AdminDashboardPage() {
   }, [])
 
   useEffect(() => {
+    if (raOfficerOnly) {
+      return
+    }
     loadData(async () => {
       try {
         const response = await apiFetch<unknown>("/admin/dashboard/admin-stats")
@@ -211,7 +232,7 @@ export default function AdminDashboardPage() {
         return emptyDashboardPayload()
       }
     }).then(setData)
-  }, [loadData])
+  }, [loadData, raOfficerOnly])
 
   const organizationLabel = (() => {
     const raw = (data?.tenant?.name || getCompanyName() || "").trim()
@@ -312,6 +333,10 @@ export default function AdminDashboardPage() {
     } catch {
       return iso
     }
+  }
+
+  if (raOfficerOnly) {
+    return <RaOfficerHomeDashboard heading={heading} />
   }
 
   return (

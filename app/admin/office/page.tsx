@@ -1,11 +1,15 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { bootstrapOffice, getOfficeDashboard } from "@/lib/api/office"
+import { getUserData } from "@/lib/auth/auth-utils"
+import { getEffectiveRoleNames } from "@/lib/auth/user-roles"
+import { userHasPermissionForAdminHref } from "@/lib/admin/nav-permissions"
+import { isRaOfficerAllowedAdminHref, isResidentAssociationOfficerOnly } from "@/lib/admin/ra-officer-scope"
 import {
   Briefcase,
   Building2,
@@ -45,6 +49,20 @@ export default function OfficeHubPage() {
   const [loading, setLoading] = useState(true)
   const [bootstrapping, setBootstrapping] = useState(false)
   const [data, setData] = useState<Record<string, any> | null>(null)
+
+  const user = typeof window !== "undefined" ? getUserData() : null
+  const perms = Array.isArray(user?.permissions) ? user.permissions : []
+  const roles = getEffectiveRoleNames(user)
+  const legacyRole = typeof user?.role === "object" ? user?.role?.slug : user?.role
+  const raOnly = isResidentAssociationOfficerOnly({ roles, role: legacyRole, permissions: perms })
+
+  const visibleLinks = useMemo(() => {
+    return links.filter((item) => {
+      if (!userHasPermissionForAdminHref(item.href, perms)) return false
+      if (raOnly && !isRaOfficerAllowedAdminHref(item.href, perms)) return false
+      return true
+    })
+  }, [perms, raOnly])
 
   const load = async () => {
     try {
@@ -88,13 +106,17 @@ export default function OfficeHubPage() {
             Digital Office
           </h1>
           <p className="text-muted-foreground mt-1 max-w-2xl">
-            Operational command centre — cases, document workflows, departments, and member service in one place.
+            {raOnly
+              ? "Residence cases, reviews, and approvals for your estates."
+              : "Operational command centre — cases, document workflows, departments, and member service in one place."}
           </p>
         </div>
+        {!raOnly && (
         <Button onClick={handleBootstrap} disabled={bootstrapping}>
           {bootstrapping ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
           Bootstrap / Reseed
         </Button>
+        )}
       </div>
 
       {loading ? (
@@ -106,16 +128,25 @@ export default function OfficeHubPage() {
           <div>
             <h2 className="text-sm font-semibold text-muted-foreground mb-3">Case operations</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {[
-                ["Open cases", data?.cases_open],
-                ["Assigned to me", data?.cases_assigned_to_me],
-                ["Unassigned queue", data?.cases_unassigned],
-                ["Overdue SLA", data?.cases_overdue],
-                ["Awaiting member", data?.cases_awaiting_member],
-                ["Pending signature", data?.cases_pending_signature],
-                ["Due today", data?.cases_due_today],
-                ["Org units", data?.org_units],
-              ].map(([label, value]) => (
+              {(raOnly
+                ? [
+                    ["Open cases", data?.cases_open],
+                    ["Assigned to me", data?.cases_assigned_to_me],
+                    ["Unassigned queue", data?.cases_unassigned],
+                    ["Overdue SLA", data?.cases_overdue],
+                    ["Pending tasks", data?.pending_tasks],
+                  ]
+                : [
+                    ["Open cases", data?.cases_open],
+                    ["Assigned to me", data?.cases_assigned_to_me],
+                    ["Unassigned queue", data?.cases_unassigned],
+                    ["Overdue SLA", data?.cases_overdue],
+                    ["Awaiting member", data?.cases_awaiting_member],
+                    ["Pending signature", data?.cases_pending_signature],
+                    ["Due today", data?.cases_due_today],
+                    ["Org units", data?.org_units],
+                  ]
+              ).map(([label, value]) => (
                 <Card key={String(label)}>
                   <CardHeader className="pb-2">
                     <CardDescription>{label}</CardDescription>
@@ -125,6 +156,7 @@ export default function OfficeHubPage() {
               ))}
             </div>
           </div>
+          {!raOnly && (
           <div>
             <h2 className="text-sm font-semibold text-muted-foreground mb-3">Document workflows</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -147,11 +179,12 @@ export default function OfficeHubPage() {
               ))}
             </div>
           </div>
+          )}
         </>
       )}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {links.map((item) => (
+        {visibleLinks.map((item) => (
           <Link key={item.href} href={item.href}>
             <Card className="h-full transition hover:border-primary/40">
               <CardHeader>

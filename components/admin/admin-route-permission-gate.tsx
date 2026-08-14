@@ -10,6 +10,7 @@ import {
   isTenantSuperAdminContext,
   userHasPermissionForAdminHref,
 } from "@/lib/admin/nav-permissions"
+import { isRaOfficerAllowedAdminHref, isResidentAssociationOfficerOnly } from "@/lib/admin/ra-officer-scope"
 import { getRoleSlug } from "@/lib/auth/user-roles"
 import type { AuthUser } from "@/lib/auth/types"
 import { hasModuleAccess, resolveAdminHrefModule } from "@/lib/modules/module-config"
@@ -98,6 +99,16 @@ export function AdminRoutePermissionGate({ children }: { children: React.ReactNo
           setReady(true)
           hasInitializedRef.current = true
           router.replace("/unauthorized")
+          return
+        } else if (
+          isResidentAssociationOfficerOnly({ roles, role: legacyRole, permissions: perms }) &&
+          !isRaOfficerAllowedAdminHref(normalized, perms)
+        ) {
+          if (generation !== checkGenerationRef.current) return
+          setAllowed(false)
+          setReady(true)
+          hasInitializedRef.current = true
+          router.replace("/admin")
           return
         }
       }
