@@ -24,6 +24,7 @@ import {
 	listRaHouseLots,
 	listRaHouseOccupants,
 	listRaHouses,
+	assignRaHouseEstate,
 } from "@/lib/api/resident-association"
 
 function formatCurrency(amount: number) {
@@ -39,6 +40,7 @@ export default function AdminRaHousesPage() {
 	const { toast } = useToast()
 	const [estates, setEstates] = useState<any[]>([])
 	const [estateId, setEstateId] = useState<string>("all")
+	const [unlinked, setUnlinked] = useState(false)
 	const [q, setQ] = useState("")
 	const [rows, setRows] = useState<any[]>([])
 	const [loading, setLoading] = useState(true)
@@ -52,6 +54,7 @@ export default function AdminRaHousesPage() {
 	const [occType, setOccType] = useState("additional")
 	const [occPayer, setOccPayer] = useState(false)
 	const [saving, setSaving] = useState(false)
+	const [linkEstateId, setLinkEstateId] = useState<string>("")
 
 	useEffect(() => {
 		void listRaEstates({ per_page: 100 })
@@ -65,7 +68,8 @@ export default function AdminRaHousesPage() {
 			const res = await listRaHouses({
 				per_page: 50,
 				q: q || undefined,
-				estate_id: estateId !== "all" ? estateId : undefined,
+				estate_id: !unlinked && estateId !== "all" ? estateId : undefined,
+				unlinked: unlinked || undefined,
 			})
 			setRows(res.data || [])
 		} catch (e: any) {
@@ -73,7 +77,7 @@ export default function AdminRaHousesPage() {
 		} finally {
 			setLoading(false)
 		}
-	}, [estateId, q, toast])
+	}, [estateId, q, toast, unlinked])
 
 	useEffect(() => {
 		const t = setTimeout(() => void load(), 250)
@@ -110,6 +114,23 @@ export default function AdminRaHousesPage() {
 		}
 	}
 
+	const linkHouse = async (propertyId: string) => {
+		if (!linkEstateId) {
+			toast({ title: "Select an estate first", variant: "destructive" })
+			return
+		}
+		setSaving(true)
+		try {
+			await assignRaHouseEstate(propertyId, linkEstateId)
+			toast({ title: "House linked to estate" })
+			await load()
+		} catch (e: any) {
+			toast({ title: "Could not link house", description: e?.message, variant: "destructive" })
+		} finally {
+			setSaving(false)
+		}
+	}
+
 	const addOccupant = async () => {
 		if (!active || !occName.trim()) return
 		setSaving(true)
@@ -139,7 +160,7 @@ export default function AdminRaHousesPage() {
 				<div>
 					<h1 className="text-2xl font-semibold tracking-tight">Houses</h1>
 					<p className="text-sm text-muted-foreground">
-						Properties in RA estates. Open a house to manage lots and occupants (including BQ / extra payers).
+						Houses already on an estate appear here. Use Unlinked to attach houses that are not on any estate yet.
 					</p>
 				</div>
 				<Button variant="outline" onClick={() => void load()}>
@@ -151,10 +172,17 @@ export default function AdminRaHousesPage() {
 				<CardHeader>
 					<CardTitle className="text-base">Filters</CardTitle>
 				</CardHeader>
-				<CardContent className="grid gap-3 md:grid-cols-2">
+				<CardContent className="grid gap-3 md:grid-cols-3">
 					<div className="space-y-1">
 						<Label>Estate</Label>
-						<Select value={estateId} onValueChange={setEstateId}>
+						<Select
+							value={estateId}
+							onValueChange={(v) => {
+								setEstateId(v)
+								setUnlinked(false)
+							}}
+							disabled={unlinked}
+						>
 							<SelectTrigger>
 								<SelectValue />
 							</SelectTrigger>
@@ -172,6 +200,33 @@ export default function AdminRaHousesPage() {
 						<Label>Search</Label>
 						<Input placeholder="Title, location, member…" value={q} onChange={(e) => setQ(e.target.value)} />
 					</div>
+					<label className="flex items-end gap-2 pb-2 text-sm">
+						<Checkbox
+							checked={unlinked}
+							onCheckedChange={(v) => {
+								setUnlinked(Boolean(v))
+								if (v) setEstateId("all")
+							}}
+						/>
+						Show unlinked houses
+					</label>
+					{unlinked ? (
+						<div className="space-y-1">
+							<Label>Link selected houses to</Label>
+							<Select value={linkEstateId} onValueChange={setLinkEstateId}>
+								<SelectTrigger>
+									<SelectValue placeholder="Choose estate" />
+								</SelectTrigger>
+								<SelectContent>
+									{estates.map((e) => (
+										<SelectItem key={e.id} value={String(e.id)}>
+											{e.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+					) : null}
 				</CardContent>
 			</Card>
 
@@ -213,9 +268,19 @@ export default function AdminRaHousesPage() {
 												<TableCell>{name}</TableCell>
 												<TableCell className="text-right">{formatCurrency(row.outstanding)}</TableCell>
 												<TableCell className="text-right">
-													<Button size="sm" variant="outline" onClick={() => void openHouse(row)}>
-														Lots & occupants
-													</Button>
+													{unlinked ? (
+														<Button
+															size="sm"
+															disabled={saving || !linkEstateId}
+															onClick={() => void linkHouse(row.id)}
+														>
+															Link to estate
+														</Button>
+													) : (
+														<Button size="sm" variant="outline" onClick={() => void openHouse(row)}>
+															Lots & occupants
+														</Button>
+													)}
 												</TableCell>
 											</TableRow>
 										)

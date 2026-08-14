@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
+import { listRaEstates } from "@/lib/api/resident-association"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { isPropertyCategorySlug } from "@/lib/properties/property-type-label"
 import { MarketplacePublishToggle } from "@/components/admin/marketplace-publish-toggle"
@@ -55,11 +56,19 @@ export default function EditPropertyPage() {
     status: "available",
     total_slots: "",
     listing_mode: "sale",
+    estate_id: "",
   })
   const [images, setImages] = useState<PropertyImage[]>([])
   const [uploadingImages, setUploadingImages] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [coordinates, setCoordinates] = useState<GeoCoordinates>(null)
+  const [estates, setEstates] = useState<Array<{ id: string; name: string }>>([])
+
+  useEffect(() => {
+    void listRaEstates({ per_page: 200 })
+      .then((res) => setEstates(res.data || []))
+      .catch(() => setEstates([]))
+  }, [])
 
   useEffect(() => {
     if (!propertyId) return
@@ -95,6 +104,7 @@ export default function EditPropertyPage() {
                 ? String(property.total_slots)
                 : "",
             listing_mode: property.listing_mode || "sale",
+            estate_id: property.estate_id || property.estate?.id || "",
           })
           setCoordinates(parseGeoCoordinates(property.coordinates))
 
@@ -249,6 +259,7 @@ export default function EditPropertyPage() {
         price: parseFloat(formData.price),
         status: formData.status,
         listing_mode: formData.listing_mode,
+        estate_id: formData.estate_id || null,
       }
       if (formData.non_member_price.trim() !== "") {
         const nonMemberPrice = parseFloat(formData.non_member_price)
@@ -458,14 +469,34 @@ export default function EditPropertyPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
-                <Input
-                  id="address"
-                  placeholder="e.g., No. 123 Street Name"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                />
+                <Label htmlFor="estate_id">Estate (for Resident Association)</Label>
+                <Select
+                  value={formData.estate_id || "none"}
+                  onValueChange={(v) => setFormData({ ...formData, estate_id: v === "none" ? "" : v })}
+                >
+                  <SelectTrigger id="estate_id">
+                    <SelectValue placeholder="Not linked" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Not linked</SelectItem>
+                    {estates.map((estate) => (
+                      <SelectItem key={estate.id} value={estate.id}>
+                        {estate.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="address">Address</Label>
+              <Input
+                id="address"
+                placeholder="e.g., No. 123 Street Name"
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">

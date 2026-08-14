@@ -122,6 +122,13 @@ export async function listRaHouses(params?: Query) {
 	return apiFetch<RaListResponse<any[]>>(`/admin/resident-association/houses${toQuery(params)}`)
 }
 
+export async function assignRaHouseEstate(propertyId: string, estate_id: string) {
+	return apiFetch<RaItemResponse<any>>(`/admin/resident-association/houses/${propertyId}/estate`, {
+		method: "PUT",
+		body: { estate_id },
+	})
+}
+
 export async function listRaHouseLots(propertyId: string) {
 	return apiFetch<RaItemResponse<any[]>>(`/admin/resident-association/houses/${propertyId}/lots`)
 }
