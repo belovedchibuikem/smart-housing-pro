@@ -30,7 +30,8 @@ function isAuthExemptPath(path: string): boolean {
 		normalized.startsWith("/auth/reset-password") ||
 		normalized.startsWith("/auth/mobile-login") ||
 		normalized.startsWith("/auth/logout") ||
-		normalized.startsWith("/auth/recaptcha")
+		normalized.startsWith("/auth/recaptcha") ||
+		normalized.startsWith("/platform/")
 	)
 }
 

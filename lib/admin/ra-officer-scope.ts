@@ -44,6 +44,7 @@ const RA_OFFICE_HREF_PREFIXES = [
 
 const RA_NAV_HREF_PREFIXES = [
   "/admin",
+  "/admin/profile",
   "/admin/resident-association",
   ...RA_OFFICE_HREF_PREFIXES,
 ]

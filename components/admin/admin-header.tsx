@@ -15,13 +15,15 @@ import Image from "next/image"
 import { useWhiteLabelSettings } from "@/lib/hooks/use-white-label"
 import { useTenantSettings } from "@/lib/context/tenant-settings-context"
 import { AdminNotificationBell } from "./admin-notification-bell"
-import { handleLogout } from "@/lib/auth/auth-utils"
+import { handleLogout, getUserData } from "@/lib/auth/auth-utils"
 import { AdminSubscriptionAlertBanner } from "./subscription-alert-banner"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { useTenantPermissions } from "@/components/admin/can-permission"
 import { canAccessAdminHref } from "@/lib/admin/tenant-permissions"
 import { AdminNavMenuSearch } from "@/components/admin/admin-nav-menu-search"
 import type { UserRole } from "@/lib/roles"
+import { useEffect, useState } from "react"
+import type { AuthUser } from "@/lib/auth/types"
 
 interface AdminHeaderProps {
   mobileMenuOpen: boolean
@@ -47,6 +49,18 @@ export function AdminHeader({
   const siteName = getCompanyName() || getSetting("site_name", "FRSC HMS Admin")
   const siteTagline = getCompanyTagline() || "System Administration"
   const logoUrl = getLogo()
+  const [adminUser, setAdminUser] = useState<AuthUser | null>(null)
+
+  useEffect(() => {
+    const apply = () => {
+      setAdminUser((getUserData() as AuthUser | null) || null)
+    }
+    apply()
+    window.addEventListener("sh-auth-updated", apply)
+    return () => window.removeEventListener("sh-auth-updated", apply)
+  }, [])
+
+  const avatarSrc = adminUser?.avatar_url ? resolveStorageUrl(adminUser.avatar_url) : null
 
   return (
     <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
@@ -105,13 +119,20 @@ export function AdminHeader({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <User className="h-5 w-5" />
+              <Button variant="ghost" size="icon" className="relative overflow-hidden">
+                {avatarSrc ? (
+                  <Image src={avatarSrc} alt="" width={28} height={28} className="h-7 w-7 rounded-full object-cover" />
+                ) : (
+                  <User className="h-5 w-5" />
+                )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuLabel>Admin Account</DropdownMenuLabel>
               <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/admin/profile">My profile</Link>
+              </DropdownMenuItem>
               {showSettings ? (
                 <DropdownMenuItem asChild>
                   <Link href="/admin/settings">Settings</Link>

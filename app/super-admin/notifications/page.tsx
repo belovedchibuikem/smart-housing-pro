@@ -63,50 +63,24 @@ export default function SuperAdminNotificationsPage() {
   const loadNotifications = async () => {
     try {
       setLoading(true)
-      // Load notifications from API
-      const response = await apiFetch('/super-admin/notifications')
-      if (response.success) {
-        setNotifications(response.notifications)
-      } else {
-        // Fallback to mock data if API fails
-        const mockNotifications: Notification[] = [
-          {
-            id: '1',
-            type: 'security',
-            title: 'New Super Admin Login',
-            message: 'A new super admin account was created and logged in successfully.',
-            is_read: false,
-            priority: 'high',
-            created_at: new Date().toISOString(),
-          },
-          {
-            id: '2',
-            type: 'business',
-            title: 'New Business Registration',
-            message: 'A new business "Tech Solutions Ltd" has registered on the platform.',
-            is_read: false,
-            priority: 'medium',
-            created_at: new Date(Date.now() - 3600000).toISOString(),
-          },
-        ]
-        setNotifications(mockNotifications)
-      }
+      const response = await apiFetch<{ success?: boolean; notifications?: any[] }>("/super-admin/notifications")
+      const rows = Array.isArray(response.notifications) ? response.notifications : []
+      setNotifications(
+        rows.map((raw) => ({
+          id: String(raw.id),
+          type: raw.type || "system",
+          title: raw.title || "Notification",
+          message: raw.message || "",
+          is_read: Boolean(raw.is_read ?? raw.read_at),
+          priority: raw.priority || "medium",
+          created_at: raw.created_at,
+          metadata: raw.data,
+        }))
+      )
     } catch (error) {
-      console.error('Error loading notifications:', error)
-      // Fallback to mock data if API fails
-      const mockNotifications: Notification[] = [
-        {
-          id: '1',
-          type: 'security',
-          title: 'New Super Admin Login',
-          message: 'A new super admin account was created and logged in successfully.',
-          is_read: false,
-          priority: 'high',
-          created_at: new Date().toISOString(),
-        },
-      ]
-      setNotifications(mockNotifications)
-      toast.error('Failed to load notifications')
+      console.error("Error loading notifications:", error)
+      setNotifications([])
+      toast.error("Failed to load notifications")
     } finally {
       setLoading(false)
     }
@@ -114,17 +88,14 @@ export default function SuperAdminNotificationsPage() {
 
   const loadSettings = async () => {
     try {
-      // Mock settings for now - replace with actual API call
-      setSettings({
-        email_notifications: true,
-        push_notifications: true,
-        business_alerts: true,
-        payment_alerts: true,
-        security_alerts: true,
-        system_updates: true,
-      })
+      const response = await apiFetch<{ success?: boolean; settings?: NotificationSettings }>(
+        "/super-admin/notifications/settings"
+      )
+      if (response.settings) {
+        setSettings((prev) => ({ ...prev, ...response.settings }))
+      }
     } catch (error) {
-      console.error('Error loading settings:', error)
+      console.error("Error loading settings:", error)
     }
   }
 
@@ -195,12 +166,22 @@ export default function SuperAdminNotificationsPage() {
   const updateSettings = async (newSettings: NotificationSettings) => {
     try {
       setSaving(true)
-      // Mock API call - replace with actual implementation
-      setSettings(newSettings)
-      toast.success('Notification settings updated')
+      const response = await apiFetch<{ success?: boolean; settings?: NotificationSettings }>(
+        "/super-admin/notifications/settings",
+        {
+          method: "PUT",
+          body: newSettings,
+        }
+      )
+      if (response.settings) {
+        setSettings(response.settings)
+      } else {
+        setSettings(newSettings)
+      }
+      toast.success("Notification settings updated")
     } catch (error) {
-      console.error('Error updating settings:', error)
-      toast.error('Failed to update settings')
+      console.error("Error updating settings:", error)
+      toast.error("Failed to update settings")
     } finally {
       setSaving(false)
     }

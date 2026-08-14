@@ -19,6 +19,7 @@ import { unlockBodyPointerEvents } from "@/lib/ui/unlock-body"
 import { IdleSessionGuard } from "@/lib/auth/idle-session"
 import { persistSessionTimeout } from "@/lib/auth/session-timeout"
 import { Loader2 } from "lucide-react"
+import { WebPushRegistrar } from "@/components/push/web-push-registrar"
 
 export default function AdminLayout({
   children,
@@ -107,6 +108,7 @@ export default function AdminLayout({
   return (
     <AuthGuard requireStaffDashboardAccess>
       <IdleSessionGuard />
+      <WebPushRegistrar />
       <div className="min-h-screen bg-background">
         <AdminHeader
           mobileMenuOpen={mobileMenuOpen}

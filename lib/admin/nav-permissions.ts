@@ -111,6 +111,7 @@ export const TENANT_ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
   "issued-documents":
     "view_issued_documents|issue_documents|approve_issued_documents|revoke_issued_documents|reissue_documents|download_issued_documents|verify_documents_admin|manage_letterhead_settings|manage_document_templates",
   notifications: "view_users|view_members|create_users|manage_settings|manage_notifications|create_announcement|publish_announcement",
+  profile: "access_admin_panel|view_users|view_members|ra.estate.view",
   valuations: "view_valuations|run_valuation|override_valuation|approve_valuation|manage_valuation_settings",
   "change-requests": "view_change_requests|manage_change_requests|view_ownership|manage_ownership",
   ownership: "view_ownership|manage_ownership|manage_ownership_settings|view_change_requests",

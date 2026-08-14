@@ -23,4 +23,6 @@ export interface AuthUser {
 	password_changed_at?: string | null
 	/** `tenant` = cooperative user; `platform` = central SuperAdmin operator */
 	auth_context?: "tenant" | "platform"
+	avatar_url?: string | null
+	phone?: string
 }
