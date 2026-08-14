@@ -16,6 +16,7 @@ import {
 	listRaAssociations,
 	listRaCharges,
 	listRaEstates,
+	listRaHouses,
 } from "@/lib/api/resident-association"
 
 function formatCurrency(amount: number) {
@@ -40,7 +41,10 @@ export default function AdminRaChargesPage() {
 		name: "",
 		amount: "",
 		frequency: "annual",
+		house_property_id: "",
+		house_amount: "",
 	})
+	const [houses, setHouses] = useState<any[]>([])
 
 	const loadMeta = useCallback(async () => {
 		try {
@@ -72,6 +76,16 @@ export default function AdminRaChargesPage() {
 		void load()
 	}, [load, loadMeta])
 
+	useEffect(() => {
+		if (!form.estate_id) {
+			setHouses([])
+			return
+		}
+		void listRaHouses({ estate_id: form.estate_id, per_page: 100 })
+			.then((res) => setHouses(res.data || []))
+			.catch(() => setHouses([]))
+	}, [form.estate_id])
+
 	const submit = async () => {
 		if (!form.association_id || !form.estate_id || !form.name.trim() || !form.amount) {
 			toast({ title: "Association, estate, name and amount are required", variant: "destructive" })
@@ -86,9 +100,19 @@ export default function AdminRaChargesPage() {
 				amount: Number(form.amount),
 				frequency: form.frequency,
 				generate_obligations: true,
+				house_rates:
+					form.house_property_id && form.house_amount
+						? [
+								{
+									property_id: form.house_property_id,
+									amount: Number(form.house_amount),
+									estate_id: form.estate_id,
+								},
+							]
+						: undefined,
 			})
 			toast({ title: "Charge created" })
-			setForm((f) => ({ ...f, name: "", amount: "" }))
+			setForm((f) => ({ ...f, name: "", amount: "", house_property_id: "", house_amount: "" }))
 			await load()
 		} catch (e: any) {
 			toast({ title: "Create failed", description: e?.message, variant: "destructive" })
@@ -189,6 +213,37 @@ export default function AdminRaChargesPage() {
 							</SelectContent>
 						</Select>
 					</div>
+					<div className="space-y-1">
+						<Label>House-specific amount (optional)</Label>
+						<Select
+							value={form.house_property_id || "none"}
+							onValueChange={(v) => setForm((f) => ({ ...f, house_property_id: v === "none" ? "" : v }))}
+						>
+							<SelectTrigger>
+								<SelectValue placeholder="All houses use default amount" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="none">All houses (default amount)</SelectItem>
+								{houses.map((h) => (
+									<SelectItem key={h.id} value={String(h.id)}>
+										{h.title || h.id}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+					</div>
+					{form.house_property_id ? (
+						<div className="space-y-1">
+							<Label>Override amount for selected house</Label>
+							<Input
+								type="number"
+								min="0"
+								step="0.01"
+								value={form.house_amount}
+								onChange={(e) => setForm((f) => ({ ...f, house_amount: e.target.value }))}
+							/>
+						</div>
+					) : null}
 					<div className="flex items-end">
 						<Button onClick={() => void submit()} disabled={saving}>
 							{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}

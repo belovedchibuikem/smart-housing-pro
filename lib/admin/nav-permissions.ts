@@ -116,6 +116,8 @@ export const TENANT_ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
   "payment-routing": "manage_payment_routing|manage_payments|view_payment_gateways",
   "contact-centre": "manage_contact_centre|manage_settings|manage_white_label",
   "platform-config": "manage_settings|manage_ownership_settings|manage_payment_routing|manage_contact_centre",
+  "resident-association":
+    "ra.estate.view|ra.estate.manage|ra.house.view|ra.house.manage|ra.charge.manage|ra.payment.view|ra.payment.verify|ra.payment.reject|ra.payment.correct|ra.revenue.view|ra.expenditure.manage|ra.reports.view|ra.settings.manage|ra.notice.manage",
   collaterals: "view_collateral|create_collateral|verify_collateral|manage_collateral_transfer|manage_collateral_rules",
   announcements: "create_announcement|publish_announcement|manage_announcement_settings|manage_notification_templates|manage_notifications",
   "payment-receipts": "issue_receipt|cancel_receipt|view_receipts|issue_documents|view_issued_documents",

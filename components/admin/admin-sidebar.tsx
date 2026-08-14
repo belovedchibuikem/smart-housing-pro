@@ -58,6 +58,7 @@ import {
   Megaphone,
   Phone,
   Search,
+  AlertCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -293,6 +294,7 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
       { href: "/admin/resident-association/houses", label: "Houses", icon: Home },
       { href: "/admin/resident-association/charges", label: "Charges", icon: Receipt },
       { href: "/admin/resident-association/payments", label: "Payments", icon: CreditCard },
+      { href: "/admin/resident-association/discrepancies", label: "Discrepancies", icon: AlertCircle },
       { href: "/admin/resident-association/revenue", label: "Revenue", icon: BarChart3 },
       { href: "/admin/resident-association/expenditures", label: "Expenditure", icon: DollarSign },
       { href: "/admin/resident-association/bank-accounts", label: "Bank Accounts", icon: Landmark },

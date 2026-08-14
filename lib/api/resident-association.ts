@@ -71,6 +71,22 @@ export async function assignRaAssociationUsers(id: string, body: Record<string, 
 	})
 }
 
+export async function registerRaExecutive(id: string, body: Record<string, unknown>) {
+	return apiFetch<RaItemResponse<any> & { executive?: any }>(
+		`/admin/resident-association/associations/${id}/executives`,
+		{
+			method: "POST",
+			body,
+		},
+	)
+}
+
+export async function removeRaExecutive(id: string, userId: string) {
+	return apiFetch<RaItemResponse<any>>(`/admin/resident-association/associations/${id}/executives/${userId}`, {
+		method: "DELETE",
+	})
+}
+
 export async function listRaEstates(params?: Query) {
 	return apiFetch<RaListResponse<any[]>>(`/admin/resident-association/estates${toQuery(params)}`)
 }
@@ -204,6 +220,10 @@ export async function rejectRaPayment(id: string, body: { reason?: string; rejec
 		method: "POST",
 		body,
 	})
+}
+
+export async function listRaDiscrepancies(params?: Query) {
+	return apiFetch<RaListResponse<any[]>>(`/admin/resident-association/discrepancies${toQuery(params)}`)
 }
 
 export async function listRaExpenditures(params?: Query) {

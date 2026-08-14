@@ -33,7 +33,9 @@ import {
 } from "@/components/ui/searchable-select"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
+import { WorkflowSubjectPanel } from "@/components/office/workflow-subject-panel"
 import {
+  actOnWorkflowTask,
   assignOfficeCase,
   claimOfficeCase,
   createOfficeCaseLetter,
@@ -144,6 +146,7 @@ export default function OfficeCaseDetailPage() {
   const [nextStatus, setNextStatus] = useState("")
   const [applyDomainAction, setApplyDomainAction] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [taskReason, setTaskReason] = useState("")
 
   const loadStaff = useCallback(async (query = "") => {
     const users = await getOfficeStaffUsers(query || undefined, { excludeSelf: true })
@@ -305,6 +308,66 @@ export default function OfficeCaseDetailPage() {
           Refresh
         </Button>
       </div>
+
+      <WorkflowSubjectPanel subject={caseData.linked_subject} />
+
+      {Array.isArray(caseData.open_workflow_tasks) && caseData.open_workflow_tasks.length > 0 ? (
+        <Card className="shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Workflow actions</CardTitle>
+            <CardDescription>
+              Decide this linked application here. Reject and return need a reason.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Textarea
+              rows={3}
+              value={taskReason}
+              onChange={(e) => setTaskReason(e.target.value)}
+              placeholder="Reason / comment (required for reject or return)"
+            />
+            {caseData.open_workflow_tasks.map((wt: any) => (
+              <div key={wt.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3">
+                <div className="text-sm">
+                  <div className="font-medium">{wt.title || "Pending task"}</div>
+                  <div className="text-muted-foreground capitalize">
+                    {(wt.stage_kind || "").replace(/_/g, " ")} · {wt.process_key}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {(wt.available_actions || []).map((action: string) => (
+                    <Button
+                      key={action}
+                      size="sm"
+                      variant={action.includes("reject") || action === "return" ? "destructive" : "default"}
+                      disabled={busy}
+                      onClick={() =>
+                        run(async () => {
+                          const needsReason = ["reject", "return", "recommend_reject"].includes(action)
+                          if (needsReason && !taskReason.trim()) {
+                            throw new Error("Add a reason before rejecting or returning.")
+                          }
+                          await actOnWorkflowTask(wt.id, {
+                            action,
+                            reason: taskReason.trim() || undefined,
+                          })
+                          toast({ title: "Workflow action applied" })
+                          setTaskReason("")
+                        })
+                      }
+                    >
+                      {action.replace(/_/g, " ")}
+                    </Button>
+                  ))}
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={wt.href || `/admin/office/workflow/tasks/${wt.id}`}>Details</Link>
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2 shadow-sm">

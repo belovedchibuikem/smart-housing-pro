@@ -8,8 +8,23 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog"
+import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
-import { listRaEstates, listRaHouses } from "@/lib/api/resident-association"
+import {
+	createRaHouseLot,
+	createRaHouseOccupant,
+	listRaEstates,
+	listRaHouseLots,
+	listRaHouseOccupants,
+	listRaHouses,
+} from "@/lib/api/resident-association"
 
 function formatCurrency(amount: number) {
 	return new Intl.NumberFormat("en-NG", {
@@ -27,6 +42,16 @@ export default function AdminRaHousesPage() {
 	const [q, setQ] = useState("")
 	const [rows, setRows] = useState<any[]>([])
 	const [loading, setLoading] = useState(true)
+	const [active, setActive] = useState<any | null>(null)
+	const [lots, setLots] = useState<any[]>([])
+	const [occupants, setOccupants] = useState<any[]>([])
+	const [detailLoading, setDetailLoading] = useState(false)
+	const [lotLabel, setLotLabel] = useState("")
+	const [occName, setOccName] = useState("")
+	const [occPhone, setOccPhone] = useState("")
+	const [occType, setOccType] = useState("additional")
+	const [occPayer, setOccPayer] = useState(false)
+	const [saving, setSaving] = useState(false)
 
 	useEffect(() => {
 		void listRaEstates({ per_page: 100 })
@@ -55,12 +80,67 @@ export default function AdminRaHousesPage() {
 		return () => clearTimeout(t)
 	}, [load])
 
+	const openHouse = async (row: any) => {
+		setActive(row)
+		setDetailLoading(true)
+		try {
+			const [l, o] = await Promise.all([listRaHouseLots(row.id), listRaHouseOccupants(row.id)])
+			setLots(l.data || [])
+			setOccupants(o.data || [])
+		} catch (e: any) {
+			toast({ title: "Failed to load house details", description: e?.message, variant: "destructive" })
+		} finally {
+			setDetailLoading(false)
+		}
+	}
+
+	const addLot = async () => {
+		if (!active || !lotLabel.trim()) return
+		setSaving(true)
+		try {
+			await createRaHouseLot(active.id, { lot_label: lotLabel.trim() })
+			setLotLabel("")
+			const l = await listRaHouseLots(active.id)
+			setLots(l.data || [])
+			toast({ title: "Lot added" })
+		} catch (e: any) {
+			toast({ title: "Could not add lot", description: e?.message, variant: "destructive" })
+		} finally {
+			setSaving(false)
+		}
+	}
+
+	const addOccupant = async () => {
+		if (!active || !occName.trim()) return
+		setSaving(true)
+		try {
+			await createRaHouseOccupant(active.id, {
+				name: occName.trim(),
+				phone: occPhone || undefined,
+				occupant_type: occType,
+				is_payer: occPayer,
+			})
+			setOccName("")
+			setOccPhone("")
+			setOccPayer(false)
+			const o = await listRaHouseOccupants(active.id)
+			setOccupants(o.data || [])
+			toast({ title: "Occupant added" })
+		} catch (e: any) {
+			toast({ title: "Could not add occupant", description: e?.message, variant: "destructive" })
+		} finally {
+			setSaving(false)
+		}
+	}
+
 	return (
 		<div className="space-y-6">
 			<div className="flex flex-wrap items-center justify-between gap-3">
 				<div>
 					<h1 className="text-2xl font-semibold tracking-tight">Houses</h1>
-					<p className="text-sm text-muted-foreground">Properties in RA estates with outstanding dues</p>
+					<p className="text-sm text-muted-foreground">
+						Properties in RA estates. Open a house to manage lots and occupants (including BQ / extra payers).
+					</p>
 				</div>
 				<Button variant="outline" onClick={() => void load()}>
 					<RefreshCw className="mr-2 h-4 w-4" /> Refresh
@@ -109,12 +189,13 @@ export default function AdminRaHousesPage() {
 									<TableHead>Estate</TableHead>
 									<TableHead>Occupant</TableHead>
 									<TableHead className="text-right">Outstanding</TableHead>
+									<TableHead />
 								</TableRow>
 							</TableHeader>
 							<TableBody>
 								{rows.length === 0 ? (
 									<TableRow>
-										<TableCell colSpan={4} className="text-center text-muted-foreground">
+										<TableCell colSpan={5} className="text-center text-muted-foreground">
 											No houses found
 										</TableCell>
 									</TableRow>
@@ -131,6 +212,11 @@ export default function AdminRaHousesPage() {
 												<TableCell>{row.estate?.name || "—"}</TableCell>
 												<TableCell>{name}</TableCell>
 												<TableCell className="text-right">{formatCurrency(row.outstanding)}</TableCell>
+												<TableCell className="text-right">
+													<Button size="sm" variant="outline" onClick={() => void openHouse(row)}>
+														Lots & occupants
+													</Button>
+												</TableCell>
 											</TableRow>
 										)
 									})
@@ -140,6 +226,76 @@ export default function AdminRaHousesPage() {
 					)}
 				</CardContent>
 			</Card>
+
+			<Dialog open={Boolean(active)} onOpenChange={(open) => !open && setActive(null)}>
+				<DialogContent className="max-w-lg">
+					<DialogHeader>
+						<DialogTitle>{active?.title || "House"}</DialogTitle>
+						<DialogDescription>Lots, additional occupants, and extra payers for this property.</DialogDescription>
+					</DialogHeader>
+					{detailLoading ? (
+						<div className="flex justify-center py-6">
+							<Loader2 className="h-5 w-5 animate-spin" />
+						</div>
+					) : (
+						<div className="space-y-5">
+							<div>
+								<div className="mb-2 text-sm font-medium">Lots</div>
+								<ul className="mb-2 space-y-1 text-sm">
+									{lots.length === 0 ? <li className="text-muted-foreground">No lots yet</li> : null}
+									{lots.map((lot) => (
+										<li key={lot.id}>{lot.lot_label}</li>
+									))}
+								</ul>
+								<div className="flex gap-2">
+									<Input
+										placeholder="Lot label"
+										value={lotLabel}
+										onChange={(e) => setLotLabel(e.target.value)}
+									/>
+									<Button size="sm" disabled={saving} onClick={() => void addLot()}>
+										Add
+									</Button>
+								</div>
+							</div>
+							<div>
+								<div className="mb-2 text-sm font-medium">Occupants</div>
+								<ul className="mb-2 space-y-1 text-sm">
+									{occupants.length === 0 ? <li className="text-muted-foreground">No extra occupants</li> : null}
+									{occupants.map((occ) => (
+										<li key={occ.id}>
+											{occ.name}
+											{occ.phone ? ` · ${occ.phone}` : ""}
+											{occ.is_payer ? " · payer" : ""}
+											{occ.occupant_type ? ` · ${String(occ.occupant_type).replace(/_/g, " ")}` : ""}
+										</li>
+									))}
+								</ul>
+								<div className="grid gap-2">
+									<Input placeholder="Name" value={occName} onChange={(e) => setOccName(e.target.value)} />
+									<Input placeholder="Phone" value={occPhone} onChange={(e) => setOccPhone(e.target.value)} />
+									<Select value={occType} onValueChange={setOccType}>
+										<SelectTrigger>
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="additional">Additional occupant</SelectItem>
+											<SelectItem value="boys_quarters">Boys quarters</SelectItem>
+										</SelectContent>
+									</Select>
+									<label className="flex items-center gap-2 text-sm">
+										<Checkbox checked={occPayer} onCheckedChange={(v) => setOccPayer(Boolean(v))} />
+										This occupant is a payer
+									</label>
+									<Button size="sm" disabled={saving} onClick={() => void addOccupant()}>
+										Add occupant
+									</Button>
+								</div>
+							</div>
+						</div>
+					)}
+				</DialogContent>
+			</Dialog>
 		</div>
 	)
 }

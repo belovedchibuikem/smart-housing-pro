@@ -515,27 +515,16 @@ export default function AdminBulkMemberSubscriptionsPage() {
                   </p>
                 )}
                 <p>
-                  <Link
-                    href="/admin/payment-approvals"
-                    className="font-medium underline underline-offset-2 hover:opacity-90"
-                  >
-                    Open Payment approvals
-                  </Link>{" "}
-                  to track or add notes for reviewers.
+                  Platform super-admin will approve this member subscription payment. It does not appear on
+                  cooperative Payment Approvals.
                 </p>
               </>
             ) : submissionOutcome.kind === "wallet_paid" ? (
               <>
                 <p>
-                  The organisation wallet was charged successfully. Subscription records should update shortly. If
-                  anything looks wrong, check{" "}
-                  <Link
-                    href="/admin/payment-approvals"
-                    className="font-medium underline underline-offset-2 hover:opacity-90"
-                  >
-                    Payment approvals
-                  </Link>{" "}
-                  or member subscription lists.
+                  The organisation wallet was charged successfully. Subscription records should update shortly.
+                  Member subscription payments are reviewed by the platform super-admin, not cooperative Payment
+                  Approvals.
                 </p>
                 <p className="text-sm">
                   {[
