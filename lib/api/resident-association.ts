@@ -188,10 +188,13 @@ export async function getRaCharge(id: string) {
 }
 
 export async function createRaCharge(body: Record<string, unknown>) {
-	return apiFetch<RaItemResponse<any>>("/admin/resident-association/charges", {
-		method: "POST",
-		body,
-	})
+	return apiFetch<RaItemResponse<any> & { obligations_created?: number; houses_skipped?: number }>(
+		"/admin/resident-association/charges",
+		{
+			method: "POST",
+			body,
+		}
+	)
 }
 
 export async function updateRaCharge(id: string, body: Record<string, unknown>) {

@@ -52,12 +52,21 @@ export default function AdminRaChargesPage() {
 				listRaEstates({ per_page: 100 }),
 				listRaAssociations({ per_page: 100 }),
 			])
-			setEstates(e.data || [])
-			setAssociations(a.data || [])
-		} catch {
-			/* ignore */
+			const estateRows = e.data || []
+			const assocRows = a.data || []
+			setEstates(estateRows)
+			setAssociations(assocRows)
+			setForm((f) => {
+				if (f.association_id) return f
+				if (assocRows.length === 1) {
+					return { ...f, association_id: String(assocRows[0].id) }
+				}
+				return f
+			})
+		} catch (err: any) {
+			toast({ title: "Failed to load estates or associations", description: err?.message, variant: "destructive" })
 		}
-	}, [])
+	}, [toast])
 
 	const load = useCallback(async () => {
 		setLoading(true)
@@ -81,20 +90,29 @@ export default function AdminRaChargesPage() {
 			setHouses([])
 			return
 		}
+		const estate = estates.find((row) => String(row.id) === form.estate_id)
+		const linkedAssoc = estate?.associations?.[0]?.id
+		if (linkedAssoc && !form.association_id) {
+			setForm((f) => ({ ...f, association_id: String(linkedAssoc) }))
+		}
 		void listRaHouses({ estate_id: form.estate_id, per_page: 100 })
 			.then((res) => setHouses(res.data || []))
 			.catch(() => setHouses([]))
-	}, [form.estate_id])
+	}, [form.estate_id, form.association_id, estates])
 
 	const submit = async () => {
-		if (!form.association_id || !form.estate_id || !form.name.trim() || !form.amount) {
-			toast({ title: "Association, estate, name and amount are required", variant: "destructive" })
+		if (!form.estate_id || !form.name.trim() || !form.amount) {
+			toast({ title: "Estate, name and amount are required", variant: "destructive" })
+			return
+		}
+		if (Number(form.amount) <= 0) {
+			toast({ title: "Amount must be greater than zero", variant: "destructive" })
 			return
 		}
 		setSaving(true)
 		try {
-			await createRaCharge({
-				association_id: form.association_id,
+			const res = await createRaCharge({
+				association_id: form.association_id || undefined,
 				estate_id: form.estate_id,
 				name: form.name.trim(),
 				amount: Number(form.amount),
@@ -111,7 +129,13 @@ export default function AdminRaChargesPage() {
 							]
 						: undefined,
 			})
-			toast({ title: "Charge created" })
+			toast({
+				title: res.message || "Charge created",
+				description:
+					typeof res.obligations_created === "number"
+						? `${res.obligations_created} house bill(s) created`
+						: undefined,
+			})
 			setForm((f) => ({ ...f, name: "", amount: "", house_property_id: "", house_amount: "" }))
 			await load()
 		} catch (e: any) {
@@ -123,8 +147,12 @@ export default function AdminRaChargesPage() {
 
 	const generate = async (id: string) => {
 		try {
-			await generateRaChargeObligations(id)
-			toast({ title: "Obligations generated" })
+			const res = await generateRaChargeObligations(id)
+			toast({
+				title: res.message || "Obligations generated",
+				description:
+					typeof res.data?.created === "number" ? `${res.data.created} new bill(s)` : undefined,
+			})
 			await load()
 		} catch (e: any) {
 			toast({ title: "Generate failed", description: e?.message, variant: "destructive" })
@@ -148,7 +176,9 @@ export default function AdminRaChargesPage() {
 					<CardTitle className="text-base flex items-center gap-2">
 						<Plus className="h-4 w-4" /> New charge
 					</CardTitle>
-					<CardDescription>Creates a charge and optionally generates obligations</CardDescription>
+					<CardDescription>
+						Creates the charge and bills allotted members (and extra payers) on houses in the estate
+					</CardDescription>
 				</CardHeader>
 				<CardContent className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
 					<div className="space-y-1">
@@ -161,7 +191,13 @@ export default function AdminRaChargesPage() {
 								<SelectValue placeholder="Select" />
 							</SelectTrigger>
 							<SelectContent>
-								{associations.map((a) => (
+								{(form.estate_id
+									? associations.filter((a) => {
+											const ids = (a.estates || []).map((e: any) => String(e.id))
+											return ids.length === 0 || ids.includes(form.estate_id)
+										})
+									: associations
+								).map((a) => (
 									<SelectItem key={a.id} value={String(a.id)}>
 										{a.name}
 									</SelectItem>
@@ -171,7 +207,19 @@ export default function AdminRaChargesPage() {
 					</div>
 					<div className="space-y-1">
 						<Label>Estate</Label>
-						<Select value={form.estate_id} onValueChange={(v) => setForm((f) => ({ ...f, estate_id: v }))}>
+						<Select
+							value={form.estate_id}
+							onValueChange={(v) => {
+								const estate = estates.find((row) => String(row.id) === v)
+								const linked = estate?.associations?.[0]?.id
+								setForm((f) => ({
+									...f,
+									estate_id: v,
+									house_property_id: "",
+									association_id: linked ? String(linked) : f.association_id,
+								}))
+							}}
+						>
 							<SelectTrigger>
 								<SelectValue placeholder="Select" />
 							</SelectTrigger>
@@ -267,6 +315,7 @@ export default function AdminRaChargesPage() {
 									<TableHead>Estate</TableHead>
 									<TableHead>Amount</TableHead>
 									<TableHead>Frequency</TableHead>
+									<TableHead>Billed</TableHead>
 									<TableHead>Status</TableHead>
 									<TableHead />
 								</TableRow>
@@ -274,7 +323,7 @@ export default function AdminRaChargesPage() {
 							<TableBody>
 								{rows.length === 0 ? (
 									<TableRow>
-										<TableCell colSpan={6} className="text-center text-muted-foreground">
+										<TableCell colSpan={7} className="text-center text-muted-foreground">
 											No charges found
 										</TableCell>
 									</TableRow>
@@ -285,6 +334,7 @@ export default function AdminRaChargesPage() {
 											<TableCell>{row.estate?.name || "—"}</TableCell>
 											<TableCell>{formatCurrency(row.amount)}</TableCell>
 											<TableCell>{row.frequency || "—"}</TableCell>
+											<TableCell>{row.obligations_count ?? "—"}</TableCell>
 											<TableCell>
 												<Badge variant="secondary">{row.status || "—"}</Badge>
 											</TableCell>
