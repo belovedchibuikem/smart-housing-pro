@@ -375,7 +375,7 @@ export default function AdminRaAssociationsPage() {
 			</Card>
 
 			<Dialog open={Boolean(active)} onOpenChange={(open) => !open && setActive(null)}>
-				<DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+				<DialogContent className="max-w-[calc(100%-2rem)] sm:max-w-5xl max-h-[90vh] overflow-y-auto">
 					<DialogHeader>
 						<DialogTitle>{active?.name || "Association"}</DialogTitle>
 						<DialogDescription>
@@ -387,7 +387,7 @@ export default function AdminRaAssociationsPage() {
 					<div className="space-y-6">
 						<section className="space-y-3">
 							<h3 className="text-sm font-medium">Estates</h3>
-							<div className="grid gap-2 sm:grid-cols-2 rounded-md border p-3 max-h-40 overflow-auto">
+							<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 rounded-md border p-3 max-h-56 overflow-auto">
 								{estates.map((estate) => (
 									<label key={estate.id} className="flex items-center gap-2 text-sm">
 										<Checkbox
