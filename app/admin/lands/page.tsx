@@ -552,6 +552,7 @@ export default function AdminLandManagementPage() {
                   actionLabel="Upload land"
                 />
               ) : (
+                <>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {landParcels.map((land) => (
                     <article
@@ -662,6 +663,7 @@ export default function AdminLandManagementPage() {
                 <div className="px-4 pb-4 sm:px-5">
                   <TablePagination pagination={pagination} onPageChange={setPage} noun="land parcels" />
                 </div>
+                </>
               )}
             </div>
           </div>

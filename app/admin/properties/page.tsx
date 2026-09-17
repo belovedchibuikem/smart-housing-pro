@@ -666,6 +666,7 @@ export default function AdminPropertiesPage() {
                   actionLabel="Upload house/building"
                 />
               ) : (
+                <>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                   {properties.map((property) => (
                     <article
@@ -786,6 +787,7 @@ export default function AdminPropertiesPage() {
                 <div className="px-4 pb-4 sm:px-5">
                   <TablePagination pagination={pagination} onPageChange={setPage} noun="properties" />
                 </div>
+                </>
               )}
             </div>
           </div>
