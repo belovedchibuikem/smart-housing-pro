@@ -12,8 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { apiFetch } from "@/lib/api/client"
-import { listRaEstates } from "@/lib/api/resident-association"
+import { apiFetch, getPropertyEstates } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { isPropertyCategorySlug } from "@/lib/properties/property-type-label"
 import { MarketplacePublishToggle } from "@/components/admin/marketplace-publish-toggle"
@@ -65,7 +64,7 @@ export default function EditPropertyPage() {
   const [estates, setEstates] = useState<Array<{ id: string; name: string }>>([])
 
   useEffect(() => {
-    void listRaEstates({ per_page: 200 })
+    void getPropertyEstates()
       .then((res) => setEstates(res.data || []))
       .catch(() => setEstates([]))
   }, [])
@@ -469,7 +468,7 @@ export default function EditPropertyPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="estate_id">Estate (for Resident Association)</Label>
+                <Label htmlFor="estate_id">Estate</Label>
                 <Select
                   value={formData.estate_id || "none"}
                   onValueChange={(v) => setFormData({ ...formData, estate_id: v === "none" ? "" : v })}

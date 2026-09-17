@@ -11,7 +11,7 @@ import { ArrowLeft, Upload, X, Loader2, ImageIcon } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
-import { apiFetch } from "@/lib/api/client"
+import { apiFetch, getPropertyEstates } from "@/lib/api/client"
 import { PropertyLocationPicker } from "@/components/admin/property-location-picker"
 import type { GeoCoordinates } from "@/lib/geo/coordinates"
 
@@ -43,7 +43,15 @@ export default function NewPropertyPage() {
     features: "",
     status: "available",
     total_slots: "",
+    estate_id: "",
   })
+  const [estates, setEstates] = useState<Array<{ id: string; name: string; location?: string; city?: string | null; state?: string | null }>>([])
+
+  useEffect(() => {
+    getPropertyEstates()
+      .then((res) => setEstates(res.data || []))
+      .catch(() => setEstates([]))
+  }, [])
 
   useEffect(() => {
     return () => {
@@ -167,6 +175,7 @@ export default function NewPropertyPage() {
         address: formData.address || formData.location,
         city: formData.city || "",
         state: formData.state || "",
+        estate_id: formData.estate_id || undefined,
         price: parseFloat(formData.price),
         status: formData.status,
       }
@@ -312,6 +321,39 @@ export default function NewPropertyPage() {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
             />
           </div>
+
+            <div className="space-y-2">
+                <Label htmlFor="estate_id">Estate</Label>
+                <Select
+                  value={formData.estate_id || "none"}
+                  onValueChange={(v) => {
+                    if (v === "none") {
+                      setFormData({ ...formData, estate_id: "" })
+                      return
+                    }
+                    const estate = estates.find((row) => row.id === v)
+                    setFormData({
+                      ...formData,
+                      estate_id: v,
+                      location: formData.location || estate?.location || estate?.name || "",
+                      city: formData.city || estate?.city || "",
+                      state: formData.state || estate?.state || "",
+                    })
+                  }}
+                >
+                  <SelectTrigger id="estate_id">
+                    <SelectValue placeholder="Optional — attach to an estate" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Not linked</SelectItem>
+                    {estates.map((estate) => (
+                      <SelectItem key={estate.id} value={estate.id}>
+                        {estate.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+            </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">

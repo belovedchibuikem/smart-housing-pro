@@ -3156,7 +3156,17 @@ export async function getMemberStatutoryChargeTypes() {
 export async function getPropertyEstates(params?: { search?: string }) {
 	const query = new URLSearchParams()
 	if (params?.search) query.set("search", params.search)
-	return apiFetch<{ success: boolean; data: any[] }>(`/admin/property-management/estates?${query.toString()}`, { method: "GET" })
+	return apiFetch<{
+		success: boolean
+		data: any[]
+		summary?: {
+			total_estates: number
+			total_properties: number
+			ungrouped_houses: number
+			outstanding_balance: number
+			active_subscriptions: number
+		}
+	}>(`/admin/property-management/estates?${query.toString()}`, { method: "GET" })
 }
 
 export async function getPropertyLocationFilterOptions() {
@@ -3188,6 +3198,50 @@ export async function getPropertyEstate(id: string) {
 
 export async function createPropertyEstate(data: any) {
 	return apiFetch<{ success: boolean; message: string; data: any }>("/admin/property-management/estates", { method: "POST", body: data })
+}
+
+export async function getEstateHousePicker(params?: { search?: string; unassigned_only?: boolean; page?: number; per_page?: number }) {
+	const query = new URLSearchParams()
+	if (params?.search) query.set("search", params.search)
+	if (params?.unassigned_only) query.set("unassigned_only", "1")
+	if (params?.page) query.set("page", String(params.page))
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+	return apiFetch<{
+		success: boolean
+		data: Array<{
+			id: string
+			title: string
+			location?: string | null
+			city?: string | null
+			state?: string | null
+			status?: string | null
+			estate_id?: string | null
+			estate_name?: string | null
+		}>
+		pagination: { current_page: number; last_page: number; per_page: number; total: number }
+	}>(`/admin/property-management/estates/house-picker?${query.toString()}`, { method: "GET" })
+}
+
+export async function groupHousesIntoEstate(data: {
+	name?: string
+	estate_id?: string
+	location?: string
+	city?: string
+	state?: string
+	description?: string
+	property_ids: string[]
+}) {
+	return apiFetch<{ success: boolean; message: string; data: any }>("/admin/property-management/estates/group", {
+		method: "POST",
+		body: data,
+	})
+}
+
+export async function addHousesToEstate(estateId: string, propertyIds: string[]) {
+	return apiFetch<{ success: boolean; message: string; data: any }>(`/admin/property-management/estates/${estateId}/houses`, {
+		method: "POST",
+		body: { property_ids: propertyIds },
+	})
 }
 
 export async function getPropertyAllottees(params?: { search?: string; status?: string; property_id?: string; page?: number; per_page?: number }) {
