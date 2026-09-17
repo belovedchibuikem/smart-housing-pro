@@ -29,6 +29,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
+import { TablePagination } from "@/components/admin/table-pagination"
 import { formatMemberDisplayIdentifier } from "@/hooks/use-sidebar-navigation"
 
 interface Allottee {
@@ -70,6 +71,8 @@ export default function ManageAllotteesPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState<{ current_page: number; last_page: number; per_page: number; total: number } | null>(null)
   const [selectedAllottee, setSelectedAllottee] = useState<Allottee | null>(null)
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; allotteeId: string | null }>({ open: false, allotteeId: null })
@@ -99,15 +102,19 @@ export default function ManageAllotteesPage() {
   }, [])
 
   useEffect(() => {
+    setPage(1)
+  }, [searchQuery, statusFilter, propertyFilter])
+
+  useEffect(() => {
     fetchAllottees()
     fetchStats()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, statusFilter, propertyFilter])
+  }, [searchQuery, statusFilter, propertyFilter, page])
 
   const fetchAllottees = async () => {
     try {
       setLoading(true)
-      const params: any = { per_page: 100 }
+      const params: any = { page, per_page: 15 }
       if (searchQuery) params.search = searchQuery
       if (statusFilter !== 'all') params.status = statusFilter
       if (propertyFilter !== "all") params.property_id = propertyFilter
@@ -115,6 +122,7 @@ export default function ManageAllotteesPage() {
       const response = await getPropertyAllottees(params)
       if (response.success) {
         setAllottees(response.data || [])
+        setPagination(response.pagination || null)
       }
     } catch (error) {
       toast({
@@ -451,6 +459,7 @@ export default function ManageAllotteesPage() {
               </TableBody>
             </Table>
           )}
+          <TablePagination pagination={pagination} onPageChange={setPage} noun="allottees" />
         </CardContent>
       </Card>
 

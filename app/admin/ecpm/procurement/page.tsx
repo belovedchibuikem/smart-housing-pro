@@ -8,11 +8,13 @@ import { Label } from "@/components/ui/label"
 import {
   createEcpmMaterialRequest,
   createEcpmPurchaseOrder,
+  issueEcpmMaterials,
   createEcpmStock,
   listEcpmMaterialRequests,
   listEcpmProjects,
   listEcpmPurchaseOrders,
   listEcpmStock,
+  receiveEcpmPurchaseOrder,
 } from "@/lib/api/ecpm"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2 } from "lucide-react"
@@ -102,6 +104,20 @@ export default function EcpmProcurementPage() {
           </CardContent>
         </Card>
       </div>
+		<div className="grid md:grid-cols-2 gap-4">
+			<Card><CardHeader><CardTitle className="text-base">Goods receipt (GRN)</CardTitle></CardHeader><CardContent className="space-y-2">
+				<p className="text-xs text-muted-foreground">Receive an approved purchase order into stock. This posts the GRN and inventory movement.</p>
+				{pos.length === 0 ? <p className="text-sm text-muted-foreground">Create a purchase order first.</p> : pos.slice(0, 5).map((po) => <Button key={po.id} size="sm" variant="outline" className="mr-2 mb-2" onClick={async () => {
+					try { await receiveEcpmPurchaseOrder(po.id, { received_date: new Date().toISOString().slice(0,10), items: [{ description: itemDesc, stock_item_id: stock[0]?.id, quantity_received: Number(qty), unit: "bag" }] }); toast({ title: "Goods received", description: `GRN posted for ${po.po_number || "purchase order"}` }); await load() } catch (e: any) { toast({ title: "GRN failed", description: e.message, variant: "destructive" }) }
+				}} disabled={!stock[0]?.id}>Receive {po.po_number || "PO"}</Button>)}
+			</CardContent></Card>
+			<Card><CardHeader><CardTitle className="text-base">Issue materials to site</CardTitle></CardHeader><CardContent className="space-y-2">
+				<p className="text-xs text-muted-foreground">Record a controlled inventory issue against a project. Stock on hand is reduced and the movement is auditable.</p>
+				<Button disabled={!projectId || !stock[0]?.id} onClick={async () => {
+					try { await issueEcpmMaterials({ project_id: projectId, issued_date: new Date().toISOString().slice(0,10), issued_to: "Site team", items: [{ stock_item_id: stock[0]?.id, quantity: Number(qty), unit: "bag" }] }); toast({ title: "Materials issued to site" }); await load() } catch (e: any) { toast({ title: "Material issue failed", description: e.message, variant: "destructive" }) }
+				}}>Issue selected stock</Button>
+			</CardContent></Card>
+		</div>
       {loading ? <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div> : (
         <div className="grid md:grid-cols-3 gap-4 text-sm">
           <Card><CardHeader><CardTitle className="text-base">Stock ({stock.length})</CardTitle></CardHeader>

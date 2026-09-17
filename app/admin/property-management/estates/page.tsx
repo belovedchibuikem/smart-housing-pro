@@ -8,10 +8,10 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Plus, Search, Building, MapPin, Users, Home, Eye, Loader2, ExternalLink } from "lucide-react"
+import { Plus, Search, Building, MapPin, Users, Home, Eye, Loader2, ExternalLink, Download } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
-import { getPropertyLocationOverview } from "@/lib/api/client"
+import { getPropertyLocationOverview, exportReport } from "@/lib/api/client"
 import { Can } from "@/components/admin/can-permission"
 import {
   buildPropertiesFilterHref,
@@ -27,6 +27,7 @@ export default function ManageEstatesPage() {
   const [selectedEstate, setSelectedEstate] = useState<LocationOverviewRow | null>(null)
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
   const [stats, setStats] = useState<LocationOverviewSummary | null>(null)
+  const [downloadingKey, setDownloadingKey] = useState<string | null>(null)
   const router = useRouter()
   const { toast } = useToast()
 
@@ -59,6 +60,31 @@ export default function ManageEstatesPage() {
     setShowDetailsDialog(true)
   }
 
+  const handleDownloadBalances = async (estate?: LocationOverviewRow) => {
+    const key = estate?.id || "all"
+    try {
+      setDownloadingKey(key)
+      await exportReport("estate-repayment-balances", {
+        format: "xlsx",
+        estate_key: estate?.id || undefined,
+      })
+      toast({
+        title: "Download started",
+        description: estate
+          ? `Repayment balances for ${estate.name} have been downloaded.`
+          : "Repayment balances for all estates have been downloaded.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Download failed",
+        description: error?.message || "Could not download repayment balances.",
+        variant: "destructive",
+      })
+    } finally {
+      setDownloadingKey(null)
+    }
+  }
+
   const filterHref = (estate: LocationOverviewRow, segment: "houses" | "land") =>
     buildPropertiesFilterHref(
       {
@@ -80,12 +106,28 @@ export default function ManageEstatesPage() {
             Location-level accountability — properties, subscriptions, collections, and maintenance by estate
           </p>
         </div>
-        <Can permission="manage_property_estates|create_properties">
-          <Button onClick={() => router.push("/admin/property-management/estates/new")}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add New Estate
-          </Button>
-        </Can>
+        <div className="flex flex-wrap items-center gap-2">
+          <Can permission="export_reports|view_property_reports">
+            <Button
+              variant="outline"
+              onClick={() => handleDownloadBalances()}
+              disabled={downloadingKey === "all"}
+            >
+              {downloadingKey === "all" ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4 mr-2" />
+              )}
+              Download all balances
+            </Button>
+          </Can>
+          <Can permission="manage_property_estates|create_properties">
+            <Button onClick={() => router.push("/admin/property-management/estates/new")}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add New Estate
+            </Button>
+          </Can>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -206,6 +248,22 @@ export default function ManageEstatesPage() {
                           <Button variant="ghost" size="icon" onClick={() => handleViewDetails(estate)}>
                             <Eye className="h-4 w-4" />
                           </Button>
+                          <Can permission="export_reports|view_property_reports">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDownloadBalances(estate)}
+                              disabled={downloadingKey === estate.id}
+                              title="Download repayment balances"
+                            >
+                              {downloadingKey === estate.id ? (
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                              ) : (
+                                <Download className="h-4 w-4 mr-1" />
+                              )}
+                              Balances
+                            </Button>
+                          </Can>
                           <Button variant="ghost" size="sm" asChild>
                             <Link href={filterHref(estate, "houses")}>
                               <ExternalLink className="h-4 w-4 mr-1" />
@@ -260,6 +318,21 @@ export default function ManageEstatesPage() {
                 value={`${selectedEstate.maintenance_open} open of ${selectedEstate.maintenance_total} total`}
               />
               <div className="flex gap-2 pt-2">
+                <Can permission="export_reports|view_property_reports">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => handleDownloadBalances(selectedEstate)}
+                    disabled={downloadingKey === selectedEstate.id}
+                  >
+                    {downloadingKey === selectedEstate.id ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Download className="h-4 w-4 mr-2" />
+                    )}
+                    Download balances
+                  </Button>
+                </Can>
                 <Button asChild variant="outline" className="flex-1">
                   <Link href={filterHref(selectedEstate, "houses")}>View houses</Link>
                 </Button>

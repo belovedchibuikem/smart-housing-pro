@@ -9,10 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search, Download, Eye, Wallet, TrendingUp, TrendingDown, DollarSign } from "lucide-react"
 import { apiFetch, exportReport } from "@/lib/api/client"
 import { toast as sonnerToast } from "sonner"
+import { TablePagination } from "@/components/admin/table-pagination"
 
 export default function AdminWalletsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [wallets, setWallets] = useState<Array<{
     id: string
@@ -24,7 +26,7 @@ export default function AdminWalletsPage() {
     status: string
     lastTransaction?: string
   }>>([])
-  const [meta, setMeta] = useState<{ current_page: number; total: number; per_page: number; total_balance?: number } | null>(null)
+  const [meta, setMeta] = useState<{ current_page: number; last_page: number; total: number; per_page: number; total_balance?: number } | null>(null)
 
   const fetchWallets = async () => {
     setLoading(true)
@@ -32,6 +34,8 @@ export default function AdminWalletsPage() {
       const params = new URLSearchParams()
       if (searchQuery) params.set('search', searchQuery)
       if (statusFilter && statusFilter !== 'all') params.set('status', statusFilter)
+      params.set('page', String(page))
+      params.set('per_page', '15')
       const path = `/admin/wallets${params.toString() ? `?${params.toString()}` : ''}`
 
       const res = await apiFetch<any>(path)
@@ -51,16 +55,26 @@ export default function AdminWalletsPage() {
       })
       setWallets(normalized)
       const m = res?.meta || res?.pagination || null
-      if (m) setMeta({ current_page: m.current_page ?? 1, total: m.total ?? 0, per_page: m.per_page ?? 50, total_balance: m.total_balance })
+      if (m) setMeta({
+        current_page: m.current_page ?? 1,
+        last_page: m.last_page ?? 1,
+        total: m.total ?? 0,
+        per_page: m.per_page ?? 15,
+        total_balance: m.total_balance,
+      })
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
+    setPage(1)
+  }, [searchQuery, statusFilter])
+
+  useEffect(() => {
     fetchWallets()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, statusFilter])
+  }, [searchQuery, statusFilter, page])
 
   const handleExport = async () => {
     try {
@@ -200,6 +214,11 @@ export default function AdminWalletsPage() {
               </table>
             </div>
           </div>
+          <TablePagination
+            pagination={meta}
+            onPageChange={setPage}
+            noun="wallets"
+          />
         </CardContent>
       </Card>
     </div>

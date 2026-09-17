@@ -34,7 +34,7 @@ export function useUsers(options: UseUsersOptions = {}) {
       if (options.status && options.status !== 'all') params.append('status', options.status)
       if (options.sortBy) params.append('sort_by', options.sortBy)
       if (options.sortOrder) params.append('sort_order', options.sortOrder)
-      if (options.page) params.append('page', options.page.toString())
+      if (options.page != null) params.append('page', options.page.toString())
       if (options.perPage) params.append('per_page', options.perPage.toString())
 
       const response = await apiFetch<UsersResponse>(`/admin/users?${params.toString()}`)

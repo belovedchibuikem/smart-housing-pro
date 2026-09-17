@@ -210,6 +210,7 @@ export default function PaymentReceiptsPage() {
 					</p>
 				</div>
 				<div className="flex gap-2">
+					<Button size="sm" asChild><Link href="/admin/payment-receipts/issue">Issue missing receipt</Link></Button>
 					<Button variant="outline" size="sm" onClick={() => void load()} disabled={loading}>
 						<RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
 						Refresh

@@ -188,6 +188,14 @@ export function useUserNotifications(): UseUserNotificationsReturn {
 		return () => clearInterval(interval)
 	}, [fetchUnreadCount])
 
+	// WebPushRegistrar dispatches this as soon as FCM delivers a foreground
+	// message, making the bell and notification centre update immediately.
+	useEffect(() => {
+		const onPush = () => { void refresh() }
+		window.addEventListener("smart-housing:push", onPush)
+		return () => window.removeEventListener("smart-housing:push", onPush)
+	}, [refresh])
+
 	return {
 		notifications,
 		unreadCount,

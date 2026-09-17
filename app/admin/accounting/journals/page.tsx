@@ -29,12 +29,14 @@ export default function JournalsPage() {
   const [detail, setDetail] = useState<any>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [form, setForm] = useState({
-    transaction_type: "adjustment",
+    transaction_type: "external_income",
     amount: "",
     description: "",
     debit_account_code: "1100",
     credit_account_code: "4900",
     member_id: "",
+    reference: "",
+    entry_date: new Date().toISOString().slice(0, 10),
   })
 
   const load = async () => {
@@ -71,14 +73,16 @@ export default function JournalsPage() {
       </div>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Manual journal</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">External income & expense journal</CardTitle><p className="text-sm text-muted-foreground">Record cash income and daily expenses that occurred outside Smart Housing payment flows. Every entry is posted as a balanced, auditable double entry.</p></CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div><Label>Type</Label><Input value={form.transaction_type} onChange={(e) => setForm({ ...form, transaction_type: e.target.value })} /></div>
+          <div><Label>Entry type</Label><select className="h-10 w-full rounded-md border bg-background px-3" value={form.transaction_type} onChange={(e) => setForm({ ...form, transaction_type: e.target.value, debit_account_code: e.target.value === "external_expense" ? "5100" : "1100", credit_account_code: e.target.value === "external_expense" ? "1100" : "4900" })}><option value="external_income">External income</option><option value="external_expense">External expense</option><option value="adjustment">Accounting adjustment</option></select></div>
           <div><Label>Amount</Label><Input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></div>
+          <div><Label>Entry date</Label><Input type="date" value={form.entry_date} onChange={(e) => setForm({ ...form, entry_date: e.target.value })} /></div>
           <div><Label>Member ID (optional)</Label><Input value={form.member_id} onChange={(e) => setForm({ ...form, member_id: e.target.value })} /></div>
           <div><Label>Debit account</Label><Input value={form.debit_account_code} onChange={(e) => setForm({ ...form, debit_account_code: e.target.value })} /></div>
           <div><Label>Credit account</Label><Input value={form.credit_account_code} onChange={(e) => setForm({ ...form, credit_account_code: e.target.value })} /></div>
           <div><Label>Description</Label><Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
+		  <div><Label>Receipt / voucher reference</Label><Input value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} /></div>
           <div className="md:col-span-3">
             <Button onClick={async () => {
               try {

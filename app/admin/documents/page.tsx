@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { MoreHorizontal, CheckCircle, XCircle } from "lucide-react"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
+import { TablePagination } from "@/components/admin/table-pagination"
 
 export default function AdminDocumentsPage() {
   const { can } = useTenantPermissions()
@@ -44,6 +45,8 @@ export default function AdminDocumentsPage() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [documents, setDocuments] = useState<any[]>([])
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState<{ current_page: number; last_page: number; per_page: number; total: number } | null>(null)
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
@@ -64,8 +67,12 @@ export default function AdminDocumentsPage() {
   })
 
   useEffect(() => {
-    fetchDocuments()
+    setPage(1)
   }, [searchQuery, typeFilter, statusFilter])
+
+  useEffect(() => {
+    fetchDocuments()
+  }, [searchQuery, typeFilter, statusFilter, page])
 
   useEffect(() => {
     const q = memberSearch.trim()
@@ -86,10 +93,12 @@ export default function AdminDocumentsPage() {
         search: searchQuery || undefined,
         type: typeFilter !== 'all' ? typeFilter : undefined,
         status: statusFilter !== 'all' ? statusFilter : undefined,
-        per_page: 50,
+        page,
+        per_page: 15,
       })
       if (response.success) {
         setDocuments(response.data || [])
+        setPagination(response.pagination || null)
         if (response.stats) {
           setStats(response.stats)
         }
@@ -645,6 +654,7 @@ export default function AdminDocumentsPage() {
               </Table>
             </div>
           )}
+          <TablePagination pagination={pagination} onPageChange={setPage} noun="documents" />
         </CardContent>
       </Card>
     </div>

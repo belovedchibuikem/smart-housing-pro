@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
 import { formatCompactNaira } from "@/lib/utils/currency"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
+import { TablePagination } from "@/components/admin/table-pagination"
 
 interface Mortgage {
   id: string
@@ -49,13 +50,19 @@ export default function AdminMortgagesPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState<{ current_page: number; last_page: number; per_page: number; total: number } | null>(null)
   const router = useRouter()
   const { toast } = useToast()
 
   useEffect(() => {
+    setPage(1)
+  }, [searchQuery, statusFilter])
+
+  useEffect(() => {
     fetchMortgages()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, statusFilter])
+  }, [searchQuery, statusFilter, page])
 
   const fetchMortgages = async () => {
     try {
@@ -63,12 +70,15 @@ export default function AdminMortgagesPage() {
       const params = new URLSearchParams()
       if (searchQuery) params.append('search', searchQuery)
       if (statusFilter !== 'all') params.append('status', statusFilter)
+      params.append('page', String(page))
+      params.append('per_page', '15')
       
-      const response = await apiFetch<{ success: boolean; data: Mortgage[] }>(
+      const response = await apiFetch<{ success: boolean; data: Mortgage[]; pagination?: { current_page: number; last_page: number; per_page: number; total: number } }>(
         `/admin/mortgages?${params.toString()}`
       )
       if (response.success) {
         setMortgages(response.data)
+        setPagination(response.pagination || null)
       }
     } catch (error) {
       toast({
@@ -313,6 +323,7 @@ export default function AdminMortgagesPage() {
               </TableBody>
             </Table>
           </div>
+          <TablePagination pagination={pagination} onPageChange={setPage} noun="mortgages" />
         </CardContent>
       </Card>
     </div>

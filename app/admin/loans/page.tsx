@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation"
 import { toast as sonnerToast } from "sonner"
 import { apiFetch, fetchAdminLoanDashboardMetrics } from "@/lib/api/client"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
+import { TablePagination } from "@/components/admin/table-pagination"
 import { enqueueWorkflowPending, getWorkflowSettings } from "@/lib/api/office"
 
 interface Loan {
@@ -59,6 +60,8 @@ export default function AdminLoansPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [activeTab, setActiveTab] = useState("pending")
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState<Pagination | null>(null)
   const [loading, setLoading] = useState(true)
   const [processing, setProcessing] = useState<string | null>(null)
   const [stats, setStats] = useState({
@@ -80,10 +83,21 @@ export default function AdminLoansPage() {
   const [enqueueing, setEnqueueing] = useState(false)
 
   useEffect(() => {
-    fetchLoans()
     fetchStats()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter, activeTab])
+
+  useEffect(() => {
+    setPage(1)
+  }, [statusFilter, activeTab, searchQuery])
+
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      fetchLoans()
+    }, searchQuery ? 500 : 0)
+    return () => clearTimeout(debounceTimer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusFilter, activeTab, searchQuery, page])
 
   useEffect(() => {
     void (async () => {
@@ -138,16 +152,6 @@ export default function AdminLoansPage() {
     loadDash()
   }, [dashStatus, dashFrom, dashTo, dashMember])
 
-  useEffect(() => {
-    const debounceTimer = setTimeout(() => {
-      if (searchQuery !== undefined) {
-        fetchLoans()
-      }
-    }, 500)
-
-    return () => clearTimeout(debounceTimer)
-  }, [searchQuery])
-
   const fetchLoans = async () => {
     try {
       setLoading(true)
@@ -168,6 +172,7 @@ export default function AdminLoansPage() {
         params.append('status', statusFilter)
       }
       
+      params.append('page', String(page))
       params.append('per_page', '15')
 
       const response = await apiFetch<{ success: boolean; data: Loan[]; pagination: Pagination }>(
@@ -176,6 +181,7 @@ export default function AdminLoansPage() {
 
       if (response.success) {
         setLoans(response.data || [])
+        setPagination(response.pagination || null)
       }
     } catch (error: any) {
       console.error('Error fetching loans:', error)
@@ -672,6 +678,7 @@ export default function AdminLoansPage() {
                 </TableBody>
               </Table>
               )}
+              <TablePagination pagination={pagination} onPageChange={setPage} noun="loans" />
             </CardContent>
           </Card>
         </TabsContent>

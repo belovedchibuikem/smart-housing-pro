@@ -31,6 +31,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog"
+import { TablePagination } from "@/components/admin/table-pagination"
 
 const actionIconMap: Record<string, any> = {
 	create: Plus,
@@ -112,6 +113,11 @@ export default function AuditLogsPage() {
 	const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
 	const [dialogOpen, setDialogOpen] = useState(false)
 	const [pagination, setPagination] = useState<any>(null)
+	const [page, setPage] = useState(1)
+
+	useEffect(() => {
+		setPage(1)
+	}, [searchQuery, filterAction, filterModule, filterSource, dateRange])
 
 	useEffect(() => {
 		const timer = setTimeout(() => {
@@ -119,7 +125,8 @@ export default function AuditLogsPage() {
 			fetchStats()
 		}, searchQuery ? 300 : 0)
 		return () => clearTimeout(timer)
-	}, [searchQuery, filterAction, filterModule, filterSource, dateRange])
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [searchQuery, filterAction, filterModule, filterSource, dateRange, page])
 
 	const fetchLogs = async () => {
 		try {
@@ -130,7 +137,8 @@ export default function AuditLogsPage() {
 				module: filterModule !== "all" ? filterModule : undefined,
 				source: filterSource !== "all" ? filterSource : undefined,
 				date_range: dateRange,
-				per_page: 50,
+				page,
+				per_page: 15,
 			})
 			if (response.success) {
 				setAuditLogs(response.data || [])
@@ -471,6 +479,7 @@ export default function AuditLogsPage() {
 								</Table>
 							</div>
 						)}
+						<TablePagination pagination={pagination} onPageChange={setPage} noun="operations" />
 					</CardContent>
 				</Card>
 

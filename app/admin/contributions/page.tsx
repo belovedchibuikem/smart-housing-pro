@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation"
 import { toast as sonnerToast } from "sonner"
 import { apiFetch, exportReport } from "@/lib/api/client"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
+import { TablePagination } from "@/components/admin/table-pagination"
 import { toastWorkflowError, toastWorkflowOrSuccess } from "@/lib/admin/workflow-redirect"
 
 interface Contribution {
@@ -50,6 +51,7 @@ interface Pagination {
 export default function AdminContributionsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [page, setPage] = useState(1)
   const [contributions, setContributions] = useState<Contribution[]>([])
   const [pagination, setPagination] = useState<Pagination | null>(null)
   const [loading, setLoading] = useState(true)
@@ -69,6 +71,7 @@ export default function AdminContributionsPage() {
       const params = new URLSearchParams()
       if (searchQuery) params.append('search', searchQuery)
       if (statusFilter !== 'all') params.append('status', statusFilter)
+      params.append('page', String(page))
       params.append('per_page', '15')
 
       const response = await apiFetch<{ success: boolean; data: Contribution[]; pagination: Pagination }>(
@@ -126,19 +129,21 @@ export default function AdminContributionsPage() {
   }
 
   useEffect(() => {
-    fetchContributions()
+    setPage(1)
+  }, [searchQuery, statusFilter])
+
+  useEffect(() => {
     fetchStats()
   }, [statusFilter])
 
   useEffect(() => {
     const debounceTimer = setTimeout(() => {
-      if (searchQuery !== undefined) {
-        fetchContributions()
-      }
-    }, 500)
+      fetchContributions()
+    }, searchQuery ? 500 : 0)
 
     return () => clearTimeout(debounceTimer)
-  }, [searchQuery])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, statusFilter, page])
 
   const handleViewContribution = (id: string) => {
     router.push(`/admin/contributions/${id}`)
@@ -443,39 +448,11 @@ export default function AdminContributionsPage() {
             </Table>
           </div>
 
-              {pagination && pagination.last_page > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <div className="text-sm text-muted-foreground">
-                    Showing {((pagination.current_page - 1) * pagination.per_page) + 1} to {Math.min(pagination.current_page * pagination.per_page, pagination.total)} of {pagination.total} contributions
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        if (pagination.current_page > 1) {
-                          // Update pagination logic here
-                        }
-                      }}
-                      disabled={pagination.current_page === 1}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        if (pagination.current_page < pagination.last_page) {
-                          // Update pagination logic here
-                        }
-                      }}
-                      disabled={pagination.current_page === pagination.last_page}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </div>
-              )}
+              <TablePagination
+                pagination={pagination}
+                onPageChange={setPage}
+                noun="contributions"
+              />
             </>
           )}
         </CardContent>

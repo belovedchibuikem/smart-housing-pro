@@ -228,6 +228,14 @@ export async function listEcpmPurchaseOrders(params?: Query) {
 export async function createEcpmPurchaseOrder(body: Record<string, unknown>) {
   return apiFetch<{ success: boolean; data: any }>("/admin/ecpm/purchase-orders", { method: "POST", body })
 }
+
+export async function receiveEcpmPurchaseOrder(id: string, body: Record<string, unknown>) {
+  return apiFetch<{ success: boolean; data: any }>(`/admin/ecpm/purchase-orders/${id}/receive`, { method: "POST", body })
+}
+
+export async function issueEcpmMaterials(body: Record<string, unknown>) {
+  return apiFetch<{ success: boolean; data: any }>("/admin/ecpm/material-issuances", { method: "POST", body })
+}
 export async function getEcpmHandover(projectId: string) {
   return apiFetch<{ success: boolean; data: any }>(`/admin/ecpm/projects/${projectId}/handover`)
 }

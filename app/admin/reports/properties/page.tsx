@@ -19,6 +19,7 @@ export default function PropertyReportsPage() {
     total_value: "₦0",
   })
   const [properties, setProperties] = useState<any[]>([])
+  const [exportingBalances, setExportingBalances] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -59,6 +60,25 @@ export default function PropertyReportsPage() {
     }
   }
 
+  const handleExportBalances = async () => {
+    try {
+      setExportingBalances(true)
+      await exportReport("estate-repayment-balances", { format: "xlsx" })
+      toast({
+        title: "Export completed",
+        description: "Estate repayment balances have been downloaded.",
+      })
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to export repayment balances",
+        variant: "destructive",
+      })
+    } finally {
+      setExportingBalances(false)
+    }
+  }
+
   const statsCards = [
     { label: "Building inventory", value: stats.total_properties.toString(), icon: Home, color: "text-blue-600" },
     { label: "Residential-style units", value: stats.houses.toString(), icon: Building2, color: "text-green-600" },
@@ -71,13 +91,19 @@ export default function PropertyReportsPage() {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Building portfolio reports</h1>
           <p className="text-muted-foreground mt-1">
-            Houses and structured inventory (land parcels live under Land reports).
+            Houses and structured inventory (land parcels live under Land reports). Per-estate repayment balances can also be downloaded from Manage Estates.
           </p>
         </div>
-        <Button onClick={handleExport}>
-          <Download className="h-4 w-4 mr-2" />
-          Export
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={handleExportBalances} disabled={exportingBalances}>
+            <Download className="h-4 w-4 mr-2" />
+            {exportingBalances ? "Exporting…" : "Export repayment balances"}
+          </Button>
+          <Button onClick={handleExport}>
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

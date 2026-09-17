@@ -242,7 +242,7 @@ export default function AdminRaHousesPage() {
 								<TableRow>
 									<TableHead>Property</TableHead>
 									<TableHead>Estate</TableHead>
-									<TableHead>Occupant</TableHead>
+								<TableHead>Subscribers</TableHead>
 									<TableHead className="text-right">Outstanding</TableHead>
 									<TableHead />
 								</TableRow>
@@ -256,16 +256,25 @@ export default function AdminRaHousesPage() {
 									</TableRow>
 								) : (
 									rows.map((row) => {
-										const allottee = row.allocations?.[0]?.member
-										const user = allottee?.user
-										const name = user
-											? `${user.first_name || ""} ${user.last_name || ""}`.trim() || user.email
-											: allottee?.member_number || "—"
+										const subscribers = (row.allocations || []).map((allocation: any) => {
+											const member = allocation.member
+											const user = member?.user
+											return user
+												? `${user.first_name || ""} ${user.last_name || ""}`.trim() || user.email
+												: member?.member_number || "Subscriber"
+										})
 										return (
 											<TableRow key={row.id}>
 												<TableCell className="font-medium">{row.title || "—"}</TableCell>
 												<TableCell>{row.estate?.name || "—"}</TableCell>
-												<TableCell>{name}</TableCell>
+												<TableCell>
+													{subscribers.length ? (
+														<div className="flex flex-wrap gap-1">
+															{subscribers.slice(0, 2).map((name: string) => <span key={name} className="rounded bg-muted px-2 py-0.5 text-xs">{name}</span>)}
+															{subscribers.length > 2 ? <span className="text-xs text-muted-foreground">+{subscribers.length - 2} more</span> : null}
+														</div>
+													) : <span className="text-muted-foreground">No active subscriber</span>}
+												</TableCell>
 												<TableCell className="text-right">{formatCurrency(row.outstanding)}</TableCell>
 												<TableCell className="text-right">
 													{unlinked ? (
@@ -303,7 +312,19 @@ export default function AdminRaHousesPage() {
 							<Loader2 className="h-5 w-5 animate-spin" />
 						</div>
 					) : (
-						<div className="space-y-5">
+							<div className="space-y-5">
+							<div>
+								<div className="mb-2 text-sm font-medium">House subscribers</div>
+								<ul className="space-y-1 text-sm">
+									{(active?.allocations || []).length === 0 ? <li className="text-muted-foreground">No active subscriber allocation</li> : null}
+									{(active?.allocations || []).map((allocation: any) => {
+										const member = allocation.member
+										const user = member?.user
+										const name = user ? `${user.first_name || ""} ${user.last_name || ""}`.trim() || user.email : member?.member_number || "Subscriber"
+										return <li key={allocation.id}>{name}{member?.member_number ? ` · ${member.member_number}` : ""}{allocation.status ? ` · ${allocation.status}` : ""}</li>
+									})}
+								</ul>
+							</div>
 							<div>
 								<div className="mb-2 text-sm font-medium">Lots</div>
 								<ul className="mb-2 space-y-1 text-sm">

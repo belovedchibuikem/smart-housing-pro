@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -33,12 +33,14 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Loader2, KeyRound } from "lucide-react"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
+import { TablePagination } from "@/components/admin/table-pagination"
 
 export default function UsersPage() {
   const { can } = useTenantPermissions()
   const [searchQuery, setSearchQuery] = useState("")
   const [roleFilter, setRoleFilter] = useState("all")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [page, setPage] = useState(1)
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedUser, setSelectedUser] = useState<UserType | null>(null)
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null)
@@ -49,11 +51,16 @@ export default function UsersPage() {
     search: searchQuery,
     role: roleFilter,
     status: statusFilter,
+    page,
   })
 
   const { stats, refetch: refetchUserStats } = useUserStats()
   const { deleteUser, loading: deleteLoading } = useDeleteUser()
   const { toggleStatus, loading: toggleLoading } = useToggleUserStatus()
+
+  useEffect(() => {
+    setPage(1)
+  }, [searchQuery, roleFilter, statusFilter])
 
   const handleDelete = async (userId: string) => {
     try {
@@ -390,34 +397,11 @@ export default function UsersPage() {
             </div>
           )}
 
-          {/* Pagination */}
-          {pagination.total > pagination.per_page && (
-            <div className="flex items-center justify-between mt-4">
-              <p className="text-sm text-muted-foreground">
-                Showing {((pagination.current_page - 1) * pagination.per_page) + 1} to{' '}
-                {Math.min(pagination.current_page * pagination.per_page, pagination.total)} of{' '}
-                {pagination.total} results
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={pagination.current_page === 1}
-                  onClick={() => refetch()}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={pagination.current_page === pagination.last_page}
-                  onClick={() => refetch()}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
+          <TablePagination
+            pagination={pagination}
+            onPageChange={setPage}
+            noun="results"
+          />
         </CardContent>
       </Card>
 

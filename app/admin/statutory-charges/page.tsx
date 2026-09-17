@@ -26,6 +26,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
+import { TablePagination } from "@/components/admin/table-pagination"
 
 interface StatutoryCharge {
   id: string
@@ -55,6 +56,8 @@ export default function StatutoryChargesPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [typeFilter, setTypeFilter] = useState("all")
   const [categoryFilter, setCategoryFilter] = useState("all")
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState<{ current_page: number; last_page: number; per_page: number; total: number } | null>(null)
   const [stats, setStats] = useState({ total_charges: 0, paid_charges: 0, pending_charges: 0, overdue_charges: 0, overdue_count: 0, collection_rate: 0 })
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; chargeId: string | null }>({ open: false, chargeId: null })
   const [approveDialog, setApproveDialog] = useState<{ open: boolean; chargeId: string | null }>({ open: false, chargeId: null })
@@ -63,15 +66,19 @@ export default function StatutoryChargesPage() {
   const { toast } = useToast()
 
   useEffect(() => {
+    setPage(1)
+  }, [searchQuery, statusFilter, typeFilter, categoryFilter])
+
+  useEffect(() => {
     fetchCharges()
     fetchStats()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, statusFilter, typeFilter, categoryFilter])
+  }, [searchQuery, statusFilter, typeFilter, categoryFilter, page])
 
   const fetchCharges = async () => {
     try {
       setLoading(true)
-      const params: any = {}
+      const params: any = { page, per_page: 15 }
       if (searchQuery) params.search = searchQuery
       if (statusFilter !== 'all') params.status = statusFilter
       if (typeFilter !== 'all') params.type = typeFilter
@@ -80,6 +87,7 @@ export default function StatutoryChargesPage() {
       const response = await getStatutoryCharges(params)
       if (response.success) {
         setCharges(response.data || [])
+        setPagination(response.pagination || null)
       }
     } catch (error) {
       toast({
@@ -427,6 +435,7 @@ export default function StatutoryChargesPage() {
                 </TableBody>
               </Table>
             )}
+            <TablePagination pagination={pagination} onPageChange={setPage} noun="charges" />
           </CardContent>
         </Card>
       </div>

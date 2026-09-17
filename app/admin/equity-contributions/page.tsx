@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Search, Eye, CheckCircle, XCircle, Loader2, Download } from "lucide-react"
 import Link from "next/link"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
+import { TablePagination } from "@/components/admin/table-pagination"
 import { useRouter } from "next/navigation"
 import { toast as sonnerToast } from "sonner"
 import { apiFetch, bulkApproveEquityContributions, bulkRejectEquityContributions } from "@/lib/api/client"
@@ -60,6 +61,7 @@ export default function AdminEquityContributionsPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
   const [paymentMethodFilter, setPaymentMethodFilter] = useState("all")
+  const [page, setPage] = useState(1)
   const [contributions, setContributions] = useState<EquityContribution[]>([])
   const [pagination, setPagination] = useState<Pagination | null>(null)
   const [loading, setLoading] = useState(true)
@@ -85,6 +87,7 @@ export default function AdminEquityContributionsPage() {
       if (searchQuery) params.append('search', searchQuery)
       if (statusFilter !== 'all') params.append('status', statusFilter)
       if (paymentMethodFilter !== 'all') params.append('payment_method', paymentMethodFilter)
+      params.append('page', String(page))
       params.append('per_page', '15')
 
       const response = await apiFetch<{ success: boolean; data: EquityContribution[]; pagination: Pagination }>(
@@ -141,17 +144,21 @@ export default function AdminEquityContributionsPage() {
   }
 
   useEffect(() => {
-    fetchContributions()
     fetchStats()
   }, [])
 
   useEffect(() => {
+    setPage(1)
+  }, [searchQuery, statusFilter, paymentMethodFilter])
+
+  useEffect(() => {
     const debounceTimer = setTimeout(() => {
       fetchContributions()
-    }, 500)
+    }, searchQuery ? 500 : 0)
 
     return () => clearTimeout(debounceTimer)
-  }, [searchQuery, statusFilter, paymentMethodFilter])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, statusFilter, paymentMethodFilter, page])
 
   const handleApprove = async (id: string) => {
     try {
@@ -559,41 +566,11 @@ export default function AdminEquityContributionsPage() {
             </TableBody>
           </Table>
 
-          {pagination && pagination.total > pagination.per_page && (
-            <div className="flex items-center justify-between mt-4">
-              <div className="text-sm text-muted-foreground">
-                Showing {((pagination.current_page - 1) * pagination.per_page) + 1} to{' '}
-                {Math.min(pagination.current_page * pagination.per_page, pagination.total)} of{' '}
-                {pagination.total} contributions
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const params = new URLSearchParams(window.location.search)
-                    params.set('page', String(pagination.current_page - 1))
-                    window.location.search = params.toString()
-                  }}
-                  disabled={pagination.current_page === 1}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const params = new URLSearchParams(window.location.search)
-                    params.set('page', String(pagination.current_page + 1))
-                    window.location.search = params.toString()
-                  }}
-                  disabled={pagination.current_page === pagination.last_page}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
+          <TablePagination
+            pagination={pagination}
+            onPageChange={setPage}
+            noun="contributions"
+          />
         </CardContent>
       </Card>
 

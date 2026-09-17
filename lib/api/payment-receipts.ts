@@ -56,6 +56,24 @@ export async function getPaymentReceiptsDashboard() {
 	}>("/admin/payment-receipts/dashboard")
 }
 
+/** Issue a receipt manually when an automatic receipt is absent or unavailable. */
+export async function issuePaymentReceipt(body: {
+	receipt_type: string
+	member_id: string
+	amount: number
+	payment_date?: string
+	payment_method?: string
+	reference?: string
+	category?: string
+	narration?: string
+	notify_member?: boolean
+}) {
+	return apiFetch<{ success: boolean; message: string; receipt: PaymentReceiptRow }>("/admin/payment-receipts/issue", {
+		method: "POST",
+		body,
+	})
+}
+
 export async function getPaymentReceiptSettings() {
 	return apiFetch<{
 		success: boolean

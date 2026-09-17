@@ -64,6 +64,7 @@ import { CopyableId } from "@/components/admin/copyable-id"
 import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
 import { formatNaira, perSlotAmount, totalListingCost } from "@/lib/properties/pricing"
 import { formatCompactNaira } from "@/lib/utils/currency"
+import { TablePagination } from "@/components/admin/table-pagination"
 
 interface Property {
   id: string
@@ -107,6 +108,8 @@ export default function AdminPropertiesPage() {
   const [filterOptions, setFilterOptions] = useState<LocationFilterOptions | null>(null)
   const [propertyStats, setPropertyStats] = useState<AdminPropertyStatistics | null>(null)
   const [housePaginationTotal, setHousePaginationTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState<{ current_page: number; last_page: number; per_page: number; total: number } | null>(null)
   const [recalculating, setRecalculating] = useState(false)
   const [showEstateOverview, setShowEstateOverview] = useState(false)
   const [workspaceTab, setWorkspaceTab] = useState("properties")
@@ -173,9 +176,13 @@ export default function AdminPropertiesPage() {
   }
 
   useEffect(() => {
+    setPage(1)
+  }, [searchQuery, locationFilters])
+
+  useEffect(() => {
     void fetchProperties()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, locationFilters])
+  }, [searchQuery, locationFilters, page])
 
   useEffect(() => {
     void fetchSubscriptions()
@@ -188,14 +195,16 @@ export default function AdminPropertiesPage() {
       const params = new URLSearchParams()
       if (searchQuery) params.append('search', searchQuery)
       appendLocationFilters(params, locationFilters)
-      params.append('per_page', '100')
+      params.append('page', String(page))
+      params.append('per_page', '15')
       const response = await apiFetch<{
         success: boolean
         data: Property[]
-        pagination?: { total: number }
+        pagination?: { current_page: number; last_page: number; per_page: number; total: number }
       }>(`/admin/properties?${params.toString()}`)
       if (response.success) {
         setProperties(response.data)
+        setPagination(response.pagination || null)
         setHousePaginationTotal(response.pagination?.total ?? response.data.length)
       }
     } catch (error) {
@@ -773,6 +782,9 @@ export default function AdminPropertiesPage() {
                       </div>
                     </article>
                   ))}
+                </div>
+                <div className="px-4 pb-4 sm:px-5">
+                  <TablePagination pagination={pagination} onPageChange={setPage} noun="properties" />
                 </div>
               )}
             </div>

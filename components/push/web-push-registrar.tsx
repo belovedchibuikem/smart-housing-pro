@@ -10,6 +10,7 @@ type FirebaseCompat = {
 	initializeApp: (config: Record<string, string>) => unknown
 	messaging: (app?: unknown) => {
 		getToken: (opts: { vapidKey: string; serviceWorkerRegistration?: ServiceWorkerRegistration }) => Promise<string>
+		onMessage: (handler: (payload: { notification?: { title?: string; body?: string }; data?: Record<string, string> }) => void) => void
 	}
 }
 
@@ -108,6 +109,12 @@ export function WebPushRegistrar() {
 				})
 
 				const messaging = window.firebase.messaging()
+				// FCM does not display notification payloads while the tab is focused.
+				// Broadcast a browser event so the notification centre/bell can refresh
+				// immediately without waiting for its polling interval.
+				messaging.onMessage((payload) => {
+					window.dispatchEvent(new CustomEvent("smart-housing:push", { detail: payload }))
+				})
 				const token = await messaging.getToken({
 					vapidKey: vapid,
 					serviceWorkerRegistration: registration,

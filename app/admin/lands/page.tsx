@@ -57,6 +57,7 @@ import {
 } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
+import { TablePagination } from "@/components/admin/table-pagination"
 import { PropertyLocationFilters } from "@/components/admin/property-location-filters"
 import { LocationOverviewPanel } from "@/components/admin/location-overview-panel"
 import {
@@ -143,6 +144,8 @@ export default function AdminLandManagementPage() {
   const [filterOptions, setFilterOptions] = useState<LocationFilterOptions | null>(null)
   const [propertyStats, setPropertyStats] = useState<AdminPropertyStatistics | null>(null)
   const [landPaginationTotal, setLandPaginationTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const [pagination, setPagination] = useState<{ current_page: number; last_page: number; per_page: number; total: number } | null>(null)
   const [recalculating, setRecalculating] = useState(false)
   const canRecalculateStats = can("manage_property_estates|create_properties|edit_properties")
   const hasActiveLocationFilters = Boolean(
@@ -190,9 +193,13 @@ export default function AdminLandManagementPage() {
   }
 
   useEffect(() => {
+    setPage(1)
+  }, [searchQuery, locationFilters])
+
+  useEffect(() => {
     void fetchLandParcels()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchQuery, locationFilters])
+  }, [searchQuery, locationFilters, page])
 
   useEffect(() => {
     void fetchSubscriptions()
@@ -205,15 +212,22 @@ export default function AdminLandManagementPage() {
       const params = new URLSearchParams()
       if (searchQuery) params.append("search", searchQuery)
       appendLocationFiltersForLandParcels(params, locationFilters)
-      params.append("per_page", "500")
+      params.append("page", String(page))
+      params.append("per_page", "15")
       params.append("include_legacy", "1")
       const response = await apiFetch<{
         success: boolean
         data: LandParcel[]
-        pagination?: { total?: number }
+        pagination?: { current_page?: number; last_page?: number; per_page?: number; total?: number }
       }>(`/admin/lands?${params.toString()}`)
       if (response.success && Array.isArray(response.data)) {
         setLandParcels(response.data)
+        setPagination({
+          current_page: response.pagination?.current_page ?? 1,
+          last_page: response.pagination?.last_page ?? 1,
+          per_page: response.pagination?.per_page ?? 15,
+          total: response.pagination?.total ?? response.data.length,
+        })
         setLandPaginationTotal(response.pagination?.total ?? response.data.length)
       }
     } catch {
@@ -644,6 +658,9 @@ export default function AdminLandManagementPage() {
                       </div>
                     </article>
                   ))}
+                </div>
+                <div className="px-4 pb-4 sm:px-5">
+                  <TablePagination pagination={pagination} onPageChange={setPage} noun="land parcels" />
                 </div>
               )}
             </div>

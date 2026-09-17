@@ -32,7 +32,7 @@ export function useRoles(options: UseRolesOptions = {}) {
       if (options.is_active && options.is_active !== 'all') params.append('is_active', options.is_active)
       if (options.sortBy) params.append('sort_by', options.sortBy)
       if (options.sortOrder) params.append('sort_order', options.sortOrder)
-      if (options.page) params.append('page', options.page.toString())
+      if (options.page != null) params.append('page', options.page.toString())
       if (options.perPage) params.append('per_page', options.perPage.toString())
 
       const response = await apiFetch<RolesResponse>(`/admin/roles?${params.toString()}`)

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -29,21 +29,28 @@ import {
 } from "@/components/ui/alert-dialog"
 import Link from "next/link"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
+import { TablePagination } from "@/components/admin/table-pagination"
 
 export default function RolesPage() {
   const { can } = useTenantPermissions()
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState("all")
+  const [page, setPage] = useState(1)
   const [deleteRoleId, setDeleteRoleId] = useState<string | null>(null)
 
   const { roles, loading, error, pagination, refetch } = useRoles({
     search: searchQuery,
     is_active: statusFilter,
+    page,
   })
 
   const { stats, loading: statsLoading } = useRoleStats()
   const { deleteRole, loading: deleteLoading } = useDeleteRole()
   const { toggleStatus, loading: toggleLoading } = useToggleRoleStatus()
+
+  useEffect(() => {
+    setPage(1)
+  }, [searchQuery, statusFilter])
 
   const handleDelete = async (roleId: string) => {
     try {
@@ -287,34 +294,11 @@ export default function RolesPage() {
             </div>
           )}
 
-          {/* Pagination */}
-          {pagination.total > pagination.per_page && (
-            <div className="flex items-center justify-between mt-4">
-              <p className="text-sm text-muted-foreground">
-                Showing {((pagination.current_page - 1) * pagination.per_page) + 1} to{' '}
-                {Math.min(pagination.current_page * pagination.per_page, pagination.total)} of{' '}
-                {pagination.total} results
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={pagination.current_page === 1}
-                  onClick={() => refetch()}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={pagination.current_page === pagination.last_page}
-                  onClick={() => refetch()}
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          )}
+          <TablePagination
+            pagination={pagination}
+            onPageChange={setPage}
+            noun="results"
+          />
         </CardContent>
       </Card>
 
