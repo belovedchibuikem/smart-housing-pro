@@ -8,13 +8,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, MoreVertical, CheckCircle, XCircle, Eye, FileText, Loader2 } from "lucide-react"
+import { Search, MoreVertical, CheckCircle, XCircle, Eye, FileText, Loader2, Download } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { toast as sonnerToast } from "sonner"
-import { apiFetch, fetchAdminLoanDashboardMetrics } from "@/lib/api/client"
+import { apiFetch, exportReport, fetchAdminLoanDashboardMetrics } from "@/lib/api/client"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
 import { TablePagination } from "@/components/admin/table-pagination"
 import { enqueueWorkflowPending, getWorkflowSettings } from "@/lib/api/office"
@@ -270,6 +270,24 @@ export default function AdminLoansPage() {
     }
   }
 
+  const handleExport = async (format: "csv" | "xlsx", view: "balances" | "transactions" = "balances") => {
+    try {
+      await exportReport("loans", {
+        date_range: "all-time",
+        search: searchQuery,
+        format,
+        view,
+      })
+      sonnerToast.success("Export completed", {
+        description: `Downloaded ${format.toUpperCase()} (${view}).`,
+      })
+    } catch (error: any) {
+      sonnerToast.error("Failed to export report", {
+        description: error.message || "Please try again later",
+      })
+    }
+  }
+
   const handleReject = async (loanId: string) => {
     const reason = prompt("Please provide a reason for rejection:")
     if (!reason) return
@@ -375,6 +393,30 @@ export default function AdminLoansPage() {
           <p className="text-muted-foreground mt-1">Review and manage loan applications</p>
         </div>
         <div className="flex gap-2">
+          <Can permission="export_reports|view_loans">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Download className="h-4 w-4 mr-2" />
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleExport("csv", "balances")}>
+                  Loan balances (CSV)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("xlsx", "balances")}>
+                  Loan balances (Excel)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("csv", "transactions")}>
+                  All loans (CSV)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExport("xlsx", "transactions")}>
+                  All loans (Excel)
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </Can>
           <Can permission="view_loans|create_loans">
             <Button variant="outline" asChild>
               <Link href="/admin/bulk-upload/loans">Bulk upload loans</Link>

@@ -2,10 +2,10 @@
 
 import type React from "react"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, Loader2, Search, Check, ChevronDown } from "lucide-react"
+import { ArrowLeft, Loader2, ChevronDown } from "lucide-react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -18,6 +18,12 @@ import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch, getPropertyPaymentPlanDetails, getApprovedPropertyInterests, type ApprovedPropertyInterest } from "@/lib/api/client"
 import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
+import {
+  SearchableSelect,
+  membersToSearchableOptions,
+  propertiesToSearchableOptions,
+  type SearchableSelectOption,
+} from "@/components/ui/searchable-select"
 import { Checkbox } from "@/components/ui/checkbox"
 import { MORTGAGE_PROPERTY_TITLE_OPTIONS } from "@/lib/mortgage-property-titles"
 
@@ -33,9 +39,13 @@ interface Member {
   user?: {
     first_name?: string | null
     last_name?: string | null
+    email?: string | null
   } | null
+  member_number?: string | null
   member_id?: string | null
   staff_id?: string | null
+  ippis_number?: string | null
+  frsc_pin?: string | null
 }
 
 interface MortgageDetail {
@@ -51,6 +61,13 @@ interface MortgageDetail {
   notes?: string | null
   status: string
   member?: Member | null
+  property?: {
+    id: string
+    title?: string | null
+    location?: string | null
+    address?: string | null
+    price?: number | null
+  } | null
 }
 
 export default function EditMortgagePage() {
@@ -66,10 +83,6 @@ export default function EditMortgagePage() {
   const [propertyOptions, setPropertyOptions] = useState<ApprovedPropertyInterest[]>([])
   const [members, setMembers] = useState<Member[]>([])
   const [selectedProvider, setSelectedProvider] = useState<MortgageProvider | null>(null)
-  const [memberSearchQuery, setMemberSearchQuery] = useState("")
-  const [propertySearchQuery, setPropertySearchQuery] = useState("")
-  const [filteredMembers, setFilteredMembers] = useState<Member[]>([])
-  const [filteredProperties, setFilteredProperties] = useState<ApprovedPropertyInterest[]>([])
   const [loanAmountLocked, setLoanAmountLocked] = useState(false)
   const [loadingProperties, setLoadingProperties] = useState(false)
 
@@ -114,20 +127,27 @@ export default function EditMortgagePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mortgageId])
 
-  // Load approved property interests when member is selected
+  // Load subscribed / approved properties when member is selected
   useEffect(() => {
     if (formData.member_id) {
       setLoadingProperties(true)
       getApprovedPropertyInterests(formData.member_id)
         .then((response) => {
           if (response.success && response.data) {
-            setPropertyOptions(response.data)
+            setPropertyOptions((prev) => {
+              const incoming = response.data
+              const byId = new Map(incoming.map((row) => [row.property_id, row]))
+              for (const row of prev) {
+                if (!byId.has(row.property_id)) byId.set(row.property_id, row)
+              }
+              return Array.from(byId.values())
+            })
           } else {
-            setPropertyOptions([])
+            setPropertyOptions((prev) => prev)
           }
         })
         .catch((error) => {
-          console.error("Failed to load property interests:", error)
+          console.error("Failed to load member properties:", error)
           setPropertyOptions([])
         })
         .finally(() => {
@@ -135,7 +155,6 @@ export default function EditMortgagePage() {
         })
     } else {
       setPropertyOptions([])
-      setFormData(prev => ({ ...prev, property_id: "", property_titles: [] }))
     }
   }, [formData.member_id])
 
@@ -224,6 +243,34 @@ export default function EditMortgagePage() {
         monthly_payment: mortgage.monthly_payment ? Number(mortgage.monthly_payment).toFixed(2) : "",
         notes: mortgage.notes ?? "",
       })
+      if (mortgage.member?.id) {
+        setMembers((prev) => {
+          if (prev.some((m) => m.id === mortgage.member!.id)) return prev
+          return [mortgage.member as Member, ...prev]
+        })
+      }
+      if (mortgage.property?.id) {
+        setPropertyOptions((prev) => {
+          if (prev.some((row) => row.property_id === mortgage.property!.id)) return prev
+          return [
+            {
+              id: mortgage.property.id,
+              property_id: mortgage.property.id,
+              member_id: mortgage.member_id,
+              status: "current",
+              property: {
+                id: mortgage.property.id,
+                title: mortgage.property.title || "Property",
+                location: mortgage.property.location,
+                address: mortgage.property.address,
+                price: mortgage.property.price,
+              },
+              created_at: "",
+            },
+            ...prev,
+          ]
+        })
+      }
     }
   }
 
@@ -245,10 +292,15 @@ export default function EditMortgagePage() {
 
   const fetchMembers = async () => {
     try {
-      const response = await apiFetch("/admin/members?per_page=1000")
+      const response = await apiFetch("/admin/members?per_page=50")
       const list = normalizeAdminMembersList(response) as Member[]
-      setMembers(list)
-      setFilteredMembers(list)
+      setMembers((prev) => {
+        const byId = new Map(list.map((m) => [m.id, m]))
+        for (const m of prev) {
+          if (!byId.has(m.id)) byId.set(m.id, m)
+        }
+        return Array.from(byId.values())
+      })
     } catch (error) {
       toast({
         title: "Error",
@@ -258,39 +310,32 @@ export default function EditMortgagePage() {
     }
   }
 
-  useEffect(() => {
-    if (memberSearchQuery.trim() === "") {
-      setFilteredMembers(members)
-    } else {
-      const query = memberSearchQuery.toLowerCase()
-      setFilteredMembers(
-        members.filter(
-          (member) =>
-            member.user?.first_name?.toLowerCase().includes(query) ||
-            member.user?.last_name?.toLowerCase().includes(query) ||
-            member.member_id?.toLowerCase().includes(query) ||
-            member.staff_id?.toLowerCase().includes(query)
-        )
-      )
-    }
-  }, [memberSearchQuery, members])
+  const searchMembers = useCallback(async (query: string): Promise<SearchableSelectOption[]> => {
+    const res = await apiFetch<{ success?: boolean }>(
+      `/admin/members?search=${encodeURIComponent(query)}&per_page=50`,
+    )
+    const rows = normalizeAdminMembersList(res) as Member[]
+    setMembers((prev) => {
+      const byId = new Map(prev.map((m) => [m.id, m]))
+      for (const m of rows) byId.set(m.id, m)
+      return Array.from(byId.values())
+    })
+    return membersToSearchableOptions(rows)
+  }, [])
 
-  useEffect(() => {
-    if (propertySearchQuery.trim() === "") {
-      setFilteredProperties(propertyOptions)
-    } else {
-      const query = propertySearchQuery.toLowerCase()
-      setFilteredProperties(
-        propertyOptions.filter(
-          (interest) =>
-            interest.property.title?.toLowerCase().includes(query) ||
-            interest.property.address?.toLowerCase().includes(query) ||
-            interest.property.id.toLowerCase().includes(query) ||
-            interest.property.location?.toLowerCase().includes(query)
-        )
-      )
-    }
-  }, [propertySearchQuery, propertyOptions])
+  const memberSelectOptions = useMemo(() => membersToSearchableOptions(members), [members])
+  const propertySelectOptions = useMemo(
+    () =>
+      propertiesToSearchableOptions(
+        propertyOptions.map((interest) => ({
+          id: interest.property_id,
+          title: interest.property.title,
+          location: interest.property.location || interest.property.address || undefined,
+          price: interest.property.price ?? undefined,
+        })),
+      ),
+    [propertyOptions],
+  )
 
   const handleProviderChange = (providerId: string) => {
     const provider = providers.find((item) => item.id === providerId)
@@ -382,124 +427,45 @@ export default function EditMortgagePage() {
               <div className="grid sm:grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="member_id">Member *</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        className={cn("w-full justify-between", !formData.member_id && "text-muted-foreground")}
-                      >
-                        {formData.member_id
-                          ? `${members.find((m) => m.id === formData.member_id)?.user?.first_name} ${members.find((m) => m.id === formData.member_id)?.user?.last_name} - ${members.find((m) => m.id === formData.member_id)?.member_id || members.find((m) => m.id === formData.member_id)?.staff_id || ""}`
-                          : "Search and select a member..."}
-                        <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0" align="start">
-                      <div className="flex items-center border-b px-3">
-                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                        <Input
-                          placeholder="Search by name, member ID, or staff ID..."
-                          value={memberSearchQuery}
-                          onChange={(e) => setMemberSearchQuery(e.target.value)}
-                          className="border-0 focus-visible:ring-0"
-                        />
-                      </div>
-                      <div className="max-h-[300px] overflow-auto">
-                        {filteredMembers.length === 0 ? (
-                          <div className="p-4 text-center text-sm text-muted-foreground">No members found</div>
-                        ) : (
-                          filteredMembers.map((member) => (
-                            <button
-                              key={member.id}
-                              type="button"
-                              className={cn(
-                                "flex w-full items-center justify-between px-4 py-2 text-left hover:bg-accent",
-                                formData.member_id === member.id && "bg-accent"
-                              )}
-                              onClick={() => setFormData({ ...formData, member_id: member.id })}
-                            >
-                              <div className="flex flex-col">
-                                <span className="font-medium">
-                                  {member.user?.first_name} {member.user?.last_name}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {member.member_id || member.staff_id || member.id}
-                                </span>
-                              </div>
-                              {formData.member_id === member.id && <Check className="h-4 w-4" />}
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                  <SearchableSelect
+                    value={formData.member_id}
+                    onValueChange={(value) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        member_id: value,
+                        property_id: value === prev.member_id ? prev.property_id : "",
+                        property_titles: value === prev.member_id ? prev.property_titles : [],
+                      }))
+                    }
+                    options={memberSelectOptions}
+                    onSearch={searchMembers}
+                    placeholder="Search and select a member..."
+                    searchPlaceholder="Search by name, member no, staff ID, IPPIS, or FRSC PIN…"
+                    emptyText="No members match your search."
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="property_id">Property *</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        className={cn("w-full justify-between", !formData.property_id && "text-muted-foreground")}
-                      >
-                        {formData.property_id
-                          ? propertyOptions.find((p) => p.property_id === formData.property_id)?.property.title ||
-                            propertyOptions.find((p) => p.property_id === formData.property_id)?.property.address ||
-                            "Selected property"
-                          : loadingProperties
-                            ? "Loading properties..."
-                            : "Search and select a property..."}
-                        <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-full p-0" align="start">
-                      <div className="flex items-center border-b px-3">
-                        <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-                        <Input
-                          placeholder="Search by title, address, or ID..."
-                          value={propertySearchQuery}
-                          onChange={(e) => setPropertySearchQuery(e.target.value)}
-                          className="border-0 focus-visible:ring-0"
-                        />
-                      </div>
-                      <div className="max-h-[300px] overflow-auto">
-                        {loadingProperties ? (
-                          <div className="p-4 text-center text-sm text-muted-foreground">Loading properties...</div>
-                        ) : filteredProperties.length === 0 ? (
-                          <div className="p-4 text-center text-sm text-muted-foreground">
-                            {formData.member_id ? "No approved properties found for this member" : "Select a member first"}
-                          </div>
-                        ) : (
-                          filteredProperties.map((interest) => (
-                            <button
-                              key={interest.id}
-                              type="button"
-                              className={cn(
-                                "flex w-full items-center justify-between px-4 py-2 text-left hover:bg-accent",
-                                formData.property_id === interest.property_id && "bg-accent"
-                              )}
-                              onClick={() => setFormData({ ...formData, property_id: interest.property_id })}
-                            >
-                              <div className="flex flex-col">
-                                <span className="font-medium">
-                                  {interest.property.title || interest.property.address || interest.property.id}
-                                </span>
-                                {(interest.property.address || interest.property.location) && (
-                                  <span className="text-xs text-muted-foreground">
-                                    {interest.property.address || interest.property.location}
-                                  </span>
-                                )}
-                              </div>
-                              {formData.property_id === interest.property_id && <Check className="h-4 w-4" />}
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
+                  <SearchableSelect
+                    value={formData.property_id}
+                    onValueChange={(value) => setFormData((prev) => ({ ...prev, property_id: value }))}
+                    options={propertySelectOptions}
+                    placeholder={
+                      loadingProperties
+                        ? "Loading properties..."
+                        : !formData.member_id
+                          ? "Select a member first"
+                          : "Search and select a property..."
+                    }
+                    searchPlaceholder="Search by title, address, or location…"
+                    emptyText={
+                      formData.member_id
+                        ? "No subscribed properties found for this member"
+                        : "Select a member first"
+                    }
+                    disabled={!formData.member_id || loadingProperties}
+                  />
                 </div>
 
                 <div className="space-y-2 sm:col-span-2">

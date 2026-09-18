@@ -3,17 +3,25 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Download, HandCoins, CheckCircle, Clock, XCircle } from "lucide-react"
+import { Download, HandCoins, CheckCircle, Clock, XCircle, Search } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { getLoanReports, exportReport } from "@/lib/api/client"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export default function LoanReportsPage() {
   const { toast } = useToast()
   const [dateRange, setDateRange] = useState("this-month")
+  const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
     total_loans: "₦0",
@@ -26,12 +34,16 @@ export default function LoanReportsPage() {
 
   useEffect(() => {
     fetchData()
-  }, [dateRange])
+  }, [dateRange, searchQuery])
 
   const fetchData = async () => {
     try {
       setLoading(true)
-      const response = await getLoanReports({ date_range: dateRange, per_page: 50 })
+      const response = await getLoanReports({
+        date_range: dateRange,
+        search: searchQuery || undefined,
+        per_page: 50,
+      })
       if (response.success) {
         setStats(response.data.stats)
         setLoanTypes(response.data.loan_types || [])
@@ -48,12 +60,17 @@ export default function LoanReportsPage() {
     }
   }
 
-  const handleExport = async () => {
+  const handleExport = async (format: "csv" | "xlsx", view: "balances" | "transactions" = "balances") => {
     try {
-      await exportReport('loans', { date_range: dateRange })
+      await exportReport("loans", {
+        date_range: dateRange,
+        search: searchQuery,
+        format,
+        view,
+      })
       toast({
         title: "Export completed",
-        description: "Your report has been downloaded.",
+        description: `Downloaded ${format.toUpperCase()} (${view}).`,
       })
     } catch (error: any) {
       toast({
@@ -78,7 +95,7 @@ export default function LoanReportsPage() {
           <h1 className="text-2xl md:text-3xl font-bold">Loan Reports</h1>
           <p className="text-muted-foreground mt-1">Track loan disbursements and repayments</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Select value={dateRange} onValueChange={setDateRange}>
             <SelectTrigger className="w-40">
               <SelectValue />
@@ -91,10 +108,28 @@ export default function LoanReportsPage() {
               <SelectItem value="all-time">All Time</SelectItem>
             </SelectContent>
           </Select>
-          <Button onClick={handleExport}>
-            <Download className="h-4 w-4 mr-2" />
-            Export
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button>
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleExport("csv", "balances")}>
+                Loan balances (CSV)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport("xlsx", "balances")}>
+                Loan balances (Excel)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport("csv", "transactions")}>
+                Period loans (CSV)
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport("xlsx", "transactions")}>
+                Period loans (Excel)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -115,6 +150,24 @@ export default function LoanReportsPage() {
           )
         })}
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Search</CardTitle>
+          <CardDescription>Filter by member name, number, IPPIS, or staff ID</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search members…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Loan Type Analysis */}
       {loanTypes.length > 0 && (

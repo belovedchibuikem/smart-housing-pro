@@ -2,7 +2,7 @@
 
 
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
@@ -21,13 +21,28 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useToast } from "@/hooks/use-toast"
-import { createInternalMortgagePlan, searchMembers, getApprovedPropertyInterests, getPropertyPaymentPlanDetails, type SearchedMember, type ApprovedPropertyInterest } from "@/lib/api/client"
+import {
+	createInternalMortgagePlan,
+	getApprovedPropertyInterests,
+	getPropertyPaymentPlanDetails,
+	apiFetch,
+	type ApprovedPropertyInterest,
+} from "@/lib/api/client"
+import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
 import { ArrowLeft, Calculator, Search, Check, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 type FrequencyOption = "monthly" | "quarterly" | "biannually" | "annually"
 type PlanStatusOption = "draft" | "active"
 type SelectValueChangeHandler = (value: string) => void
+
+type SearchedMember = {
+	id: string
+	member_number: string
+	name: string
+	email: string | null
+	phone_number: string | null
+}
 
 export default function NewInternalMortgagePlanPage() {
 	const router = useRouter()
@@ -72,27 +87,56 @@ export default function NewInternalMortgagePlanPage() {
 	}
 
 	// Member search handler
-	const handleMemberSearch = useCallback(async (query: string) => {
+	const searchTimer = useRef<number | null>(null)
+
+	const handleMemberSearch = useCallback((query: string) => {
 		setMemberSearchQuery(query)
-		if (query.length < 2) {
+		if (searchTimer.current) {
+			window.clearTimeout(searchTimer.current)
+		}
+		if (query.trim().length < 2) {
 			setMemberSearchResults([])
+			setSearchingMembers(false)
 			return
 		}
 
 		setSearchingMembers(true)
-		try {
-			const response = await searchMembers(query)
-			if (response.success && response.data) {
-				setMemberSearchResults(response.data)
-			} else {
+		searchTimer.current = window.setTimeout(async () => {
+			try {
+				const response = await apiFetch(`/admin/members?search=${encodeURIComponent(query.trim())}&per_page=50`)
+				const rows = normalizeAdminMembersList(response) as Array<{
+					id: string
+					member_number?: string
+					member_id?: string
+					first_name?: string
+					last_name?: string
+					email?: string
+					phone?: string
+					user?: {
+						first_name?: string
+						last_name?: string
+						email?: string
+						phone?: string
+					} | null
+				}>
+				setMemberSearchResults(
+					rows.map((member) => ({
+						id: String(member.id),
+						member_number: String(member.member_number ?? member.member_id ?? ""),
+						name:
+							`${member.user?.first_name ?? member.first_name ?? ""} ${member.user?.last_name ?? member.last_name ?? ""}`.trim() ||
+							"Unknown Member",
+						email: member.user?.email ?? member.email ?? null,
+						phone_number: member.user?.phone ?? member.phone ?? null,
+					})),
+				)
+			} catch (error) {
+				console.error("Failed to search members:", error)
 				setMemberSearchResults([])
+			} finally {
+				setSearchingMembers(false)
 			}
-		} catch (error) {
-			console.error("Failed to search members:", error)
-			setMemberSearchResults([])
-		} finally {
-			setSearchingMembers(false)
-		}
+		}, 300)
 	}, [])
 
 	// Handle member selection
@@ -387,7 +431,7 @@ export default function NewInternalMortgagePlanPage() {
 							{linkMember && memberId ? (
 								<Select value={propertyId} onValueChange={setPropertyId} disabled={loadingProperties || propertyOptions.length === 0}>
 									<SelectTrigger id="property-select">
-										<SelectValue placeholder={loadingProperties ? "Loading properties..." : propertyOptions.length === 0 ? "No approved properties found" : "Select a property"} />
+										<SelectValue placeholder={loadingProperties ? "Loading properties..." : propertyOptions.length === 0 ? "No subscribed properties found" : "Select a property"} />
 									</SelectTrigger>
 									<SelectContent>
 										{propertyOptions.map((interest) => (
@@ -412,7 +456,7 @@ export default function NewInternalMortgagePlanPage() {
 								/>
 							)}
 							{linkMember && memberId && propertyOptions.length === 0 && !loadingProperties && (
-								<p className="text-xs text-muted-foreground">This member has no approved property interests yet.</p>
+								<p className="text-xs text-muted-foreground">This member has no subscribed properties yet.</p>
 							)}
 						</div>
 					)}

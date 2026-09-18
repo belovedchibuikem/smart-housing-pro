@@ -3823,9 +3823,10 @@ export async function getInvestmentReports(params?: { date_range?: string; page?
 	return apiFetch<{ success: boolean; data: { stats: any; plan_performance: any[]; investments: any[]; pagination?: any } }>(`/admin/reports/investments?${query.toString()}`, { method: "GET" })
 }
 
-export async function getLoanReports(params?: { date_range?: string; page?: number; per_page?: number }) {
+export async function getLoanReports(params?: { date_range?: string; search?: string; page?: number; per_page?: number }) {
 	const query = new URLSearchParams()
 	if (params?.date_range) query.set("date_range", params.date_range)
+	if (params?.search) query.set("search", params.search)
 	if (params?.page) query.set("page", String(params.page))
 	if (params?.per_page) query.set("per_page", String(params.per_page))
 	return apiFetch<{ success: boolean; data: { stats: any; loan_types: any[]; loans: any[]; pagination?: any } }>(`/admin/reports/loans?${query.toString()}`, { method: "GET" })
@@ -5264,7 +5265,7 @@ export interface ApprovedPropertyInterest {
 
 export async function getApprovedPropertyInterests(memberId: string) {
 	return apiFetch<{ success: boolean; data: ApprovedPropertyInterest[]; pagination?: { current_page: number; last_page: number; per_page: number; total: number } }>(
-		`/admin/property-payment-plans/pending-interests?member_id=${memberId}&per_page=100`,
+		`/admin/mortgages/member-properties?member_id=${encodeURIComponent(memberId)}`,
 		{ method: "GET" },
 	)
 }
