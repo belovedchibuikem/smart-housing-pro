@@ -4518,10 +4518,12 @@ export async function initializeSubscription(data: {
 	payer_phone?: string
 	account_details?: string
 	payment_evidence?: string[]
+	callback_url?: string
 }) {
 	return apiFetch<{
 		success: boolean
 		paymentUrl?: string
+		payment_url?: string
 		reference?: string
 		rrr?: string
 		message?: string
@@ -4955,10 +4957,12 @@ export async function initializeMemberSubscription(data: {
 	payer_phone?: string
 	account_details?: string
 	payment_evidence?: string[]
+	callback_url?: string
 }) {
 	return apiFetch<{
 		success: boolean
 		paymentUrl?: string
+		payment_url?: string
 		reference?: string
 		subscription_id?: string
 		requires_approval?: boolean

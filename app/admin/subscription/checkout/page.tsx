@@ -12,10 +12,16 @@ import { Textarea } from "@/components/ui/textarea"
 import { Loader2, Check, CreditCard, Wallet, Building2, AlertCircle, ArrowLeft, Upload, X, Receipt } from "lucide-react"
 import Link from "next/link"
 import { Skeleton } from "@/components/ui/skeleton"
-import { getSubscriptionPackages, getSubscriptionPaymentMethods, initializeSubscription, verifySubscription, uploadPaymentEvidence } from "@/lib/api/client"
+import { getSubscriptionPackages, getSubscriptionPaymentMethods, initializeSubscription, uploadPaymentEvidence } from "@/lib/api/client"
 import { usePageLoading } from "@/hooks/use-loading"
 import { useToast } from "@/hooks/use-toast"
 import { resolveStorageUrl } from "@/lib/api/config"
+import {
+  GATEWAY_PAYMENT_MESSAGE,
+  gatewayPaymentUrl,
+  launchGatewayCheckout,
+  rememberPendingGatewayPayment,
+} from "@/lib/payment/gateway-checkout"
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-NG', {
@@ -194,6 +200,7 @@ export default function AdminSubscriptionCheckoutPage() {
       const requestData: any = {
         package_id: selectedPackage.id,
         payment_method: paymentMethod, // Explicitly ensure this is set
+        callback_url: `${window.location.origin}/admin/subscription/success?provider=${encodeURIComponent(paymentMethod)}`,
       }
 
       console.log('Building subscription request:', {
@@ -285,11 +292,42 @@ export default function AdminSubscriptionCheckoutPage() {
           setTimeout(() => {
             router.push(`/admin/subscription/success?${params.toString()}`)
           }, 2000)
-        } else if (response.paymentUrl) {
-          // Redirect to payment gateway
-          setTimeout(() => {
-            window.location.href = response.paymentUrl
-          }, 2000)
+        } else if (gatewayPaymentUrl(response)) {
+          const payUrl = gatewayPaymentUrl(response) as string
+          const reference = (response.reference || "") as string
+          const successParams = new URLSearchParams()
+          if (reference) successParams.set("reference", reference)
+          successParams.set("provider", selectedPaymentMethod)
+          if (selectedPackage?.name) successParams.set("plan", selectedPackage.name)
+          if (selectedPackage?.price) successParams.set("amount", String(selectedPackage.price))
+          const successPath = `/admin/subscription/success?${successParams.toString()}`
+          rememberPendingGatewayPayment({
+            reference,
+            provider: selectedPaymentMethod,
+            successPath,
+          })
+
+          const launched = launchGatewayCheckout(payUrl)
+          if (launched !== "redirect") {
+            const popup = launched
+            const onMessage = (event: MessageEvent) => {
+              if (event.origin !== window.location.origin) return
+              if (event.data?.type !== GATEWAY_PAYMENT_MESSAGE) return
+              cleanup()
+              router.push(successPath)
+            }
+            const poll = window.setInterval(() => {
+              if (popup.closed) {
+                cleanup()
+                router.push(successPath)
+              }
+            }, 800)
+            const cleanup = () => {
+              window.removeEventListener("message", onMessage)
+              window.clearInterval(poll)
+            }
+            window.addEventListener("message", onMessage)
+          }
         } else {
           setError("Payment initialization failed. Please try again.")
         }

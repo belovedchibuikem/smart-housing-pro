@@ -16,6 +16,12 @@ import { getMemberSubscriptionPackages, getMemberSubscriptionPaymentMethods, ini
 import { usePageLoading } from "@/hooks/use-loading"
 import { useToast } from "@/hooks/use-toast"
 import { resolveStorageUrl } from "@/lib/api/config"
+import {
+  GATEWAY_PAYMENT_MESSAGE,
+  gatewayPaymentUrl,
+  launchGatewayCheckout,
+  rememberPendingGatewayPayment,
+} from "@/lib/payment/gateway-checkout"
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-NG', {
@@ -174,6 +180,7 @@ export default function SubscriptionCheckoutPage() {
       const requestData: any = {
         package_id: selectedPackage.id,
         payment_method: selectedPaymentMethod,
+        callback_url: `${window.location.origin}/dashboard/subscriptions/success?provider=${encodeURIComponent(selectedPaymentMethod)}`,
       }
 
       // Add manual payment fields if applicable
@@ -202,11 +209,42 @@ export default function SubscriptionCheckoutPage() {
           setTimeout(() => {
             router.push(`/dashboard/subscriptions/success?${params.toString()}`)
           }, 2000)
-        } else if (response.paymentUrl) {
-          // Redirect to payment gateway
-          setTimeout(() => {
-            window.location.href = response.paymentUrl
-          }, 2000)
+        } else if (gatewayPaymentUrl(response)) {
+          const payUrl = gatewayPaymentUrl(response) as string
+          const reference = (response.reference || "") as string
+          const successParams = new URLSearchParams()
+          if (reference) successParams.set("reference", reference)
+          successParams.set("provider", selectedPaymentMethod)
+          if (selectedPackage?.name) successParams.set("plan", selectedPackage.name)
+          if (selectedPackage?.price) successParams.set("amount", String(selectedPackage.price))
+          const successPath = `/dashboard/subscriptions/success?${successParams.toString()}`
+          rememberPendingGatewayPayment({
+            reference,
+            provider: selectedPaymentMethod,
+            successPath,
+          })
+
+          const launched = launchGatewayCheckout(payUrl)
+          if (launched !== "redirect") {
+            const popup = launched
+            const onMessage = (event: MessageEvent) => {
+              if (event.origin !== window.location.origin) return
+              if (event.data?.type !== GATEWAY_PAYMENT_MESSAGE) return
+              cleanup()
+              router.push(successPath)
+            }
+            const poll = window.setInterval(() => {
+              if (popup.closed) {
+                cleanup()
+                router.push(successPath)
+              }
+            }, 800)
+            const cleanup = () => {
+              window.removeEventListener("message", onMessage)
+              window.clearInterval(poll)
+            }
+            window.addEventListener("message", onMessage)
+          }
         } else {
           setError("Payment initialization failed. Please try again.")
         }

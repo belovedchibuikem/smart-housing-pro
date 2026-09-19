@@ -9,12 +9,19 @@ import Link from "next/link"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { verifyMemberSubscription } from "@/lib/api/client"
 import { ReceiptDownloadButton } from "@/components/payments/receipt-download-button"
+import {
+  GATEWAY_PAYMENT_MESSAGE,
+  clearPendingGatewayPayment,
+  readPendingGatewayPayment,
+  verifyWithRetries,
+} from "@/lib/payment/gateway-checkout"
 
 export default function SubscriptionSuccessPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const reference = searchParams.get('reference')
-  const provider = searchParams.get('provider') || 'paystack'
+  const pending = typeof window !== "undefined" ? readPendingGatewayPayment() : null
+  const reference = searchParams.get('reference') || searchParams.get('trxref') || pending?.reference || null
+  const provider = searchParams.get('provider') || pending?.provider || 'paystack'
   const plan = searchParams.get("plan") ?? "Subscription Plan"
   const amountParam = searchParams.get("amount")
   const amount = amountParam ? Number(amountParam) : undefined
@@ -23,6 +30,7 @@ export default function SubscriptionSuccessPage() {
   const [isVerifying, setIsVerifying] = useState(true)
   const [isSuccess, setIsSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [retryNonce, setRetryNonce] = useState(0)
 
   useEffect(() => {
     if (!reference) {
@@ -31,21 +39,28 @@ export default function SubscriptionSuccessPage() {
       return
     }
 
-    // Verify the payment (skip for wallet and manual payments)
     const verify = async () => {
       if (provider === 'wallet' || provider === 'manual') {
-        // Wallet and manual payments don't need verification
         setIsSuccess(true)
         setIsVerifying(false)
+        clearPendingGatewayPayment()
         return
       }
 
       try {
-        const response = await verifyMemberSubscription(provider, reference)
+        const response = await verifyWithRetries(() => verifyMemberSubscription(provider, reference))
         if (response.success) {
           setIsSuccess(true)
+          clearPendingGatewayPayment()
+          if (typeof window !== "undefined" && window.opener && !window.opener.closed) {
+            window.opener.postMessage(
+              { type: GATEWAY_PAYMENT_MESSAGE, success: true, reference },
+              window.location.origin
+            )
+            window.setTimeout(() => window.close(), 1200)
+          }
         } else {
-          setError(response.message || "Payment verification failed")
+          setError(response.message || "Payment is not confirmed yet. If you were charged, tap try again.")
         }
       } catch (err: any) {
         console.error("Verification error:", err)
@@ -56,7 +71,7 @@ export default function SubscriptionSuccessPage() {
     }
 
     verify()
-  }, [reference, provider])
+  }, [reference, provider, retryNonce])
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
@@ -113,7 +128,7 @@ export default function SubscriptionSuccessPage() {
           ) : (
             <div className="flex flex-col items-center justify-center py-12">
               <AlertCircle className="h-16 w-16 text-red-600 mb-4" />
-              <h2 className="text-2xl font-bold mb-2">Payment Failed</h2>
+              <h2 className="text-2xl font-bold mb-2">Payment not confirmed</h2>
               {error && (
                 <Alert variant="destructive" className="mb-6">
                   <AlertCircle className="h-4 w-4" />
@@ -122,14 +137,20 @@ export default function SubscriptionSuccessPage() {
                 </Alert>
               )}
               <p className="text-muted-foreground text-center mb-6">
-                We couldn't process your payment. Please try again or contact support if the issue persists.
+                If you were charged, confirm the payment below. Your membership unlocks as soon as the gateway reports success.
               </p>
               <div className="flex gap-4">
+                <Button
+                  onClick={() => {
+                    setIsVerifying(true)
+                    setError(null)
+                    setRetryNonce((n) => n + 1)
+                  }}
+                >
+                  Confirm payment
+                </Button>
                 <Link href="/subscription">
-                  <Button>Try Again</Button>
-                </Link>
-                <Link href="/dashboard/subscriptions">
-                  <Button variant="outline">View Subscriptions</Button>
+                  <Button variant="outline">Try another payment</Button>
                 </Link>
               </div>
             </div>
