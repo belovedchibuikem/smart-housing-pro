@@ -59,8 +59,19 @@ export async function fetchUserProfile(): Promise<UserProfileResponse> {
 	return apiFetch<UserProfileResponse>("/user/profile", { method: "GET" })
 }
 
+export async function fetchAdminProfile(): Promise<UserProfileResponse> {
+	return apiFetch<UserProfileResponse>("/admin/profile", { method: "GET" })
+}
+
 export async function updateUserProfile(payload: UpdateUserProfilePayload) {
 	return apiFetch<UserProfileResponse>("/user/profile", {
+		method: "PUT",
+		body: payload,
+	})
+}
+
+export async function updateAdminProfile(payload: UpdateUserProfilePayload) {
+	return apiFetch<UserProfileResponse>("/admin/profile", {
 		method: "PUT",
 		body: payload,
 	})
@@ -109,4 +120,29 @@ export async function uploadProfileAvatar(file: File): Promise<UploadAvatarRespo
 		body: formData,
 		headers: {},
 	})
+}
+
+export async function uploadAdminProfileAvatar(file: File): Promise<UploadAvatarResponse> {
+	const formData = new FormData()
+	formData.append("avatar", file)
+
+	return apiFetch<UploadAvatarResponse>("/admin/profile/avatar", {
+		method: "POST",
+		body: formData,
+		headers: {},
+	})
+}
+
+export async function changeAdminPassword(data: {
+	current_password: string
+	new_password: string
+	new_password_confirmation: string
+}) {
+	return apiFetch<{ success: boolean; message: string; must_change_password?: boolean }>(
+		"/admin/profile/change-password",
+		{
+			method: "POST",
+			body: data,
+		}
+	)
 }

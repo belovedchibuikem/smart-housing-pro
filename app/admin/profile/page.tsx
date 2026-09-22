@@ -8,8 +8,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { ProfilePhotoUpload } from "@/components/profile/profile-photo-upload"
-import { fetchUserProfile, updateUserProfile, uploadProfileAvatar } from "@/lib/api/user-profile"
-import { changePassword } from "@/lib/api/client"
+import {
+	changeAdminPassword,
+	fetchAdminProfile,
+	updateAdminProfile,
+	uploadAdminProfileAvatar,
+} from "@/lib/api/user-profile"
 import { persistAuthSession } from "@/lib/auth/auth-cookies"
 import type { User } from "@/lib/types/user"
 
@@ -49,7 +53,7 @@ export default function AdminProfilePage() {
 	const load = useCallback(async () => {
 		setLoading(true)
 		try {
-			const res = await fetchUserProfile()
+			const res = await fetchAdminProfile()
 			setUser(res.user)
 			setForm({
 				first_name: res.user.first_name || "",
@@ -79,7 +83,7 @@ export default function AdminProfilePage() {
 		}
 		setSaving(true)
 		try {
-			const res = await updateUserProfile({
+			const res = await updateAdminProfile({
 				first_name: form.first_name.trim(),
 				last_name: form.last_name.trim(),
 				phone: form.phone.trim(),
@@ -94,11 +98,15 @@ export default function AdminProfilePage() {
 	}
 
 	const onUpload = async (file: File) => {
-		const res = await uploadProfileAvatar(file)
+		const res = await uploadAdminProfileAvatar(file)
 		persistUser(res.user)
 	}
 
 	const savePassword = async () => {
+		if (!passwordForm.current_password.trim()) {
+			toast({ title: "Enter your current password", variant: "destructive" })
+			return
+		}
 		if (passwordForm.new_password.length < 8) {
 			toast({ title: "New password must be at least 8 characters", variant: "destructive" })
 			return
@@ -109,18 +117,26 @@ export default function AdminProfilePage() {
 		}
 		setChangingPassword(true)
 		try {
-			await changePassword({
+			const response = await changeAdminPassword({
 				current_password: passwordForm.current_password,
 				new_password: passwordForm.new_password,
 				new_password_confirmation: passwordForm.new_password_confirmation,
 			})
+			if (!response.success) {
+				toast({
+					title: "Password change failed",
+					description: response.message || "The password was not updated.",
+					variant: "destructive",
+				})
+				return
+			}
 			setPasswordForm({ current_password: "", new_password: "", new_password_confirmation: "" })
 			if (user) {
 				persistUser({ ...user, must_change_password: false })
 			}
 			toast({
 				title: "Password updated",
-				description: "Your temporary or previous password has been replaced.",
+				description: "Use this new password the next time you sign in.",
 			})
 		} catch (e: any) {
 			toast({ title: "Password change failed", description: e?.message, variant: "destructive" })
