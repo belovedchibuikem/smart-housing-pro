@@ -9,10 +9,11 @@ import { AdminLoadingProvider } from "@/components/admin/admin-loading-context"
 import { AdminRoutePermissionGate } from "@/components/admin/admin-route-permission-gate"
 import { AuthGuard } from "@/lib/tenant/auth-guard"
 import type { UserRole } from "@/lib/roles"
-import { getUserData } from "@/lib/auth/auth-utils"
+import { getUserData, handleLogout } from "@/lib/auth/auth-utils"
 import type { AuthUser } from "@/lib/auth/types"
-import { persistAuthSession, persistAuthSessionFromStorage } from "@/lib/auth/auth-cookies"
-import { meRequest } from "@/lib/api/client"
+import { persistAuthSessionFromStorage } from "@/lib/auth/auth-cookies"
+import { meRequest, getAuthToken } from "@/lib/api/client"
+import { isImpersonatingSession, persistCurrentSessionUser } from "@/lib/auth/impersonation"
 import { getRoleSlug } from "@/lib/auth/user-roles"
 import { useSubscriptionGuard } from "@/lib/hooks/use-subscription"
 import { unlockBodyPointerEvents } from "@/lib/ui/unlock-body"
@@ -20,6 +21,28 @@ import { IdleSessionGuard } from "@/lib/auth/idle-session"
 import { persistSessionTimeout } from "@/lib/auth/session-timeout"
 import { Loader2 } from "lucide-react"
 import { WebPushRegistrar } from "@/components/push/web-push-registrar"
+
+function ImpersonationBanner() {
+  const [label, setLabel] = useState("")
+
+  useEffect(() => {
+    if (!isImpersonatingSession()) return
+    const user = getUserData() as { first_name?: string; last_name?: string; email?: string } | null
+    const name = [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim()
+    setLabel(name || user?.email || "this user")
+  }, [])
+
+  if (!label) return null
+
+  return (
+    <div className="bg-amber-500 text-amber-950 px-4 py-2 text-sm flex flex-wrap items-center justify-between gap-2">
+      <span>You are signed in as <strong>{label}</strong>. Actions in this tab use this account.</span>
+      <button type="button" className="underline font-medium" onClick={() => void handleLogout()}>
+        End session
+      </button>
+    </div>
+  )
+}
 
 export default function AdminLayout({
   children,
@@ -52,7 +75,9 @@ export default function AdminLayout({
     let cancelled = false
 
     async function syncSession() {
-      persistAuthSessionFromStorage()
+      if (!isImpersonatingSession()) {
+        persistAuthSessionFromStorage()
+      }
       const cached = getUserData()
       if (cached && !cancelled) {
         applyUserToNav(cached as AuthUser)
@@ -61,14 +86,12 @@ export default function AdminLayout({
       try {
         const me = await meRequest()
         const fresh = me?.user as AuthUser | undefined
-        const token = typeof window !== "undefined" ? window.localStorage.getItem("auth_token") : null
+        const token = getAuthToken()
         if (typeof me?.session_timeout === "number") {
           persistSessionTimeout(me.session_timeout)
         }
         if (fresh && token && !cancelled) {
-          localStorage.setItem("user_data", JSON.stringify(fresh))
-          persistAuthSession(fresh, token)
-          window.dispatchEvent(new Event("sh-auth-updated"))
+          persistCurrentSessionUser(fresh, token)
           applyUserToNav(fresh)
         }
       } catch {
@@ -110,6 +133,7 @@ export default function AdminLayout({
       <IdleSessionGuard />
       <WebPushRegistrar />
       <div className="min-h-screen bg-background">
+        <ImpersonationBanner />
         <AdminHeader
           mobileMenuOpen={mobileMenuOpen}
           setMobileMenuOpen={setMobileMenuOpen}

@@ -10,6 +10,11 @@ import {
 	isPlatformSuperAdminSession,
 	isTenantScopedApiPath,
 } from "@/lib/auth/platform-host"
+import {
+	clearImpersonationSession,
+	getImpersonationToken,
+	isImpersonatingSession,
+} from "@/lib/auth/impersonation"
 
 // Lightweight API client for browser-side requests
 
@@ -37,6 +42,12 @@ function isAuthExemptPath(path: string): boolean {
 
 function clearClientSessionAndRedirect(reason: string = "session"): void {
 	if (typeof window === "undefined" || authRedirectInFlight) return
+	if (isImpersonatingSession()) {
+		authRedirectInFlight = true
+		clearImpersonationSession()
+		window.location.href = "/login-as?ended=1"
+		return
+	}
 	authRedirectInFlight = true
 	try {
 		window.localStorage.removeItem(AUTH_TOKEN_KEY)
@@ -66,6 +77,8 @@ export function getApiBaseUrl(): string {
 export function getAuthToken(): string | null {
 	if (typeof window === "undefined") return null
 	try {
+		const impersonationToken = getImpersonationToken()
+		if (impersonationToken) return impersonationToken
 		return window.localStorage.getItem(AUTH_TOKEN_KEY)
 	} catch {
 		return null

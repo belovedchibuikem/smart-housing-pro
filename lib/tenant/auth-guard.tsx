@@ -3,6 +3,8 @@
 import type React from "react"
 import { useEffect, useState } from "react"
 import { getAuthToken, setAuthToken } from "@/lib/api/client"
+import { getUserData } from "@/lib/auth/auth-utils"
+import { clearImpersonationSession, isImpersonatingSession } from "@/lib/auth/impersonation"
 import { useRouter } from "next/navigation"
 import { hasTenantStaffDashboardAccess } from "@/lib/auth/staff-access"
 import { persistAuthSessionFromStorage } from "@/lib/auth/auth-cookies"
@@ -35,25 +37,16 @@ export function AuthGuard({
 		function check() {
 			try {
 				const token = getAuthToken()
-				const userDataStr = localStorage.getItem("user_data")
+				const userData = getUserData()
 				
 				// Check if both token and user data exist
-				if (!token || !userDataStr) {
-					// Clear any stale data
-					setAuthToken(null)
-					localStorage.removeItem("user_data")
-					if (!cancelled) router.replace(redirectTo)
-					return
-				}
-
-				// Parse user data
-				let userData
-				try {
-					userData = JSON.parse(userDataStr)
-				} catch {
-					// Invalid user data, clear and redirect
-					setAuthToken(null)
-					localStorage.removeItem("user_data")
+				if (!token || !userData) {
+					if (isImpersonatingSession()) {
+						clearImpersonationSession()
+					} else {
+						setAuthToken(null)
+						localStorage.removeItem("user_data")
+					}
 					if (!cancelled) router.replace(redirectTo)
 					return
 				}
@@ -108,14 +101,20 @@ export function AuthGuard({
 
 				// Both token and user data exist, and role matches (if required)
 				if (!cancelled) {
-					persistAuthSessionFromStorage()
+					if (!isImpersonatingSession()) {
+						persistAuthSessionFromStorage()
+					}
 					setAuthorized(true)
 				}
 			} catch (error) {
 				// Any error, clear everything and redirect
 				console.error("Auth validation failed:", error)
-				setAuthToken(null)
-				localStorage.removeItem("user_data")
+				if (isImpersonatingSession()) {
+					clearImpersonationSession()
+				} else {
+					setAuthToken(null)
+					localStorage.removeItem("user_data")
+				}
 				if (!cancelled) router.replace(redirectTo)
 			} finally {
 				if (!cancelled) setChecking(false)

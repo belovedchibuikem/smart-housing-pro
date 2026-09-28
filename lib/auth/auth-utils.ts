@@ -1,11 +1,13 @@
 import { logoutRequest, setAuthToken } from "@/lib/api/client"
 import { clearAuthCookies } from "@/lib/auth/auth-cookies"
+import { clearImpersonationSession, getImpersonationUser, isImpersonatingSession } from "@/lib/auth/impersonation"
 import { clearSessionTimeout } from "@/lib/auth/session-timeout"
 
 /**
  * Logout function that calls API and clears all local storage
  */
 export async function handleLogout(): Promise<void> {
+	const impersonating = isImpersonatingSession()
 	try {
 		// Call logout API to invalidate token on server
 		await logoutRequest()
@@ -13,6 +15,12 @@ export async function handleLogout(): Promise<void> {
 		// Even if API call fails, clear local storage
 		console.error("Logout API call failed:", error)
 	} finally {
+		if (impersonating) {
+			clearImpersonationSession()
+			window.close()
+			window.location.href = "/login-as?ended=1"
+			return
+		}
 		// Clear all authentication data from localStorage
 		localStorage.removeItem("auth_token")
 		localStorage.removeItem("user_data")
@@ -30,6 +38,7 @@ export async function handleLogout(): Promise<void> {
  */
 export function isAuthenticated(): boolean {
 	if (typeof window === "undefined") return false
+	if (isImpersonatingSession()) return true
 	const token = localStorage.getItem("auth_token")
 	return !!token
 }
@@ -40,6 +49,9 @@ export function isAuthenticated(): boolean {
 export function getUserData(): any | null {
 	if (typeof window === "undefined") return null
 	try {
+		if (isImpersonatingSession()) {
+			return getImpersonationUser()
+		}
 		const userData = localStorage.getItem("user_data")
 		return userData ? JSON.parse(userData) : null
 	} catch {

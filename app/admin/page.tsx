@@ -8,9 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Users, Wallet, TrendingUp, Home, CheckCircle, Clock, DollarSign, PiggyBank, RotateCcw, Building2, MapPinned } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { usePageLoading } from "@/hooks/use-loading"
-import { apiFetch, meRequest } from "@/lib/api/client"
+import { apiFetch, getAuthToken, meRequest } from "@/lib/api/client"
 import { useWhiteLabelSettings } from "@/lib/hooks/use-white-label"
-import { persistAuthSession } from "@/lib/auth/auth-cookies"
+import { persistCurrentSessionUser } from "@/lib/auth/impersonation"
 import { isResidentAssociationOfficerOnly } from "@/lib/admin/ra-officer-scope"
 import { RaOfficerHomeDashboard } from "@/components/admin/ra-officer-home-dashboard"
 import { getEffectiveRoleNames } from "@/lib/auth/user-roles"
@@ -189,14 +189,8 @@ export default function AdminDashboardPage() {
     meRequest()
       .then((me) => {
         if (cancelled || !me?.user) return
-        const token =
-          typeof window !== "undefined" ? window.localStorage.getItem("auth_token") : null
         const fresh = me.user as AuthUser
-        localStorage.setItem("user_data", JSON.stringify(fresh))
-        if (token) {
-          persistAuthSession(fresh, token)
-        }
-        window.dispatchEvent(new Event("sh-auth-updated"))
+        persistCurrentSessionUser(fresh, getAuthToken())
         setHeading(getStaffDashboardHeading(fresh))
         setRaOfficerOnly(
           isResidentAssociationOfficerOnly({

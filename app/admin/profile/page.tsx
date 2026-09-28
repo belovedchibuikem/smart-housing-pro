@@ -14,7 +14,8 @@ import {
 	updateAdminProfile,
 	uploadAdminProfileAvatar,
 } from "@/lib/api/user-profile"
-import { persistAuthSession } from "@/lib/auth/auth-cookies"
+import { getUserData } from "@/lib/auth/auth-utils"
+import { persistCurrentSessionUser } from "@/lib/auth/impersonation"
 import type { User } from "@/lib/types/user"
 
 export default function AdminProfilePage() {
@@ -38,13 +39,9 @@ export default function AdminProfilePage() {
 	const persistUser = (next: User) => {
 		setUser(next)
 		try {
-			const token = localStorage.getItem("auth_token")
-			const raw = localStorage.getItem("user_data")
-			const prev = raw ? JSON.parse(raw) : {}
+			const prev = getUserData() || {}
 			const merged = { ...prev, ...next }
-			localStorage.setItem("user_data", JSON.stringify(merged))
-			if (token) persistAuthSession(merged, token)
-			window.dispatchEvent(new Event("sh-auth-updated"))
+			persistCurrentSessionUser(merged)
 		} catch {
 			/* ignore */
 		}

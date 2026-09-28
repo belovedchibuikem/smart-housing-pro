@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Search, UserPlus, Shield, Mail, Phone, Edit, Trash2, MoreHorizontal, User, Download } from "lucide-react"
+import { Search, UserPlus, Shield, Mail, Phone, Edit, Trash2, MoreHorizontal, User, Download, LogIn } from "lucide-react"
 import Link from "next/link"
 import { EditUserModal } from "@/components/admin/edit-user-modal"
 import { ResetPasswordDialog } from "@/components/admin/reset-password-dialog"
@@ -34,6 +34,11 @@ import {
 import { Loader2, KeyRound } from "lucide-react"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
 import { TablePagination } from "@/components/admin/table-pagination"
+import { getUserData } from "@/lib/auth/auth-utils"
+import { getRoleSlug } from "@/lib/auth/user-roles"
+import { isTenantSuperAdminContext } from "@/lib/admin/nav-permissions"
+import { apiFetch } from "@/lib/api/client"
+import { storePendingImpersonation } from "@/lib/auth/impersonation"
 
 export default function UsersPage() {
   const { can } = useTenantPermissions()
@@ -46,6 +51,9 @@ export default function UsersPage() {
   const [deleteUserId, setDeleteUserId] = useState<string | null>(null)
   const [resetUser, setResetUser] = useState<UserType | null>(null)
   const [showCredentialsExport, setShowCredentialsExport] = useState(false)
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [impersonatingId, setImpersonatingId] = useState<string | null>(null)
 
   const { users, loading, error, pagination, refetch } = useUsers({
     search: searchQuery,
@@ -61,6 +69,39 @@ export default function UsersPage() {
   useEffect(() => {
     setPage(1)
   }, [searchQuery, roleFilter, statusFilter])
+
+  useEffect(() => {
+    const current = getUserData()
+    setCurrentUserId(current?.id ? String(current.id) : null)
+    setIsSuperAdmin(
+      isTenantSuperAdminContext(
+        Array.isArray(current?.roles) ? current.roles : [],
+        getRoleSlug(current),
+      ),
+    )
+  }, [])
+
+  const handleLoginAsUser = async (target: UserType) => {
+    const tab = window.open("/login-as", "_blank")
+    if (!tab) {
+      toast.error("Allow pop-ups to open this user's dashboard in a new tab.")
+      return
+    }
+    setImpersonatingId(target.id)
+    try {
+      const response = await apiFetch<{ token: string; user: unknown }>(
+        `/admin/users/${target.id}/impersonate`,
+        { method: "POST" },
+      )
+      storePendingImpersonation(response.token, response.user)
+      toast.success(`Opening ${target.first_name}'s dashboard in a new tab`)
+    } catch (error: any) {
+      tab.close()
+      toast.error(error.message || "Failed to sign in as this user")
+    } finally {
+      setImpersonatingId(null)
+    }
+  }
 
   const handleDelete = async (userId: string) => {
     try {
@@ -354,6 +395,15 @@ export default function UsersPage() {
                       </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            {isSuperAdmin && user.status === "active" && String(user.id) !== currentUserId && (
+                              <DropdownMenuItem
+                                disabled={impersonatingId === user.id}
+                                onClick={() => void handleLoginAsUser(user)}
+                              >
+                                <LogIn className="h-4 w-4 mr-2" />
+                                Login user
+                              </DropdownMenuItem>
+                            )}
                             {can("edit_users") && (
                               <DropdownMenuItem onClick={() => {
                                 setSelectedUser(user)
