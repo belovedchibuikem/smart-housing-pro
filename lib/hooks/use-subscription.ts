@@ -174,6 +174,7 @@ export function useMemberSubscription() {
 export function useSubscriptionGuard(isAdmin: boolean = false) {
   const router = useRouter()
   const pathname = usePathname()
+  const [impersonating, setImpersonating] = useState(isImpersonatingSession)
   
   // Only call the relevant subscription hook based on isAdmin
   // Note: We can't conditionally call hooks, so we call both but only use the relevant one
@@ -186,6 +187,21 @@ export function useSubscriptionGuard(isAdmin: boolean = false) {
   const subscriptionPath = isAdmin ? "/admin/subscriptions" : "/dashboard/subscriptions"
 
   useEffect(() => {
+    setImpersonating(isImpersonatingSession())
+  }, [])
+
+  useEffect(() => {
+    // A super admin viewing another admin's dashboard is not a member billing session.
+    if (impersonating || isImpersonatingSession()) {
+      if (
+        pathname.startsWith("/admin/subscriptions") ||
+        pathname.startsWith("/dashboard/subscriptions")
+      ) {
+        router.replace("/admin")
+      }
+      return
+    }
+
     // Don't check if still loading
     if (subscription.isLoading) {
       return
@@ -213,7 +229,7 @@ export function useSubscriptionGuard(isAdmin: boolean = false) {
       pathname.startsWith("/register") ||
       pathname.startsWith("/auth")
 
-    const staffSession = isAdmin || isImpersonatingSession() || hasTenantStaffDashboardAccess(getUserData())
+    const staffSession = isAdmin || hasTenantStaffDashboardAccess(getUserData())
     if (staffSession && !isAdmin) {
       return
     }
@@ -222,7 +238,17 @@ export function useSubscriptionGuard(isAdmin: boolean = false) {
       console.log(`[Subscription Guard] No active ${isAdmin ? 'cooperative' : 'member'} subscription, redirecting to ${subscriptionPath}`)
       router.push(subscriptionPath)
     }
-  }, [subscription.hasActiveSubscription, subscription.isLoading, pathname, router, subscriptionPath, isAdmin])
+  }, [subscription.hasActiveSubscription, subscription.isLoading, pathname, router, subscriptionPath, isAdmin, impersonating])
+
+  if (impersonating) {
+    return {
+      hasActiveSubscription: true,
+      subscription: null,
+      isLoading: false,
+      error: null,
+      refetch: subscription.refetch,
+    }
+  }
 
   return subscription
 }
