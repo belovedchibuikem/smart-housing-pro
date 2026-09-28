@@ -3,6 +3,9 @@
 import { useState, useEffect, useCallback } from "react"
 import { getCurrentSubscription, getMemberCurrentSubscription } from "@/lib/api/client"
 import { useRouter, usePathname } from "next/navigation"
+import { getUserData } from "@/lib/auth/auth-utils"
+import { hasTenantStaffDashboardAccess } from "@/lib/auth/staff-access"
+import { isImpersonatingSession } from "@/lib/auth/impersonation"
 
 interface SubscriptionStatus {
   hasActiveSubscription: boolean
@@ -95,6 +98,17 @@ export function useMemberSubscription() {
   })
 
   const checkSubscription = useCallback(async () => {
+    const currentUser = typeof window !== "undefined" ? getUserData() : null
+    if (isImpersonatingSession() || hasTenantStaffDashboardAccess(currentUser)) {
+      setStatus({
+        hasActiveSubscription: true,
+        subscription: null,
+        isLoading: false,
+        error: null,
+      })
+      return
+    }
+
     try {
       setStatus((prev) => ({ ...prev, isLoading: true, error: null }))
       const response = await getMemberCurrentSubscription()
@@ -198,6 +212,11 @@ export function useSubscriptionGuard(isAdmin: boolean = false) {
     const isAuthPage = pathname.startsWith("/login") || 
       pathname.startsWith("/register") ||
       pathname.startsWith("/auth")
+
+    const staffSession = isAdmin || isImpersonatingSession() || hasTenantStaffDashboardAccess(getUserData())
+    if (staffSession && !isAdmin) {
+      return
+    }
 
     if (!subscription.hasActiveSubscription && !isSubscriptionPage && !isAuthPage) {
       console.log(`[Subscription Guard] No active ${isAdmin ? 'cooperative' : 'member'} subscription, redirecting to ${subscriptionPath}`)

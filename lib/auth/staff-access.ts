@@ -47,6 +47,11 @@ export function hasTenantStaffDashboardAccess(userData: {
     return true
   }
 
+  // Custom cooperative roles are staff even when they are not in the built-in list.
+  if (roles.some((role) => normalizeRoleName(role) !== "" && normalizeRoleName(role) !== "member")) {
+    return true
+  }
+
   const legacyRole =
     typeof userData.role === "object" && userData.role?.slug
       ? userData.role.slug
