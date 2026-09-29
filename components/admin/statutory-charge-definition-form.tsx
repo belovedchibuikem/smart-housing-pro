@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft, Check, ChevronsUpDown, Loader2, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import {
   createStatutoryChargeDefinition,
@@ -21,6 +21,8 @@ import {
   type StatutoryChargeDefinitionPayload,
 } from "@/lib/api/client"
 import { SearchableSelect, propertiesToSearchableOptions } from "@/components/ui/searchable-select"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Badge } from "@/components/ui/badge"
 
 interface PropertyOption {
   id: string
@@ -37,9 +39,108 @@ interface DefinitionFormProps {
   initial?: Partial<StatutoryChargeDefinitionPayload> & { rules?: Record<string, unknown> | null }
 }
 
+function PropertyMultiSelect({
+  options,
+  value,
+  onChange,
+}: {
+  options: Array<{ value: string; label: string; description?: string; searchText?: string }>
+  value: string[]
+  onChange: (ids: string[]) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const [query, setQuery] = useState("")
+  const filtered = options.filter((option) => {
+    const hay = [option.label, option.description, option.searchText].filter(Boolean).join(" ").toLowerCase()
+    return hay.includes(query.trim().toLowerCase())
+  })
+  const selected = options.filter((option) => value.includes(option.value))
+
+  const toggle = (id: string) => {
+    onChange(value.includes(id) ? value.filter((item) => item !== id) : [...value, id])
+  }
+
+  return (
+    <div className="space-y-2">
+      <Label>Houses (optional scope)</Label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="outline" className="w-full justify-between font-normal">
+            <span className="truncate">
+              {value.length === 0
+                ? "Any house"
+                : `${value.length} house${value.length === 1 ? "" : "s"} selected`}
+            </span>
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-2" align="start">
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search houses"
+          />
+          <div className="mt-2 max-h-64 space-y-1 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <p className="px-2 py-3 text-sm text-muted-foreground">No houses found</p>
+            ) : (
+              filtered.map((option) => {
+                const checked = value.includes(option.value)
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className="flex w-full items-start gap-2 rounded px-2 py-2 text-left hover:bg-muted"
+                    onClick={() => toggle(option.value)}
+                  >
+                    <Check className={`mt-0.5 h-4 w-4 ${checked ? "opacity-100" : "opacity-0"}`} />
+                    <span>
+                      <span className="block text-sm font-medium">{option.label}</span>
+                      {option.description ? (
+                        <span className="block text-xs text-muted-foreground">{option.description}</span>
+                      ) : null}
+                    </span>
+                  </button>
+                )
+              })
+            )}
+          </div>
+        </PopoverContent>
+      </Popover>
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {selected.map((option) => (
+            <Badge key={option.value} variant="secondary" className="max-w-full gap-1">
+              <span className="truncate">{option.label}</span>
+              <button type="button" onClick={() => toggle(option.value)} aria-label={`Remove ${option.label}`}>
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+          <Button type="button" variant="ghost" size="sm" onClick={() => onChange([])}>
+            Clear
+          </Button>
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground">
+        Leave empty to apply to any house. Select several houses to apply this charge to all of them at once.
+      </p>
+    </div>
+  )
+}
+
+function propertyIdsFromInitial(initial?: DefinitionFormProps["initial"]): string[] {
+  const fromRules = (initial?.rules as { property_ids?: unknown } | null | undefined)?.property_ids
+  if (Array.isArray(fromRules)) {
+    const ids = fromRules.filter((id): id is string => typeof id === "string" && id !== "")
+    if (ids.length > 0) return ids
+  }
+  return initial?.property_id ? [initial.property_id] : []
+}
+
 const CATEGORY_HELP: Record<string, string> = {
   estate_wide:
-    "Auto-creates a ledger charge when a member is allocated a matching house or land. Scope by a specific property, a property type, or leave blank for any house/land. After saving, use “Apply to existing holders” so current allottees also get the charge.",
+    "Auto-creates a ledger charge when a member is allocated a matching house or land. Select one or more houses, a property type, or leave both blank for any house/land. After saving, use “Apply to existing holders” so current allottees also get the charge.",
   member_based:
     "Assigned manually from Charge Definitions (mass assign up to 100 members). Members then see it under Statutory Charges in addition to house/land cost.",
   event_based:
@@ -66,7 +167,7 @@ export function StatutoryChargeDefinitionForm({ mode, definitionId, initial }: D
     percentage_base: (initial?.percentage_base || "property_cost") as NonNullable<
       StatutoryChargeDefinitionPayload["percentage_base"]
     >,
-    property_id: initial?.property_id || "",
+    property_ids: propertyIdsFromInitial(initial),
     property_type: initial?.property_type || "",
     department_id: initial?.department_id || "",
     is_recurring: Boolean(initial?.is_recurring),
@@ -87,7 +188,7 @@ export function StatutoryChargeDefinitionForm({ mode, definitionId, initial }: D
         amount: initial.amount != null ? String(initial.amount) : prev.amount,
         percentage: initial.percentage != null ? String(initial.percentage) : prev.percentage,
         percentage_base: (initial.percentage_base || prev.percentage_base) as any,
-        property_id: initial.property_id || "",
+        property_ids: propertyIdsFromInitial(initial),
         property_type: initial.property_type || "",
         department_id: initial.department_id || "",
         is_recurring: Boolean(initial.is_recurring),
@@ -161,6 +262,15 @@ export function StatutoryChargeDefinitionForm({ mode, definitionId, initial }: D
         ? (Math.round(Number(formData.amount.replace(/,/g, "")) * 100) / 100).toFixed(2)
         : null
 
+    const propertyIds = formData.property_ids
+    const rules: Record<string, unknown> = {}
+    if (formData.charge_category === "event_based" && formData.event_trigger) {
+      rules.event_trigger = formData.event_trigger
+    }
+    if (propertyIds.length > 0) {
+      rules.property_ids = propertyIds
+    }
+
     const payload: StatutoryChargeDefinitionPayload = {
       name: formData.name.trim(),
       description: formData.description.trim() || null,
@@ -170,16 +280,14 @@ export function StatutoryChargeDefinitionForm({ mode, definitionId, initial }: D
       amount: formData.calculation_type === "fixed" ? fixedAmount : null,
       percentage: formData.calculation_type === "percentage" ? formData.percentage : null,
       percentage_base: formData.calculation_type === "percentage" ? formData.percentage_base : null,
-      property_id: formData.property_id || null,
+      property_id: propertyIds.length === 1 ? propertyIds[0] : null,
+      property_ids: propertyIds,
       property_type: formData.property_type.trim() || null,
       department_id: formData.department_id || null,
       is_recurring: formData.is_recurring,
       frequency: formData.is_recurring ? formData.frequency || null : null,
       is_active: formData.is_active,
-      rules:
-        formData.charge_category === "event_based" && formData.event_trigger
-          ? { event_trigger: formData.event_trigger }
-          : null,
+      rules: Object.keys(rules).length > 0 ? rules : null,
     }
 
     setLoading(true)
@@ -347,17 +455,11 @@ export function StatutoryChargeDefinitionForm({ mode, definitionId, initial }: D
                 </>
               )}
 
-              <div className="space-y-2">
-                <Label>Property (optional scope)</Label>
-                <SearchableSelect
-                  options={propertyOptions}
-                  value={formData.property_id || ""}
-                  onValueChange={(value) => setFormData({ ...formData, property_id: value })}
-                  placeholder="Any property..."
-                  allowEmpty
-                  emptyValueLabel="Any property"
-                />
-              </div>
+              <PropertyMultiSelect
+                options={propertyOptions}
+                value={formData.property_ids}
+                onChange={(property_ids) => setFormData({ ...formData, property_ids })}
+              />
 
               <div className="space-y-2">
                 <Label>House / property type (optional)</Label>

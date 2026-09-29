@@ -3000,6 +3000,7 @@ export interface StatutoryChargeDefinitionPayload {
 	percentage?: number | string | null
 	percentage_base?: "land_cost" | "house_cost" | "property_cost" | "mortgage_amount" | "equity_amount" | null
 	property_id?: string | null
+	property_ids?: string[]
 	property_type?: string | null
 	department_id?: string | null
 	rules?: Record<string, unknown> | null
