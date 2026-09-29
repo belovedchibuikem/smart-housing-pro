@@ -70,6 +70,21 @@ interface MortgageDetail {
   approved_at?: string | null
   rejected_at?: string | null
   notes?: string | null
+  statutory_charges?: {
+    loan_amount: number
+    total: number
+    charges: Array<{
+      id: string
+      type?: string | null
+      description?: string | null
+      status?: string | null
+      percentage?: number | null
+      base_amount?: number | null
+      amount: number
+      total_paid?: number | null
+      remaining_amount?: number | null
+    }>
+  } | null
   repayments?: Array<{
     id: string
     amount: number
@@ -435,6 +450,46 @@ export default function AdminMortgageDetailsPage() {
                     )}
                   </div>
                 </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle>Statutory charges on this mortgage</CardTitle>
+              <CardDescription>
+                Calculated on the loan amount taken ({formatCurrency(mortgage.statutory_charges?.loan_amount ?? mortgage.loan_amount)}), not the full house price. Cash and an unfinished internal mortgage are not included.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {(mortgage.statutory_charges?.charges?.length ?? 0) === 0 ? (
+                <p className="text-sm text-muted-foreground">No statutory charges are configured for this mortgage yet.</p>
+              ) : (
+                <>
+                  {mortgage.statutory_charges?.charges.map((charge) => (
+                    <div key={charge.id} className="rounded-md border px-3 py-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="font-medium">{charge.description || charge.type}</p>
+                        <Badge variant={STATUS_VARIANTS[charge.status || ""] || "outline"} className="capitalize">
+                          {(charge.status || "approved").replace(/_/g, " ")}
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {charge.percentage != null ? `${charge.percentage}% of ` : ""}
+                        {formatCurrency(charge.base_amount ?? mortgage.loan_amount)}
+                      </p>
+                      <div className="mt-2 grid gap-2 text-sm sm:grid-cols-3">
+                        <p>Total: {formatCurrency(charge.amount)}</p>
+                        <p>Paid: {formatCurrency(charge.total_paid)}</p>
+                        <p>Balance: {formatCurrency(charge.remaining_amount)}</p>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-between border-t pt-3 text-sm font-semibold">
+                    <span>Statutory total</span>
+                    <span>{formatCurrency(mortgage.statutory_charges?.total)}</span>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>

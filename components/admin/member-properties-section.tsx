@@ -498,7 +498,14 @@ export function MemberPropertiesSection({ memberId }: MemberPropertiesSectionPro
               </div>
 
               <div className="space-y-3 rounded-lg border p-4">
-                <h3 className="font-semibold">Statutory charges</h3>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="font-semibold">Statutory charges</h3>
+                  {statutoryCharges.length > 0 ? (
+                    <p className="text-sm font-medium">
+                      Total: {formatCurrency(statutoryCharges.reduce((sum, charge) => sum + Number(charge.amount ?? 0), 0))}
+                    </p>
+                  ) : null}
+                </div>
                 {statutoryCharges.length === 0 ? (
                   <p className="text-sm text-muted-foreground">No statutory charge records found for this member.</p>
                 ) : (
