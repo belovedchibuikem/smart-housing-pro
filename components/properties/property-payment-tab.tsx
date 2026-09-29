@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo, useCallback, type ChangeEvent } from "react"
+import { useState, useEffect, useMemo, useCallback, useRef, type ChangeEvent } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -132,6 +132,13 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 	const [mortgageNotes, setMortgageNotes] = useState<string>("")
 	const [submittingMethod, setSubmittingMethod] = useState<PropertyFundingOption | null>(null)
 	const isSubmitting = submittingMethod !== null
+	const submitPaymentRef = useRef<
+		| ((
+				method: PropertyFundingOption,
+				overrides?: { amount?: number; metadata?: Record<string, unknown>; notes?: string },
+		  ) => Promise<void>)
+		| null
+	>(null)
 
 	const { toast } = useToast()
 
@@ -142,7 +149,7 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 			setError(null)
 			const allocationId = house?.allocation_id
 			const [response, tenureRes] = await Promise.all([
-				getPropertyPaymentSetup(propertyId),
+				getPropertyPaymentSetup(propertyId, allocationId),
 				allocationId
 					? getMemberHouseAccount(allocationId)
 							.then((r) =>
@@ -272,34 +279,28 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 		return entries
 	}, [isMixPlan, mixAllocations, totalMixAmount, ledgerTotalsBySource])
 
+	const generalMethods = ["cash", "equity_wallet", "mortgage", "cooperative"]
+
 	const availableMethods = useMemo(() => {
-		if (isMixPlan && mixAllocationSummary.length > 0) {
-			return mixAllocationSummary.map((entry) => entry.method)
+		const withLoan = repaymentSchedules.loan ? ["loan"] : []
+		const lockedMix = isMixPlan && mixAllocationSummary.length > 0
+		if (lockedMix) {
+			const mixMethods = mixAllocationSummary.map((entry) => entry.method)
+			return Array.from(new Set([...mixMethods, ...generalMethods, ...withLoan]))
 		}
 
-		const planMethods = paymentPlan?.selected_methods?.filter((method) => method !== "mix") ?? []
-		if (planMethods.length > 0) {
-			return planMethods
-		}
+		const collected = [
+			...(paymentPlan?.selected_methods ?? []),
+			...(setup?.preferred_payment_methods ?? []),
+			...(house?.preferred_payment_methods ?? []),
+			...(setup?.funding_option && setup.funding_option !== "mix" ? [setup.funding_option] : []),
+			...(house?.funding_option && house.funding_option !== "mix" ? [house.funding_option] : []),
+			...generalMethods,
+			...withLoan,
+		].filter((method) => method && method !== "mix")
 
-		const setupPreferred = setup?.preferred_payment_methods?.filter((method) => method !== "mix") ?? []
-		if (setupPreferred.length > 0) {
-			return setupPreferred
-		}
-
-		const housePreferred = house?.preferred_payment_methods?.filter((method) => method !== "mix") ?? []
-		if (housePreferred.length > 0) {
-			return housePreferred
-		}
-
-		if (setup?.funding_option && setup.funding_option !== "mix") {
-			return [setup.funding_option]
-		}
-		if (house?.funding_option && house.funding_option !== "mix") {
-			return [house.funding_option]
-		}
-		return ["cash"]
-	}, [isMixPlan, mixAllocationSummary, paymentPlan?.selected_methods, setup?.preferred_payment_methods, house?.preferred_payment_methods, setup?.funding_option, house?.funding_option])
+		return Array.from(new Set(collected))
+	}, [isMixPlan, mixAllocationSummary, paymentPlan?.selected_methods, setup?.preferred_payment_methods, house?.preferred_payment_methods, setup?.funding_option, house?.funding_option, repaymentSchedules.loan])
 
 	useEffect(() => {
 		if (!paymentMethod && availableMethods.length > 0) {
@@ -336,7 +337,7 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 		}
 	}, [isMixPlan, mixAllocationSummary, equityAmount, cooperativeAmount])
 
-	const supportsMixedFunding = !isMixPlan && availableMethods.includes("equity_wallet") && availableMethods.includes("cooperative")
+	const supportsMixedFunding = !isMixPlan && availableMethods.length > 1
 
 	const renderMixAllocationReminder = (method: string) => {
 		if (!isMixPlan) return null
@@ -413,10 +414,36 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 							)}
 						</p>
 						{schedule.schedule_approved ? (
-							<p className="text-xs text-green-700 mt-1 flex items-center gap-1">
-								<CheckCircle2 className="h-3 w-3" />
-								Schedule approved on {schedule.schedule_approved_at ? new Date(schedule.schedule_approved_at).toLocaleDateString() : ""}
-							</p>
+							<div className="mt-2 space-y-2">
+								<p className="text-xs text-green-700 flex items-center gap-1">
+									<CheckCircle2 className="h-3 w-3" />
+									Schedule approved on {schedule.schedule_approved_at ? new Date(schedule.schedule_approved_at).toLocaleDateString() : ""}
+								</p>
+								{!schedule.is_fully_repaid && (type === "mortgage" || type === "cooperative") && (
+									<Button
+										size="sm"
+										onClick={() => {
+											const next = schedule.schedule.find((entry) => entry.status !== "paid")
+											const nextAmount = Number(next?.total ?? schedule.monthly_payment ?? schedule.periodic_payment ?? 0)
+											void submitPaymentRef.current?.(type === "mortgage" ? "mortgage" : "cooperative", {
+												amount: nextAmount,
+												notes: `Repayment installment ${next?.installment ?? next?.month ?? next?.period ?? ""}`.trim(),
+											})
+										}}
+										disabled={submittingMethod !== null}
+										className="h-7 text-xs"
+									>
+										{submittingMethod === (type === "mortgage" ? "mortgage" : "cooperative") ? (
+											<>
+												<Loader2 className="mr-1 h-3 w-3 animate-spin" />
+												Starting...
+											</>
+										) : (
+											"Start repayment"
+										)}
+									</Button>
+								)}
+							</div>
 						) : (type === "mortgage" || type === "cooperative") && (
 							<div className="mt-2 rounded-md border border-amber-300 bg-amber-50 p-2">
 								<p className="text-xs text-amber-800 mb-2">
@@ -710,6 +737,8 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 		}
 	}
 
+	submitPaymentRef.current = handleSubmitPayment
+
 	const renderPaymentMethodOption = (method: string) => {
 		const info = METHOD_INFO[method] ?? {
 			label: method.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()),
@@ -943,6 +972,22 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 				</CardContent>
 			</Card>
 
+			{(repaymentSchedules.mortgage || repaymentSchedules.cooperative || repaymentSchedules.loan) && (
+				<Card>
+					<CardHeader>
+						<CardTitle>Repayment plans</CardTitle>
+						<CardDescription>
+							Review the amount and schedule, approve it, then start repayment.
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="space-y-4">
+						{repaymentSchedules.mortgage && renderRepaymentSchedule(repaymentSchedules.mortgage, "mortgage", repaymentSchedules.mortgage.mortgage_id)}
+						{repaymentSchedules.loan && renderRepaymentSchedule(repaymentSchedules.loan, "loan", repaymentSchedules.loan.loan_id)}
+						{repaymentSchedules.cooperative && renderRepaymentSchedule(repaymentSchedules.cooperative, "cooperative", undefined, repaymentSchedules.cooperative.plan_id)}
+					</CardContent>
+				</Card>
+			)}
+
 			{balance > 0 && (
 				<Card>
 					<CardHeader>
@@ -978,7 +1023,7 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 									<div className="flex items-center space-x-2">
 										<RadioGroupItem value="mixed" id="funding-mixed" />
 										<Label htmlFor="funding-mixed" className="cursor-pointer font-normal">
-											Mixed Funding (Equity Wallet + Cooperative Deduction)
+											Mixed funding (cash, equity, mortgage, or cooperative)
 										</Label>
 									</div>
 								</RadioGroup>

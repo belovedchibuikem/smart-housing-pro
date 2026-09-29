@@ -28,6 +28,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowLeft, Loader2, Upload } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { PropertyDocuments } from "@/components/properties/property-documents"
+import { PropertyPaymentTab } from "@/components/properties/property-payment-tab"
+import type { MemberHouse } from "@/lib/api/client"
 import { IssuedDocumentsPanel } from "@/components/documents/issued-documents-panel"
 import { isRepaymentReversed, repaymentStatusLabel } from "@/lib/utils/repayment-status"
 
@@ -214,6 +216,26 @@ export default function MemberHouseAccountPage() {
 					</CardContent>
 				</Card>
 			</div>
+
+			{propertyId && (
+				<PropertyPaymentTab
+					propertyId={String(propertyId)}
+					house={{
+						id: String(propertyId),
+						property_id: String(propertyId),
+						allocation_id: allocationId,
+						title,
+						type: "house",
+						location: String(property?.location ?? ""),
+						price: salePrice,
+						total_paid: paid,
+						current_value: salePrice,
+						predictive_value: salePrice,
+						progress,
+						status: tenureStatus,
+					} satisfies MemberHouse}
+				/>
+			)}
 
 			{out > 0 && (
 				<Card>
