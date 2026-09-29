@@ -216,6 +216,10 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 	const ledgerTotalPaid = setup?.ledger_total_paid ?? null
 	const repaymentSchedules = setup?.repayment_schedules ?? {}
 	const [approvingSchedules, setApprovingSchedules] = useState<Record<string, boolean>>({})
+	const [schedulePages, setSchedulePages] = useState<Record<string, number>>({})
+	const [historyPage, setHistoryPage] = useState(1)
+	const schedulePageSize = 12
+	const historyPageSize = 8
 	const [receiptDialogOpen, setReceiptDialogOpen] = useState(false)
 	const [selectedReceipt, setSelectedReceipt] = useState<PropertyPaymentHistoryEntry | null>(null)
 
@@ -428,6 +432,10 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 											void submitPaymentRef.current?.(type === "mortgage" ? "mortgage" : "cooperative", {
 												amount: nextAmount,
 												notes: `Repayment installment ${next?.installment ?? next?.month ?? next?.period ?? ""}`.trim(),
+												metadata: {
+													principal_paid: next?.principal ?? nextAmount,
+													interest_paid: next?.interest ?? 0,
+												},
 											})
 										}}
 										disabled={submittingMethod !== null}
@@ -485,8 +493,8 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 					<Progress value={progressPercent} className="h-2" />
 				</div>
 
-				<div className="max-h-64 space-y-2 overflow-y-auto rounded-md border bg-white p-2">
-					<div className="sticky top-0 grid grid-cols-6 gap-2 border-b bg-gray-50 px-2 py-2 text-xs font-semibold">
+				<div className="space-y-2 rounded-md border bg-white p-2">
+					<div className="grid grid-cols-6 gap-2 border-b bg-gray-50 px-2 py-2 text-xs font-semibold">
 						<div>Period</div>
 						<div>Due Date</div>
 						<div>Principal</div>
@@ -494,14 +502,18 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 						<div>Total</div>
 						<div>Status</div>
 					</div>
-					{schedule.schedule.map((entry, idx) => (
+					{(() => {
+						const page = schedulePages[scheduleKey] ?? 1
+						const start = (page - 1) * schedulePageSize
+						return schedule.schedule.slice(start, start + schedulePageSize)
+					})().map((entry) => (
 						<div
-							key={idx}
+							key={`${entry.due_date}-${entry.installment ?? entry.month ?? entry.period}`}
 							className={`grid grid-cols-6 gap-2 px-2 py-2 text-xs ${
 								entry.status === "paid" ? "bg-green-50" : entry.status === "overdue" ? "bg-red-50" : ""
 							}`}
 						>
-							<div>{entry.installment ?? entry.month ?? entry.period ?? idx + 1}</div>
+							<div>{entry.installment ?? entry.month ?? entry.period}</div>
 							<div>{new Date(entry.due_date).toLocaleDateString()}</div>
 							<div>{formatCurrency(entry.principal)}</div>
 							<div>{formatCurrency(entry.interest)}</div>
@@ -524,6 +536,47 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 							</div>
 						</div>
 					))}
+					{schedule.schedule.length > schedulePageSize && (
+						<div className="flex items-center justify-between px-2 pt-2 text-xs">
+							<span>
+								{((schedulePages[scheduleKey] ?? 1) - 1) * schedulePageSize + 1}–
+								{Math.min((schedulePages[scheduleKey] ?? 1) * schedulePageSize, schedule.schedule.length)} of{" "}
+								{schedule.schedule.length}
+							</span>
+							<div className="flex gap-2">
+								<Button
+									type="button"
+									size="sm"
+									variant="outline"
+									className="h-7"
+									disabled={(schedulePages[scheduleKey] ?? 1) <= 1}
+									onClick={() =>
+										setSchedulePages((current) => ({
+											...current,
+											[scheduleKey]: Math.max(1, (current[scheduleKey] ?? 1) - 1),
+										}))
+									}
+								>
+									Previous
+								</Button>
+								<Button
+									type="button"
+									size="sm"
+									variant="outline"
+									className="h-7"
+									disabled={(schedulePages[scheduleKey] ?? 1) * schedulePageSize >= schedule.schedule.length}
+									onClick={() =>
+										setSchedulePages((current) => ({
+											...current,
+											[scheduleKey]: (current[scheduleKey] ?? 1) + 1,
+										}))
+									}
+								>
+									Next
+								</Button>
+							</div>
+						</div>
+					)}
 				</div>
 
 				{schedule.total_interest_paid > 0 && (
@@ -770,9 +823,13 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 			)
 		}
 
+		const historyStart = (historyPage - 1) * historyPageSize
+		const historySlice = entries.slice(historyStart, historyStart + historyPageSize)
+		const historyPages = Math.max(1, Math.ceil(entries.length / historyPageSize))
+
 		return (
 			<div className="space-y-4">
-				{entries.map((payment) => {
+				{historySlice.map((payment) => {
 					const reversed = isRepaymentReversed(payment)
 					return (
 					<div
@@ -832,6 +889,30 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 					</div>
 					)
 				})}
+				{entries.length > historyPageSize && (
+					<div className="flex items-center justify-between text-sm">
+						<span className="text-muted-foreground">
+							{historyStart + 1}–{Math.min(historyStart + historyPageSize, entries.length)} of {entries.length}
+						</span>
+						<div className="flex gap-2">
+							<Button type="button" size="sm" variant="outline" disabled={historyPage <= 1} onClick={() => setHistoryPage((page) => page - 1)}>
+								Previous
+							</Button>
+							<span className="self-center text-xs text-muted-foreground">
+								Page {historyPage} of {historyPages}
+							</span>
+							<Button
+								type="button"
+								size="sm"
+								variant="outline"
+								disabled={historyPage >= historyPages}
+								onClick={() => setHistoryPage((page) => page + 1)}
+							>
+								Next
+							</Button>
+						</div>
+					</div>
+				)}
 			</div>
 		)
 	}

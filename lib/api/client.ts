@@ -3132,6 +3132,19 @@ export async function createStatutoryChargePayment(data: any) {
 	return apiFetch<{ success: boolean; message: string; data: any }>("/admin/statutory-charges/payments", { method: "POST", body: data })
 }
 
+export async function createStatutoryChargePayments(data: {
+	charge_ids: string[]
+	payment_method: string
+	reference?: string | null
+	amount?: number | null
+}) {
+	return apiFetch<{
+		success: boolean
+		message: string
+		data?: { recorded_count: number; failed: Array<{ statutory_charge_id: string; message: string }> }
+	}>("/admin/statutory-charges/payments/bulk", { method: "POST", body: data })
+}
+
 export async function getStatutoryChargeDepartments() {
 	return apiFetch<{ success: boolean; data: any[] }>("/admin/statutory-charges/departments", { method: "GET" })
 }
