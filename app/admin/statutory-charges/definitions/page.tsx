@@ -226,9 +226,14 @@ export default function StatutoryChargeDefinitionsPage() {
         const created = response.data?.created_count ?? 0
         const skipped = response.data?.skipped?.length ?? 0
         const failed = response.data?.failed?.length ?? 0
+        const firstFailure = response.data?.failed?.[0]?.message
         toast({
-          title: "Assignment complete",
-          description: response.message || `Created ${created}, skipped ${skipped}, failed ${failed}`,
+          title: created > 0 ? "Assignment complete" : "No charge created",
+          description:
+            firstFailure && created === 0
+              ? firstFailure
+              : response.message || `Created ${created}, skipped ${skipped}, failed ${failed}`,
+          variant: created > 0 ? "default" : "destructive",
         })
         setAssignDialog({ open: false, id: null, name: "" })
         setSelectedMemberIds([])
@@ -508,6 +513,7 @@ export default function StatutoryChargeDefinitionsPage() {
       <AlertDialog
         open={assignDialog.open}
         onOpenChange={(open) => {
+          if (assigning) return
           if (!open) {
             setAssignDialog({ open: false, id: null, name: "" })
             setSelectedMemberIds([])
@@ -575,9 +581,22 @@ export default function StatutoryChargeDefinitionsPage() {
           </div>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleAssign} disabled={assigning || selectedMemberIds.length === 0}>
-              {assigning ? "Assigning…" : `Assign (${selectedMemberIds.length})`}
-            </AlertDialogAction>
+            <Button
+              onClick={(e) => {
+                e.preventDefault()
+                void handleAssign()
+              }}
+              disabled={assigning || selectedMemberIds.length === 0}
+            >
+              {assigning ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Assigning…
+                </>
+              ) : (
+                `Assign (${selectedMemberIds.length})`
+              )}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
