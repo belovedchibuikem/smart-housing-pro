@@ -166,14 +166,21 @@ export default function AdminMortgagesPage() {
           <h1 className="text-3xl font-bold">Mortgage Management</h1>
           <p className="text-muted-foreground mt-1">Create and manage housing mortgage agreements</p>
         </div>
-        <Can permission="create_loans">
-          <Link href="/admin/mortgages/new">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Mortgage
-            </Button>
-          </Link>
-        </Can>
+        <div className="flex gap-2">
+          <Can permission="manage_payments|edit_loans">
+            <Link href="/admin/mortgages/bulk-repay">
+              <Button variant="outline">Bulk repayment</Button>
+            </Link>
+          </Can>
+          <Can permission="create_loans">
+            <Link href="/admin/mortgages/new">
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                Create Mortgage
+              </Button>
+            </Link>
+          </Can>
+        </div>
       </div>
 
       {/* Summary Cards */}
@@ -249,6 +256,7 @@ export default function AdminMortgagesPage() {
                   <TableHead>Mortgage ID</TableHead>
                   <TableHead>Member</TableHead>
                   <TableHead>Property</TableHead>
+                  <TableHead>Provider</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead className="text-right">Monthly</TableHead>
                   <TableHead>Tenure</TableHead>
@@ -259,11 +267,11 @@ export default function AdminMortgagesPage() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">Loading...</TableCell>
+                    <TableCell colSpan={9} className="text-center py-8">Loading...</TableCell>
                   </TableRow>
                 ) : mortgages.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No mortgages found</TableCell>
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No mortgages found</TableCell>
                   </TableRow>
                 ) : (
                   mortgages.map((mortgage) => (
@@ -282,6 +290,7 @@ export default function AdminMortgagesPage() {
                       <TableCell>
                         {mortgage.property?.title || mortgage.property?.address || '—'}
                       </TableCell>
+                      <TableCell>{mortgage.provider?.name || "—"}</TableCell>
                       <TableCell className="text-right">{formatCompactNaira(mortgage.loan_amount)}</TableCell>
                       <TableCell className="text-right">₦{(mortgage.monthly_payment / 1000).toFixed(0)}K</TableCell>
                       <TableCell>{mortgage.tenure_years} years</TableCell>

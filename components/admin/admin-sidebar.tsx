@@ -203,6 +203,7 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     icon: Building2,
     subItems: [
       { href: "/admin/mortgages", label: "All Mortgages", icon: Building2 },
+      { href: "/admin/mortgages/bulk-repay", label: "Bulk Mortgage Repayment", icon: Receipt },
       { href: "/admin/mortgage-providers", label: "Mortgage Providers", icon: Building },
       { href: "/admin/mortgages/new", label: "Create Mortgage", icon: Plus },
       { href: "/admin/bulk-upload/mortgages", label: "Bulk Upload", icon: Upload },

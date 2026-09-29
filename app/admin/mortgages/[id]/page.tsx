@@ -2,12 +2,11 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { useParams, useRouter } from "next/navigation"
+import { useParams } from "next/navigation"
 import {
   ArrowLeft,
   Loader2,
   Edit,
-  Trash2,
   Check,
   X,
   Building2,
@@ -130,7 +129,6 @@ function formatDate(value?: string | null) {
 
 export default function AdminMortgageDetailsPage() {
   const params = useParams<{ id?: string }>()
-  const router = useRouter()
   const { toast } = useToast()
   const { can } = useTenantPermissions()
 
@@ -273,27 +271,6 @@ export default function AdminMortgageDetailsPage() {
     return code ? `${name} • ${code}` : name
   }, [mortgage])
 
-  const handleDelete = async () => {
-    if (!mortgageId) return
-    const confirmed = window.confirm("Are you sure you want to delete this mortgage record?")
-    if (!confirmed) return
-
-    try {
-      setProcessing(true)
-      await apiFetch(`/admin/mortgages/${mortgageId}`, { method: "DELETE" })
-      toast({ title: "Mortgage deleted", description: "The mortgage record has been removed." })
-      router.push("/admin/mortgages")
-    } catch (error: any) {
-      toast({
-        title: "Delete failed",
-        description: error?.message || "Unable to delete mortgage.",
-        variant: "destructive",
-      })
-    } finally {
-      setProcessing(false)
-    }
-  }
-
   const handleStatusAction = async (action: "approve" | "reject") => {
     if (!mortgageId) return
     try {
@@ -361,12 +338,6 @@ export default function AdminMortgageDetailsPage() {
                   <Edit className="mr-2 h-4 w-4" />
                   Edit
                 </Link>
-              </Button>
-            )}
-            {can("delete_loans") && (
-              <Button variant="destructive" size="sm" onClick={handleDelete} disabled={processing}>
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
               </Button>
             )}
           </div>
