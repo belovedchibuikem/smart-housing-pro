@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Search, Eye, FileText, Download, Edit, Trash2, Check, X } from "lucide-react"
+import { Plus, Search, Eye, FileText, Download, Edit, Check, X } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
@@ -97,25 +97,6 @@ export default function AdminMortgagesPage() {
 
   const handleEdit = (id: string) => {
     router.push(`/admin/mortgages/${id}/edit`)
-  }
-
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this mortgage?")) return
-    
-    try {
-      await apiFetch(`/admin/mortgages/${id}`, { method: "DELETE" })
-      toast({
-        title: "Success",
-        description: "Mortgage deleted successfully",
-      })
-      fetchMortgages()
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to delete mortgage",
-        variant: "destructive",
-      })
-    }
   }
 
   const handleApprove = async (id: string) => {
@@ -317,11 +298,6 @@ export default function AdminMortgagesPage() {
                           {can("edit_loans") && (
                             <Button variant="ghost" size="icon" onClick={() => handleEdit(mortgage.id)}>
                               <Edit className="h-4 w-4" />
-                            </Button>
-                          )}
-                          {can("delete_loans") && (
-                            <Button variant="ghost" size="icon" onClick={() => handleDelete(mortgage.id)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           )}
                       </div>

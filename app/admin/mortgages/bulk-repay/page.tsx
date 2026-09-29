@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -60,8 +61,20 @@ type PreviewData = {
   payable_count: number
   skipped_count: number
   total_payable: number
-  from_month: number
-  to_month: number
+  repay_all?: boolean
+  from_month: number | null
+  to_month: number | null
+}
+
+function monthSummary(installments: PreviewInstallment[]) {
+  if (installments.length === 0) return "—"
+  const months = installments.map((item) => item.month)
+  const first = months[0]
+  const last = months[months.length - 1]
+  if (months.length > 4) {
+    return `${first}–${last} (${months.length} months)`
+  }
+  return months.join(", ")
 }
 
 export default function BulkMortgageRepaymentPage() {
@@ -70,6 +83,7 @@ export default function BulkMortgageRepaymentPage() {
   const [loading, setLoading] = useState(true)
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [selected, setSelected] = useState<string[]>([])
+  const [repayMode, setRepayMode] = useState<"all" | "range">("all")
   const [fromMonth, setFromMonth] = useState("1")
   const [toMonth, setToMonth] = useState("1")
   const [previewing, setPreviewing] = useState(false)
@@ -121,23 +135,25 @@ export default function BulkMortgageRepaymentPage() {
   const payload = useMemo(
     () => ({
       mortgage_ids: selected,
-      from_month: Number(fromMonth),
-      to_month: Number(toMonth),
+      repay_all: repayMode === "all",
+      from_month: repayMode === "range" ? Number(fromMonth) : undefined,
+      to_month: repayMode === "range" ? Number(toMonth) : undefined,
     }),
-    [selected, fromMonth, toMonth],
+    [selected, repayMode, fromMonth, toMonth],
   )
 
   const monthsValid =
-    Number.isInteger(payload.from_month) &&
-    Number.isInteger(payload.to_month) &&
-    payload.from_month >= 1 &&
-    payload.to_month >= payload.from_month
+    repayMode === "all" ||
+    (Number.isInteger(payload.from_month) &&
+      Number.isInteger(payload.to_month) &&
+      (payload.from_month ?? 0) >= 1 &&
+      (payload.to_month ?? 0) >= (payload.from_month ?? 0))
 
   const runPreview = async () => {
     if (selected.length === 0 || !monthsValid) {
       toast({
         title: "Select members and months",
-        description: "Choose at least one mortgage and a valid schedule month range.",
+        description: "Choose at least one mortgage, then repay the full balance or a valid month range.",
         variant: "destructive",
       })
       return
@@ -202,38 +218,56 @@ export default function BulkMortgageRepaymentPage() {
       <div>
         <h1 className="text-3xl font-bold">Bulk mortgage repayment</h1>
         <p className="mt-1 text-muted-foreground">
-          Select members and the schedule months to mark as repaid. Each mortgage uses its own installment amount.
+          Select members, then repay every remaining installment or only a month range. Each mortgage uses its own schedule.
         </p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Schedule months</CardTitle>
+          <CardTitle>What to repay</CardTitle>
           <CardDescription>
-            Month 1 is the first installment after the application date. Already paid months are skipped.
+            Repay the full remaining mortgage for each selected member, or limit it to a month range. Months already paid are skipped.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-2">
-            <Label htmlFor="from-month">From installment month</Label>
-            <Input
-              id="from-month"
-              type="number"
-              min={1}
-              value={fromMonth}
-              onChange={(event) => setFromMonth(event.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="to-month">Through installment month</Label>
-            <Input
-              id="to-month"
-              type="number"
-              min={1}
-              value={toMonth}
-              onChange={(event) => setToMonth(event.target.value)}
-            />
-          </div>
+        <CardContent className="space-y-4">
+          <RadioGroup value={repayMode} onValueChange={(value) => setRepayMode(value as "all" | "range")}>
+            <div className="flex items-start gap-2">
+              <RadioGroupItem value="all" id="repay-all" className="mt-1" />
+              <Label htmlFor="repay-all" className="cursor-pointer font-normal">
+                Repay all remaining installments for the selected members
+              </Label>
+            </div>
+            <div className="flex items-start gap-2">
+              <RadioGroupItem value="range" id="repay-range" className="mt-1" />
+              <Label htmlFor="repay-range" className="cursor-pointer font-normal">
+                Repay a selected month range only
+              </Label>
+            </div>
+          </RadioGroup>
+          {repayMode === "range" && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="from-month">From installment month</Label>
+                <Input
+                  id="from-month"
+                  type="number"
+                  min={1}
+                  value={fromMonth}
+                  onChange={(event) => setFromMonth(event.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="to-month">Through installment month</Label>
+                <Input
+                  id="to-month"
+                  type="number"
+                  min={1}
+                  value={toMonth}
+                  onChange={(event) => setToMonth(event.target.value)}
+                />
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -319,7 +353,9 @@ export default function BulkMortgageRepaymentPage() {
           <DialogHeader>
             <DialogTitle>Confirm bulk repayment</DialogTitle>
             <DialogDescription>
-              Installments {preview?.from_month} to {preview?.to_month}. Months that are already paid are left unchanged.
+              {preview?.repay_all
+                ? "Every unpaid installment through the end of each selected mortgage. Months already paid are left unchanged."
+                : `Installments ${preview?.from_month} to ${preview?.to_month}. Months that are already paid are left unchanged.`}
             </DialogDescription>
           </DialogHeader>
           {preview && (
@@ -346,11 +382,7 @@ export default function BulkMortgageRepaymentPage() {
                           <div className="font-medium">{row.member_name}</div>
                           <div className="text-xs text-muted-foreground">{row.provider_name || row.property_title || "—"}</div>
                         </TableCell>
-                        <TableCell>
-                          {row.installments.length > 0
-                            ? row.installments.map((item) => item.month).join(", ")
-                            : "—"}
-                        </TableCell>
+                        <TableCell>{monthSummary(row.installments)}</TableCell>
                         <TableCell className="text-right">{formatNairaAmount(row.payable_total)}</TableCell>
                         <TableCell>{row.status === "payable" ? "Ready" : row.skip_reason}</TableCell>
                       </TableRow>
