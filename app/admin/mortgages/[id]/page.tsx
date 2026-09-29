@@ -271,6 +271,21 @@ export default function AdminMortgageDetailsPage() {
     return code ? `${name} • ${code}` : name
   }, [mortgage])
 
+  const repaymentTotals = useMemo(() => {
+    const paid = (mortgage?.repayments ?? []).filter((row) => String(row.status).toLowerCase() === "paid")
+    const principalRepaid = paid.reduce((sum, row) => sum + Number(row.principal_paid || 0), 0)
+    const interestPaid = paid.reduce((sum, row) => sum + Number(row.interest_paid || 0), 0)
+    const totalPaid = paid.reduce((sum, row) => sum + Number(row.amount || 0), 0)
+    const loanAmount = Number(mortgage?.loan_amount || 0)
+    return {
+      count: paid.length,
+      principalRepaid,
+      interestPaid,
+      totalPaid: totalPaid > 0 ? totalPaid : principalRepaid + interestPaid,
+      remainingPrincipal: Math.max(0, loanAmount - principalRepaid),
+    }
+  }, [mortgage])
+
   const handleStatusAction = async (action: "approve" | "reject") => {
     if (!mortgageId) return
     try {
@@ -379,6 +394,29 @@ export default function AdminMortgageDetailsPage() {
                 <div>
                   <p className="text-sm text-muted-foreground">Monthly Payment</p>
                   <p className="font-semibold mt-1">{formatCurrency(mortgage.monthly_payment)}</p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-4">
+                <div className="rounded-lg border p-3">
+                  <p className="text-sm text-muted-foreground">Total paid on this loan</p>
+                  <p className="mt-1 text-lg font-semibold">{formatCurrency(repaymentTotals.totalPaid)}</p>
+                  <p className="text-xs text-muted-foreground">{repaymentTotals.count} repayment{repaymentTotals.count === 1 ? "" : "s"}</p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-sm text-muted-foreground">Principal repaid</p>
+                  <p className="mt-1 text-lg font-semibold">{formatCurrency(repaymentTotals.principalRepaid)}</p>
+                  <p className="text-xs text-muted-foreground">Capital returned against the loan</p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-sm text-muted-foreground">Interest from repayments</p>
+                  <p className="mt-1 text-lg font-semibold">{formatCurrency(repaymentTotals.interestPaid)}</p>
+                  <p className="text-xs text-muted-foreground">Interest collected, not part of the house cost</p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-sm text-muted-foreground">Principal still outstanding</p>
+                  <p className="mt-1 text-lg font-semibold">{formatCurrency(repaymentTotals.remainingPrincipal)}</p>
+                  <p className="text-xs text-muted-foreground">of {formatCurrency(mortgage.loan_amount)}</p>
                 </div>
               </div>
               
@@ -698,8 +736,9 @@ export default function AdminMortgageDetailsPage() {
                               <span className="font-semibold text-green-600">Fully Repaid</span>
                             ) : (
                               <>
-                                Principal Repaid: {formatCurrency(repaymentSchedule.total_principal_repaid)} /{" "}
-                                {formatCurrency(repaymentSchedule.loan_amount ?? repaymentSchedule.principal ?? 0)} • Remaining:{" "}
+                                Total paid: {formatCurrency(repaymentTotals.totalPaid)} • Principal:{" "}
+                                {formatCurrency(repaymentSchedule.total_principal_repaid)} • Interest:{" "}
+                                {formatCurrency(repaymentSchedule.total_interest_paid)} • Remaining principal:{" "}
                                 {formatCurrency(repaymentSchedule.remaining_principal)}
                               </>
                             )}
