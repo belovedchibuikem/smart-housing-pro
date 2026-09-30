@@ -191,7 +191,7 @@ export default function MemberHouseAccountPage() {
 			<div className="grid gap-4 md:grid-cols-4">
 				<Card>
 					<CardHeader className="pb-2">
-						<CardTitle className="text-sm font-medium text-muted-foreground">Sale price</CardTitle>
+						<CardTitle className="text-sm font-medium text-muted-foreground">House cost</CardTitle>
 					</CardHeader>
 					<CardContent className="text-2xl font-bold">₦{salePrice.toLocaleString()}</CardContent>
 				</Card>

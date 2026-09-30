@@ -941,6 +941,8 @@ export interface PropertyPaymentSetup {
 	payment_history: PropertyPaymentHistoryEntry[]
 	ledger_entries: PropertyLedgerEntry[]
 	ledger_total_paid: number
+	funding_sources?: PropertyFundingSource[]
+	cost_breakdown?: PropertyCostBreakdown
 	payment_plan?: PropertyPaymentPlan | null
 	repayment_schedules?: {
 		loan?: RepaymentSchedule
@@ -949,9 +951,32 @@ export interface PropertyPaymentSetup {
 	}
 }
 
+export interface PropertyCostBreakdown {
+	house_cost: number
+	statutory_charges: number
+	other_charges: number
+	total_cost: number
+	statutory_items?: Array<{ name: string; amount: number; type?: string }>
+	other_items?: Array<{ name: string; amount: number; type?: string }>
+}
+
+export interface PropertyFundingSource {
+	source: string
+	label: string
+	toward_house: number
+	collected: number
+	interest: number
+	count: number
+	loan_amount?: number | null
+	fully_repaid?: boolean
+}
+
 export interface PropertyLedgerEntry {
 	id: string
 	amount: number
+	collected_amount?: number
+	house_amount?: number
+	interest_amount?: number
 	direction: "credit" | "debit"
 	source: string
 	reference?: string | null

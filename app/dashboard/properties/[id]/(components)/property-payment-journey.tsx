@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Loader2, CheckCircle2, Clock, TrendingUp, Calendar, DollarSign, Building2, Users, Wallet, CreditCard, AlertCircle } from "lucide-react"
-import { getPropertyPaymentSetup, type PropertyPaymentSetup, type PropertyPaymentHistoryEntry, type PropertyLedgerEntry } from "@/lib/api/client"
+import { Button } from "@/components/ui/button"
+import { getPropertyPaymentSetup, type PropertyPaymentSetup, type PropertyPaymentHistoryEntry } from "@/lib/api/client"
 import type { MemberHouse } from "@/lib/api/client"
 
 type PropertyPaymentJourneyProps = {
@@ -67,20 +68,41 @@ const getPaymentMethodLabel = (method: string | null | undefined) => {
   return method.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())
 }
 
+const COMPLETED_STATUSES = new Set(["completed", "success", "paid", "confirmed"])
+
+function isCompletedStatus(status: string | null | undefined) {
+  return COMPLETED_STATUSES.has((status || "").toLowerCase())
+}
+
+function creditedTowardHouse(payment: PropertyPaymentHistoryEntry) {
+  const principal = payment.metadata?.principal_paid
+  if (principal !== undefined && principal !== null && principal !== "") {
+    const value = Number(principal)
+    if (!Number.isNaN(value)) return value
+  }
+  return Number(payment.amount) || 0
+}
+
 export function PropertyPaymentJourney({ house }: PropertyPaymentJourneyProps) {
   const [paymentSetup, setPaymentSetup] = useState<PropertyPaymentSetup | null>(null)
   const [loading, setLoading] = useState(false)
+  const [timelinePage, setTimelinePage] = useState(1)
+  const timelinePageSize = 10
+
+  const propertyId = house?.property_id || house?.id
+  const allocationId = house?.allocation_id || undefined
 
   useEffect(() => {
-    if (!house?.id) return
+    if (!propertyId) return
 
     let isMounted = true
     const fetchPaymentSetup = async () => {
       try {
         setLoading(true)
-        const response = await getPropertyPaymentSetup(house.id)
+        const response = await getPropertyPaymentSetup(propertyId, allocationId || undefined)
         if (isMounted && response.success) {
           setPaymentSetup(response.data)
+          setTimelinePage(1)
         }
       } catch (error) {
         console.error("Failed to load payment setup:", error)
@@ -94,7 +116,7 @@ export function PropertyPaymentJourney({ house }: PropertyPaymentJourneyProps) {
     return () => {
       isMounted = false
     }
-  }, [house?.id])
+  }, [propertyId, allocationId])
 
   // Combine payment history and ledger entries into a timeline
   const timelineEvents = useMemo(() => {
@@ -107,43 +129,35 @@ export function PropertyPaymentJourney({ house }: PropertyPaymentJourneyProps) {
       title: string
       description: string
       amount?: number
+      credited?: number
       status: "completed" | "pending" | "overdue"
       icon: React.ComponentType<{ className?: string }>
       metadata?: Record<string, unknown>
     }> = []
 
-    // Add payment history entries
+    const seenPayments = new Set<string>()
     paymentSetup.payment_history?.forEach((payment: PropertyPaymentHistoryEntry) => {
+      const key = (payment.reference || payment.id || "").trim()
+      if (key && seenPayments.has(key)) return
+      if (key) seenPayments.add(key)
+
       const Icon = getPaymentMethodIcon(payment.payment_method)
+      const completed = !payment.is_reversed && isCompletedStatus(payment.status)
+      const reference = payment.reference ? ` · ${payment.reference}` : ""
       events.push({
         id: `payment-${payment.id}`,
         date: payment.created_at || new Date().toISOString(),
         type: "payment",
-        title: `Payment via ${getPaymentMethodLabel(payment.payment_method)}`,
-        description: payment.description || `Payment of ${formatCurrency(payment.amount)}`,
+        title: payment.is_reversed
+          ? `Reversed ${getPaymentMethodLabel(payment.payment_method)} payment`
+          : `Payment via ${getPaymentMethodLabel(payment.payment_method)}`,
+        description: `${payment.description || `Payment of ${formatCurrency(payment.amount)}`}${reference}`,
         amount: payment.amount,
-        status: payment.status === "completed" || payment.status === "success" ? "completed" : "pending",
+        credited: creditedTowardHouse(payment),
+        status: completed ? "completed" : "pending",
         icon: Icon,
-        metadata: payment.metadata,
+        metadata: payment.metadata ?? undefined,
       })
-    })
-
-    // Add ledger entries
-    paymentSetup.ledger_entries?.forEach((entry: PropertyLedgerEntry) => {
-      if (entry.direction === "credit") {
-        const Icon = getPaymentMethodIcon(entry.source)
-        events.push({
-          id: `ledger-${entry.id}`,
-          date: entry.paid_at || entry.created_at || new Date().toISOString(),
-          type: "payment",
-          title: `Payment via ${getPaymentMethodLabel(entry.source)}`,
-          description: `Ledger entry: ${formatCurrency(entry.amount)}`,
-          amount: entry.amount,
-          status: entry.status === "completed" ? "completed" : "pending",
-          icon: Icon,
-          metadata: entry.metadata,
-        })
-      }
     })
 
     // Add payment plan setup milestone
@@ -213,7 +227,7 @@ export function PropertyPaymentJourney({ house }: PropertyPaymentJourneyProps) {
 
         let runningTotal = 0
         for (const payment of sortedPayments) {
-          runningTotal += payment.amount || 0
+          runningTotal += payment.credited ?? payment.amount ?? 0
           if (runningTotal >= milestoneAmount) {
             achievedDate = payment.date
             break
@@ -238,10 +252,10 @@ export function PropertyPaymentJourney({ house }: PropertyPaymentJourneyProps) {
     const completedPayments = timelineEvents.filter(
       (e) => e.type === "payment" && e.status === "completed"
     )
-    const totalPaid = completedPayments.reduce((sum, e) => sum + (e.amount || 0), 0)
-    const averagePayment = completedPayments.length > 0 ? totalPaid / completedPayments.length : 0
+    const recordedTotal = completedPayments.reduce((sum, e) => sum + (e.amount || 0), 0)
+    const averagePayment = completedPayments.length > 0 ? recordedTotal / completedPayments.length : 0
+    const housePaid = paymentSetup.property?.total_paid ?? 0
 
-    // Group by payment method
     const paymentsByMethod: Record<string, { count: number; total: number }> = {}
     completedPayments.forEach((payment) => {
       const method = payment.title.split("via ")[1] || "Unknown"
@@ -254,7 +268,8 @@ export function PropertyPaymentJourney({ house }: PropertyPaymentJourneyProps) {
 
     return {
       totalPayments: completedPayments.length,
-      totalPaid,
+      totalPaid: housePaid > 0 ? housePaid : recordedTotal,
+      recordedTotal,
       averagePayment,
       paymentsByMethod,
     }
@@ -386,9 +401,16 @@ export function PropertyPaymentJourney({ house }: PropertyPaymentJourneyProps) {
             </div>
           ) : (
             <div className="space-y-6">
-              {timelineEvents.map((event, index) => {
+              {(() => {
+                const pageCount = Math.max(1, Math.ceil(timelineEvents.length / timelinePageSize))
+                const page = Math.min(timelinePage, pageCount)
+                const start = (page - 1) * timelinePageSize
+                const visibleEvents = timelineEvents.slice(start, start + timelinePageSize)
+                return (
+                  <>
+              {visibleEvents.map((event, index) => {
                 const Icon = event.icon
-                const isLast = index === timelineEvents.length - 1
+                const isLast = index === visibleEvents.length - 1
                 return (
                   <div key={event.id} className="relative">
                     <div className="flex items-start gap-4">
@@ -449,6 +471,25 @@ export function PropertyPaymentJourney({ house }: PropertyPaymentJourneyProps) {
                   </div>
                 )
               })}
+              {timelineEvents.length > timelinePageSize && (
+                <div className="flex items-center justify-between gap-3 pt-2">
+                  <p className="text-sm text-muted-foreground">
+                    {start + 1}–{Math.min(start + timelinePageSize, timelineEvents.length)} of {timelineEvents.length}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Button type="button" size="sm" variant="outline" disabled={page <= 1} onClick={() => setTimelinePage(page - 1)}>
+                      Previous
+                    </Button>
+                    <span className="text-sm text-muted-foreground">Page {page} of {pageCount}</span>
+                    <Button type="button" size="sm" variant="outline" disabled={page >= pageCount} onClick={() => setTimelinePage(page + 1)}>
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+                  </>
+                )
+              })()}
             </div>
           )}
         </CardContent>
@@ -464,7 +505,7 @@ export function PropertyPaymentJourney({ house }: PropertyPaymentJourneyProps) {
           <CardContent>
             <div className="space-y-4">
               {Object.entries(stats.paymentsByMethod).map(([method, data]) => {
-                const percentage = stats.totalPaid > 0 ? (data.total / stats.totalPaid) * 100 : 0
+                const percentage = stats.recordedTotal > 0 ? (data.total / stats.recordedTotal) * 100 : 0
                 return (
                   <div key={method} className="space-y-2">
                     <div className="flex items-center justify-between text-sm">

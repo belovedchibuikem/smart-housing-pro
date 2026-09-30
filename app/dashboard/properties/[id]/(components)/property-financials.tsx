@@ -45,7 +45,7 @@ export function PropertyFinancials({ house }: PropertyFinancialsProps) {
     if (!propertyId) return
     setLoading(true)
     try {
-      const setupPromise = getPropertyPaymentSetup(propertyId)
+      const setupPromise = getPropertyPaymentSetup(propertyId, allocationId ?? undefined)
       const tenurePromise = allocationId
         ? getMemberHouseAccount(allocationId).then((res) =>
             res.success && res.data
@@ -225,15 +225,18 @@ export function PropertyFinancials({ house }: PropertyFinancialsProps) {
 
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Sale price</p>
-                  <p className="text-xl font-semibold">{formatCurrency(salePrice)}</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Total cost</p>
+                  <p className="text-xl font-semibold">
+                    {formatCurrency(paymentSetup?.cost_breakdown?.total_cost ?? salePrice)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">House, statutory, and other charges</p>
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-wide text-muted-foreground mb-1">Amount paid</p>
                   <p className="text-xl font-semibold text-green-600">{formatCurrency(totalPaid)}</p>
                   {ledgerTotalPaid > 0 && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      (₦{ledgerTotalPaid.toLocaleString()} via ledger)
+                      {formatCurrency(ledgerTotalPaid)} applied to the house
                     </p>
                   )}
                 </div>
@@ -253,6 +256,30 @@ export function PropertyFinancials({ house }: PropertyFinancialsProps) {
                   ) : null}
                 </div>
               </div>
+
+              {paymentSetup?.cost_breakdown && (
+                <div className="rounded-lg border p-4">
+                  <p className="mb-3 text-sm font-semibold">What makes up the total cost</p>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">House cost</span>
+                      <span>{formatCurrency(paymentSetup.cost_breakdown.house_cost)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Statutory charges</span>
+                      <span>{formatCurrency(paymentSetup.cost_breakdown.statutory_charges)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Other charges</span>
+                      <span>{formatCurrency(paymentSetup.cost_breakdown.other_charges)}</span>
+                    </div>
+                    <div className="flex justify-between border-t pt-2 font-semibold">
+                      <span>Total cost</span>
+                      <span>{formatCurrency(paymentSetup.cost_breakdown.total_cost)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 pt-4 border-t">
                 <div>

@@ -94,6 +94,46 @@ const formatCurrency = (value?: number) => {
 	return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 }).format(amount)
 }
 
+function ledgerHouseAmount(entry: PropertyLedgerEntry) {
+	if (typeof entry.house_amount === "number") return entry.house_amount
+	const principal = entry.metadata?.principal_paid
+	if ((entry.source === "mortgage" || entry.source === "loan") && principal != null && principal !== "") {
+		const value = Number(principal)
+		if (Number.isFinite(value)) return value
+	}
+	return Number(entry.amount) || 0
+}
+
+function ledgerCollectedAmount(entry: PropertyLedgerEntry) {
+	if (typeof entry.collected_amount === "number") return entry.collected_amount
+	return Number(entry.amount) || 0
+}
+
+function ledgerInterestAmount(entry: PropertyLedgerEntry) {
+	if (typeof entry.interest_amount === "number") return entry.interest_amount
+	const interest = entry.metadata?.interest_paid
+	if (interest != null && interest !== "") {
+		const value = Number(interest)
+		if (Number.isFinite(value)) return value
+	}
+	return Math.max(0, ledgerCollectedAmount(entry) - ledgerHouseAmount(entry))
+}
+
+const sourceLabels: Record<string, string> = {
+	mortgage: "Mortgage",
+	loan: "Loan",
+	equity_wallet: "Contribution",
+	wallet: "Contribution",
+	contribution: "Contribution",
+	cash: "Cash",
+	cooperative: "Cooperative",
+	bank_transfer: "Bank transfer",
+}
+
+function sourceLabel(source: string) {
+	return sourceLabels[source] ?? source.replace(/_/g, " ")
+}
+
 const formatDate = (value?: string | null) => {
 	if (!value) return "—"
 	const date = new Date(value)
@@ -227,13 +267,16 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 	const mixAllocations = isMixPlan ? paymentPlan?.configuration?.mix_allocations ?? null : null
 	const totalMixAmount = mixAllocations?.total_amount ?? paymentPlan?.total_amount ?? propertySummary?.price ?? 0
 
+	const [ledgerPage, setLedgerPage] = useState(1)
+	const ledgerPageSize = 8
+
 	const ledgerTotalsBySource = useMemo(() => {
 		return ledgerEntries.reduce((acc, entry) => {
 			const key = entry.source
-			if (!key || entry.direction !== "credit") {
+			if (!key || entry.direction !== "credit" || isRepaymentReversed(entry)) {
 				return acc
 			}
-			const amount = Number(entry.amount ?? 0)
+			const amount = ledgerHouseAmount(entry)
 			if (!Number.isFinite(amount)) {
 				return acc
 			}
@@ -952,8 +995,11 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 				<CardContent className="space-y-6">
 					<div className="grid grid-cols-1 gap-4 md:grid-cols-4">
 						<div className="rounded-lg border p-4">
-							<div className="text-xs uppercase text-muted-foreground">Sale price</div>
-							<div className="text-2xl font-bold">{formatCurrency(salePrice)}</div>
+							<div className="text-xs uppercase text-muted-foreground">Total cost</div>
+							<div className="text-2xl font-bold">
+								{formatCurrency(setup?.cost_breakdown?.total_cost ?? salePrice)}
+							</div>
+							<p className="mt-1 text-xs text-muted-foreground">House, statutory, and other charges</p>
 						</div>
 						<div className="rounded-lg border p-4">
 							<div className="text-xs uppercase text-muted-foreground">Amount Paid</div>
@@ -978,11 +1024,54 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 
 					<div className="space-y-2">
 						<div className="flex justify-between text-sm">
-							<span>Payment Progress</span>
+							<span>House repayment progress</span>
 							<span className="font-semibold">{progressValue.toFixed(1)}%</span>
 						</div>
 						<Progress value={progressValue} className="h-3" />
+						<p className="text-xs text-muted-foreground">
+							This tracks the house cost only. Loan and mortgage interest is not part of the house.
+						</p>
 					</div>
+
+					{setup?.cost_breakdown && (
+						<div className="rounded-lg border p-4">
+							<div className="mb-3 text-sm font-semibold">What makes up the total cost</div>
+							<div className="space-y-2 text-sm">
+								<div className="flex justify-between">
+									<span className="text-muted-foreground">House cost</span>
+									<span>{formatCurrency(setup.cost_breakdown.house_cost)}</span>
+								</div>
+								<div className="flex justify-between">
+									<span className="text-muted-foreground">Statutory charges</span>
+									<span>{formatCurrency(setup.cost_breakdown.statutory_charges)}</span>
+								</div>
+								<div className="flex justify-between">
+									<span className="text-muted-foreground">Other charges</span>
+									<span>{formatCurrency(setup.cost_breakdown.other_charges)}</span>
+								</div>
+								<div className="flex justify-between border-t pt-2 font-semibold">
+									<span>Total cost</span>
+									<span>{formatCurrency(setup.cost_breakdown.total_cost)}</span>
+								</div>
+							</div>
+							{(setup.cost_breakdown.statutory_items?.length || setup.cost_breakdown.other_items?.length) ? (
+								<div className="mt-3 space-y-1 text-xs text-muted-foreground">
+									{setup.cost_breakdown.statutory_items?.map((item, index) => (
+										<div key={`statutory-${index}`} className="flex justify-between">
+											<span>{item.name}</span>
+											<span>{formatCurrency(item.amount)}</span>
+										</div>
+									))}
+									{setup.cost_breakdown.other_items?.map((item, index) => (
+										<div key={`other-${index}`} className="flex justify-between">
+											<span>{item.name}</span>
+											<span>{formatCurrency(item.amount)}</span>
+										</div>
+									))}
+								</div>
+							) : null}
+						</div>
+					)}
 
 					{isMixPlan && mixAllocationSummary.length > 0 && (
 						<div className="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
@@ -1664,64 +1753,117 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 				<CardHeader>
 					<CardTitle>Property Ledger</CardTitle>
 					<CardDescription>
-						Operational funding-source ledger (loans, mortgage, cooperative deductions, equity wallet, cash).
+						Amounts applied to this house, by the source that paid them. Loan and mortgage interest is collected by the lender and is not added to the house.
 					</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
+					{(setup?.funding_sources?.length ?? 0) > 0 && (
+						<div className="grid gap-3 md:grid-cols-2">
+							{setup?.funding_sources?.map((source) => (
+								<div key={source.source} className="rounded-lg border p-4">
+									<div className="flex items-center justify-between gap-2">
+										<p className="font-semibold">{source.label}</p>
+										<Badge variant="outline">{source.count} payment{source.count === 1 ? "" : "s"}</Badge>
+									</div>
+									<p className="mt-2 text-lg font-semibold text-green-700">
+										{formatCurrency(source.toward_house)}
+										<span className="ml-2 text-xs font-normal text-muted-foreground">applied to the house</span>
+									</p>
+									{(source.source === "mortgage" || source.source === "loan") && (
+										<div className="mt-2 space-y-1 text-xs text-muted-foreground">
+											<p>Repayments collected: {formatCurrency(source.collected)}</p>
+											<p>Interest: {formatCurrency(source.interest)} (not part of the house)</p>
+											{source.fully_repaid && source.loan_amount ? (
+												<p>Loan finished. The house is credited with the loan amount of {formatCurrency(source.loan_amount)}.</p>
+											) : source.loan_amount ? (
+												<p>Loan amount: {formatCurrency(source.loan_amount)}</p>
+											) : null}
+										</div>
+									)}
+								</div>
+							))}
+						</div>
+					)}
+
 					{ledgerEntries.length === 0 ? (
 						<div className="rounded-lg border border-dashed p-6 text-sm text-muted-foreground">
-							No ledger entries recorded yet. Once payments begin, you will see consolidated transactions here.
+							No ledger entries recorded yet. Once payments begin, you will see each source and the amount applied to the house.
 						</div>
 					) : (
 						<div className="space-y-4">
-							{ledgerEntries.map((entry) => {
+							{(() => {
+								const pageCount = Math.max(1, Math.ceil(ledgerEntries.length / ledgerPageSize))
+								const page = Math.min(ledgerPage, pageCount)
+								const start = (page - 1) * ledgerPageSize
+								const visible = ledgerEntries.slice(start, start + ledgerPageSize)
+								return (
+									<>
+							{visible.map((entry) => {
 								const reversed = isRepaymentReversed(entry)
+								const houseAmount = ledgerHouseAmount(entry)
+								const collected = ledgerCollectedAmount(entry)
+								const interest = ledgerInterestAmount(entry)
+								const financed = entry.source === "mortgage" || entry.source === "loan"
 								return (
 								<div
 									key={entry.id}
-									className={`flex flex-col gap-3 rounded-lg border p-4 md:flex-row md:items-center md:justify-between ${reversed ? "border-destructive/40 bg-destructive/5" : ""}`}
+									className={`rounded-lg border p-4 ${reversed ? "border-destructive/40 bg-destructive/5" : ""}`}
 								>
-									<div>
-										<div className="flex items-center gap-2 text-sm">
-											<Badge variant={entry.direction === "credit" ? "default" : "destructive"}>
-												{entry.direction === "credit" ? "Credit" : "Debit"}
-											</Badge>
-											<span className="capitalize">{entry.source.replace(/_/g, " ")}</span>
-											<Badge variant={reversed ? "destructive" : "outline"} className="capitalize">
-												{repaymentStatusLabel(entry)}
-											</Badge>
-										</div>
-										<div className={`mt-2 text-lg font-semibold ${reversed ? "line-through text-muted-foreground" : ""}`}>
-											{entry.direction === "credit" ? "+" : "-"} {formatCurrency(entry.amount)}
-										</div>
-										<div className="mt-1 text-xs text-muted-foreground">
-											{entry.paid_at
-												? new Date(entry.paid_at).toLocaleString()
-												: entry.created_at
-													? new Date(entry.created_at).toLocaleString()
-													: "Date not available"}
-										</div>
-										{entry.reference && (
-											<div className="text-xs text-muted-foreground">Reference: {entry.reference}</div>
-										)}
+									<div className="flex flex-wrap items-center gap-2 text-sm">
+										<Badge variant="outline" className="capitalize">{sourceLabel(entry.source)}</Badge>
+										<Badge variant={reversed ? "destructive" : "outline"} className="capitalize">
+											{repaymentStatusLabel(entry)}
+										</Badge>
 									</div>
-									<div className="text-xs text-muted-foreground">
-										{entry.payment_id && <div>Payment ID: {entry.payment_id}</div>}
-										{entry.plan_id && <div>Plan ID: {entry.plan_id}</div>}
-										{entry.mortgage_plan_id && <div>Mortgage Plan: {entry.mortgage_plan_id}</div>}
-										{reversed && entry.void_reason ? (
-											<div className="text-destructive">Reversal reason: {entry.void_reason}</div>
-										) : null}
+									<div className={`mt-2 text-lg font-semibold ${reversed ? "line-through text-muted-foreground" : "text-green-700"}`}>
+										{formatCurrency(houseAmount)}
+										<span className="ml-2 text-xs font-normal text-muted-foreground">applied to the house</span>
 									</div>
+									{financed && (
+										<p className="mt-1 text-xs text-muted-foreground">
+											Repayment collected {formatCurrency(collected)}
+											{interest > 0 ? ` · Interest ${formatCurrency(interest)} is not applied to the house` : ""}
+										</p>
+									)}
+									<div className="mt-2 text-xs text-muted-foreground">
+										{entry.paid_at
+											? new Date(entry.paid_at).toLocaleString()
+											: entry.created_at
+												? new Date(entry.created_at).toLocaleString()
+												: "Date not available"}
+										{entry.reference ? ` · ${entry.reference}` : ""}
+									</div>
+									{reversed && entry.void_reason ? (
+										<div className="mt-1 text-xs text-destructive">Reversal reason: {entry.void_reason}</div>
+									) : null}
 								</div>
 								)
 							})}
+							{ledgerEntries.length > ledgerPageSize && (
+								<div className="flex items-center justify-between gap-3">
+									<p className="text-sm text-muted-foreground">
+										{start + 1}–{Math.min(start + ledgerPageSize, ledgerEntries.length)} of {ledgerEntries.length}
+									</p>
+									<div className="flex items-center gap-2">
+										<Button type="button" size="sm" variant="outline" disabled={page <= 1} onClick={() => setLedgerPage(page - 1)}>
+											Previous
+										</Button>
+										<span className="text-sm text-muted-foreground">Page {page} of {pageCount}</span>
+										<Button type="button" size="sm" variant="outline" disabled={page >= pageCount} onClick={() => setLedgerPage(page + 1)}>
+											Next
+										</Button>
+									</div>
+								</div>
+							)}
+									</>
+								)
+							})()}
 						</div>
 					)}
 
 					{typeof ledgerTotalPaid === "number" && ledgerTotalPaid > 0 && (
 						<div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
-							Total credited via ledger: <span className="font-semibold text-primary">{formatCurrency(ledgerTotalPaid)}</span>
+							Total applied to the house: <span className="font-semibold text-primary">{formatCurrency(ledgerTotalPaid)}</span>
 						</div>
 					)}
 				</CardContent>
