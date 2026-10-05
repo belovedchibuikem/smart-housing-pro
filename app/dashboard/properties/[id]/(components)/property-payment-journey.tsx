@@ -253,6 +253,7 @@ export function PropertyPaymentJourney({ house }: PropertyPaymentJourneyProps) {
       (e) => e.type === "payment" && e.status === "completed"
     )
     const recordedTotal = completedPayments.reduce((sum, e) => sum + (e.amount || 0), 0)
+    const creditedTotal = completedPayments.reduce((sum, e) => sum + (e.credited ?? e.amount ?? 0), 0)
     const averagePayment = completedPayments.length > 0 ? recordedTotal / completedPayments.length : 0
     const housePaid = paymentSetup.property?.total_paid ?? 0
 
@@ -268,7 +269,7 @@ export function PropertyPaymentJourney({ house }: PropertyPaymentJourneyProps) {
 
     return {
       totalPayments: completedPayments.length,
-      totalPaid: housePaid > 0 ? housePaid : recordedTotal,
+      totalPaid: housePaid > 0 ? housePaid : creditedTotal,
       recordedTotal,
       averagePayment,
       paymentsByMethod,
@@ -314,7 +315,7 @@ export function PropertyPaymentJourney({ house }: PropertyPaymentJourneyProps) {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Total Paid</p>
+                <p className="text-sm text-muted-foreground">Paid toward the property</p>
                 <p className="text-2xl font-bold text-green-600">{formatCurrency(stats?.totalPaid || totalPaid)}</p>
               </div>
               <DollarSign className="h-8 w-8 text-muted-foreground" />
