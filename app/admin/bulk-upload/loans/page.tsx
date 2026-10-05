@@ -44,14 +44,15 @@ export default function BulkUploadLoansPage() {
 
         const mappedData = result.data.map((row: Record<string, unknown>) => ({
           member_id: cell(row, ["member_id", "Member ID", "member number", "member_number"]),
-          loan_amount: cell(row, ["loan_amount", "Loan Amount", "principal"]),
+          product: cell(row, ["product", "Product", "loan_product", "product_name"]),
+          loan_amount: cell(row, ["loan_amount", "Loan Amount", "principal", "amount"]),
           interest_rate: cell(row, ["interest_rate", "Interest Rate", "rate"]),
-          loan_tenure: cell(row, ["loan_tenure", "loan tenure", "tenure", "duration months", "Duration"]),
+          loan_tenure: cell(row, ["tenure_months", "loan_tenure", "loan tenure", "tenure", "duration months", "Duration"]),
           disbursement_date: cell(row, ["disbursement_date", "disbursement date", "Disbursement Date"]),
           due_date: cell(row, ["due_date", "due date", "Due Date"]),
           repayment_schedule: cell(row, ["repayment_schedule", "schedule", "Repayment Schedule"]),
           amount_repaid: cell(row, ["amount_repaid", "amount repaid", "Amount Repaid"]),
-          loan_purpose: cell(row, ["loan_purpose", "purpose", "loan purpose", "Loan Purpose"]),
+          loan_purpose: cell(row, ["purpose", "loan_purpose", "loan purpose", "Loan Purpose"]),
           loan_status: cell(row, ["loan_status", "status", "Loan Status"]),
           collateral: cell(row, ["collateral", "Collateral"]),
         }))
@@ -265,7 +266,9 @@ export default function BulkUploadLoansPage() {
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Bulk Upload Loans</h1>
-        <p className="text-muted-foreground">Upload multiple loans at once using a CSV file</p>
+        <p className="text-muted-foreground">
+          Apply for many members at once. Use member number, product name, amount, tenure, purpose, and optional start and end dates. Interest is taken from the loan product.
+        </p>
       </div>
 
       <Card>
@@ -337,26 +340,20 @@ export default function BulkUploadLoansPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>member_id</TableHead>
+                    <TableHead>product</TableHead>
                     <TableHead>loan_amount</TableHead>
-                    <TableHead>interest_rate</TableHead>
-                    <TableHead>loan_tenure</TableHead>
-                    <TableHead>disbursement</TableHead>
-                    <TableHead>due</TableHead>
-                    <TableHead>schedule</TableHead>
-                    <TableHead>status</TableHead>
+                    <TableHead>tenure</TableHead>
+                    <TableHead>purpose</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {previewData.map((loan, index) => (
                     <TableRow key={index}>
                       <TableCell>{loan.member_id}</TableCell>
+                      <TableCell>{loan.product || "—"}</TableCell>
                       <TableCell>{loan.loan_amount}</TableCell>
-                      <TableCell>{loan.interest_rate}</TableCell>
                       <TableCell>{loan.loan_tenure}</TableCell>
-                      <TableCell>{loan.disbursement_date}</TableCell>
-                      <TableCell>{loan.due_date}</TableCell>
-                      <TableCell>{loan.repayment_schedule}</TableCell>
-                      <TableCell>{loan.loan_status}</TableCell>
+                      <TableCell>{loan.loan_purpose || "—"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

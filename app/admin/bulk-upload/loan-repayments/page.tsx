@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { toast as sonnerToast } from "sonner"
-import { apiFetch } from "@/lib/api/client"
+import { apiFetch, apiFetchBlob } from "@/lib/api/client"
 import { parseFile } from "@/lib/utils/file-parser"
 
 interface RepaymentData {
@@ -48,7 +48,7 @@ export default function BulkUploadLoanRepaymentsPage() {
         
         // Map parsed data to repayment format - check for template headers first
         const mappedData = result.data.map((row: any) => ({
-          loanId: row['Loan ID'] || row['loanId'] || row['loan_id'] || '',
+          loanId: row['loan_number'] || row['Loan Number'] || row['Loan ID'] || row['loanId'] || row['loan_id'] || '',
           memberId: row['Member ID (UUID, Staff ID, IPPIS, or FRSC PIN)']
             || row['Member ID (UUID, Staff ID, or IPPIS)']
             || row['Member ID (UUID or Staff ID)']
@@ -74,14 +74,16 @@ export default function BulkUploadLoanRepaymentsPage() {
           amount: row['Amount'] || row['amount'] || '',
           principalPaid: row['Principal Paid'] || row['principalPaid'] || row['principal_paid'] || '',
           interestPaid: row['Interest Paid'] || row['interestPaid'] || row['interest_paid'] || '',
-          paymentDate: row['Payment Date (YYYY-MM-DD)'] 
+          paymentDate: row['payment_date']
+            || row['Payment Date (YYYY-MM-DD)'] 
             || row['payment_date_yyyy_mm_dd']
             || row['Payment Date'] 
             || row['paymentDate'] 
-            || row['payment_date'] 
             || '',
           paymentMethod: row['Payment Method'] || row['paymentMethod'] || row['payment_method'] || '',
-          transactionRef: row['Transaction Reference'] 
+          transactionRef: row['reference']
+            || row['Reference']
+            || row['Transaction Reference'] 
             || row['transaction_reference'] 
             || row['Transaction Ref'] 
             || row['transaction_ref'] 
@@ -91,16 +93,14 @@ export default function BulkUploadLoanRepaymentsPage() {
         // Validate required fields
         const validationErrors: string[] = []
         mappedData.forEach((repayment, index) => {
-          if (!repayment.loanId) validationErrors.push(`Row ${index + 2}: Loan ID is required`)
-          if (!repayment.memberId) validationErrors.push(`Row ${index + 2}: Member ID is required`)
+          if (!repayment.loanId && !repayment.memberId) {
+            validationErrors.push(`Row ${index + 2}: loan_number is required`)
+          }
           if (!repayment.amount) validationErrors.push(`Row ${index + 2}: Amount is required`)
-          const amount = parseFloat(repayment.amount)
-          if (isNaN(amount) || amount <= 0) {
+          const amount = parseFloat(String(repayment.amount).replace(/,/g, ""))
+          if (repayment.amount && (isNaN(amount) || amount <= 0)) {
             validationErrors.push(`Row ${index + 2}: Amount must be a valid positive number`)
           }
-          if (!repayment.paymentDate) validationErrors.push(`Row ${index + 2}: Payment Date is required`)
-          if (!repayment.paymentMethod) validationErrors.push(`Row ${index + 2}: Payment Method is required`)
-          if (!repayment.transactionRef) validationErrors.push(`Row ${index + 2}: Transaction Reference is required`)
         })
         
         setPreviewData(mappedData)
@@ -110,6 +110,23 @@ export default function BulkUploadLoanRepaymentsPage() {
       } finally {
         setParsing(false)
       }
+    }
+  }
+
+  const downloadOpenLoans = async () => {
+    try {
+      const blob = await apiFetchBlob("/admin/loans/repayment-sheet?format=file")
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = "loan_repayment_sheet.csv"
+      a.click()
+      window.URL.revokeObjectURL(url)
+      sonnerToast.success("Repayment sheet downloaded", {
+        description: "Loan numbers and monthly deduction amounts are already filled in.",
+      })
+    } catch (error: any) {
+      sonnerToast.error("Download failed", { description: error?.message || "Could not build the repayment sheet." })
     }
   }
 
@@ -279,7 +296,9 @@ export default function BulkUploadLoanRepaymentsPage() {
     <div className="p-6 space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Bulk Upload Loan Repayments</h1>
-        <p className="text-muted-foreground">Upload multiple loan repayments at once using a CSV file</p>
+        <p className="text-muted-foreground">
+          Record many repayments from one file. Required columns are loan number and amount. Date and reference are optional.
+        </p>
       </div>
 
       <Card>
@@ -289,22 +308,28 @@ export default function BulkUploadLoanRepaymentsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <h3 className="font-medium">Step 1: Download Template</h3>
-            <Button variant="outline" onClick={downloadTemplate}>
-              <Download className="h-4 w-4 mr-2" />
-              Download CSV Template
-            </Button>
+            <h3 className="font-medium">Step 1: Download the open-loan sheet</h3>
+            <p className="text-sm text-muted-foreground">
+              Loan numbers and this month&apos;s deduction are filled in. A default fee column shows 10% of the monthly repayment for each missed month.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => void downloadOpenLoans()}>
+                <Download className="h-4 w-4 mr-2" />
+                Download loans with IDs
+              </Button>
+              <Button variant="outline" onClick={downloadTemplate}>
+                <Download className="h-4 w-4 mr-2" />
+                Blank template
+              </Button>
+            </div>
           </div>
 
           <div className="space-y-2">
-            <h3 className="font-medium">Step 2: Fill in Repayment Data</h3>
+            <h3 className="font-medium">Step 2: Check amounts, then upload</h3>
             <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
-              <li>Loan ID must match existing active loans</li>
-              <li>Member ID must match the loan borrower</li>
-              <li>Amount must be a valid number</li>
-              <li>Payment Date format: YYYY-MM-DD (e.g., 2025-01-15)</li>
-              <li>Payment Method: Bank Transfer, Paystack, Card, Cash, etc.</li>
-              <li>Transaction Reference is required for verification</li>
+              <li>loan_number is already the system loan ID</li>
+              <li>amount is the monthly deduction; change it only if this payment is different</li>
+              <li>payment_date and reference can be left blank</li>
             </ul>
           </div>
 

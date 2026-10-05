@@ -131,6 +131,7 @@ export interface LoanApplicationPayload {
 	product_id: string
 	amount: number
 	tenure_months: number
+	repayment_start_date?: string
 	purpose: string
 	net_pay: number
 	employment_status: "employed" | "self_employed" | "retired"

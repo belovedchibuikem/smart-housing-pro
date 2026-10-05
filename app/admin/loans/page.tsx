@@ -81,6 +81,9 @@ export default function AdminLoansPage() {
   const [dashMember, setDashMember] = useState("")
   const [loanWorkflowEnabled, setLoanWorkflowEnabled] = useState(false)
   const [enqueueing, setEnqueueing] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [decisionReason, setDecisionReason] = useState("")
+  const [bulkBusy, setBulkBusy] = useState(false)
 
   useEffect(() => {
     fetchStats()
@@ -89,6 +92,7 @@ export default function AdminLoansPage() {
 
   useEffect(() => {
     setPage(1)
+    setSelectedIds([])
   }, [statusFilter, activeTab, searchQuery])
 
   useEffect(() => {
@@ -382,8 +386,52 @@ export default function AdminLoansPage() {
     if (activeTab === 'approved') return loan.status === 'approved'
     if (activeTab === 'active') return loan.status === 'active'
     if (activeTab === 'rejected') return loan.status === 'rejected'
+    if (activeTab === 'under_review') return loan.status === 'under_review'
+    if (activeTab === 'returned') return loan.status === 'returned'
     return true
   })
+
+  const deskLoans = filteredLoans.filter((loan) =>
+    ["pending", "under_review", "returned"].includes(loan.status),
+  )
+  const allDeskSelected = deskLoans.length > 0 && deskLoans.every((loan) => selectedIds.includes(loan.id))
+
+  const toggleLoan = (id: string) => {
+    setSelectedIds((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]))
+  }
+
+  const runBulkDecision = async (action: "approve" | "review" | "return" | "reject") => {
+    if (selectedIds.length === 0) {
+      sonnerToast.error("Select at least one application")
+      return
+    }
+    if ((action === "return" || action === "reject") && !decisionReason.trim()) {
+      sonnerToast.error("Enter a reason", { description: "Return and reject need a short note." })
+      return
+    }
+    setBulkBusy(true)
+    try {
+      const res = await apiFetch<{ success: boolean; message?: string; data?: { skipped?: string[] } }>(
+        "/admin/loans/bulk-decision",
+        {
+          method: "POST",
+          body: { action, ids: selectedIds, reason: decisionReason.trim() || undefined },
+        },
+      )
+      sonnerToast.success(res.message || "Decision saved")
+      if (res.data?.skipped?.length) {
+        sonnerToast.message("Some rows were skipped", { description: res.data.skipped.slice(0, 3).join(" ") })
+      }
+      setSelectedIds([])
+      setDecisionReason("")
+      fetchLoans()
+      fetchStats()
+    } catch (error: any) {
+      sonnerToast.error("Bulk action failed", { description: error?.message || "Please try again" })
+    } finally {
+      setBulkBusy(false)
+    }
+  }
 
   return (
     <div className="max-w-7xl mx-auto space-y-8">
@@ -417,9 +465,14 @@ export default function AdminLoansPage() {
               </DropdownMenuContent>
             </DropdownMenu>
           </Can>
+          <Can permission="create_loans">
+            <Button asChild>
+              <Link href="/admin/loans/apply">Apply for member</Link>
+            </Button>
+          </Can>
           <Can permission="view_loans|create_loans">
             <Button variant="outline" asChild>
-              <Link href="/admin/bulk-upload/loans">Bulk upload loans</Link>
+              <Link href="/admin/bulk-upload/loans">Bulk applications</Link>
             </Button>
           </Can>
           <Can permission="manage_loan_repayments|view_loans">
@@ -581,6 +634,8 @@ export default function AdminLoansPage() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="pending">Pending ({stats.pending})</TabsTrigger>
+          <TabsTrigger value="under_review">In review</TabsTrigger>
+          <TabsTrigger value="returned">Returned</TabsTrigger>
           <TabsTrigger value="approved">Approved</TabsTrigger>
           <TabsTrigger value="active">Active Loans</TabsTrigger>
           <TabsTrigger value="rejected">Rejected</TabsTrigger>
@@ -593,12 +648,16 @@ export default function AdminLoansPage() {
                 <div>
                   <CardTitle>
                     {activeTab === 'pending' && 'Pending Loan Applications'}
+                    {activeTab === 'under_review' && 'Applications under review'}
+                    {activeTab === 'returned' && 'Returned for correction'}
                     {activeTab === 'approved' && 'Approved Loans'}
                     {activeTab === 'active' && 'Active Loans'}
                     {activeTab === 'rejected' && 'Rejected Applications'}
                   </CardTitle>
                   <CardDescription>
                     {activeTab === 'pending' && 'Applications awaiting approval decision'}
+                    {activeTab === 'under_review' && 'Applications an officer has started reviewing'}
+                    {activeTab === 'returned' && 'Sent back so the application can be corrected'}
                     {activeTab === 'approved' && 'Loans approved and ready for disbursement'}
                     {activeTab === 'active' && 'Currently disbursed loans with ongoing repayments'}
                     {activeTab === 'rejected' && 'Loan applications that were not approved'}
@@ -615,7 +674,41 @@ export default function AdminLoansPage() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {selectedIds.length > 0 && (can("approve_loans") || can("reject_loans")) ? (
+                <div className="flex flex-col gap-3 rounded-lg border bg-muted/40 p-3 md:flex-row md:items-end">
+                  <div className="flex-1 space-y-1">
+                    <p className="text-sm font-medium">{selectedIds.length} selected</p>
+                    <Input
+                      value={decisionReason}
+                      onChange={(e) => setDecisionReason(e.target.value)}
+                      placeholder="Reason (required for return or reject)"
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {can("approve_loans") ? (
+                      <>
+                        <Button size="sm" disabled={bulkBusy} onClick={() => void runBulkDecision("review")}>
+                          Mark reviewed
+                        </Button>
+                        <Button size="sm" disabled={bulkBusy} onClick={() => void runBulkDecision("approve")}>
+                          Approve
+                        </Button>
+                      </>
+                    ) : null}
+                    {can("reject_loans") ? (
+                      <>
+                        <Button size="sm" variant="outline" disabled={bulkBusy} onClick={() => void runBulkDecision("return")}>
+                          Return
+                        </Button>
+                        <Button size="sm" variant="destructive" disabled={bulkBusy} onClick={() => void runBulkDecision("reject")}>
+                          Reject
+                        </Button>
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
               {loading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -624,6 +717,16 @@ export default function AdminLoansPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10">
+                      <input
+                        type="checkbox"
+                        aria-label="Select applications on this page"
+                        checked={allDeskSelected}
+                        onChange={() =>
+                          setSelectedIds(allDeskSelected ? [] : deskLoans.map((loan) => loan.id))
+                        }
+                      />
+                    </TableHead>
                     <TableHead>Loan ID</TableHead>
                     <TableHead>Member</TableHead>
                     <TableHead>Loan Type</TableHead>
@@ -637,13 +740,23 @@ export default function AdminLoansPage() {
                 <TableBody>
                     {filteredLoans.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                           No loans found
                         </TableCell>
                       </TableRow>
                     ) : (
                       filteredLoans.map((loan) => (
                       <TableRow key={loan.id}>
+                          <TableCell>
+                            {["pending", "under_review", "returned"].includes(loan.status) ? (
+                              <input
+                                type="checkbox"
+                                aria-label={`Select ${loan.id}`}
+                                checked={selectedIds.includes(loan.id)}
+                                onChange={() => toggleLoan(loan.id)}
+                              />
+                            ) : null}
+                          </TableCell>
                           <TableCell className="font-medium">{loan.id.substring(0, 8)}...</TableCell>
                         <TableCell>
                           <div>

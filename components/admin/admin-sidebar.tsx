@@ -183,7 +183,10 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     icon: TrendingUp,
     subItems: [
       { href: "/admin/loans", label: "All Loans", icon: TrendingUp },
+      { href: "/admin/loans/apply", label: "Apply for Member", icon: FileEdit },
+      { href: "/admin/bulk-upload/loans", label: "Bulk Loan Applications", icon: Upload },
       { href: "/admin/bulk-upload/loan-repayments", label: "Bulk Upload Repayments", icon: Upload },
+      { href: "/admin/loans/stoppage", label: "Loan Stoppage", icon: CalendarRange },
       { href: "/admin/loan-repayments", label: "Individual Repayment", icon: Receipt },
       { href: "/admin/loan-products", label: "Loan Products", icon: Package },
     ],

@@ -63,6 +63,7 @@ export function LoanApplicationForm({
 	const [loanAmount, setLoanAmount] = useState<string>("")
 	const [netPay, setNetPay] = useState<string>("")
 	const [tenureMonths, setTenureMonths] = useState<number>(0)
+	const [repaymentStart, setRepaymentStart] = useState("")
 	const [employmentStatus, setEmploymentStatus] = useState<"employed" | "self_employed" | "retired">("employed")
 	const [purpose, setPurpose] = useState<string>("")
 	const [guarantorName, setGuarantorName] = useState<string>("")
@@ -162,6 +163,7 @@ export function LoanApplicationForm({
 				product_id: selectedProduct.id,
 				amount: numericAmount,
 				tenure_months: tenureMonths,
+				repayment_start_date: repaymentStart || undefined,
 				purpose,
 				net_pay: numericNetPay,
 				employment_status: employmentStatus,
@@ -272,6 +274,7 @@ export function LoanApplicationForm({
             </div>
           </div>
 
+          <div className="grid gap-4 md:grid-cols-2">
           <div className="space-y-2">
 						<Label htmlFor="tenure">Repayment Tenure</Label>
 						<Select
@@ -292,6 +295,19 @@ export function LoanApplicationForm({
               </SelectContent>
             </Select>
           </div>
+						<div className="space-y-2">
+							<Label htmlFor="repayment-start">Repayment start date</Label>
+							<Input
+								id="repayment-start"
+								type="date"
+								value={repaymentStart}
+								onChange={(event) => setRepaymentStart(event.target.value)}
+							/>
+							<p className="text-xs text-muted-foreground">
+								Deductions run for {tenureMonths || 0} month{(tenureMonths || 0) === 1 ? "" : "s"}, starting this month.
+							</p>
+						</div>
+					</div>
 
 					{selectedProduct ? (
 						<div className="rounded-lg border bg-muted/40 p-4">
@@ -336,6 +352,10 @@ export function LoanApplicationForm({
 								Interest of {selectedProduct?.interest_rate ?? 0}% is applied once over the full{" "}
 								{tenureMonths}-month tenure (not compounded).
               </p>
+							<p className="mt-2 text-xs">
+								If a monthly deduction is missed, a default fee of 10% of that month&apos;s repayment applies.
+								For this loan that fee would be {formatCurrency(repaymentSummary.monthly * 0.1)}.
+							</p>
             </div>
 					) : null}
 

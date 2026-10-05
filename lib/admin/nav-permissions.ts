@@ -185,7 +185,7 @@ const ADMIN_HREF_ACTION_RULES: Array<{ test: (href: string) => boolean; permissi
   { test: (h) => /^\/admin\/users\/[^/]+\/edit$/.test(h), permission: "edit_users" },
   { test: (h) => h === "/admin/roles/new", permission: "manage_roles" },
   { test: (h) => /^\/admin\/roles\/[^/]+\/edit$/.test(h), permission: "manage_roles" },
-  { test: (h) => h === "/admin/loans/new", permission: "create_loans" },
+  { test: (h) => h === "/admin/loans/new" || h === "/admin/loans/apply", permission: "create_loans" },
   { test: (h) => /^\/admin\/loans\/[^/]+\/edit$/.test(h), permission: "edit_loans" },
   { test: (h) => h === "/admin/contributions/new", permission: "create_contributions" },
   { test: (h) => /^\/admin\/contributions\/[^/]+\/edit$/.test(h), permission: "edit_contributions" },
