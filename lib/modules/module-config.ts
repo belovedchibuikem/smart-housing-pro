@@ -188,7 +188,7 @@ export const MEMBER_HREF_MODULE_MAP: Record<string, string> = {
 }
 
 export const DASHBOARD_CARD_MODULES: Record<string, string> = {
-  "Total Contributions": "contributions",
+  "Contribution Balance": "contributions",
   "Active Loans": "loans",
   "Total Investments": "investments",
   "Wallet Balance": "wallet",

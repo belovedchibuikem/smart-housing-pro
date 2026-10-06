@@ -7,7 +7,7 @@ import { formatCompactNaira } from "@/lib/utils/currency"
 
 /** Maps dashboard stat card titles to tenant module slugs (must stay in sync with module-config). */
 const DASHBOARD_CARD_MODULES: Record<string, string> = {
-  "Total Contributions": "contributions",
+  "Contribution Balance": "contributions",
   "Active Loans": "loans",
   "Total Investments": "investments",
   "Wallet Balance": "wallet",
@@ -69,12 +69,12 @@ export function StatsCards({ data, loading, enabledModules }: StatsCardsProps) {
   // For now, we'll show basic info without trend calculations
   const stats = [
     {
-      title: "Total Contributions",
-      value: formatCurrency(data.financial_summary.total_contributions),
+      title: "Contribution Balance",
+      value: formatCurrency(data.financial_summary.contribution_balance ?? 0),
       change: null,
       trend: "neutral" as const,
       icon: Wallet,
-      description: "All time contributions",
+      description: "Available in your savings wallet",
     },
     {
       title: "Active Loans",

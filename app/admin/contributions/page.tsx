@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge"
 import { Search, Download, Eye, CheckCircle, XCircle, Loader2 } from "lucide-react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { toast as sonnerToast } from "sonner"
 import { apiFetch, exportReport } from "@/lib/api/client"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
@@ -49,7 +49,8 @@ interface Pagination {
 }
 
 export default function AdminContributionsPage() {
-  const [searchQuery, setSearchQuery] = useState("")
+  const searchParams = useSearchParams()
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get("search") ?? "")
   const [statusFilter, setStatusFilter] = useState("all")
   const [page, setPage] = useState(1)
   const [contributions, setContributions] = useState<Contribution[]>([])

@@ -7,6 +7,7 @@ import { AdminHeader } from "@/components/admin/admin-header"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
 import { AdminLoadingProvider } from "@/components/admin/admin-loading-context"
 import { AdminRoutePermissionGate } from "@/components/admin/admin-route-permission-gate"
+import { AdminPageBack } from "@/components/admin/admin-page-back"
 import { AuthGuard } from "@/lib/tenant/auth-guard"
 import type { UserRole } from "@/lib/roles"
 import { getUserData, handleLogout } from "@/lib/auth/auth-utils"
@@ -152,6 +153,7 @@ export default function AdminLayout({
             roleNames={roleNames}
           />
           <main className="max-w-full min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6 lg:overflow-y-auto lg:p-8">
+            <AdminPageBack />
             <AdminLoadingProvider>
               <AdminRoutePermissionGate>{children}</AdminRoutePermissionGate>
             </AdminLoadingProvider>

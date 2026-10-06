@@ -146,7 +146,6 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     icon: Users,
     subItems: [
       { href: "/admin/members", label: "All Members", icon: Users },
-      { href: "/admin/members/subscriptions", label: "Property & Land Subscriptions", icon: Home },
       { href: "/admin/members/new", label: "Add Member", icon: UserPlus },
       { href: "/admin/member-subscriptions/bulk", label: "Bulk Member Subscriptions", icon: Package },
       { href: "/admin/bulk-upload/members", label: "Bulk Upload", icon: Upload },
@@ -243,6 +242,7 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     icon: Home,
     subItems: [
       { href: "/admin/properties", label: "House Management", icon: Home, cluster: "Manage" },
+      { href: "/admin/members/subscriptions", label: "Property & Land Subscriptions", icon: Home, cluster: "Manage" },
       { href: "/admin/properties/new", label: "Upload House/Building", icon: Plus, cluster: "Manage" },
       { href: "/admin/eoi-forms", label: "House EOI Forms", icon: ClipboardList, cluster: "Manage" },
       { href: "/admin/property-payment-plans", label: "House Payment Plans", icon: CreditCard, cluster: "Manage" },
@@ -803,13 +803,13 @@ export function AdminSidebar({
 
       <aside
         className={cn(
-          "fixed bottom-0 left-0 top-[73px] z-50 flex w-[21.5rem] min-h-0 overflow-hidden border-r bg-card transition-transform duration-300",
+          "fixed bottom-0 left-0 top-[73px] z-50 flex w-[23.5rem] min-h-0 overflow-hidden border-r bg-card transition-transform duration-300",
           "lg:static lg:top-auto lg:h-full lg:max-h-full lg:translate-x-0",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
         <nav
-          className="flex w-[4.5rem] shrink-0 flex-col items-center gap-2 overflow-y-auto border-r bg-muted/30 px-2 py-3"
+          className="flex w-[6.5rem] shrink-0 flex-col items-stretch gap-1 overflow-y-auto border-r bg-muted/30 px-1.5 py-3"
           aria-label="Admin areas"
           onScroll={() => setRailTip(null)}
         >
@@ -833,7 +833,7 @@ export function AdminSidebar({
                   setPinnedSectionId(group.section.id)
                 }}
                 className={cn(
-                  "relative flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors",
+                  "relative flex w-full shrink-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 transition-colors",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   selected
                     ? "bg-primary text-primary-foreground shadow-sm"
@@ -841,9 +841,12 @@ export function AdminSidebar({
                 )}
               >
                 <SectionIcon className="h-5 w-5" />
+                <span className="w-full text-center text-[10px] font-medium leading-tight">
+                  {group.section.label}
+                </span>
                 {pending > 0 ? (
                   <span
-                    className="absolute right-1 top-1 h-2 w-2 rounded-full bg-destructive ring-2 ring-card"
+                    className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive ring-2 ring-card"
                     aria-hidden
                   />
                 ) : null}

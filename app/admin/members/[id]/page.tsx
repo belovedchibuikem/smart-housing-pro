@@ -804,14 +804,14 @@ export default function MemberDetailPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <label className="text-sm text-muted-foreground">Total Contributions</label>
-                    <p className="text-2xl font-bold">{formatCurrency(financialStats?.total_contributions)}</p>
-                  </div>
-                  <div>
                     <label className="text-sm text-muted-foreground">Contribution Balance</label>
                     <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
                       {formatCurrency(financialStats?.contribution_balance)}
                     </p>
+                  </div>
+                  <div>
+                    <label className="text-sm text-muted-foreground">Total Contributions</label>
+                    <p className="text-2xl font-bold">{formatCurrency(financialStats?.total_contributions)}</p>
                   </div>
                   <div>
                     <label className="text-sm text-muted-foreground">Plan monthly amount</label>
@@ -865,6 +865,28 @@ export default function MemberDetailPage() {
                         'No payments yet'
                       }
                     </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <Button variant="outline" size="sm" asChild>
+                      <Link
+                        href={`/admin/contributions?search=${encodeURIComponent(
+                          member.member_number || `${member.first_name} ${member.last_name}`,
+                        )}`}
+                      >
+                        <DollarSign className="h-4 w-4 mr-1.5" />
+                        View contributions
+                      </Link>
+                    </Button>
+                    <Button variant="outline" size="sm" asChild>
+                      <Link
+                        href={`/admin/refunds?search=${encodeURIComponent(
+                          member.member_number || `${member.first_name} ${member.last_name}`,
+                        )}`}
+                      >
+                        <Undo2 className="h-4 w-4 mr-1.5" />
+                        View refunds
+                      </Link>
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
