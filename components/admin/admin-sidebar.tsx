@@ -108,7 +108,10 @@ function PendingBadge({ count }: { count: number }) {
   if (count < 1) return null
   const label = count > 99 ? "99+" : String(count)
   return (
-    <Badge variant="destructive" className="h-5 min-w-[1.25rem] px-1.5 text-[10px] font-semibold tabular-nums shrink-0">
+    <Badge
+      variant="destructive"
+      className="h-5 min-w-5 rounded-full px-1.5 text-[11px] font-semibold tabular-nums leading-none"
+    >
       {label}
     </Badge>
   )
@@ -677,32 +680,39 @@ export function AdminSidebar({
       let lastCluster: string | undefined
 
       return (
-        <div key={item.label} className="space-y-0.5">
+        <div key={item.label} className="space-y-1">
           <button
             type="button"
             onClick={() => toggleMenu(item.label)}
             aria-expanded={isOpen}
             title={item.label}
             className={cn(
-              "flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-[13px] font-medium transition-colors duration-200",
-              hasActiveChild || isOpen
-                ? "bg-primary/10 text-foreground"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors duration-200",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              hasActiveChild
+                ? "text-foreground"
+                : isOpen
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:bg-muted/80 hover:text-foreground",
             )}
           >
             <span
               className={cn(
-                "flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
-                hasActiveChild ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
+                hasActiveChild
+                  ? "bg-primary/10 text-primary"
+                  : isOpen
+                    ? "bg-background text-foreground shadow-sm"
+                    : "bg-muted text-muted-foreground",
               )}
             >
-              <Icon className="h-4 w-4" />
+              <Icon className="h-[18px] w-[18px]" />
             </span>
-            <span className="flex-1 truncate">{item.label}</span>
+            <span className="min-w-0 flex-1 truncate">{item.label}</span>
             <PendingBadge count={groupBadge} />
             <ChevronDown
               className={cn(
-                "h-4 w-4 shrink-0 opacity-60 transition-transform duration-200",
+                "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
                 isOpen ? "rotate-0" : "-rotate-90",
               )}
             />
@@ -714,7 +724,7 @@ export function AdminSidebar({
             )}
           >
             <div className="overflow-hidden">
-              <div className="ml-5 mt-0.5 space-y-0.5 border-l border-border/70 pl-2">
+              <div className="mb-1 ml-6 space-y-0.5 border-l border-border py-1 pl-3">
                 {item.subItems?.map((subItem) => {
                   const showCluster = Boolean(subItem.cluster) && subItem.cluster !== lastCluster
                   lastCluster = subItem.cluster
@@ -723,7 +733,7 @@ export function AdminSidebar({
                   return (
                     <Fragment key={subItem.href ?? subItem.label}>
                       {showCluster ? (
-                        <p className="px-2 pb-0.5 pt-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+                        <p className="px-3 pb-1 pt-3.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                           {subItem.cluster}
                         </p>
                       ) : null}
@@ -734,13 +744,14 @@ export function AdminSidebar({
                         aria-current={isSubActive ? "page" : undefined}
                         onClick={() => setMobileMenuOpen(false)}
                         className={cn(
-                          "flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] font-medium transition-colors duration-150",
+                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors duration-150",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                           isSubActive
-                            ? "bg-primary text-primary-foreground"
-                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                            ? "bg-primary font-medium text-primary-foreground"
+                            : "font-normal text-muted-foreground hover:bg-muted hover:text-foreground",
                         )}
                       >
-                        <span className="flex-1 truncate">{subItem.label}</span>
+                        <span className="min-w-0 flex-1 truncate">{subItem.label}</span>
                         <PendingBadge count={subBadge} />
                       </Link>
                     </Fragment>
@@ -764,21 +775,22 @@ export function AdminSidebar({
         aria-current={isActive ? "page" : undefined}
         onClick={() => setMobileMenuOpen(false)}
         className={cn(
-          "flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-[13px] font-medium transition-colors",
+          "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           isActive
-            ? "bg-primary text-primary-foreground"
-            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+            ? "bg-primary text-primary-foreground shadow-sm"
+            : "text-muted-foreground hover:bg-muted/80 hover:text-foreground",
         )}
       >
         <span
           className={cn(
-            "flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg",
             isActive ? "bg-primary-foreground/15 text-primary-foreground" : "bg-muted text-muted-foreground",
           )}
         >
-          <Icon className="h-4 w-4" />
+          <Icon className="h-[18px] w-[18px]" />
         </span>
-        <span className="flex-1 truncate">{item.label}</span>
+        <span className="min-w-0 flex-1 truncate">{item.label}</span>
         <PendingBadge count={topBadge} />
       </Link>
     )
@@ -795,7 +807,7 @@ export function AdminSidebar({
 
       <aside
         className={cn(
-          "fixed bottom-0 left-0 top-[73px] z-50 flex w-[17.75rem] min-h-0 flex-col overflow-hidden border-r bg-card/95 backdrop-blur-sm transition-transform duration-300",
+          "fixed bottom-0 left-0 top-[73px] z-50 flex w-80 min-h-0 flex-col overflow-hidden border-r bg-card transition-transform duration-300",
           "lg:static lg:top-auto lg:h-full lg:max-h-full lg:translate-x-0",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
@@ -807,9 +819,9 @@ export function AdminSidebar({
           </Button>
         </div>
 
-        <div className="shrink-0 space-y-3 border-b px-3 py-3">
+        <div className="shrink-0 space-y-4 border-b px-4 py-4">
           {planLabel ? (
-            <p className="truncate text-[11px] font-medium text-muted-foreground" title={planLabel}>
+            <p className="truncate px-0.5 text-xs font-semibold text-foreground/80" title={planLabel}>
               {planLabel}
             </p>
           ) : null}
@@ -820,14 +832,14 @@ export function AdminSidebar({
               value={navQuery}
               onChange={(e) => setNavQuery(e.target.value)}
               placeholder="Search all menus"
-              className={cn("h-9 bg-muted/40 pl-9", navQuery ? "pr-8" : "")}
+              className={cn("h-10 rounded-xl bg-muted/30 pl-9", navQuery ? "pr-9" : "")}
               aria-label="Search all menus"
             />
             {navQuery ? (
               <button
                 type="button"
                 onClick={() => setNavQuery("")}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                 aria-label="Clear menu search"
               >
                 <X className="h-3.5 w-3.5" />
@@ -836,7 +848,14 @@ export function AdminSidebar({
           </div>
 
           {showSwitcher ? (
-            <div className="flex flex-wrap gap-1" role="group" aria-label="Admin areas">
+            <div
+              className={cn(
+                "grid gap-2",
+                sections.length <= 2 ? "grid-cols-2" : sections.length === 3 ? "grid-cols-3" : "grid-cols-4",
+              )}
+              role="group"
+              aria-label="Admin areas"
+            >
               {sections.map((group) => {
                 const SectionIcon = SECTION_ICONS[group.section.id]
                 const selected = !searching && group.section.id === visibleSectionId
@@ -846,31 +865,33 @@ export function AdminSidebar({
                     key={group.section.id}
                     type="button"
                     aria-pressed={selected}
-                    title={group.section.description}
+                    title={
+                      pending > 0
+                        ? `${group.section.label}. ${pending} waiting`
+                        : group.section.description
+                    }
                     onClick={() => {
                       setNavQuery("")
                       setPinnedSectionId(group.section.id)
                     }}
                     className={cn(
-                      "inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-medium transition-colors",
+                      "relative flex min-h-[4.5rem] flex-col items-center justify-center gap-1.5 rounded-xl border px-1 py-2.5 text-[11px] font-medium leading-none transition-colors",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                       selected
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground",
+                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                        : "border-border/80 bg-background text-muted-foreground hover:border-border hover:bg-muted/50 hover:text-foreground",
                     )}
                   >
-                    <SectionIcon className="h-3.5 w-3.5 shrink-0" />
+                    <SectionIcon className="h-4 w-4 shrink-0" />
                     <span>{group.section.short}</span>
                     {pending > 0 ? (
                       <span
                         className={cn(
-                          "inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-semibold tabular-nums",
-                          selected
-                            ? "bg-primary-foreground/20 text-primary-foreground"
-                            : "bg-destructive text-destructive-foreground",
+                          "absolute right-2 top-2 h-1.5 w-1.5 rounded-full",
+                          selected ? "bg-primary-foreground" : "bg-destructive",
                         )}
-                      >
-                        {pending > 9 ? "9+" : pending}
-                      </span>
+                        aria-hidden
+                      />
                     ) : null}
                   </button>
                 )
@@ -878,50 +899,47 @@ export function AdminSidebar({
             </div>
           ) : null}
 
-          <div>
+          <div className="px-0.5">
             {searching ? (
               <>
-                <p className="text-sm font-semibold tracking-tight">Search</p>
-                <p className="text-[11px] leading-snug text-muted-foreground">
+                <p className="text-sm font-semibold text-foreground">Search</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                   Matches across every menu on this plan
                 </p>
               </>
             ) : currentGroup ? (
               <>
-                <div className="flex items-baseline justify-between gap-2">
-                  <p className="text-sm font-semibold tracking-tight">{currentGroup.section.label}</p>
-                  <p className="shrink-0 text-[11px] text-muted-foreground">
-                    {currentGroup.items.length} {currentGroup.items.length === 1 ? "menu" : "menus"}
-                  </p>
-                </div>
-                <p className="text-[11px] leading-snug text-muted-foreground">{currentGroup.section.description}</p>
+                <p className="text-sm font-semibold text-foreground">{currentGroup.section.label}</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  {currentGroup.section.description}
+                </p>
               </>
             ) : null}
           </div>
         </div>
 
-        <div ref={navScrollRef} className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+        <div ref={navScrollRef} className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
           {searching ? (
             searchGroups.length > 0 ? (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {searchGroups.map((group) => (
                   <div key={group.section.id}>
-                    <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                       {group.section.label}
                     </p>
-                    <div className="space-y-0.5">{group.items.map((item) => renderNavItem(item))}</div>
+                    <div className="space-y-1">{group.items.map((item) => renderNavItem(item))}</div>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="px-2 py-6 text-center text-sm text-muted-foreground">No matching menu items.</p>
+              <p className="px-3 py-8 text-center text-sm text-muted-foreground">No matching menu items.</p>
             )
           ) : currentGroup ? (
-            <nav className="space-y-0.5" aria-label={currentGroup.section.label}>
+            <nav className="space-y-1" aria-label={currentGroup.section.label}>
               {currentGroup.items.map((item) => renderNavItem(item))}
             </nav>
           ) : (
-            <p className="px-2 py-6 text-center text-sm text-muted-foreground">No menus available.</p>
+            <p className="px-3 py-8 text-center text-sm text-muted-foreground">No menus available.</p>
           )}
         </div>
       </aside>
