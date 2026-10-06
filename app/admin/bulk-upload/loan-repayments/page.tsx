@@ -297,7 +297,7 @@ export default function BulkUploadLoanRepaymentsPage() {
       <div>
         <h1 className="text-3xl font-bold">Bulk Upload Loan Repayments</h1>
         <p className="text-muted-foreground">
-          Record many repayments from one file. Required columns are loan number and amount. Date and reference are optional.
+          Record many repayments from one file. Required columns are loan number and amount. A member can also be identified by member number, IPPIS, or FRSC PIN. Date and reference are optional.
         </p>
       </div>
 
@@ -310,7 +310,7 @@ export default function BulkUploadLoanRepaymentsPage() {
           <div className="space-y-2">
             <h3 className="font-medium">Step 1: Download the open-loan sheet</h3>
             <p className="text-sm text-muted-foreground">
-              Loan numbers and this month&apos;s deduction are filled in. A default fee column shows 10% of the monthly repayment for each missed month.
+              Loan numbers, member number, IPPIS, FRSC PIN, and this month&apos;s deduction are filled in. Any one of those member IDs can be used to match a member. A default fee column shows 10% of the monthly repayment for each missed month.
             </p>
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => void downloadOpenLoans()}>

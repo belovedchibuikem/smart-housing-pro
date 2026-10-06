@@ -43,7 +43,7 @@ export default function BulkUploadLoansPage() {
         }
 
         const mappedData = result.data.map((row: Record<string, unknown>) => ({
-          member_id: cell(row, ["member_id", "Member ID", "member number", "member_number"]),
+          member_id: cell(row, ["member_id", "Member ID", "member number", "member_number", "ippis_number", "IPPIS", "IPPIS Number", "frsc_pin", "FRSC PIN", "staff_id", "Staff ID"]),
           product: cell(row, ["product", "Product", "loan_product", "product_name"]),
           loan_amount: cell(row, ["loan_amount", "Loan Amount", "principal", "amount"]),
           interest_rate: cell(row, ["interest_rate", "Interest Rate", "rate"]),
@@ -59,7 +59,7 @@ export default function BulkUploadLoansPage() {
 
         const validationErrors: string[] = []
         mappedData.forEach((loan, index) => {
-          if (!loan.member_id) validationErrors.push(`Row ${index + 2}: member_id is required`)
+          if (!loan.member_id) validationErrors.push(`Row ${index + 2}: member number, IPPIS, or FRSC PIN is required`)
           if (!loan.loan_amount) validationErrors.push(`Row ${index + 2}: loan_amount is required`)
           if (loan.loan_amount && Number.isNaN(Number(loan.loan_amount.replace(/,/g, ""))))
             validationErrors.push(`Row ${index + 2}: loan_amount must be numeric`)
@@ -267,7 +267,7 @@ export default function BulkUploadLoansPage() {
       <div>
         <h1 className="text-3xl font-bold">Bulk Upload Loans</h1>
         <p className="text-muted-foreground">
-          Apply for many members at once. Use member number, product name, amount, tenure, purpose, and optional start and end dates. Interest is taken from the loan product.
+          Apply for many members at once. Identify each member with a member number, IPPIS, or FRSC PIN. Then add the product name, amount, tenure, purpose, and optional start and end dates. Interest is taken from the loan product.
         </p>
       </div>
 
@@ -339,7 +339,7 @@ export default function BulkUploadLoansPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>member_id</TableHead>
+                    <TableHead>Member</TableHead>
                     <TableHead>product</TableHead>
                     <TableHead>loan_amount</TableHead>
                     <TableHead>tenure</TableHead>

@@ -14,6 +14,8 @@ type Candidate = {
   loan_number?: string | null
   member_name: string
   member_number?: string | null
+  ippis_number?: string | null
+  frsc_pin?: string | null
   email?: string | null
   deduction_amount: number
   default_fee: number
@@ -26,6 +28,9 @@ type HistoryRow = {
   period: string
   loan_number?: string | null
   member_name: string
+  member_number?: string | null
+  ippis_number?: string | null
+  frsc_pin?: string | null
   deduction_amount: number
   default_fee: number
   confirmed_at?: string | null
@@ -160,7 +165,9 @@ export default function LoanStoppagePage() {
                     </TableCell>
                     <TableCell>
                       <div className="font-medium">{row.member_name}</div>
-                      <div className="text-xs text-muted-foreground">{row.member_number}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {[row.member_number, row.ippis_number, row.frsc_pin].filter(Boolean).join(" · ")}
+                      </div>
                     </TableCell>
                     <TableCell>{row.loan_number}</TableCell>
                     <TableCell>{money.format(row.deduction_amount)}</TableCell>
@@ -208,7 +215,12 @@ export default function LoanStoppagePage() {
                 {history.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell>{row.period}</TableCell>
-                    <TableCell>{row.member_name}</TableCell>
+                    <TableCell>
+                      <div>{row.member_name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {[row.member_number, row.ippis_number, row.frsc_pin].filter(Boolean).join(" · ")}
+                      </div>
+                    </TableCell>
                     <TableCell>{row.loan_number}</TableCell>
                     <TableCell>{money.format(row.deduction_amount)}</TableCell>
                     <TableCell>{row.confirmed_at ? new Date(row.confirmed_at).toLocaleString() : "—"}</TableCell>
