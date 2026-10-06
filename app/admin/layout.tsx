@@ -132,16 +132,18 @@ export default function AdminLayout({
     <AuthGuard requireStaffDashboardAccess>
       <IdleSessionGuard />
       <WebPushRegistrar />
-      <div className="min-h-screen bg-background">
-        <ImpersonationBanner />
-        <AdminHeader
-          mobileMenuOpen={mobileMenuOpen}
-          setMobileMenuOpen={setMobileMenuOpen}
-          userRole={userRole}
-          permissions={permissions}
-          roleNames={roleNames}
-        />
-        <div className="flex">
+      <div className="min-h-screen bg-background lg:flex lg:h-dvh lg:min-h-0 lg:flex-col lg:overflow-hidden">
+        <div className="shrink-0">
+          <ImpersonationBanner />
+          <AdminHeader
+            mobileMenuOpen={mobileMenuOpen}
+            setMobileMenuOpen={setMobileMenuOpen}
+            userRole={userRole}
+            permissions={permissions}
+            roleNames={roleNames}
+          />
+        </div>
+        <div className="flex lg:min-h-0 lg:flex-1 lg:overflow-hidden">
           <AdminSidebar
             mobileMenuOpen={mobileMenuOpen}
             setMobileMenuOpen={setMobileMenuOpen}
@@ -149,7 +151,7 @@ export default function AdminLayout({
             permissions={permissions}
             roleNames={roleNames}
           />
-          <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-full overflow-x-hidden">
+          <main className="max-w-full min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6 lg:overflow-y-auto lg:p-8">
             <AdminLoadingProvider>
               <AdminRoutePermissionGate>{children}</AdminRoutePermissionGate>
             </AdminLoadingProvider>

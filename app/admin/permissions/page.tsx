@@ -109,7 +109,7 @@ export default function PermissionsPage() {
           <h1 className="text-3xl font-bold text-foreground">Permissions</h1>
           <p className="text-muted-foreground mt-1">Manage system permissions and access controls</p>
         </div>
-        <Can permission="manage_roles">
+        <Can permission="manage_permissions">
           <Button onClick={() => window.location.href = "/admin/permissions/new"}>
             <Plus className="h-4 w-4 mr-2" />
             Add Permission
@@ -290,13 +290,13 @@ export default function PermissionsPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                {can("manage_roles") && (
+                                {can("manage_permissions") && (
                                   <DropdownMenuItem onClick={() => window.location.href = `/admin/permissions/${permission.id}/edit`}>
                                     <Edit className="h-4 w-4 mr-2" />
                                     Edit Permission
                                   </DropdownMenuItem>
                                 )}
-                                {can("manage_roles") && (
+                                {can("manage_permissions") && (
                                   <DropdownMenuItem
                                     onClick={() => setDeletePermissionId(permission.id)}
                                     className="text-red-600"

@@ -4,126 +4,122 @@
  * Tenant super_admin sees everything (handled via roles in the sidebar).
  */
 
+import { permissionForAdminMenu } from "@/lib/admin/menu-permissions"
 import { filterNavForRaOfficer, isResidentAssociationOfficerOnly } from "@/lib/admin/ra-officer-scope"
 
 export const TENANT_ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
-  dashboard:
-    "access_admin_panel|view_analytics|view_reports|view_financial_reports|view_members|view_contributions|view_loans|view_properties|view_equity_contributions|view_investments|view_documents",
+  dashboard: "view_dashboard",
   "pending-badges":
     "view_analytics|view_reports|view_financial_reports|view_members|view_contributions|view_loans|view_properties|view_equity_contributions|view_wallets|view_investments|manage_payments",
 
-  "bulk.members":
-    "bulk_upload_members|view_members|create_members|edit_members|delete_members|manage_member_kyc",
-  "bulk.mortgages": "view_loans|create_loans|edit_loans|approve_loans|manage_loan_repayments",
-  "bulk.properties": "view_properties|create_properties|edit_properties|delete_properties|manage_property_estates",
-  "bulk.property-subscribers": "view_properties|manage_property_allottees|approve_allotments",
-  "bulk.property-payments": "view_properties|manage_property_allottees|manage_payments",
-  "bulk.equity-asset-repayments":
-    "view_properties|manage_property_allottees|manage_payments|view_equity_contributions",
-  "bulk.contribution-asset-repayments":
-    "view_properties|manage_property_allottees|manage_payments|view_contributions",
-  "bulk.issued-documents": "issue_documents|view_issued_documents",
-  "bulk.rollbacks": "rollback_financial_transactions|manage_payments",
-  "financial-rollbacks": "rollback_financial_transactions|manage_payments",
-  "bulk.lands": "view_properties|create_properties|edit_properties|manage_property_estates",
-  "bulk.land-subscriptions": "view_properties|manage_property_allottees|approve_allotments",
-  "land-subscriptions": "view_properties|manage_property_allottees|approve_allotments|manage_payments",
-  "bulk.land-payments": "view_properties|manage_property_allottees|manage_payments",
-  "bulk.contributions": "view_contributions|create_contributions|edit_contributions|delete_contributions",
-  "bulk.equity-contributions":
-    "view_equity_contributions|bulk_upload_equity_contributions|approve_equity_contributions|create_equity_contributions",
-  "bulk.loans": "view_loans|create_loans|edit_loans|approve_loans|manage_loan_repayments",
-  "bulk.loan-repayments": "manage_loan_repayments|view_loans",
-  "bulk.mortgage-repayments": "manage_loan_repayments|view_loans",
-  "bulk.internal-mortgage-repayments": "manage_loan_repayments|view_loans",
-  "bulk.refund": "manage_payments|view_wallets|view_contributions",
-  "bulk.wallet-transfers": "manage_wallets|manage_payments|view_wallets",
-  "bulk.rollbacks": "rollback_financial_transactions|manage_payments",
-  "financial-rollbacks": "rollback_financial_transactions|manage_payments",
-  "bulk.internal-mortgages": "view_loans|create_loans|approve_loans",
-  "bulk.investments": "view_investments|create_investments|approve_investments|create_investment_plans",
+  "bulk.members": "bulk_upload_members",
+  "bulk.mortgages": "bulk_upload_mortgages",
+  "bulk.properties": "bulk_upload_properties",
+  "bulk.property-subscribers": "bulk_property_subscribers",
+  "bulk.property-payments": "bulk_property_payments",
+  "bulk.equity-asset-repayments": "bulk_equity_repayments",
+  "bulk.contribution-asset-repayments": "bulk_contribution_repayments",
+  "bulk.issued-documents": "issue_documents",
+  "bulk.rollbacks": "rollback_financial_transactions",
+  "financial-rollbacks": "rollback_financial_transactions",
+  "bulk.lands": "bulk_upload_lands",
+  "bulk.land-subscriptions": "bulk_land_subscriptions",
+  "land-subscriptions": "manage_land_subscriptions",
+  "bulk.land-payments": "bulk_land_payments",
+  "bulk.contributions": "bulk_upload_contributions",
+  "bulk.equity-contributions": "bulk_upload_equity_contributions",
+  "bulk.loans": "bulk_upload_loans",
+  "bulk.loan-repayments": "bulk_upload_loan_repayments",
+  "bulk.mortgage-repayments": "bulk_mortgage_repayments",
+  "bulk.internal-mortgage-repayments": "bulk_internal_mortgage_repayments",
+  "bulk.refund": "bulk_refunds",
+  "bulk.wallet-transfers": "bulk_wallet_transfers",
+  "bulk.internal-mortgages": "bulk_internal_mortgages",
+  "bulk.investments": "bulk_upload_investments",
 
   members:
-    "view_members|create_members|edit_members|delete_members|bulk_upload_members|manage_member_kyc|view_kyc|approve_kyc|reject_kyc",
-  "member-subscriptions": "view_members|manage_member_kyc|view_wallets|manage_payments|view_contributions",
-  subscriptions: "access_admin_panel|manage_settings|view_analytics|view_reports|view_members|view_payment_gateways",
-  subscription: "access_admin_panel|manage_settings|view_payment_gateways",
+    "view_members|create_members|edit_members|delete_members|manage_member_kyc|view_kyc|approve_kyc|reject_kyc",
+  "member-subscriptions": "view_member_property_subscriptions|bulk_member_subscriptions",
+  subscriptions: "view_tenant_subscription",
+  subscription: "view_tenant_subscription",
 
   users: "view_users|create_users|edit_users|delete_users|reset_user_passwords",
-  roles: "manage_roles",
-  permissions: "manage_roles",
-  "custom-domains": "manage_settings|view_white_label",
-  settings: "manage_settings|view_activity_logs",
-  "landing-page": "view_white_label|manage_white_label|manage_settings",
+  roles: "view_roles|manage_roles",
+  permissions: "view_permissions|manage_permissions",
+  "custom-domains": "manage_custom_domains",
+  settings: "manage_settings",
+  "landing-page": "manage_landing_page|manage_landing_page_templates",
   "payment-gateways": "view_payment_gateways|manage_payment_gateways|test_payment_gateways",
-  "payment-approvals": "manage_payments|view_payment_gateways|view_wallets|view_contributions",
-  "payment-evidence": "manage_payments|view_payment_gateways|view_wallets|view_contributions",
-  "wallet-transfer": "manage_wallets|manage_payments|view_wallets",
+  "payment-approvals": "manage_payment_approvals",
+  "payment-evidence": "manage_payment_approvals",
+  "wallet-transfer": "manage_wallet_transfers",
   "white-label": "view_white_label|manage_white_label",
-  wallets: "view_wallets|manage_wallets|view_pending_wallets|view_wallet_transactions|manage_payments",
-  "investment-withdrawal-requests": "view_investments|edit_investments|approve_investments|manage_payments",
-  investments: "create_investment_plans|edit_investment_plans|delete_investment_plans|view_investments|approve_investments",
-  refunds: "manage_payments|view_wallets|view_contributions|view_investments",
-  "refund-member": "manage_payments|view_wallets|view_contributions",
-  "mortgage-providers": "view_loans|create_loans|edit_loans|approve_loans",
-  mortgages: "view_loans|create_loans|edit_loans|approve_loans|reject_loans|manage_loan_repayments",
+  wallets: "view_wallets|manage_wallets|view_pending_wallets|view_wallet_transactions",
+  "investment-withdrawal-requests": "view_investment_withdrawals",
+  investments:
+    "view_investments|create_investments|edit_investments|approve_investments|view_investment_plans|create_investment_plans|edit_investment_plans|delete_investment_plans",
+  refunds: "view_refunds|manage_refunds",
+  "refund-member": "manage_refunds",
+  "mortgage-providers": "view_mortgage_providers",
+  mortgages:
+    "view_mortgages|create_mortgages|edit_mortgages|delete_mortgages|approve_mortgages|reject_mortgages|disburse_mortgages",
   contributions:
     "view_contributions|create_contributions|edit_contributions|delete_contributions|approve_contributions|reject_contributions",
-  loans: "view_loans|create_loans|edit_loans|approve_loans|reject_loans|disburse_loans|manage_loan_repayments",
-  "loan-repayments": "manage_loan_repayments|view_loans|create_loans",
-  properties:
-    "view_properties|create_properties|edit_properties|delete_properties|manage_property_estates|manage_property_allottees",
-  lands: "view_properties|create_properties|edit_properties|delete_properties|manage_property_estates",
-  "property-statistics":
-    "view_properties|manage_property_estates|create_properties|manage_settings",
-  "property-payment-plans": "view_properties|create_properties|edit_properties|manage_property_allottees",
-  "property-subscriptions": "view_properties|manage_property_allottees|approve_allotments",
-  "internal-mortgages": "view_loans|manage_loan_repayments|approve_loans",
-  "eoi-forms": "view_properties|approve_allotments|reject_allotments|view_members",
-  "land-eoi-forms": "view_properties|approve_allotments|reject_allotments|view_members",
-  "investment-plans":
-    "create_investment_plans|edit_investment_plans|delete_investment_plans|view_investments|approve_investments",
-  "contribution-plans": "view_contributions|create_contributions|edit_contributions|delete_contributions",
+  loans:
+    "view_loans|create_loans|edit_loans|approve_loans|reject_loans|disburse_loans|manage_loan_repayments|delete_loans|manage_loan_stoppage",
+  "loan-repayments": "manage_loan_repayments",
+  properties: "view_properties|create_properties|edit_properties|delete_properties",
+  lands: "view_lands|create_lands|edit_lands|delete_lands",
+  "property-statistics": "view_properties",
+  "property-payment-plans": "view_property_payment_plans",
+  "property-subscriptions": "manage_property_allottees|approve_allotments",
+  "internal-mortgages": "view_internal_mortgages",
+  "eoi-forms": "manage_eoi_forms",
+  "land-eoi-forms": "manage_land_eoi",
+  "investment-plans": "view_investment_plans|create_investment_plans|edit_investment_plans|delete_investment_plans",
+  "contribution-plans":
+    "view_contribution_plans|create_contribution_plans|edit_contribution_plans|delete_contribution_plans",
   "equity-contributions":
     "view_equity_contributions|approve_equity_contributions|reject_equity_contributions|create_equity_contributions",
-  "equity-plans": "manage_equity_plans|view_equity_contributions|create_equity_contributions|approve_equity_contributions",
-  "loan-products": "create_loan_plans|edit_loan_plans|delete_loan_plans|view_loans|approve_loans",
+  "equity-plans": "manage_equity_plans",
+  "loan-products": "view_loan_products|create_loan_plans|edit_loan_plans|delete_loan_plans",
   "statutory-charges":
-    "view_statutory_charges|create_statutory_charges|edit_statutory_charges|delete_statutory_charges|approve_statutory_charges|reject_statutory_charges|manage_statutory_charge_types|manage_statutory_charge_departments",
+    "view_statutory_charges|create_statutory_charges|edit_statutory_charges|delete_statutory_charges|approve_statutory_charges|reject_statutory_charges|manage_statutory_charge_types|manage_statutory_charge_departments|manage_statutory_charge_payments",
   "property-management":
-    "view_properties|manage_property_estates|manage_property_allottees|view_maintenance|create_maintenance|edit_maintenance|assign_maintenance|complete_maintenance|approve_allotments|reject_allotments|view_property_reports",
-  "blockchain-setup": "manage_blockchain_setup|manage_blockchain|manage_settings",
-  "blockchain-wallets": "manage_blockchain_wallets|manage_blockchain|view_blockchain",
+    "manage_property_estates|manage_property_allottees|view_maintenance|create_maintenance|edit_maintenance|assign_maintenance|complete_maintenance|delete_maintenance|view_property_ops_reports|record_house_repayments|manage_land_subscriptions",
+  "blockchain-setup": "manage_blockchain_setup",
+  "blockchain-wallets": "manage_blockchain_wallets",
   blockchain: "view_blockchain|manage_blockchain",
   "mail-service":
-    "view_mail|compose_mail|reply_mail|assign_mail|bulk_mail|delete_mail",
+    "view_mail|view_mail_inbox|view_mail_sent|view_mail_outbox|view_mail_drafts|compose_mail|reply_mail|assign_mail|bulk_mail|delete_mail",
   reports:
-    "view_reports|export_reports|view_analytics|view_financial_reports|view_contributions|view_loan_reports|view_property_reports|view_investment_reports|view_equity_reports",
+    "view_reports|export_reports|view_member_reports|view_financial_reports|view_contribution_reports|view_refund_reports|view_equity_reports|view_investment_reports|view_loan_reports|view_mail_reports|view_audit_reports|view_property_reports|view_land_reports",
   accounting:
-    "view_accounting|manage_chart_of_accounts|manage_posting_rules|manage_financial_periods|post_journal_entries|view_gl_reports|generate_member_statements|reopen_locked_periods|view_financial_reports",
+    "view_accounting|manage_chart_of_accounts|manage_posting_rules|manage_financial_periods|post_journal_entries|view_gl_reports|generate_member_statements|reopen_locked_periods|view_property_ledger",
   office:
     "view_office|manage_office_org_units|create_office_documents|route_office_documents|approve_office_documents|minute_office_documents|sign_office_documents|archive_office_documents|manage_office_workflows|manage_office_templates|view_office_audit|manage_office_folders|manage_office_tags|checkout_office_documents|manage_office_correspondence|manage_office_retention|approve_office_disposal|view_office_reports|manage_office_circulars|use_office_ai|sync_office_source_files|view_office_cases|manage_office_cases|assign_office_cases|resolve_office_cases|view_internal_case_notes|escalate_office_cases|manage_office_case_sla|claim_office_cases|workflow.review|workflow.recommend|workflow.approve|workflow.reject|workflow.return|workflow.assign|workflow.reassign|workflow.bulk_review|workflow.bulk_recommend|workflow.bulk_approve|workflow.configure|workflow.delegate",
   ecpm:
     "view_ecpm|manage_ecpm_estates|manage_ecpm_projects|manage_ecpm_parties|manage_ecpm_drawings|manage_ecpm_boqs|manage_ecpm_quotations|manage_ecpm_contracts|approve_ecpm_documents|view_ecpm_audit|manage_ecpm_settings|manage_ecpm_site_ops|manage_ecpm_procurement|manage_ecpm_handover|view_ecpm_client_portal|manage_ecpm_ai|view_ecpm_reports",
-  "activity-logs": "view_activity_logs|manage_settings",
-  "audit-logs": "view_activity_logs|manage_settings",
+  "activity-logs": "view_activity_logs",
+  "audit-logs": "view_audit_logs",
   documents: "view_documents|upload_documents|approve_documents|reject_documents|delete_documents",
   "issued-documents":
     "view_issued_documents|issue_documents|approve_issued_documents|revoke_issued_documents|reissue_documents|download_issued_documents|verify_documents_admin|manage_letterhead_settings|manage_document_templates",
-  notifications: "view_users|view_members|create_users|manage_settings|manage_notifications|create_announcement|publish_announcement",
+  notifications: "view_notifications|manage_notifications",
   profile: "access_admin_panel|view_users|view_members|ra.estate.view",
   valuations: "view_valuations|run_valuation|override_valuation|approve_valuation|manage_valuation_settings",
-  "change-requests": "view_change_requests|manage_change_requests|view_ownership|manage_ownership",
+  "change-requests": "view_change_requests|manage_change_requests",
   ownership: "view_ownership|manage_ownership|manage_ownership_settings|view_change_requests",
-  "property-improvements": "view_property_improvements|manage_property_improvements|view_valuations",
-  "payment-routing": "manage_payment_routing|manage_payments|view_payment_gateways",
-  "contact-centre": "manage_contact_centre|manage_settings|manage_white_label",
-  "platform-config": "manage_settings|manage_ownership_settings|manage_payment_routing|manage_contact_centre",
+  "property-improvements": "view_property_improvements|manage_property_improvements",
+  "payment-routing": "manage_payment_routing",
+  "contact-centre": "manage_contact_centre",
+  "platform-config": "manage_platform_config",
   "resident-association":
-    "ra.estate.view|ra.estate.manage|ra.house.view|ra.house.manage|ra.charge.manage|ra.payment.view|ra.payment.verify|ra.payment.reject|ra.payment.correct|ra.revenue.view|ra.expenditure.manage|ra.reports.view|ra.settings.manage|ra.notice.manage",
+    "ra.estate.view|ra.estate.manage|ra.house.view|ra.house.manage|ra.charge.manage|ra.payment.view|ra.payment.verify|ra.payment.reject|ra.payment.correct|ra.discrepancy.view|ra.revenue.view|ra.expenditure.manage|ra.reports.view|ra.settings.manage|ra.notice.manage",
   collaterals: "view_collateral|create_collateral|verify_collateral|manage_collateral_transfer|manage_collateral_rules",
-  announcements: "create_announcement|publish_announcement|manage_announcement_settings|manage_notification_templates|manage_notifications",
-  "payment-receipts": "issue_receipt|cancel_receipt|view_receipts|issue_documents|view_issued_documents",
+  announcements:
+    "view_announcements|create_announcement|publish_announcement|manage_announcement_settings|manage_notification_templates|manage_notifications",
+  "payment-receipts": "view_receipts|issue_receipt|cancel_receipt",
 }
 
 /**
@@ -185,20 +181,22 @@ const ADMIN_HREF_ACTION_RULES: Array<{ test: (href: string) => boolean; permissi
   { test: (h) => /^\/admin\/users\/[^/]+\/edit$/.test(h), permission: "edit_users" },
   { test: (h) => h === "/admin/roles/new", permission: "manage_roles" },
   { test: (h) => /^\/admin\/roles\/[^/]+\/edit$/.test(h), permission: "manage_roles" },
+  { test: (h) => h === "/admin/permissions/new", permission: "manage_permissions" },
+  { test: (h) => /^\/admin\/permissions\/[^/]+\/edit$/.test(h), permission: "manage_permissions" },
   { test: (h) => h === "/admin/loans/new" || h === "/admin/loans/apply", permission: "create_loans" },
   { test: (h) => /^\/admin\/loans\/[^/]+\/edit$/.test(h), permission: "edit_loans" },
   { test: (h) => h === "/admin/contributions/new", permission: "create_contributions" },
   { test: (h) => /^\/admin\/contributions\/[^/]+\/edit$/.test(h), permission: "edit_contributions" },
   { test: (h) => h === "/admin/properties/new", permission: "create_properties" },
   { test: (h) => /^\/admin\/properties\/[^/]+\/edit$/.test(h), permission: "edit_properties" },
-  { test: (h) => h === "/admin/lands/new", permission: "create_properties" },
-  { test: (h) => /^\/admin\/lands\/[^/]+\/edit$/.test(h), permission: "edit_properties" },
+  { test: (h) => h === "/admin/lands/new", permission: "create_lands" },
+  { test: (h) => /^\/admin\/lands\/[^/]+\/edit$/.test(h), permission: "edit_lands" },
   { test: (h) => h === "/admin/documents/new", permission: "upload_documents" },
   { test: (h) => h === "/admin/mail-service/compose", permission: "compose_mail" },
   { test: (h) => /^\/admin\/bulk-upload\/members/.test(h), permission: "bulk_upload_members" },
-  { test: (h) => /^\/admin\/bulk-upload\/contributions/.test(h), permission: "create_contributions" },
-  { test: (h) => /^\/admin\/bulk-upload\/loans/.test(h), permission: "create_loans" },
-  { test: (h) => /^\/admin\/bulk-upload\/properties/.test(h), permission: "create_properties" },
+  { test: (h) => /^\/admin\/bulk-upload\/contributions/.test(h), permission: "bulk_upload_contributions" },
+  { test: (h) => /^\/admin\/bulk-upload\/loans/.test(h), permission: "bulk_upload_loans" },
+  { test: (h) => /^\/admin\/bulk-upload\/properties/.test(h), permission: "bulk_upload_properties" },
   { test: (h) => /^\/admin\/bulk-upload\/issued-documents/.test(h), permission: "issue_documents" },
   { test: (h) => /^\/admin\/statutory-charges\/new/.test(h), permission: "create_statutory_charges" },
   { test: (h) => /^\/admin\/statutory-charges\/[^/]+\/edit$/.test(h), permission: "edit_statutory_charges" },
@@ -206,8 +204,8 @@ const ADMIN_HREF_ACTION_RULES: Array<{ test: (href: string) => boolean; permissi
   { test: (h) => /^\/admin\/investment-plans\/[^/]+\/edit$/.test(h), permission: "edit_investment_plans" },
   { test: (h) => /^\/admin\/loan-products\/new/.test(h), permission: "create_loan_plans" },
   { test: (h) => /^\/admin\/loan-products\/[^/]+\/edit$/.test(h), permission: "edit_loan_plans" },
-  { test: (h) => /^\/admin\/contribution-plans\/new/.test(h), permission: "create_contributions" },
-  { test: (h) => /^\/admin\/contribution-plans\/[^/]+\/edit$/.test(h), permission: "edit_contributions" },
+  { test: (h) => /^\/admin\/contribution-plans\/new/.test(h), permission: "create_contribution_plans" },
+  { test: (h) => /^\/admin\/contribution-plans\/[^/]+\/edit$/.test(h), permission: "edit_contribution_plans" },
   { test: (h) => /^\/admin\/equity-plans\/new/.test(h), permission: "manage_equity_plans" },
   { test: (h) => /^\/admin\/equity-plans\/[^/]+\/edit$/.test(h), permission: "manage_equity_plans" },
   { test: (h) => /^\/admin\/payment-gateways\/new/.test(h), permission: "manage_payment_gateways" },
@@ -216,7 +214,7 @@ const ADMIN_HREF_ACTION_RULES: Array<{ test: (href: string) => boolean; permissi
   { test: (h) => h === "/admin/office/workflow/settings" || h.startsWith("/admin/office/workflow/settings/"), permission: "workflow.configure" },
   { test: (h) => h === "/admin/office/workflow/delegations" || h.startsWith("/admin/office/workflow/delegations/"), permission: "workflow.delegate" },
   { test: (h) => h === "/admin/office/cases/sla" || h.startsWith("/admin/office/cases/sla"), permission: "manage_office_case_sla" },
-  { test: (h) => h === "/admin/office/contributions" || h.startsWith("/admin/office/contributions/"), permission: "view_contributions" },
+  { test: (h) => h === "/admin/office/contributions" || h.startsWith("/admin/office/contributions/"), permission: "view_office_contributions" },
   { test: (h) => h === "/admin/office/inbox", permission: "approve_office_documents" },
   { test: (h) => h === "/admin/office/outbox", permission: "create_office_documents" },
   { test: (h) => h === "/admin/office/documents" || h.startsWith("/admin/office/documents/"), permission: "create_office_documents" },
@@ -284,6 +282,11 @@ export function userHasPermissionForAdminHref(
     if (rule.test(normalized)) {
       return hasAnyPermission(perms, rule.permission)
     }
+  }
+
+  const menuPermission = permissionForAdminMenu(normalized)
+  if (menuPermission) {
+    return hasAnyPermission(perms, menuPermission)
   }
 
   const key = adminHrefToPermissionKey(normalized)

@@ -59,11 +59,17 @@ import {
   Phone,
   Search,
   AlertCircle,
+  type LucideIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { useState, useEffect, useMemo } from "react"
+import { Fragment, useState, useEffect, useMemo, useRef } from "react"
 import { filterNavTreeByQuery } from "@/lib/navigation/nav-search"
+import {
+  bucketAdminNav,
+  findAdminSectionId,
+  type AdminNavSectionId,
+} from "@/lib/navigation/admin-nav-sections"
 import { Input } from "@/components/ui/input"
 import type { UserRole } from "@/lib/roles"
 import { useSidebarNavigation } from "@/hooks/use-sidebar-navigation"
@@ -114,6 +120,19 @@ interface NavItem {
   icon: any
   subItems?: NavItem[]
   module?: string
+  /** Visual cluster inside a long group. Does not affect permissions or modules. */
+  cluster?: string
+}
+
+const SECTION_ICONS: Record<AdminNavSectionId, LucideIcon> = {
+  home: LayoutDashboard,
+  people: Users,
+  finance: Wallet,
+  property: Home,
+  operations: Briefcase,
+  communications: Mail,
+  platform: Settings,
+  more: Sparkles,
 }
 
 export const ADMIN_NAV_ITEMS: NavItem[] = [
@@ -182,13 +201,13 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     label: "Loans",
     icon: TrendingUp,
     subItems: [
-      { href: "/admin/loans", label: "All Loans", icon: TrendingUp },
-      { href: "/admin/loans/apply", label: "Apply for Member", icon: FileEdit },
-      { href: "/admin/bulk-upload/loans", label: "Bulk Loan Applications", icon: Upload },
-      { href: "/admin/bulk-upload/loan-repayments", label: "Bulk Upload Repayments", icon: Upload },
-      { href: "/admin/loans/stoppage", label: "Loan Stoppage", icon: CalendarRange },
-      { href: "/admin/loan-repayments", label: "Individual Repayment", icon: Receipt },
-      { href: "/admin/loan-products", label: "Loan Products", icon: Package },
+      { href: "/admin/loans", label: "All Loans", icon: TrendingUp, cluster: "Lending" },
+      { href: "/admin/loans/apply", label: "Apply for Member", icon: FileEdit, cluster: "Lending" },
+      { href: "/admin/loans/stoppage", label: "Loan Stoppage", icon: CalendarRange, cluster: "Lending" },
+      { href: "/admin/loan-repayments", label: "Individual Repayment", icon: Receipt, cluster: "Lending" },
+      { href: "/admin/loan-products", label: "Loan Products", icon: Package, cluster: "Lending" },
+      { href: "/admin/bulk-upload/loans", label: "Bulk Loan Applications", icon: Upload, cluster: "Bulk" },
+      { href: "/admin/bulk-upload/loan-repayments", label: "Bulk Upload Repayments", icon: Upload, cluster: "Bulk" },
     ],
   },
   {
@@ -205,14 +224,14 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     label: "Mortgages",
     icon: Building2,
     subItems: [
-      { href: "/admin/mortgages", label: "All Mortgages", icon: Building2 },
-      { href: "/admin/mortgages/bulk-repay", label: "Bulk Mortgage Repayment", icon: Receipt },
-      { href: "/admin/mortgage-providers", label: "Mortgage Providers", icon: Building },
-      { href: "/admin/mortgages/new", label: "Create Mortgage", icon: Plus },
-      { href: "/admin/bulk-upload/mortgages", label: "Bulk Upload", icon: Upload },
-      { href: "/admin/internal-mortgages", label: "Internal Mortgage Plans", icon: Wrench },
-      { href: "/admin/bulk-upload/internal-mortgages", label: "Bulk Internal Mortgage", icon: Upload },
-      { href: "/admin/tools/mortgage-calculators", label: "Mortgage Calculators", icon: Calculator },
+      { href: "/admin/mortgages", label: "All Mortgages", icon: Building2, cluster: "Mortgages" },
+      { href: "/admin/mortgages/new", label: "Create Mortgage", icon: Plus, cluster: "Mortgages" },
+      { href: "/admin/mortgage-providers", label: "Mortgage Providers", icon: Building, cluster: "Mortgages" },
+      { href: "/admin/mortgages/bulk-repay", label: "Bulk Mortgage Repayment", icon: Receipt, cluster: "Mortgages" },
+      { href: "/admin/bulk-upload/mortgages", label: "Bulk Upload", icon: Upload, cluster: "Mortgages" },
+      { href: "/admin/internal-mortgages", label: "Internal Mortgage Plans", icon: Wrench, cluster: "Internal" },
+      { href: "/admin/bulk-upload/internal-mortgages", label: "Bulk Internal Mortgage", icon: Upload, cluster: "Internal" },
+      { href: "/admin/tools/mortgage-calculators", label: "Mortgage Calculators", icon: Calculator, cluster: "Tools" },
     ],
   },
   { href: "/admin/bulk-upload/rollbacks", label: "Financial Rollbacks", icon: RotateCcw, module: "financial_rollbacks" },
@@ -220,40 +239,40 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     label: "Houses / Buildings",
     icon: Home,
     subItems: [
-      { href: "/admin/properties", label: "House Management", icon: Home },
-      { href: "/admin/properties/new", label: "Upload House/Building", icon: Plus },
-      { href: "/admin/eoi-forms", label: "House EOI Forms", icon: ClipboardList },
-      { href: "/admin/property-payment-plans", label: "House Payment Plans", icon: CreditCard },
-      { href: "/admin/bulk-upload/properties", label: "Bulk Houses (CSV)", icon: Upload },
-      { href: "/admin/bulk-upload/property-subscribers", label: "Bulk House Subscribers", icon: Upload },
-      { href: "/admin/bulk-upload/property-payments", label: "Bulk House Repayments", icon: Upload },
-      { href: "/admin/bulk-upload/equity-asset-repayments", label: "Bulk Equity Repayments", icon: Upload },
-      { href: "/admin/bulk-upload/contribution-asset-repayments", label: "Bulk Contribution Repayments", icon: Upload },
-      { href: "/admin/bulk-upload/issued-documents", label: "Bulk Document Issuance", icon: Upload },
-      { href: "/admin/house-repayments", label: "Record House/Land Repayment", icon: CreditCard },
-      { href: "/admin/property-management/allottees/new", label: "Assign House to Member", icon: UserCheck },
-      { href: "/admin/property-management/allottees", label: "Manage House Allottees", icon: UserCheck },
-      { href: "/admin/property-management/allottees/mass-allocate", label: "Mass Allocate Houses", icon: Users },
-      { href: "/admin/reports/properties", label: "Building Reports", icon: FileBarChart },
-      { href: "/admin/valuations", label: "Property Valuations", icon: Calculator },
-      { href: "/admin/change-requests", label: "Change Request Center", icon: ClipboardList },
-      { href: "/admin/property-improvements", label: "Property Improvements", icon: Wrench },
+      { href: "/admin/properties", label: "House Management", icon: Home, cluster: "Manage" },
+      { href: "/admin/properties/new", label: "Upload House/Building", icon: Plus, cluster: "Manage" },
+      { href: "/admin/eoi-forms", label: "House EOI Forms", icon: ClipboardList, cluster: "Manage" },
+      { href: "/admin/property-payment-plans", label: "House Payment Plans", icon: CreditCard, cluster: "Manage" },
+      { href: "/admin/bulk-upload/properties", label: "Bulk Houses (CSV)", icon: Upload, cluster: "Bulk" },
+      { href: "/admin/bulk-upload/property-subscribers", label: "Bulk House Subscribers", icon: Upload, cluster: "Bulk" },
+      { href: "/admin/bulk-upload/property-payments", label: "Bulk House Repayments", icon: Upload, cluster: "Bulk" },
+      { href: "/admin/bulk-upload/equity-asset-repayments", label: "Bulk Equity Repayments", icon: Upload, cluster: "Bulk" },
+      { href: "/admin/bulk-upload/contribution-asset-repayments", label: "Bulk Contribution Repayments", icon: Upload, cluster: "Bulk" },
+      { href: "/admin/bulk-upload/issued-documents", label: "Bulk Document Issuance", icon: Upload, cluster: "Bulk" },
+      { href: "/admin/house-repayments", label: "Record House/Land Repayment", icon: CreditCard, cluster: "Allocation" },
+      { href: "/admin/property-management/allottees/new", label: "Assign House to Member", icon: UserCheck, cluster: "Allocation" },
+      { href: "/admin/property-management/allottees", label: "Manage House Allottees", icon: UserCheck, cluster: "Allocation" },
+      { href: "/admin/property-management/allottees/mass-allocate", label: "Mass Allocate Houses", icon: Users, cluster: "Allocation" },
+      { href: "/admin/reports/properties", label: "Building Reports", icon: FileBarChart, cluster: "Records" },
+      { href: "/admin/valuations", label: "Property Valuations", icon: Calculator, cluster: "Records" },
+      { href: "/admin/change-requests", label: "Change Request Center", icon: ClipboardList, cluster: "Records" },
+      { href: "/admin/property-improvements", label: "Property Improvements", icon: Wrench, cluster: "Records" },
     ],
   },
   {
     label: "Land",
     icon: MapPinned,
     subItems: [
-      { href: "/admin/lands", label: "Land Management", icon: MapPinned },
-      { href: "/admin/lands/new", label: "Upload Land", icon: Plus },
-      { href: "/admin/land-eoi-forms", label: "Land EOI Forms", icon: ClipboardList },
-      { href: "/admin/house-repayments", label: "Record House/Land Repayment", icon: CreditCard },
-      { href: "/admin/land-subscriptions/new", label: "Assign Land to Member", icon: UserCheck },
-      { href: "/admin/land-subscriptions/mass-allocate", label: "Mass Allocate Land", icon: Users },
-      { href: "/admin/bulk-upload/lands", label: "Bulk Land (CSV)", icon: Upload },
-      { href: "/admin/bulk-upload/land-subscriptions", label: "Bulk Land Subscriptions", icon: Upload },
-      { href: "/admin/bulk-upload/land-payments", label: "Bulk Land Payments", icon: Upload },
-      { href: "/admin/reports/land", label: "Land Reports", icon: FileBarChart },
+      { href: "/admin/lands", label: "Land Management", icon: MapPinned, cluster: "Manage" },
+      { href: "/admin/lands/new", label: "Upload Land", icon: Plus, cluster: "Manage" },
+      { href: "/admin/land-eoi-forms", label: "Land EOI Forms", icon: ClipboardList, cluster: "Manage" },
+      { href: "/admin/house-repayments", label: "Record House/Land Repayment", icon: CreditCard, cluster: "Allocation" },
+      { href: "/admin/land-subscriptions/new", label: "Assign Land to Member", icon: UserCheck, cluster: "Allocation" },
+      { href: "/admin/land-subscriptions/mass-allocate", label: "Mass Allocate Land", icon: Users, cluster: "Allocation" },
+      { href: "/admin/bulk-upload/lands", label: "Bulk Land (CSV)", icon: Upload, cluster: "Bulk" },
+      { href: "/admin/bulk-upload/land-subscriptions", label: "Bulk Land Subscriptions", icon: Upload, cluster: "Bulk" },
+      { href: "/admin/bulk-upload/land-payments", label: "Bulk Land Payments", icon: Upload, cluster: "Bulk" },
+      { href: "/admin/reports/land", label: "Land Reports", icon: FileBarChart, cluster: "Records" },
     ],
   },
   {
@@ -293,16 +312,16 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     icon: Users,
     module: "resident_association",
     subItems: [
-      { href: "/admin/resident-association", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/admin/resident-association/associations", label: "Associations", icon: Building2 },
-      { href: "/admin/resident-association/houses", label: "Houses", icon: Home },
-      { href: "/admin/resident-association/charges", label: "Charges", icon: Receipt },
-      { href: "/admin/resident-association/payments", label: "Payments", icon: CreditCard },
-      { href: "/admin/resident-association/discrepancies", label: "Discrepancies", icon: AlertCircle },
-      { href: "/admin/resident-association/revenue", label: "Revenue", icon: BarChart3 },
-      { href: "/admin/resident-association/expenditures", label: "Expenditure", icon: DollarSign },
-      { href: "/admin/resident-association/bank-accounts", label: "Bank Accounts", icon: Landmark },
-      { href: "/admin/resident-association/notices", label: "Notices", icon: Megaphone },
+      { href: "/admin/resident-association", label: "Dashboard", icon: LayoutDashboard, cluster: "Community" },
+      { href: "/admin/resident-association/associations", label: "Associations", icon: Building2, cluster: "Community" },
+      { href: "/admin/resident-association/houses", label: "Houses", icon: Home, cluster: "Community" },
+      { href: "/admin/resident-association/notices", label: "Notices", icon: Megaphone, cluster: "Community" },
+      { href: "/admin/resident-association/charges", label: "Charges", icon: Receipt, cluster: "Money" },
+      { href: "/admin/resident-association/payments", label: "Payments", icon: CreditCard, cluster: "Money" },
+      { href: "/admin/resident-association/discrepancies", label: "Discrepancies", icon: AlertCircle, cluster: "Money" },
+      { href: "/admin/resident-association/revenue", label: "Revenue", icon: BarChart3, cluster: "Money" },
+      { href: "/admin/resident-association/expenditures", label: "Expenditure", icon: DollarSign, cluster: "Money" },
+      { href: "/admin/resident-association/bank-accounts", label: "Bank Accounts", icon: Landmark, cluster: "Money" },
     ],
   },
   {
@@ -346,14 +365,14 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     icon: Landmark,
     module: "accounting",
     subItems: [
-      { href: "/admin/accounting", label: "Accounting Hub", icon: Landmark },
-      { href: "/admin/accounting/accounts", label: "Chart of Accounts", icon: BookOpen },
-      { href: "/admin/accounting/rules", label: "Posting Rules", icon: Settings },
-      { href: "/admin/accounting/periods", label: "Financial Periods", icon: CalendarRange },
-      { href: "/admin/accounting/journals", label: "Journals", icon: Scale },
-      { href: "/admin/accounting/reports", label: "GL Reports", icon: FileBarChart },
-      { href: "/admin/accounting/statements", label: "Member Statements", icon: Wallet },
-      { href: "/admin/accounting/property-ledger", label: "Property Ledger", icon: Home },
+      { href: "/admin/accounting", label: "Accounting Hub", icon: Landmark, cluster: "Setup" },
+      { href: "/admin/accounting/accounts", label: "Chart of Accounts", icon: BookOpen, cluster: "Setup" },
+      { href: "/admin/accounting/rules", label: "Posting Rules", icon: Settings, cluster: "Setup" },
+      { href: "/admin/accounting/periods", label: "Financial Periods", icon: CalendarRange, cluster: "Setup" },
+      { href: "/admin/accounting/journals", label: "Journals", icon: Scale, cluster: "Books" },
+      { href: "/admin/accounting/reports", label: "GL Reports", icon: FileBarChart, cluster: "Books" },
+      { href: "/admin/accounting/statements", label: "Member Statements", icon: Wallet, cluster: "Books" },
+      { href: "/admin/accounting/property-ledger", label: "Property Ledger", icon: Home, cluster: "Books" },
     ],
   },
   {
@@ -361,21 +380,21 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     icon: HardHat,
     module: "ecpm",
     subItems: [
-      { href: "/admin/ecpm", label: "ECPM Hub", icon: HardHat },
-      { href: "/admin/ecpm/estates", label: "Estates & Plots", icon: MapPinned },
-      { href: "/admin/ecpm/projects", label: "Projects", icon: Building2 },
-      { href: "/admin/ecpm/parties", label: "Contractors & Parties", icon: Users },
-      { href: "/admin/ecpm/drawings", label: "Drawings", icon: FileText },
-      { href: "/admin/ecpm/boqs", label: "BOQs", icon: ClipboardList },
-      { href: "/admin/ecpm/quotations", label: "Quotations", icon: Receipt },
-      { href: "/admin/ecpm/contracts", label: "Contracts", icon: FileSignature },
-      { href: "/admin/ecpm/approvals", label: "Approvals", icon: ClipboardCheck },
-      { href: "/admin/ecpm/site-ops", label: "Site Ops", icon: ClipboardList },
-      { href: "/admin/ecpm/procurement", label: "Procurement", icon: Package },
-      { href: "/admin/ecpm/handover", label: "Handover", icon: FileCheck },
-      { href: "/admin/ecpm/ai", label: "AI Assist", icon: Sparkles },
-      { href: "/admin/ecpm/reports", label: "ECPM Reports", icon: FileBarChart },
-      { href: "/admin/ecpm/audit", label: "Audit Trail", icon: ScrollText },
+      { href: "/admin/ecpm", label: "ECPM Hub", icon: HardHat, cluster: "Projects" },
+      { href: "/admin/ecpm/estates", label: "Estates & Plots", icon: MapPinned, cluster: "Projects" },
+      { href: "/admin/ecpm/projects", label: "Projects", icon: Building2, cluster: "Projects" },
+      { href: "/admin/ecpm/parties", label: "Contractors & Parties", icon: Users, cluster: "Projects" },
+      { href: "/admin/ecpm/drawings", label: "Drawings", icon: FileText, cluster: "Commercial" },
+      { href: "/admin/ecpm/boqs", label: "BOQs", icon: ClipboardList, cluster: "Commercial" },
+      { href: "/admin/ecpm/quotations", label: "Quotations", icon: Receipt, cluster: "Commercial" },
+      { href: "/admin/ecpm/contracts", label: "Contracts", icon: FileSignature, cluster: "Commercial" },
+      { href: "/admin/ecpm/approvals", label: "Approvals", icon: ClipboardCheck, cluster: "Commercial" },
+      { href: "/admin/ecpm/site-ops", label: "Site Ops", icon: ClipboardList, cluster: "Site" },
+      { href: "/admin/ecpm/procurement", label: "Procurement", icon: Package, cluster: "Site" },
+      { href: "/admin/ecpm/handover", label: "Handover", icon: FileCheck, cluster: "Site" },
+      { href: "/admin/ecpm/ai", label: "AI Assist", icon: Sparkles, cluster: "Review" },
+      { href: "/admin/ecpm/reports", label: "ECPM Reports", icon: FileBarChart, cluster: "Review" },
+      { href: "/admin/ecpm/audit", label: "Audit Trail", icon: ScrollText, cluster: "Review" },
     ],
   },
   {
@@ -383,27 +402,27 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     icon: Briefcase,
     module: "office",
     subItems: [
-      { href: "/admin/office", label: "Office Hub", icon: Briefcase },
-      { href: "/admin/office/cases", label: "Case Desk", icon: ListTodo },
-      { href: "/admin/office/workflow/queue", label: "Workflow Queue", icon: ClipboardCheck },
-      { href: "/admin/office/workflow/settings", label: "Workflow Settings", icon: Settings },
-      { href: "/admin/office/workflow/delegations", label: "Delegations", icon: Settings },
-      { href: "/admin/office/cases/sla", label: "Case SLA", icon: Settings },
-      { href: "/admin/office/contributions", label: "Contributions Office", icon: CreditCard },
-      { href: "/admin/office/inbox", label: "Inbox", icon: Inbox },
-      { href: "/admin/office/outbox", label: "Outbox", icon: Send },
-      { href: "/admin/office/tasks", label: "My Tasks", icon: ListTodo },
-      { href: "/admin/office/documents", label: "Registry Search", icon: FolderOpen },
-      { href: "/admin/office/library", label: "Folders & Tags", icon: FolderOpen },
-      { href: "/admin/office/memos/new", label: "New Internal Memo", icon: FileEdit },
-      { href: "/admin/office/correspondence", label: "Correspondence", icon: Mail },
-      { href: "/admin/office/circulars", label: "HQ Circulars", icon: Building2 },
-      { href: "/admin/office/reports", label: "Reports", icon: FileBarChart },
-      { href: "/admin/office/ai", label: "AI Assist", icon: Wrench },
-      { href: "/admin/office/org-units", label: "Org Units", icon: Building2 },
-      { href: "/admin/office/workflows", label: "Workflows", icon: FolderOpen },
-      { href: "/admin/office/categories", label: "Categories", icon: FileText },
-      { href: "/admin/office/templates", label: "Templates", icon: FileEdit },
+      { href: "/admin/office", label: "Office Hub", icon: Briefcase, cluster: "Desk" },
+      { href: "/admin/office/cases", label: "Case Desk", icon: ListTodo, cluster: "Desk" },
+      { href: "/admin/office/workflow/queue", label: "Workflow Queue", icon: ClipboardCheck, cluster: "Desk" },
+      { href: "/admin/office/tasks", label: "My Tasks", icon: ListTodo, cluster: "Desk" },
+      { href: "/admin/office/inbox", label: "Inbox", icon: Inbox, cluster: "Desk" },
+      { href: "/admin/office/outbox", label: "Outbox", icon: Send, cluster: "Desk" },
+      { href: "/admin/office/contributions", label: "Contributions Office", icon: CreditCard, cluster: "Desk" },
+      { href: "/admin/office/documents", label: "Registry Search", icon: FolderOpen, cluster: "Documents" },
+      { href: "/admin/office/library", label: "Folders & Tags", icon: FolderOpen, cluster: "Documents" },
+      { href: "/admin/office/memos/new", label: "New Internal Memo", icon: FileEdit, cluster: "Documents" },
+      { href: "/admin/office/correspondence", label: "Correspondence", icon: Mail, cluster: "Documents" },
+      { href: "/admin/office/circulars", label: "HQ Circulars", icon: Building2, cluster: "Documents" },
+      { href: "/admin/office/workflow/settings", label: "Workflow Settings", icon: Settings, cluster: "Setup" },
+      { href: "/admin/office/workflow/delegations", label: "Delegations", icon: Settings, cluster: "Setup" },
+      { href: "/admin/office/cases/sla", label: "Case SLA", icon: Settings, cluster: "Setup" },
+      { href: "/admin/office/org-units", label: "Org Units", icon: Building2, cluster: "Setup" },
+      { href: "/admin/office/workflows", label: "Workflows", icon: FolderOpen, cluster: "Setup" },
+      { href: "/admin/office/categories", label: "Categories", icon: FileText, cluster: "Setup" },
+      { href: "/admin/office/templates", label: "Templates", icon: FileEdit, cluster: "Setup" },
+      { href: "/admin/office/reports", label: "Reports", icon: FileBarChart, cluster: "Review" },
+      { href: "/admin/office/ai", label: "AI Assist", icon: Wrench, cluster: "Review" },
     ],
   },
   { href: "/admin/notifications", label: "Notifications", icon: Bell },
@@ -473,7 +492,9 @@ export function AdminSidebar({
   const pathname = usePathname()
   const [hasActiveSubscription, setHasActiveSubscription] = useState<boolean | null>(null)
   const [enabledModules, setEnabledModules] = useState<string[] | null>(null)
+  const [packageName, setPackageName] = useState<string | null>(null)
   const [pendingBadges, setPendingBadges] = useState<AdminPendingBadgeCounts | null>(null)
+  const navScrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -519,11 +540,13 @@ export function AdminSidebar({
         const isActive = response.subscription?.is_active === true && response.subscription?.status === "active"
         setHasActiveSubscription(isActive)
         setEnabledModules(response.enabled_modules ?? [])
+        setPackageName(response.subscription?.package_name?.trim() || null)
       } catch (error) {
         console.error("Failed to check subscription status:", error)
         // Default to false if check fails
         setHasActiveSubscription(false)
         setEnabledModules([])
+        setPackageName(null)
       }
     }
     checkSubscription()
@@ -584,41 +607,102 @@ export function AdminSidebar({
     : filterAdminNavByModules(subscriptionFiltered, enabledModules)
 
   const [navQuery, setNavQuery] = useState("")
-  const visibleNavItems = useMemo(
-    () => filterNavTreeByQuery(filteredNavItems, navQuery),
-    [filteredNavItems, navQuery],
-  )
+  const [pinnedSectionId, setPinnedSectionId] = useState<AdminNavSectionId | null>(null)
+  const [pinnedForPath, setPinnedForPath] = useState(pathname)
+
+  if (pinnedForPath !== pathname) {
+    setPinnedForPath(pathname)
+    setPinnedSectionId(null)
+  }
+
+  const sections = useMemo(() => bucketAdminNav(filteredNavItems), [filteredNavItems])
+  const searching = navQuery.trim().length > 0
+  const routedSectionId = findAdminSectionId(filteredNavItems, pathname)
+  const activePin = pinnedForPath === pathname ? pinnedSectionId : null
+  const pinnedIsVisible = activePin != null && sections.some((group) => group.section.id === activePin)
+  const visibleSectionId = (pinnedIsVisible ? activePin : routedSectionId) ?? sections[0]?.section.id ?? null
+  const currentGroup = sections.find((group) => group.section.id === visibleSectionId) ?? sections[0] ?? null
+  const searchGroups = searching
+    ? sections
+        .map((group) => ({
+          section: group.section,
+          items: filterNavTreeByQuery(group.items, navQuery),
+        }))
+        .filter((group) => group.items.length > 0)
+    : []
 
   const { toggleMenu, isMenuOpen } = useSidebarNavigation(filteredNavItems, pathname, "flat")
+
+  useEffect(() => {
+    if (searching) return
+    const container = navScrollRef.current
+    if (!container) return
+    const timer = window.setTimeout(() => {
+      const active = container.querySelector<HTMLElement>('[data-nav-active="true"]')
+      if (!active) return
+      const delta = active.getBoundingClientRect().top - container.getBoundingClientRect().top
+      if (delta < 8 || delta > container.clientHeight - 48) {
+        container.scrollTop += delta - 56
+      }
+    }, 220)
+    return () => window.clearTimeout(timer)
+  }, [pathname, visibleSectionId, searching])
+
+  const linkIsCurrent = (href: string | undefined, candidates: string[]): boolean => {
+    if (!href) return false
+    const path = href.split("?")[0].replace(/\/$/, "") || "/"
+    let best: string | null = null
+    for (const candidate of candidates) {
+      const candidatePath = candidate.split("?")[0].replace(/\/$/, "") || "/"
+      const matches =
+        candidatePath === "/admin"
+          ? pathname === "/admin"
+          : pathname === candidatePath || pathname.startsWith(`${candidatePath}/`)
+      if (!matches) continue
+      if (!best || candidatePath.length > best.length) best = candidatePath
+    }
+    return best === path
+  }
 
   const renderNavItem = (item: NavItem) => {
     const Icon = item.icon
     const hasSubItems = item.subItems && item.subItems.length > 0
-    const isOpen = Boolean(navQuery.trim()) || isMenuOpen(item.label)
-    const isActive = item.href ? pathname === item.href || pathname.startsWith(item.href + "/") : false
+    const isOpen = searching || isMenuOpen(item.label)
+    const isActive = linkIsCurrent(item.href, item.href ? [item.href] : [])
     const hasActiveChild = hasSubItems && item.subItems!.some((sub) => itemMatchesPathname(sub, pathname))
 
     if (hasSubItems) {
       const groupBadge = badgeCountForItem(item)
+      const childHrefs = item.subItems!.map((sub) => sub.href).filter((href): href is string => Boolean(href))
+      let lastCluster: string | undefined
+
       return (
         <div key={item.label} className="space-y-0.5">
           <button
             type="button"
             onClick={() => toggleMenu(item.label)}
             aria-expanded={isOpen}
+            title={item.label}
             className={cn(
-              "flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors duration-200",
+              "flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-[13px] font-medium transition-colors duration-200",
               hasActiveChild || isOpen
                 ? "bg-primary/10 text-foreground"
                 : "text-muted-foreground hover:bg-muted hover:text-foreground",
             )}
           >
-            <Icon className="h-5 w-5 shrink-0" />
+            <span
+              className={cn(
+                "flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
+                hasActiveChild ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+              )}
+            >
+              <Icon className="h-4 w-4" />
+            </span>
             <span className="flex-1 truncate">{item.label}</span>
             <PendingBadge count={groupBadge} />
             <ChevronDown
               className={cn(
-                "h-4 w-4 shrink-0 opacity-70 transition-transform duration-200",
+                "h-4 w-4 shrink-0 opacity-60 transition-transform duration-200",
                 isOpen ? "rotate-0" : "-rotate-90",
               )}
             />
@@ -630,28 +714,36 @@ export function AdminSidebar({
             )}
           >
             <div className="overflow-hidden">
-              <div className="ml-3 mt-0.5 space-y-0.5 border-l border-border/60 pl-2">
+              <div className="ml-5 mt-0.5 space-y-0.5 border-l border-border/70 pl-2">
                 {item.subItems?.map((subItem) => {
-                  const SubIcon = subItem.icon
-                  const isSubActive = pathname === subItem.href || pathname.startsWith(subItem.href! + "/")
+                  const showCluster = Boolean(subItem.cluster) && subItem.cluster !== lastCluster
+                  lastCluster = subItem.cluster
+                  const isSubActive = linkIsCurrent(subItem.href, childHrefs)
                   const subBadge = badgeCountForHref(subItem.href)
                   return (
-                    <Link
-                      key={subItem.href}
-                      href={subItem.href!}
-                      data-nav-active={isSubActive ? "true" : undefined}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={cn(
-                        "flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium transition-colors duration-150",
-                        isSubActive
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                      )}
-                    >
-                      <SubIcon className="h-4 w-4 shrink-0" />
-                      <span className="flex-1 truncate">{subItem.label}</span>
-                      <PendingBadge count={subBadge} />
-                    </Link>
+                    <Fragment key={subItem.href ?? subItem.label}>
+                      {showCluster ? (
+                        <p className="px-2 pb-0.5 pt-2.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+                          {subItem.cluster}
+                        </p>
+                      ) : null}
+                      <Link
+                        href={subItem.href!}
+                        title={subItem.label}
+                        data-nav-active={isSubActive ? "true" : undefined}
+                        aria-current={isSubActive ? "page" : undefined}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={cn(
+                          "flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] font-medium transition-colors duration-150",
+                          isSubActive
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                        )}
+                      >
+                        <span className="flex-1 truncate">{subItem.label}</span>
+                        <PendingBadge count={subBadge} />
+                      </Link>
+                    </Fragment>
                   )
                 })}
               </div>
@@ -667,62 +759,171 @@ export function AdminSidebar({
       <Link
         key={item.href}
         href={item.href!}
+        title={item.label}
         data-nav-active={isActive ? "true" : undefined}
+        aria-current={isActive ? "page" : undefined}
         onClick={() => setMobileMenuOpen(false)}
         className={cn(
-          "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors",
+          "flex items-center gap-2.5 rounded-lg px-2 py-1.5 text-[13px] font-medium transition-colors",
           isActive
             ? "bg-primary text-primary-foreground"
             : "text-muted-foreground hover:bg-muted hover:text-foreground",
         )}
       >
-        <Icon className="h-5 w-5 shrink-0" />
+        <span
+          className={cn(
+            "flex h-7 w-7 shrink-0 items-center justify-center rounded-md",
+            isActive ? "bg-primary-foreground/15 text-primary-foreground" : "bg-muted text-muted-foreground",
+          )}
+        >
+          <Icon className="h-4 w-4" />
+        </span>
         <span className="flex-1 truncate">{item.label}</span>
         <PendingBadge count={topBadge} />
       </Link>
     )
   }
 
+  const planLabel = hasActiveSubscription === false ? "No active plan" : packageName
+  const showSwitcher = sections.length > 1
+
   return (
     <>
       {mobileMenuOpen && (
-        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setMobileMenuOpen(false)} />
+        <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setMobileMenuOpen(false)} />
       )}
 
       <aside
         className={cn(
-          "fixed lg:static inset-y-0 left-0 z-50 w-64 border-r bg-card/95 backdrop-blur-sm transition-transform duration-300 lg:translate-x-0",
-          "lg:block min-h-[calc(100vh-73px)] mt-[73px] lg:mt-0 overflow-y-auto",
-          mobileMenuOpen ? "translate-x-0" : "-translate-x-full",
+          "fixed bottom-0 left-0 top-[73px] z-50 flex w-[17.75rem] min-h-0 flex-col overflow-hidden border-r bg-card/95 backdrop-blur-sm transition-transform duration-300",
+          "lg:static lg:top-auto lg:h-full lg:max-h-full lg:translate-x-0",
+          mobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
-        <div className="flex items-center justify-between p-4 lg:hidden border-b">
+        <div className="flex shrink-0 items-center justify-between border-b px-3 py-3 lg:hidden">
           <span className="font-semibold">Admin Menu</span>
           <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(false)}>
             <X className="h-5 w-5" />
           </Button>
         </div>
 
-        <div className="p-4 pb-0">
+        <div className="shrink-0 space-y-3 border-b px-3 py-3">
+          {planLabel ? (
+            <p className="truncate text-[11px] font-medium text-muted-foreground" title={planLabel}>
+              {planLabel}
+            </p>
+          ) : null}
+
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={navQuery}
               onChange={(e) => setNavQuery(e.target.value)}
-              placeholder="Filter menu…"
-              className="h-9 pl-9"
-              aria-label="Filter menu"
+              placeholder="Search all menus"
+              className={cn("h-9 bg-muted/40 pl-9", navQuery ? "pr-8" : "")}
+              aria-label="Search all menus"
             />
+            {navQuery ? (
+              <button
+                type="button"
+                onClick={() => setNavQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-0.5 text-muted-foreground hover:text-foreground"
+                aria-label="Clear menu search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            ) : null}
+          </div>
+
+          {showSwitcher ? (
+            <div className="flex flex-wrap gap-1" role="group" aria-label="Admin areas">
+              {sections.map((group) => {
+                const SectionIcon = SECTION_ICONS[group.section.id]
+                const selected = !searching && group.section.id === visibleSectionId
+                const pending = group.items.reduce((sum, item) => sum + badgeCountForItem(item), 0)
+                return (
+                  <button
+                    key={group.section.id}
+                    type="button"
+                    aria-pressed={selected}
+                    title={group.section.description}
+                    onClick={() => {
+                      setNavQuery("")
+                      setPinnedSectionId(group.section.id)
+                    }}
+                    className={cn(
+                      "inline-flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] font-medium transition-colors",
+                      selected
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "bg-muted/70 text-muted-foreground hover:bg-muted hover:text-foreground",
+                    )}
+                  >
+                    <SectionIcon className="h-3.5 w-3.5 shrink-0" />
+                    <span>{group.section.short}</span>
+                    {pending > 0 ? (
+                      <span
+                        className={cn(
+                          "inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[9px] font-semibold tabular-nums",
+                          selected
+                            ? "bg-primary-foreground/20 text-primary-foreground"
+                            : "bg-destructive text-destructive-foreground",
+                        )}
+                      >
+                        {pending > 9 ? "9+" : pending}
+                      </span>
+                    ) : null}
+                  </button>
+                )
+              })}
+            </div>
+          ) : null}
+
+          <div>
+            {searching ? (
+              <>
+                <p className="text-sm font-semibold tracking-tight">Search</p>
+                <p className="text-[11px] leading-snug text-muted-foreground">
+                  Matches across every menu on this plan
+                </p>
+              </>
+            ) : currentGroup ? (
+              <>
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="text-sm font-semibold tracking-tight">{currentGroup.section.label}</p>
+                  <p className="shrink-0 text-[11px] text-muted-foreground">
+                    {currentGroup.items.length} {currentGroup.items.length === 1 ? "menu" : "menus"}
+                  </p>
+                </div>
+                <p className="text-[11px] leading-snug text-muted-foreground">{currentGroup.section.description}</p>
+              </>
+            ) : null}
           </div>
         </div>
 
-        <nav className="p-4 space-y-2">
-          {visibleNavItems.length > 0 ? (
-            visibleNavItems.map((item) => renderNavItem(item))
+        <div ref={navScrollRef} className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+          {searching ? (
+            searchGroups.length > 0 ? (
+              <div className="space-y-4">
+                {searchGroups.map((group) => (
+                  <div key={group.section.id}>
+                    <p className="mb-1 px-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      {group.section.label}
+                    </p>
+                    <div className="space-y-0.5">{group.items.map((item) => renderNavItem(item))}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="px-2 py-6 text-center text-sm text-muted-foreground">No matching menu items.</p>
+            )
+          ) : currentGroup ? (
+            <nav className="space-y-0.5" aria-label={currentGroup.section.label}>
+              {currentGroup.items.map((item) => renderNavItem(item))}
+            </nav>
           ) : (
-            <p className="px-2 py-4 text-sm text-muted-foreground">No matching menu items.</p>
+            <p className="px-2 py-6 text-center text-sm text-muted-foreground">No menus available.</p>
           )}
-        </nav>
+        </div>
       </aside>
     </>
   )

@@ -48,11 +48,22 @@ function normalizePermission(raw: any): Permission {
   } as Permission
 }
 
+const PERMISSION_VERBS = new Set([
+  'view', 'create', 'edit', 'update', 'delete', 'manage', 'approve', 'reject',
+  'bulk', 'export', 'upload', 'publish', 'assign', 'complete', 'issue', 'cancel',
+  'run', 'override', 'compose', 'reply', 'disburse', 'verify', 'download',
+  'reissue', 'revoke', 'post', 'generate', 'reopen', 'sync', 'claim', 'test',
+  'rollback', 'record',
+])
+
 function inferGroupFromPermissionName(name: string): string {
   if (!name) return 'general'
   if (name.includes('.')) return name.split('.')[0] || 'general'
-  if (name.includes('_')) return name.split('_')[0] || 'general'
-  return 'general'
+  const parts = name.split('_').filter(Boolean)
+  if (parts.length >= 2 && PERMISSION_VERBS.has(parts[0])) {
+    return parts.slice(1).join('_')
+  }
+  return parts[0] || 'general'
 }
 
 async function fetchAllPermissionsFallback(limitPerPage = 200, maxPages = 20): Promise<Permission[]> {

@@ -317,7 +317,7 @@ export default function EditRolePage() {
                                 checked={formData.permissions.includes(permission.name)}
                                 onCheckedChange={(checked) => handlePermissionChange(permission.name, !!checked)}
                               />
-                              <Label htmlFor={inputId} className="text-sm">
+                              <Label htmlFor={inputId} className="text-sm" title={permission.description || permission.name}>
                                 {permission.display_name || permission.label || permission.name}
                               </Label>
                             </div>

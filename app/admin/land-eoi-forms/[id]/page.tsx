@@ -173,13 +173,13 @@ export default function LandEoiFormDetailPage({ params }: { params: Promise<{ id
 
       {eoiForm.status === "pending" && (
         <div className="flex justify-end gap-4">
-          <Can permission="approve_allotments">
+          <Can permission="manage_land_eoi">
             <Button onClick={handleApprove} disabled={processing}>
               {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
               Approve
             </Button>
           </Can>
-          <Can permission="reject_allotments">
+          <Can permission="manage_land_eoi">
             <Button variant="destructive" onClick={handleReject} disabled={processing}>
               {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
               Reject

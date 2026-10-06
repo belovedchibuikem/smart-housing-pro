@@ -147,7 +147,7 @@ export default function AdminLandManagementPage() {
   const [page, setPage] = useState(1)
   const [pagination, setPagination] = useState<{ current_page: number; last_page: number; per_page: number; total: number } | null>(null)
   const [recalculating, setRecalculating] = useState(false)
-  const canRecalculateStats = can("manage_property_estates|create_properties|edit_properties")
+  const canRecalculateStats = can("edit_lands|create_lands|view_lands")
   const hasActiveLocationFilters = Boolean(
     locationFilters.estateId || locationFilters.location || locationFilters.city || locationFilters.state,
   )
@@ -367,12 +367,12 @@ export default function AdminLandManagementPage() {
             <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuLabel>Land operations</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <Can permission="bulk_upload_properties|create_properties">
+              <Can permission="bulk_upload_lands">
                 <DropdownMenuItem asChild>
                   <Link href="/admin/bulk-upload/lands">Bulk land parcels</Link>
                 </DropdownMenuItem>
               </Can>
-              <Can permission="manage_property_allottees|approve_allotments">
+              <Can permission="manage_land_subscriptions|bulk_land_subscriptions">
                 <DropdownMenuItem asChild>
                   <Link href="/admin/land-subscriptions/mass-allocate">Mass allocate land</Link>
                 </DropdownMenuItem>
@@ -380,12 +380,12 @@ export default function AdminLandManagementPage() {
                   <Link href="/admin/bulk-upload/land-subscriptions">Bulk land subscriptions</Link>
                 </DropdownMenuItem>
               </Can>
-              <Can permission="manage_property_allottees|manage_payments">
+              <Can permission="bulk_land_payments">
                 <DropdownMenuItem asChild>
                   <Link href="/admin/bulk-upload/land-payments">Bulk land payments</Link>
                 </DropdownMenuItem>
               </Can>
-              <Can permission="manage_property_allottees|manage_payments">
+              <Can permission="bulk_equity_repayments">
                 <DropdownMenuItem asChild>
                   <Link href="/admin/bulk-upload/equity-asset-repayments">Bulk equity repayments</Link>
                 </DropdownMenuItem>
@@ -409,7 +409,7 @@ export default function AdminLandManagementPage() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <Can permission="create_properties">
+          <Can permission="create_lands">
             <Button asChild>
               <Link href="/admin/lands/new">
                 <Plus className="mr-2 h-4 w-4" />
@@ -679,7 +679,7 @@ export default function AdminLandManagementPage() {
                 </p>
               </div>
               <div className="flex w-full flex-col gap-2 sm:max-w-xl sm:flex-row sm:items-center">
-                <Can permission="manage_property_allottees|approve_allotments">
+                <Can permission="manage_land_subscriptions">
                   <div className="flex flex-wrap gap-2">
                     <Button variant="outline" size="sm" asChild>
                       <Link href="/admin/land-subscriptions/mass-allocate">Mass allocate</Link>

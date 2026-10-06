@@ -148,12 +148,12 @@ export default function AdminMortgagesPage() {
           <p className="text-muted-foreground mt-1">Create and manage housing mortgage agreements</p>
         </div>
         <div className="flex gap-2">
-          <Can permission="manage_payments|edit_loans">
+          <Can permission="bulk_mortgage_repayments">
             <Link href="/admin/mortgages/bulk-repay">
               <Button variant="outline">Bulk repayment</Button>
             </Link>
           </Can>
-          <Can permission="create_loans">
+          <Can permission="create_mortgages">
             <Link href="/admin/mortgages/new">
               <Button>
                 <Plus className="h-4 w-4 mr-2" />

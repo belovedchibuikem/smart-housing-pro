@@ -260,7 +260,7 @@ export default function LandEOIFormsPage() {
                     </Button>
                     {form.status === "pending" && (
                       <>
-                        <Can permission="approve_allotments">
+                        <Can permission="manage_land_eoi">
                           <Button size="sm" onClick={() => handleApprove(form.id)} disabled={processingId === form.id}>
                             {processingId === form.id ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
@@ -270,7 +270,7 @@ export default function LandEOIFormsPage() {
                             Approve
                           </Button>
                         </Can>
-                        <Can permission="reject_allotments">
+                        <Can permission="manage_land_eoi">
                           <Button
                             size="sm"
                             variant="destructive"
