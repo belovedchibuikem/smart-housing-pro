@@ -3,6 +3,7 @@
 import { getUserData } from "@/lib/auth/auth-utils"
 import type { AuthUser } from "@/lib/auth/types"
 import { getRoleSlug } from "@/lib/auth/user-roles"
+import { expandTenantPermissions } from "@/lib/admin/expand-tenant-permissions"
 import {
   isLegacyStaffFallbackPath,
   isTenantSuperAdminContext,
@@ -23,11 +24,13 @@ export function canTenantPermission(
   const legacyRole = getRoleSlug(u)
   if (isTenantSuperAdminContext(roles, legacyRole)) return true
 
-  const required = Array.isArray(permission) ? permission : permission.split("|")
+  const required = expandTenantPermissions(
+    (Array.isArray(permission) ? permission : permission.split("|")).map((p) => p.trim()),
+  )
   const perms = Array.isArray(u.permissions) ? u.permissions : []
   const set = new Set(perms)
 
-  return required.some((p) => set.has(p.trim()))
+  return required.some((p) => set.has(p))
 }
 
 /** Whether the user may open a given /admin/* path (mirrors API route map). */

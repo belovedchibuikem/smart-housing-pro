@@ -1,0 +1,610 @@
+{
+    "approve_ecpm_documents": [
+        "view_ecpm"
+    ],
+    "approve_mortgages": [
+        "approve_loans",
+        "manage_mortgages"
+    ],
+    "bulk_contribution_repayments": [
+        "view_contributions",
+        "manage_payments",
+        "manage_property_allottees",
+        "view_properties"
+    ],
+    "bulk_equity_repayments": [
+        "view_equity_contributions",
+        "manage_payments",
+        "manage_property_allottees",
+        "view_properties"
+    ],
+    "bulk_internal_mortgage_repayments": [
+        "manage_loan_repayments",
+        "view_loans"
+    ],
+    "bulk_internal_mortgages": [
+        "create_loans",
+        "view_loans",
+        "approve_loans",
+        "manage_mortgages"
+    ],
+    "bulk_land_payments": [
+        "manage_payments",
+        "manage_property_allottees",
+        "view_properties"
+    ],
+    "bulk_land_subscriptions": [
+        "manage_property_allottees",
+        "approve_allotments",
+        "view_properties"
+    ],
+    "bulk_member_subscriptions": [
+        "view_members",
+        "manage_member_kyc",
+        "view_wallets",
+        "manage_payments",
+        "view_contributions"
+    ],
+    "bulk_mortgage_repayments": [
+        "manage_loan_repayments",
+        "view_loans",
+        "manage_mortgages"
+    ],
+    "bulk_property_payments": [
+        "manage_payments",
+        "manage_property_allottees",
+        "view_properties"
+    ],
+    "bulk_property_subscribers": [
+        "manage_property_allottees",
+        "approve_allotments",
+        "view_properties"
+    ],
+    "bulk_refunds": [
+        "manage_payments",
+        "view_wallets",
+        "view_contributions"
+    ],
+    "bulk_upload_contributions": [
+        "create_contributions",
+        "view_contributions"
+    ],
+    "bulk_upload_investments": [
+        "create_investments",
+        "approve_investments",
+        "view_investments",
+        "create_investment_plans"
+    ],
+    "bulk_upload_lands": [
+        "create_properties",
+        "view_properties"
+    ],
+    "bulk_upload_loan_repayments": [
+        "manage_loan_repayments",
+        "view_loans"
+    ],
+    "bulk_upload_loans": [
+        "create_loans",
+        "view_loans"
+    ],
+    "bulk_upload_mortgages": [
+        "create_loans",
+        "view_loans",
+        "manage_mortgages"
+    ],
+    "bulk_upload_properties": [
+        "create_properties",
+        "view_properties"
+    ],
+    "bulk_wallet_transfers": [
+        "manage_wallets",
+        "manage_payments",
+        "view_wallets"
+    ],
+    "create_contribution_plans": [
+        "create_contributions"
+    ],
+    "create_lands": [
+        "create_properties"
+    ],
+    "create_mortgages": [
+        "create_loans",
+        "manage_mortgages"
+    ],
+    "delete_contribution_plans": [
+        "delete_contributions"
+    ],
+    "delete_lands": [
+        "delete_properties"
+    ],
+    "disburse_mortgages": [
+        "disburse_loans",
+        "manage_mortgages"
+    ],
+    "edit_contribution_plans": [
+        "edit_contributions"
+    ],
+    "edit_lands": [
+        "edit_properties"
+    ],
+    "edit_mortgages": [
+        "edit_loans",
+        "manage_mortgages"
+    ],
+    "generate_member_statements": [
+        "view_accounting"
+    ],
+    "manage_blockchain_setup": [
+        "manage_blockchain",
+        "manage_settings",
+        "view_blockchain"
+    ],
+    "manage_blockchain_wallets": [
+        "view_blockchain",
+        "manage_blockchain"
+    ],
+    "manage_chart_of_accounts": [
+        "view_accounting"
+    ],
+    "manage_contact_centre": [
+        "manage_settings",
+        "manage_white_label"
+    ],
+    "manage_custom_domains": [
+        "manage_settings",
+        "view_white_label"
+    ],
+    "manage_document_templates": [
+        "view_issued_documents",
+        "manage_settings"
+    ],
+    "manage_ecpm_ai": [
+        "view_ecpm"
+    ],
+    "manage_ecpm_boqs": [
+        "view_ecpm"
+    ],
+    "manage_ecpm_contracts": [
+        "view_ecpm"
+    ],
+    "manage_ecpm_drawings": [
+        "view_ecpm"
+    ],
+    "manage_ecpm_estates": [
+        "view_ecpm"
+    ],
+    "manage_ecpm_handover": [
+        "view_ecpm"
+    ],
+    "manage_ecpm_parties": [
+        "view_ecpm"
+    ],
+    "manage_ecpm_procurement": [
+        "view_ecpm"
+    ],
+    "manage_ecpm_projects": [
+        "view_ecpm"
+    ],
+    "manage_ecpm_quotations": [
+        "view_ecpm"
+    ],
+    "manage_ecpm_site_ops": [
+        "view_ecpm"
+    ],
+    "manage_eoi_forms": [
+        "view_properties",
+        "approve_allotments",
+        "reject_allotments",
+        "view_members"
+    ],
+    "manage_equity_plans": [
+        "view_equity_contributions",
+        "create_equity_contributions",
+        "approve_equity_contributions"
+    ],
+    "manage_financial_periods": [
+        "view_accounting"
+    ],
+    "manage_land_eoi": [
+        "manage_eoi_forms",
+        "approve_allotments",
+        "reject_allotments",
+        "view_properties",
+        "view_members"
+    ],
+    "manage_land_subscriptions": [
+        "manage_property_allottees",
+        "approve_allotments",
+        "view_properties",
+        "manage_payments"
+    ],
+    "manage_landing_page": [
+        "view_white_label",
+        "manage_white_label",
+        "manage_settings"
+    ],
+    "manage_landing_page_templates": [
+        "view_white_label",
+        "manage_white_label",
+        "manage_settings"
+    ],
+    "manage_letterhead_settings": [
+        "view_issued_documents",
+        "manage_settings"
+    ],
+    "manage_loan_repayments": [
+        "view_loans",
+        "create_loans"
+    ],
+    "manage_loan_stoppage": [
+        "view_loans",
+        "manage_loan_repayments",
+        "approve_loans"
+    ],
+    "manage_payment_approvals": [
+        "manage_payments",
+        "view_payment_gateways",
+        "view_wallets",
+        "view_contributions"
+    ],
+    "manage_payment_routing": [
+        "manage_payments",
+        "view_payment_gateways"
+    ],
+    "manage_permissions": [
+        "manage_roles"
+    ],
+    "manage_platform_config": [
+        "manage_settings",
+        "manage_ownership_settings",
+        "manage_payment_routing",
+        "manage_contact_centre"
+    ],
+    "manage_posting_rules": [
+        "view_accounting"
+    ],
+    "manage_property_allottees": [
+        "view_properties",
+        "approve_allotments"
+    ],
+    "manage_property_estates": [
+        "view_properties"
+    ],
+    "manage_refunds": [
+        "manage_payments",
+        "view_wallets",
+        "view_contributions"
+    ],
+    "manage_statutory_charge_payments": [
+        "view_statutory_charges",
+        "create_statutory_charges",
+        "manage_statutory_charges"
+    ],
+    "manage_wallet_transfers": [
+        "manage_wallets",
+        "manage_payments",
+        "view_wallets"
+    ],
+    "manage_wallets": [
+        "manage_payments"
+    ],
+    "post_journal_entries": [
+        "view_accounting"
+    ],
+    "ra.charge.manage": [
+        "ra.estate.view",
+        "ra.estate.manage",
+        "ra.house.view"
+    ],
+    "ra.discrepancy.view": [
+        "ra.payment.view",
+        "ra.payment.correct",
+        "ra.payment.verify"
+    ],
+    "ra.estate.manage": [
+        "ra.estate.view"
+    ],
+    "ra.estate.view": [
+        "ra.estate.manage",
+        "ra.house.view",
+        "ra.house.manage",
+        "ra.charge.manage",
+        "ra.payment.view",
+        "ra.payment.verify",
+        "ra.revenue.view",
+        "ra.expenditure.manage",
+        "ra.reports.view",
+        "ra.settings.manage",
+        "ra.notice.manage"
+    ],
+    "ra.expenditure.manage": [
+        "ra.estate.view",
+        "ra.estate.manage"
+    ],
+    "ra.house.view": [
+        "ra.estate.view",
+        "ra.estate.manage",
+        "ra.house.manage"
+    ],
+    "ra.notice.manage": [
+        "ra.estate.view",
+        "ra.estate.manage"
+    ],
+    "ra.payment.view": [
+        "ra.estate.view",
+        "ra.estate.manage",
+        "ra.payment.verify",
+        "ra.payment.reject",
+        "ra.payment.correct"
+    ],
+    "ra.revenue.view": [
+        "ra.estate.view",
+        "ra.reports.view"
+    ],
+    "ra.settings.manage": [
+        "ra.estate.view",
+        "ra.estate.manage"
+    ],
+    "record_house_repayments": [
+        "manage_property_allottees",
+        "manage_payments",
+        "approve_allotments",
+        "view_properties"
+    ],
+    "reject_mortgages": [
+        "reject_loans",
+        "manage_mortgages"
+    ],
+    "reopen_locked_periods": [
+        "view_accounting",
+        "manage_financial_periods"
+    ],
+    "rollback_financial_transactions": [
+        "manage_payments"
+    ],
+    "view_activity_logs": [
+        "manage_settings"
+    ],
+    "view_announcements": [
+        "create_announcement",
+        "publish_announcement",
+        "manage_announcement_settings",
+        "manage_notification_templates",
+        "manage_notifications"
+    ],
+    "view_audit_logs": [
+        "view_activity_logs",
+        "manage_settings"
+    ],
+    "view_audit_reports": [
+        "view_reports",
+        "view_activity_logs",
+        "manage_settings"
+    ],
+    "view_contribution_plans": [
+        "view_contributions",
+        "create_contributions",
+        "edit_contributions",
+        "delete_contributions"
+    ],
+    "view_contribution_reports": [
+        "view_reports",
+        "view_contributions"
+    ],
+    "view_dashboard": [
+        "access_admin_panel",
+        "view_analytics",
+        "view_reports",
+        "view_financial_reports",
+        "view_members",
+        "view_contributions",
+        "view_loans",
+        "view_properties",
+        "view_equity_contributions",
+        "view_investments",
+        "view_documents"
+    ],
+    "view_ecpm_audit": [
+        "view_ecpm"
+    ],
+    "view_ecpm_reports": [
+        "view_ecpm"
+    ],
+    "view_equity_reports": [
+        "view_reports",
+        "view_equity_contributions"
+    ],
+    "view_financial_reports": [
+        "view_reports",
+        "view_analytics"
+    ],
+    "view_gl_reports": [
+        "view_accounting",
+        "view_financial_reports"
+    ],
+    "view_internal_mortgages": [
+        "view_loans",
+        "manage_loan_repayments",
+        "approve_loans",
+        "manage_mortgages"
+    ],
+    "view_investment_plans": [
+        "create_investment_plans",
+        "edit_investment_plans",
+        "delete_investment_plans",
+        "view_investments",
+        "approve_investments"
+    ],
+    "view_investment_reports": [
+        "view_reports",
+        "view_investments"
+    ],
+    "view_investment_withdrawals": [
+        "view_investments",
+        "edit_investments",
+        "approve_investments",
+        "manage_payments"
+    ],
+    "view_land_reports": [
+        "view_property_reports",
+        "view_reports",
+        "view_properties"
+    ],
+    "view_lands": [
+        "view_properties",
+        "create_properties",
+        "edit_properties",
+        "delete_properties",
+        "manage_property_estates"
+    ],
+    "view_loan_products": [
+        "create_loan_plans",
+        "edit_loan_plans",
+        "delete_loan_plans",
+        "view_loans",
+        "approve_loans"
+    ],
+    "view_loan_reports": [
+        "view_reports",
+        "view_loans"
+    ],
+    "view_mail_drafts": [
+        "view_mail"
+    ],
+    "view_mail_inbox": [
+        "view_mail"
+    ],
+    "view_mail_outbox": [
+        "view_mail"
+    ],
+    "view_mail_reports": [
+        "view_reports",
+        "view_mail"
+    ],
+    "view_mail_sent": [
+        "view_mail"
+    ],
+    "view_maintenance": [
+        "view_properties",
+        "manage_property_estates"
+    ],
+    "view_member_property_subscriptions": [
+        "view_members",
+        "view_properties",
+        "manage_property_allottees"
+    ],
+    "view_member_reports": [
+        "view_reports",
+        "view_analytics",
+        "view_members"
+    ],
+    "view_mortgage_calculators": [
+        "view_loans",
+        "create_loans",
+        "edit_loans",
+        "approve_loans",
+        "manage_mortgages"
+    ],
+    "view_mortgage_providers": [
+        "view_loans",
+        "create_loans",
+        "edit_loans",
+        "approve_loans",
+        "manage_mortgages"
+    ],
+    "view_mortgages": [
+        "view_loans",
+        "manage_mortgages",
+        "create_loans",
+        "edit_loans",
+        "approve_loans",
+        "reject_loans",
+        "manage_loan_repayments"
+    ],
+    "view_notifications": [
+        "manage_notifications",
+        "view_users",
+        "view_members",
+        "create_users",
+        "manage_settings",
+        "create_announcement",
+        "publish_announcement"
+    ],
+    "view_office_contributions": [
+        "view_contributions",
+        "view_office"
+    ],
+    "view_payment_gateways": [
+        "manage_payment_gateways",
+        "manage_payments"
+    ],
+    "view_pending_wallets": [
+        "view_wallets",
+        "manage_wallets",
+        "manage_payments"
+    ],
+    "view_permissions": [
+        "manage_roles"
+    ],
+    "view_property_ledger": [
+        "view_accounting",
+        "view_gl_reports",
+        "view_financial_reports"
+    ],
+    "view_property_ops_reports": [
+        "view_property_reports",
+        "view_maintenance",
+        "manage_property_estates"
+    ],
+    "view_property_payment_plans": [
+        "view_properties",
+        "create_properties",
+        "edit_properties",
+        "manage_property_allottees"
+    ],
+    "view_property_reports": [
+        "view_properties",
+        "view_reports"
+    ],
+    "view_receipts": [
+        "issue_receipt",
+        "issue_documents",
+        "view_issued_documents"
+    ],
+    "view_refund_reports": [
+        "view_reports",
+        "view_financial_reports",
+        "manage_payments"
+    ],
+    "view_refunds": [
+        "manage_payments",
+        "view_wallets",
+        "view_contributions",
+        "view_investments"
+    ],
+    "view_roles": [
+        "manage_roles"
+    ],
+    "view_tenant_subscription": [
+        "access_admin_panel",
+        "manage_settings",
+        "view_analytics",
+        "view_reports",
+        "view_members",
+        "view_payment_gateways"
+    ],
+    "view_wallet_transactions": [
+        "view_wallets",
+        "manage_wallets",
+        "manage_payments"
+    ],
+    "view_wallets": [
+        "manage_wallets",
+        "manage_payments",
+        "view_pending_wallets"
+    ],
+    "view_white_label": [
+        "manage_white_label",
+        "manage_settings"
+    ]
+}

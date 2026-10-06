@@ -4,6 +4,7 @@
  * Tenant super_admin sees everything (handled via roles in the sidebar).
  */
 
+import { expandTenantPermissions } from "@/lib/admin/expand-tenant-permissions"
 import { permissionForAdminMenu } from "@/lib/admin/menu-permissions"
 import { filterNavForRaOfficer, isResidentAssociationOfficerOnly } from "@/lib/admin/ra-officer-scope"
 
@@ -240,10 +241,12 @@ function normalizeAdminHref(href: string): string {
 }
 
 function hasAnyPermission(userPerms: string[], requiredPipeList: string): boolean {
-  const required = requiredPipeList
-    .split("|")
-    .map((p) => p.trim())
-    .filter(Boolean)
+  const required = expandTenantPermissions(
+    requiredPipeList
+      .split("|")
+      .map((p) => p.trim())
+      .filter(Boolean),
+  )
   if (required.length === 0) {
     return false
   }
