@@ -25,7 +25,7 @@ export function RegisterForm() {
 	const router = useRouter()
 	const recaptchaRef = useRef<RecaptchaRef>(null)
 
-	const [isLoading, setIsLoading] = useState(false)
+	const [formError, setFormError] = useState<string | null>(null)
 	const [showOtpDialog, setShowOtpDialog] = useState(false)
 	const [showPassword, setShowPassword] = useState(false)
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -73,6 +73,7 @@ export function RegisterForm() {
 		if (!validateAccountStep()) return
 
 		setIsLoading(true)
+		setFormError(null)
 		try {
 			let token: string
 			if (recaptchaRef.current) {
@@ -121,7 +122,7 @@ export function RegisterForm() {
 			throw new Error(response.message || t("register.registrationFailed"))
 		} catch (err) {
 			const message = err instanceof Error ? err.message : t("register.registrationFailed")
-			alert(message)
+			setFormError(message)
 			if (recaptchaRef.current) {
 				try {
 					await recaptchaRef.current.execute()
@@ -194,6 +195,12 @@ export function RegisterForm() {
 					</div>
 				</RadioGroup>
 			</div>
+
+			{formError ? (
+				<div className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+					{formError}
+				</div>
+			) : null}
 
 			<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 				<div className="space-y-2">

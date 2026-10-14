@@ -17,6 +17,7 @@ export default function NewMemberPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [formData, setFormData] = useState({
     // User fields
@@ -83,6 +84,7 @@ export default function NewMemberPage() {
       return
     }
     setLoading(true)
+    setFormError(null)
 
     try {
       // Calculate years of service automatically
@@ -134,9 +136,11 @@ export default function NewMemberPage() {
       router.push("/admin/members")
     } catch (error) {
       console.error("Failed to add member:", error)
+      const message = error instanceof Error ? error.message : "Failed to add member. Please try again."
+      setFormError(message)
       toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to add member. Please try again.",
+        title: "Duplicate or invalid member",
+        description: message,
         variant: "destructive",
       })
     } finally {
@@ -158,6 +162,12 @@ export default function NewMemberPage() {
           <p className="text-muted-foreground mt-1">Register a new cooperative member</p>
         </div>
       </div>
+
+      {formError ? (
+        <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {formError}
+        </div>
+      ) : null}
 
       <form onSubmit={handleSubmit}>
         <div className="grid gap-6 lg:grid-cols-3">

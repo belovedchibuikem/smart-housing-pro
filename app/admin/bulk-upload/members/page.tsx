@@ -68,6 +68,90 @@ function getCellByHeader(row: Record<string, unknown>, header: string): string {
 	return ""
 }
 
+function phoneIdentityKey(phone: string): string {
+	let digits = phone.replace(/\D+/g, "")
+	if (digits.startsWith("234") && digits.length >= 13) digits = digits.slice(-10)
+	else if (digits.startsWith("0") && digits.length >= 11) digits = digits.slice(-10)
+	return digits.length >= 7 ? digits : ""
+}
+
+function identifierKey(value: string): string {
+	return value.toUpperCase().replace(/[\s-]+/g, "")
+}
+
+function fullNameKey(first: string, last: string): string {
+	const raw = `${first} ${last}`
+		.toLowerCase()
+		.replace(/[^a-z0-9\s]+/g, " ")
+		.replace(/\s+/g, " ")
+		.trim()
+	return raw.includes(" ") ? raw : ""
+}
+
+function duplicateTypeLabel(code?: string): string {
+	switch (code) {
+		case "duplicate_email":
+		case "duplicate_email_in_file":
+			return "Duplicate email"
+		case "duplicate_phone":
+		case "duplicate_phone_in_file":
+			return "Duplicate phone"
+		case "duplicate_ippis_number":
+		case "duplicate_ippis_number_in_file":
+		case "duplicate_ippis":
+			return "Duplicate IPPIS"
+		case "duplicate_frsc_pin":
+		case "duplicate_frsc_pin_in_file":
+			return "Duplicate FRSC PIN"
+		case "duplicate_full_name":
+		case "duplicate_full_name_in_file":
+			return "Duplicate full name"
+		default:
+			return code ? code.replace(/_/g, " ") : "—"
+	}
+}
+
+function inFileDuplicateErrors(rows: Record<string, unknown>[]): string[] {
+	const errors: string[] = []
+	const seen: Record<string, Record<string, number>> = {
+		email: {},
+		phone: {},
+		ippis: {},
+		frsc: {},
+		name: {},
+	}
+	const track = (bucket: string, key: string, line: number, label: string) => {
+		if (!key) return
+		const previous = seen[bucket][key]
+		if (previous) {
+			errors.push(`Row ${line}: Duplicate ${label} in this file (also on row ${previous}).`)
+		} else {
+			seen[bucket][key] = line
+		}
+	}
+
+	rows.forEach((row, index) => {
+		const line = index + 2
+		track("email", getCellByHeader(row, "Email").toLowerCase(), line, "email")
+		track("phone", phoneIdentityKey(getCellByHeader(row, "Phone")), line, "phone number")
+		track(
+			"ippis",
+			identifierKey(getCellByHeader(row, "IPPIS Number") || getCellByHeader(row, "IPPIS")),
+			line,
+			"IPPIS number",
+		)
+		track("frsc", identifierKey(getCellByHeader(row, "FRSC PIN")), line, "FRSC PIN")
+		track(
+			"name",
+			fullNameKey(getCellByHeader(row, "First Name"), getCellByHeader(row, "Last Name")),
+			line,
+			"full name",
+		)
+	})
+
+	return errors
+}
+
 function detectKind(
 	fileHeaderKeys: string[],
 	config: FieldConfig | null,
@@ -128,6 +212,7 @@ export default function BulkUploadMembersPage() {
 	const [uploading, setUploading] = useState(false)
 	const [uploadComplete, setUploadComplete] = useState(false)
 	const [errors, setErrors] = useState<string[]>([])
+	const [serverErrorRows, setServerErrorRows] = useState<BulkErrorRow[]>([])
 	const [uploadResult, setUploadResult] = useState<Record<string, unknown> | null>(null)
 	const [parsing, setParsing] = useState(false)
 	const { toast } = useToast()
@@ -230,6 +315,7 @@ export default function BulkUploadMembersPage() {
 						validationErrors.push(`Row ${line}: Invalid email`)
 					}
 				})
+				validationErrors.push(...inFileDuplicateErrors(rows))
 			} else if (kind === "optional_details") {
 				rows.forEach((row, i) => {
 					if (!getCellByHeader(row, "Email")) {
@@ -352,6 +438,7 @@ export default function BulkUploadMembersPage() {
 		setPreviewColumns([])
 		setPreviewKind(null)
 		setErrors([])
+		setServerErrorRows([])
 	}
 
 	const handleUpload = async () => {
@@ -361,6 +448,7 @@ export default function BulkUploadMembersPage() {
 		setUploadComplete(false)
 		setUploadResult(null)
 		setErrors([])
+		setServerErrorRows([])
 
 		try {
 			const formData = new FormData()
@@ -428,6 +516,7 @@ export default function BulkUploadMembersPage() {
 								? [String(result.message)]
 								: [errorDescription]
 				setErrors(merged)
+				setServerErrorRows(rawErrorRows)
 
 				toast({
 					title: errorTitle,
@@ -596,6 +685,42 @@ export default function BulkUploadMembersPage() {
 				</Alert>
 			)}
 
+			{serverErrorRows.length > 0 && (
+				<Card>
+					<CardHeader>
+						<CardTitle>Records that were not accepted</CardTitle>
+						<CardDescription>
+							Each row below matches an existing member, repeats a value in this file, or has an invalid
+							value. Nothing from this upload was saved until these are corrected.
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<div className="max-h-80 overflow-auto border rounded-md">
+							<Table>
+								<TableHeader>
+									<TableRow>
+										<TableHead className="w-20">Line</TableHead>
+										<TableHead>Name</TableHead>
+										<TableHead>Issue</TableHead>
+										<TableHead className="w-40">Type</TableHead>
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{serverErrorRows.map((row, index) => (
+										<TableRow key={`${row.line ?? "x"}-${index}`}>
+											<TableCell className="font-mono">{row.line != null ? row.line : "—"}</TableCell>
+											<TableCell>{row.name || "—"}</TableCell>
+											<TableCell className="text-sm text-red-800">{row.message}</TableCell>
+											<TableCell className="text-xs whitespace-nowrap">{duplicateTypeLabel(row.code)}</TableCell>
+										</TableRow>
+									))}
+								</TableBody>
+							</Table>
+						</div>
+					</CardContent>
+				</Card>
+			)}
+
 			{parsing && (
 				<Alert>
 					<AlertCircle className="h-4 w-4" />
@@ -733,7 +858,7 @@ export default function BulkUploadMembersPage() {
 															{r.message}
 														</TableCell>
 														<TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-															{r.code || "—"}
+															{duplicateTypeLabel(r.code)}
 														</TableCell>
 													</TableRow>
 												))}
