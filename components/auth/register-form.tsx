@@ -25,6 +25,7 @@ export function RegisterForm() {
 	const router = useRouter()
 	const recaptchaRef = useRef<RecaptchaRef>(null)
 
+	const [isLoading, setIsLoading] = useState(false)
 	const [formError, setFormError] = useState<string | null>(null)
 	const [showOtpDialog, setShowOtpDialog] = useState(false)
 	const [showPassword, setShowPassword] = useState(false)
