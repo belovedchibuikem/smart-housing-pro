@@ -23,6 +23,10 @@ const PREVIEW_COLUMNS = [
   { key: "description", label: "Description", aliases: ["description", "Description", "Notes", "notes"] },
 ] as const
 
+function isSoftNotice(message: string): boolean {
+  return /created account|skipped to avoid a double upload|was not added again|additional plot/i.test(message)
+}
+
 function getCell(row: Record<string, string>, aliases: readonly string[]): string {
   for (const alias of aliases) {
     if (row[alias]?.trim()) return row[alias].trim()
@@ -93,12 +97,15 @@ export default function BulkUploadPropertySubscribersPage() {
         const memberId = getCell(row, PREVIEW_COLUMNS[1].aliases)
         const staffId = getCell(row, PREVIEW_COLUMNS[2].aliases)
         const ippis = getCell(row, PREVIEW_COLUMNS[3].aliases)
+        const frscPin = getCell(row, ["FRSC PIN", "frsc_pin", "FRSC_PIN"])
+        const firstName = getCell(row, ["First Name", "first_name", "firstname"])
+        const lastName = getCell(row, ["Last Name", "last_name", "lastname", "surname"])
 
         if (!propertyId) {
           localErrs.push(`Row ${line}: Property ID is required`)
         }
-        if (!memberId && !staffId && !ippis) {
-          localErrs.push(`Row ${line}: Provide at least one member identifier (Member ID, Staff ID, or IPPIS)`)
+        if (!memberId && !staffId && !ippis && !frscPin && !(firstName && lastName)) {
+          localErrs.push(`Row ${line}: Provide a member ID, staff ID, IPPIS, FRSC PIN, or first and last name`)
         }
       })
 
@@ -176,7 +183,7 @@ export default function BulkUploadPropertySubscribersPage() {
       <div>
         <h1 className="text-3xl font-bold">Bulk Upload Property Subscribers</h1>
         <p className="mt-1 text-muted-foreground">
-          Link members who paid offline to a property (approved EOI + allocation). Requires existing member accounts.
+          Link members who paid offline to a house. If the person is not already registered, the upload creates the account and subscribes them to the property.
         </p>
       </div>
 
@@ -201,7 +208,7 @@ export default function BulkUploadPropertySubscribersPage() {
             <p className="text-sm text-muted-foreground">
               Copy the Property ID from Admin → Property management (house listings) using the copy button on each card.
               Optionally add a House/Block Address column (e.g. C17A, Jagua Crescent, 3rd Avenue) for the member&apos;s
-              unit. Member must exist — provide at least one of Member ID, Staff ID, or IPPIS (email is optional).
+              unit. Identify the person with Member ID, Staff ID, IPPIS, FRSC PIN, or first and last name. A missing account is registered, then subscribed to the house.
             </p>
           </div>
           <div className="rounded-lg border-2 border-dashed p-8 text-center">
@@ -231,12 +238,23 @@ export default function BulkUploadPropertySubscribersPage() {
         </Alert>
       )}
 
-      {errors.length > 0 && (
+      {errors.filter((message) => !isSoftNotice(message)).length > 0 && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             <ul className="list-inside list-disc space-y-1 text-sm">
-              {errors.slice(0, 40).map((err, i) => (
+              {errors.filter((message) => !isSoftNotice(message)).slice(0, 40).map((err, i) => (
+                <li key={i}>{err}</li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
+      {errors.some(isSoftNotice) && (
+        <Alert>
+          <AlertDescription>
+            <ul className="list-inside list-disc space-y-1 text-sm">
+              {errors.filter(isSoftNotice).slice(0, 40).map((err, i) => (
                 <li key={i}>{err}</li>
               ))}
             </ul>
@@ -280,7 +298,7 @@ export default function BulkUploadPropertySubscribersPage() {
                 Cancel
               </Button>
               {canUpload && (
-                <Button type="button" onClick={handleUpload} disabled={uploading || parsing || errors.length > 0}>
+                <Button type="button" onClick={handleUpload} disabled={uploading || parsing || errors.some((message) => !isSoftNotice(message))}>
                   <Upload className="mr-2 h-4 w-4" />
                   {uploading ? "Importing…" : `Upload ${previewData.length} subscriber(s)`}
                 </Button>
