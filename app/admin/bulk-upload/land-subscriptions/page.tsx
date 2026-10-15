@@ -183,7 +183,7 @@ export default function BulkLandSubscriptionsPage() {
           <CardDescription>
             Use any member identifier: member_id, staff_id, ippis_number, or frsc_pin. Optional: first_name, middle_name, last_name, email, phone.
             A name matches an existing member only when first name, middle name, and last name all match. A shared surname is a different person.
-            List the same account on a second line to open another plot. Uploading those same lines again leaves the plots already opened.
+            A member can hold more than one plot. A new amount for someone who already subscribed opens another plot. Uploading that same amount again leaves the plot already opened.
             Land columns: land_title, land_id, land_size, amount_paid, payment_description.
           </CardDescription>
         </CardHeader>
