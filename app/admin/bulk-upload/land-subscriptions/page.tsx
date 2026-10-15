@@ -12,6 +12,38 @@ import { useToast } from "@/hooks/use-toast"
 import { apiFetch, apiFetchBlob } from "@/lib/api/client"
 import { parseFile } from "@/lib/utils/file-parser"
 
+function cell(row: Record<string, string>, labels: string[]): string {
+	const wanted = new Set(labels.map((label) => label.toLowerCase().replace(/_/g, " ").trim()))
+	for (const [key, value] of Object.entries(row)) {
+		const normalized = key
+			.toLowerCase()
+			.replace(/\s*\([^)]*\)\s*/g, "")
+			.replace(/_/g, " ")
+			.replace(/\s+/g, " ")
+			.trim()
+		if (wanted.has(normalized) && String(value).trim()) return String(value).trim()
+	}
+	return ""
+}
+
+function memberIdentity(row: Record<string, string>) {
+	const memberId = cell(row, ["member id", "member number"])
+	const staffId = cell(row, ["staff id"])
+	const ippis = cell(row, ["ippis", "ippis number"])
+	const frscPin = cell(row, ["frsc pin"])
+	const name = [cell(row, ["first name"]), cell(row, ["last name"])].filter(Boolean).join(" ")
+	return { memberId, staffId, ippis, frscPin, name }
+}
+
+function hasMemberIdentity(row: Record<string, string>): boolean {
+	const identity = memberIdentity(row)
+	return Boolean(identity.memberId || identity.staffId || identity.ippis || identity.frscPin || identity.name)
+}
+
+function isAccountNotice(message: string): boolean {
+	return /created account/i.test(message)
+}
+
 export default function BulkLandSubscriptionsPage() {
 	const canUpload = useBulkUploadPermission("land-subscriptions")
   const [file, setFile] = useState<File | null>(null)
@@ -46,10 +78,11 @@ export default function BulkLandSubscriptionsPage() {
       setPreviewData(rows)
       const localErrs: string[] = [...(result.errors ?? [])]
       rows.forEach((row, idx) => {
-        const mid = row.member_id ?? row["Member ID"]
-        const lid = row.land_id ?? row["Land ID"]
-        if (!mid) localErrs.push(`Row ${idx + 2}: member_id required`)
-        if (!lid) localErrs.push(`Row ${idx + 2}: land_id required`)
+        const landId = cell(row, ["land id"])
+        if (!hasMemberIdentity(row)) {
+          localErrs.push(`Row ${idx + 2}: provide a member ID, staff ID, IPPIS, FRSC PIN, or full name`)
+        }
+        if (!landId) localErrs.push(`Row ${idx + 2}: land_id required`)
       })
       setErrors(localErrs)
     } catch (err) {
@@ -127,15 +160,16 @@ export default function BulkLandSubscriptionsPage() {
       <div>
         <h1 className="text-3xl font-bold">Bulk land subscriptions</h1>
         <p className="text-muted-foreground mt-1">
-          Assign existing members to parcels using member identifier and Land ID — copy Land ID from Admin → Land parcels
-          or Property management (land tab).
+          Match each row to a member with any one of member ID, staff ID, IPPIS, or FRSC PIN, then assign the land.
+          If nobody matches, the upload creates the account from the name and IDs in that row and continues.
         </p>
       </div>
       <Card>
         <CardHeader>
           <CardTitle>Template</CardTitle>
           <CardDescription>
-            Columns: member_id, land_title, land_id, land_size, amount_paid, payment_description
+            Use any member identifier: member_id, staff_id, ippis_number, or frsc_pin. Optional: first_name, last_name, email, phone.
+            Land columns: land_title, land_id, land_size, amount_paid, payment_description.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -165,11 +199,23 @@ export default function BulkLandSubscriptionsPage() {
           <AlertDescription>Parsing…</AlertDescription>
         </Alert>
       )}
-      {errors.length > 0 && (
+      {errors.filter((message) => !isAccountNotice(message)).length > 0 && (
         <Alert variant="destructive">
           <AlertDescription>
             <ul className="list-inside list-disc text-sm">
-              {errors.slice(0, 40).map((e, i) => (
+              {errors.filter((message) => !isAccountNotice(message)).slice(0, 40).map((e, i) => (
+                <li key={i}>{e}</li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
+      {errors.some(isAccountNotice) && (
+        <Alert>
+          <AlertDescription>
+            <p className="mb-2 text-sm font-medium">Accounts created from this file</p>
+            <ul className="list-inside list-disc text-sm">
+              {errors.filter(isAccountNotice).slice(0, 40).map((e, i) => (
                 <li key={i}>{e}</li>
               ))}
             </ul>
@@ -186,19 +232,30 @@ export default function BulkLandSubscriptionsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>member_id</TableHead>
+                    <TableHead>Member ID</TableHead>
+                    <TableHead>Staff ID</TableHead>
+                    <TableHead>IPPIS</TableHead>
+                    <TableHead>FRSC PIN</TableHead>
+                    <TableHead>Name</TableHead>
                     <TableHead>land_id</TableHead>
                     <TableHead>amount_paid</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {previewData.slice(0, 25).map((row, i) => (
+                  {previewData.slice(0, 25).map((row, i) => {
+                    const identity = memberIdentity(row)
+                    return (
                     <TableRow key={i}>
-                      <TableCell>{row.member_id ?? ""}</TableCell>
-                      <TableCell className="font-mono">{row.land_id ?? ""}</TableCell>
-                      <TableCell>{row.amount_paid ?? ""}</TableCell>
+                      <TableCell>{identity.memberId || "—"}</TableCell>
+                      <TableCell>{identity.staffId || "—"}</TableCell>
+                      <TableCell>{identity.ippis || "—"}</TableCell>
+                      <TableCell>{identity.frscPin || "—"}</TableCell>
+                      <TableCell>{identity.name || "—"}</TableCell>
+                      <TableCell className="font-mono">{cell(row, ["land id"]) || "—"}</TableCell>
+                      <TableCell>{cell(row, ["amount paid"]) || "—"}</TableCell>
                     </TableRow>
-                  ))}
+                    )
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -207,7 +264,7 @@ export default function BulkLandSubscriptionsPage() {
                 Clear
               </Button>
               {canUpload && (
-                <Button onClick={handleUpload} disabled={uploading || parsing}>
+                <Button onClick={handleUpload} disabled={uploading || parsing || errors.some((message) => !isAccountNotice(message))}>
                   <Upload className="mr-2 h-4 w-4" />
                   {uploading ? "Uploading…" : "Upload"}
                 </Button>

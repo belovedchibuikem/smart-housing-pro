@@ -12,6 +12,30 @@ import { useToast } from "@/hooks/use-toast"
 import { apiFetch, apiFetchBlob } from "@/lib/api/client"
 import { parseFile } from "@/lib/utils/file-parser"
 
+function cell(row: Record<string, string>, labels: string[]): string {
+	const wanted = new Set(labels.map((label) => label.toLowerCase().replace(/_/g, " ").trim()))
+	for (const [key, value] of Object.entries(row)) {
+		const normalized = key
+			.toLowerCase()
+			.replace(/\s*\([^)]*\)\s*/g, "")
+			.replace(/_/g, " ")
+			.replace(/\s+/g, " ")
+			.trim()
+		if (wanted.has(normalized) && String(value).trim()) return String(value).trim()
+	}
+	return ""
+}
+
+function hasMemberIdentity(row: Record<string, string>): boolean {
+	return Boolean(
+		cell(row, ["member id", "member number"]) ||
+			cell(row, ["staff id"]) ||
+			cell(row, ["ippis", "ippis number"]) ||
+			cell(row, ["frsc pin"]) ||
+			(cell(row, ["first name"]) && cell(row, ["last name"])),
+	)
+}
+
 export default function BulkLandPaymentsPage() {
 	const canUpload = useBulkUploadPermission("land-payments")
   const [file, setFile] = useState<File | null>(null)
@@ -46,9 +70,9 @@ export default function BulkLandPaymentsPage() {
       setPreviewData(rows)
       const localErrs: string[] = [...(result.errors ?? [])]
       rows.forEach((row, idx) => {
-        if (!(row.member_id ?? "").trim()) localErrs.push(`Row ${idx + 2}: member_id required`)
-        if (!(row.land_id ?? "").trim()) localErrs.push(`Row ${idx + 2}: land_id required`)
-        if (!(row.amount ?? "").toString().trim()) localErrs.push(`Row ${idx + 2}: amount required`)
+        if (!hasMemberIdentity(row)) localErrs.push(`Row ${idx + 2}: provide a member ID, staff ID, IPPIS, FRSC PIN, or full name`)
+        if (!cell(row, ["land id"])) localErrs.push(`Row ${idx + 2}: land_id required`)
+        if (!cell(row, ["amount"])) localErrs.push(`Row ${idx + 2}: amount required`)
       })
       setErrors(localErrs)
     } catch (err) {
@@ -121,12 +145,16 @@ export default function BulkLandPaymentsPage() {
     <div className="space-y-6 p-6">
       <div>
         <h1 className="text-3xl font-bold">Bulk land payments</h1>
-        <p className="text-muted-foreground mt-1">Additional installments after subscription (member_id + Land ID)</p>
+        <p className="text-muted-foreground mt-1">
+          Record a later installment. Identify the member with member ID, staff ID, IPPIS, or FRSC PIN, plus the Land ID.
+        </p>
       </div>
       <Card>
         <CardHeader>
           <CardTitle>Template</CardTitle>
-          <CardDescription>member_id, land_id, amount, payment_date (YYYY-MM-DD), payment_description</CardDescription>
+          <CardDescription>
+            member_id, staff_id, ippis_number, frsc_pin, first_name, last_name, land_id, amount, payment_date (YYYY-MM-DD), payment_description
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           <Button variant="outline" onClick={downloadTemplate}>
@@ -176,7 +204,10 @@ export default function BulkLandPaymentsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>member_id</TableHead>
+                    <TableHead>Member</TableHead>
+                    <TableHead>Staff ID</TableHead>
+                    <TableHead>IPPIS</TableHead>
+                    <TableHead>FRSC PIN</TableHead>
                     <TableHead>land_id</TableHead>
                     <TableHead>amount</TableHead>
                     <TableHead>payment_date</TableHead>
@@ -185,10 +216,13 @@ export default function BulkLandPaymentsPage() {
                 <TableBody>
                   {previewData.slice(0, 25).map((row, i) => (
                     <TableRow key={i}>
-                      <TableCell>{row.member_id}</TableCell>
-                      <TableCell className="font-mono">{row.land_id}</TableCell>
-                      <TableCell>{row.amount}</TableCell>
-                      <TableCell>{row.payment_date}</TableCell>
+                      <TableCell>{cell(row, ["member id", "member number"]) || "—"}</TableCell>
+                      <TableCell>{cell(row, ["staff id"]) || "—"}</TableCell>
+                      <TableCell>{cell(row, ["ippis", "ippis number"]) || "—"}</TableCell>
+                      <TableCell>{cell(row, ["frsc pin"]) || "—"}</TableCell>
+                      <TableCell className="font-mono">{cell(row, ["land id"]) || "—"}</TableCell>
+                      <TableCell>{cell(row, ["amount"]) || "—"}</TableCell>
+                      <TableCell>{cell(row, ["payment date"]) || "—"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
