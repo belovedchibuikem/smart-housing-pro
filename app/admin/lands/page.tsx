@@ -637,7 +637,7 @@ export default function AdminLandManagementPage() {
                               View
                             </Link>
                           </Button>
-                          {can("edit_properties") ? (
+                          {(land.record_source === "legacy_property" ? can("edit_properties") : can("edit_lands")) ? (
                             <Button variant="outline" size="sm" className="flex-1" asChild>
                               <Link href={landEditHref(land)}>
                                 <Edit className="mr-1.5 h-3.5 w-3.5" />

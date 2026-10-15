@@ -33,6 +33,7 @@ export default function EditLandPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
   const [fetching, setFetching] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [images, setImages] = useState<Array<{ url: string; preview?: string; name?: string }>>([])
   const [uploadingImages, setUploadingImages] = useState(false)
@@ -94,12 +95,13 @@ export default function EditLandPage() {
           )
         }
       } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Failed to load land parcel"
+        if (mounted) setLoadError(message)
         toast({
           title: "Error",
-          description: err instanceof Error ? err.message : "Failed to load land parcel",
+          description: message,
           variant: "destructive",
         })
-        router.push("/admin/lands")
       } finally {
         if (mounted) setFetching(false)
       }
@@ -232,6 +234,18 @@ export default function EditLandPage() {
     )
   }
 
+  if (loadError) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-4 p-6">
+        <Link href="/admin/lands" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          All land parcels
+        </Link>
+        <p className="text-sm text-destructive">{loadError}</p>
+      </div>
+    )
+  }
+
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
       <Link href={`/admin/lands/${id}`} className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground">
@@ -286,6 +300,9 @@ export default function EditLandPage() {
             <div className="space-y-2">
               <Label htmlFor="total_slots">Total slots (optional)</Label>
               <Input id="total_slots" type="number" min={1} value={form.total_slots} onChange={(e) => setForm((s) => ({ ...s, total_slots: e.target.value }))} />
+              <p className="text-xs text-muted-foreground">
+                Existing subscribers keep their plots. Raising this number adds new free plots.
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Status</Label>
