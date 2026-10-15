@@ -174,6 +174,7 @@ export default function BulkLandSubscriptionsPage() {
         <p className="text-muted-foreground mt-1">
           Match each row to a member with any one of member ID, staff ID, IPPIS, or FRSC PIN, then assign the land.
           If nobody matches, the upload creates the account from the name and IDs in that row and continues.
+          The same account can hold more than one plot: list that person on another line and the upload opens the next slot.
         </p>
       </div>
       <Card>
@@ -181,7 +182,8 @@ export default function BulkLandSubscriptionsPage() {
           <CardTitle>Template</CardTitle>
           <CardDescription>
             Use any member identifier: member_id, staff_id, ippis_number, or frsc_pin. Optional: first_name, middle_name, last_name, email, phone.
-            A name matches an existing member only when first name, middle name, and last name all match.
+            A name matches an existing member only when first name, middle name, and last name all match. A shared surname is a different person.
+            List the same account on a second line to open another plot. Uploading those same lines again leaves the plots already opened.
             Land columns: land_title, land_id, land_size, amount_paid, payment_description.
           </CardDescription>
         </CardHeader>
