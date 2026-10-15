@@ -17,7 +17,15 @@ export type SimilarLandItem = {
   images?: string[] | null
 }
 
-export function SimilarLands({ lands, currentLandId }: { lands: SimilarLandItem[]; currentLandId?: string }) {
+export function SimilarLands({
+  lands,
+  currentLandId,
+  linkPrefix = "/dashboard/lands",
+}: {
+  lands: SimilarLandItem[]
+  currentLandId?: string
+  linkPrefix?: string
+}) {
   const filtered = lands.filter((l) => l.id !== currentLandId)
 
   if (filtered.length === 0) {
@@ -36,7 +44,7 @@ export function SimilarLands({ lands, currentLandId }: { lands: SimilarLandItem[
             ? resolveStorageUrl(land.images[0]) || "/placeholder.svg"
             : "/placeholder.svg"
         return (
-          <Link key={land.id} href={`/dashboard/lands/${land.id}`}>
+          <Link key={land.id} href={`${linkPrefix}/${land.id}`}>
             <Card className="overflow-hidden transition hover:shadow-md">
               <img src={img} alt={land.land_title ?? "Land"} className="h-40 w-full object-cover" />
               <CardContent className="space-y-2 p-4">

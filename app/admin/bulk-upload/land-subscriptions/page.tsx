@@ -44,6 +44,14 @@ function isAccountNotice(message: string): boolean {
 	return /created account/i.test(message)
 }
 
+function isReplayNotice(message: string): boolean {
+	return /skipped to avoid a double upload|was not added again/i.test(message)
+}
+
+function isSoftNotice(message: string): boolean {
+	return isAccountNotice(message) || isReplayNotice(message)
+}
+
 export default function BulkLandSubscriptionsPage() {
 	const canUpload = useBulkUploadPermission("land-subscriptions")
   const [file, setFile] = useState<File | null>(null)
@@ -199,11 +207,23 @@ export default function BulkLandSubscriptionsPage() {
           <AlertDescription>Parsing…</AlertDescription>
         </Alert>
       )}
-      {errors.filter((message) => !isAccountNotice(message)).length > 0 && (
+      {errors.filter((message) => !isSoftNotice(message)).length > 0 && (
         <Alert variant="destructive">
           <AlertDescription>
             <ul className="list-inside list-disc text-sm">
-              {errors.filter((message) => !isAccountNotice(message)).slice(0, 40).map((e, i) => (
+              {errors.filter((message) => !isSoftNotice(message)).slice(0, 40).map((e, i) => (
+                <li key={i}>{e}</li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
+      {errors.some(isReplayNotice) && (
+        <Alert>
+          <AlertDescription>
+            <p className="mb-2 text-sm font-medium">Rows already in the system were skipped</p>
+            <ul className="list-inside list-disc text-sm">
+              {errors.filter(isReplayNotice).slice(0, 40).map((e, i) => (
                 <li key={i}>{e}</li>
               ))}
             </ul>
@@ -264,7 +284,7 @@ export default function BulkLandSubscriptionsPage() {
                 Clear
               </Button>
               {canUpload && (
-                <Button onClick={handleUpload} disabled={uploading || parsing || errors.some((message) => !isAccountNotice(message))}>
+                <Button onClick={handleUpload} disabled={uploading || parsing || errors.some((message) => !isSoftNotice(message))}>
                   <Upload className="mr-2 h-4 w-4" />
                   {uploading ? "Uploading…" : "Upload"}
                 </Button>
