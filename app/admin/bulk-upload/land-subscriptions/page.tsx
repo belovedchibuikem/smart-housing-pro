@@ -48,8 +48,12 @@ function isReplayNotice(message: string): boolean {
 	return /skipped to avoid a double upload|was not added again/i.test(message)
 }
 
+function isAdditionalPlotNotice(message: string): boolean {
+	return /additional plot/i.test(message)
+}
+
 function isSoftNotice(message: string): boolean {
-	return isAccountNotice(message) || isReplayNotice(message)
+	return isAccountNotice(message) || isReplayNotice(message) || isAdditionalPlotNotice(message)
 }
 
 export default function BulkLandSubscriptionsPage() {
@@ -224,6 +228,18 @@ export default function BulkLandSubscriptionsPage() {
             <p className="mb-2 text-sm font-medium">Rows already in the system were skipped</p>
             <ul className="list-inside list-disc text-sm">
               {errors.filter(isReplayNotice).slice(0, 40).map((e, i) => (
+                <li key={i}>{e}</li>
+              ))}
+            </ul>
+          </AlertDescription>
+        </Alert>
+      )}
+      {errors.some(isAdditionalPlotNotice) && (
+        <Alert>
+          <AlertDescription>
+            <p className="mb-2 text-sm font-medium">Members who bought more than one plot</p>
+            <ul className="list-inside list-disc text-sm">
+              {errors.filter(isAdditionalPlotNotice).slice(0, 40).map((e, i) => (
                 <li key={i}>{e}</li>
               ))}
             </ul>
