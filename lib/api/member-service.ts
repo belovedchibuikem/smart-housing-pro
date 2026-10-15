@@ -36,12 +36,14 @@ export interface Member {
   }>
   status?: string
   first_name?: string
+  middle_name?: string
   last_name?: string
   email?: string
   phone?: string
   user?: {
     id: string
     first_name: string
+    middle_name?: string | null
     last_name: string
     email: string
     phone?: string

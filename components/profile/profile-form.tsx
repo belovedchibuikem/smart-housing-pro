@@ -36,6 +36,7 @@ function toDateInputValue(value: string | null | undefined): string {
 
 type PersonalFormState = {
 	first_name: string
+	middle_name: string
 	last_name: string
 	email: string
 	phone: string
@@ -91,6 +92,7 @@ export function ProfileForm({
 
 	const [personalForm, setPersonalForm] = useState<PersonalFormState>({
 		first_name: "",
+		middle_name: "",
 		last_name: "",
 		email: "",
 		phone: "",
@@ -149,6 +151,7 @@ const [nextOfKinForm, setNextOfKinForm] = useState({
 		if (!user) return
 		setPersonalForm({
 			first_name: user.first_name ?? "",
+			middle_name: user.middle_name ?? "",
 			last_name: user.last_name ?? "",
 			email: user.email ?? "",
 			phone: user.phone ?? "",
@@ -212,6 +215,7 @@ const [nextOfKinForm, setNextOfKinForm] = useState({
 		try {
 			await updateProfile({
 				first_name: personalForm.first_name,
+				middle_name: personalForm.middle_name || null,
 				last_name: personalForm.last_name,
 				phone: personalForm.phone,
 				date_of_birth: personalForm.date_of_birth || null,
@@ -360,6 +364,7 @@ const [nextOfKinForm, setNextOfKinForm] = useState({
 								</div>
 								{[
 									{ id: "firstName", label: "First Name", value: personalForm.first_name, required: true },
+									{ id: "middleName", label: "Middle Name", value: personalForm.middle_name },
 									{ id: "lastName", label: "Last Name", value: personalForm.last_name, required: true },
 									{ id: "phone", label: "Phone Number", value: personalForm.phone, required: true, type: "tel" },
 									{ id: "dob", label: "Date of Birth", value: personalForm.date_of_birth, type: "date" },
@@ -397,7 +402,9 @@ const [nextOfKinForm, setNextOfKinForm] = useState({
 															? "marital_status"
 															: field.id === "firstName"
 																? "first_name"
-																: field.id === "lastName"
+																: field.id === "middleName"
+																	? "middle_name"
+																	: field.id === "lastName"
 																	? "last_name"
 																	: field.id === "dob"
 																		? "date_of_birth"

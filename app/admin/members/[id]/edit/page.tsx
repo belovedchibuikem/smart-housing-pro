@@ -17,6 +17,7 @@ import { toast as sonnerToast } from "sonner"
 function emptyForm() {
 	return {
 		first_name: "",
+		middle_name: "",
 		last_name: "",
 		email: "",
 		phone: "",
@@ -45,6 +46,7 @@ function memberToForm(m: Member) {
 	const u = m.user
 	return {
 		first_name: m.first_name ?? u?.first_name ?? "",
+		middle_name: m.middle_name ?? u?.middle_name ?? "",
 		last_name: m.last_name ?? u?.last_name ?? "",
 		email: m.email ?? u?.email ?? "",
 		phone: m.phone ?? u?.phone ?? "",
@@ -108,6 +110,7 @@ export default function EditMemberPage({ params }: { params: Promise<{ id: strin
 			setSaving(true)
 			const body: Record<string, string | number | null | undefined> = {
 				first_name: form.first_name || undefined,
+				middle_name: form.middle_name || null,
 				last_name: form.last_name || undefined,
 				email: form.email || undefined,
 				phone: form.phone || null,
@@ -197,6 +200,7 @@ export default function EditMemberPage({ params }: { params: Promise<{ id: strin
 					</CardHeader>
 					<CardContent className="grid sm:grid-cols-2 gap-4">
 						{field("first_name", "First name", { required: true })}
+						{field("middle_name", "Middle name")}
 						{field("last_name", "Last name", { required: true })}
 						{field("email", "Email", { type: "email", required: true })}
 						{field("phone", "Phone")}

@@ -22,6 +22,7 @@ export default function NewMemberPage() {
   const [formData, setFormData] = useState({
     // User fields
     first_name: '',
+    middle_name: '',
     last_name: '',
     email: '',
     phone: '',
@@ -120,6 +121,7 @@ export default function NewMemberPage() {
                body: {
                  // User data
                  first_name: formData.first_name,
+                 middle_name: formData.middle_name,
                  last_name: formData.last_name,
                  email: formData.email,
                  phone: formData.phone,
@@ -178,10 +180,14 @@ export default function NewMemberPage() {
                 <CardDescription>Basic details about the member</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 sm:grid-cols-3">
                   <div className="space-y-2">
                     <Label htmlFor="first_name">First Name *</Label>
                     <Input id="first_name" name="first_name" value={formData.first_name} onChange={handleChange} placeholder="John" required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="middle_name">Middle Name</Label>
+                    <Input id="middle_name" name="middle_name" value={formData.middle_name} onChange={handleChange} placeholder="Chinedu" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="last_name">Last Name *</Label>

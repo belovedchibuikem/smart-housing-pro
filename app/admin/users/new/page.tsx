@@ -26,6 +26,7 @@ type MemberPick = {
 export default function AdminUserCreatePage() {
   const router = useRouter()
   const [firstName, setFirstName] = useState("")
+  const [middleName, setMiddleName] = useState("")
   const [lastName, setLastName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
@@ -98,6 +99,7 @@ export default function AdminUserCreatePage() {
         method: "POST",
         body: {
           first_name: firstName,
+          middle_name: middleName,
           last_name: lastName,
           email,
           phone,
@@ -315,10 +317,14 @@ export default function AdminUserCreatePage() {
               <form onSubmit={handleManualSubmit} className="space-y-4">
                 {manualError && <p className="text-red-500 text-sm">{manualError}</p>}
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="firstName">First Name</Label>
                     <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
+                  </div>
+                  <div>
+                    <Label htmlFor="middleName">Middle Name</Label>
+                    <Input id="middleName" value={middleName} onChange={(e) => setMiddleName(e.target.value)} />
                   </div>
                   <div>
                     <Label htmlFor="lastName">Last Name</Label>

@@ -34,6 +34,7 @@ export function RegisterForm() {
 	const [formData, setFormData] = useState({
 		membershipType: "member",
 		firstName: "",
+		middleName: "",
 		lastName: "",
 		email: "",
 		phone: "",
@@ -88,6 +89,7 @@ export function RegisterForm() {
 			const payload: Record<string, unknown> = {
 				recaptcha_token: token,
 				first_name: formData.firstName,
+				middle_name: formData.middleName,
 				last_name: formData.lastName,
 				email: formData.email,
 				phone: formData.phone,
@@ -203,7 +205,7 @@ export function RegisterForm() {
 				</div>
 			) : null}
 
-			<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+			<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
 				<div className="space-y-2">
 					<Label htmlFor="firstName">{t("register.firstName")}</Label>
 					<Input
@@ -211,6 +213,14 @@ export function RegisterForm() {
 						value={formData.firstName}
 						onChange={(e) => setFormData((prev) => ({ ...prev, firstName: e.target.value }))}
 						required
+					/>
+				</div>
+				<div className="space-y-2">
+					<Label htmlFor="middleName">Middle name</Label>
+					<Input
+						id="middleName"
+						value={formData.middleName}
+						onChange={(e) => setFormData((prev) => ({ ...prev, middleName: e.target.value }))}
 					/>
 				</div>
 				<div className="space-y-2">

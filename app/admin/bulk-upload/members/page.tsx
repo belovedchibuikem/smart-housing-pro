@@ -79,13 +79,23 @@ function identifierKey(value: string): string {
 	return value.toUpperCase().replace(/[\s-]+/g, "")
 }
 
-function fullNameKey(first: string, last: string): string {
-	const raw = `${first} ${last}`
-		.toLowerCase()
-		.replace(/[^a-z0-9\s]+/g, " ")
-		.replace(/\s+/g, " ")
-		.trim()
-	return raw.includes(" ") ? raw : ""
+function fullNameKey(first: string, middle: string, last: string): string {
+	const norm = (value: string) =>
+		value
+			.toLowerCase()
+			.replace(/[^a-z0-9\s]+/g, " ")
+			.replace(/\s+/g, " ")
+			.trim()
+	let given = norm(first)
+	let middleName = norm(middle)
+	const surname = norm(last)
+	if (!middleName && given.includes(" ")) {
+		const parts = given.split(" ")
+		given = parts.shift() || ""
+		middleName = parts.join(" ")
+	}
+	if (!given || !surname || !middleName) return ""
+	return `${given}|${middleName}|${surname}`
 }
 
 function duplicateTypeLabel(code?: string): string {
@@ -143,7 +153,11 @@ function inFileDuplicateErrors(rows: Record<string, unknown>[]): string[] {
 		track("frsc", identifierKey(getCellByHeader(row, "FRSC PIN")), line, "FRSC PIN")
 		track(
 			"name",
-			fullNameKey(getCellByHeader(row, "First Name"), getCellByHeader(row, "Last Name")),
+			fullNameKey(
+				getCellByHeader(row, "First Name"),
+				getCellByHeader(row, "Middle Name"),
+				getCellByHeader(row, "Last Name"),
+			),
 			line,
 			"full name",
 		)
@@ -172,6 +186,12 @@ function detectKind(
 		if (expM === got) {
 			return "mandatory"
 		}
+		const withoutMiddle = sortedCanonicalFromHeaders(
+			config.mandatory_file_headers.filter((header) => normHeaderKey(header) !== normHeaderKey("Middle Name")),
+		)
+		if (withoutMiddle === got) {
+			return "mandatory"
+		}
 		if (!keysNorm.has(normHeaderKey("Email")) || keysNorm.has(normHeaderKey("First Name"))) {
 			return null
 		}
@@ -185,15 +205,12 @@ function detectKind(
 	}
 
 	// Fallback (before config loads): match default new-members template (no extra mandatory profile columns)
-	const fallbackMandatoryExpected = sortedCanonicalFromHeaders([
-		"First Name",
-		"Last Name",
-		"Email",
-		"Phone",
-		"IPPIS Number",
-		"FRSC PIN",
-	])
-	if (sortedCanonicalFromHeaders(fileHeaderKeys) === fallbackMandatoryExpected) {
+	const gotFallback = sortedCanonicalFromHeaders(fileHeaderKeys)
+	const fallbackBase = ["First Name", "Last Name", "Email", "Phone", "IPPIS Number", "FRSC PIN"]
+	if (
+		gotFallback === sortedCanonicalFromHeaders(["Middle Name", ...fallbackBase]) ||
+		gotFallback === sortedCanonicalFromHeaders(fallbackBase)
+	) {
 		return "mandatory"
 	}
 	if (keysNorm.has("email") && !keysNorm.has("first name")) {
@@ -601,7 +618,8 @@ export default function BulkUploadMembersPage() {
 					<div className="space-y-2">
 						<h3 className="font-medium">1. Mandatory file (new members)</h3>
 						<p className="text-sm text-muted-foreground">
-							Always includes <strong>First Name</strong> and <strong>Last Name</strong> (required),{" "}
+							Always includes <strong>First Name</strong> and <strong>Last Name</strong> (required) and{" "}
+							<strong>Middle Name</strong> (used to confirm the person; a name is not matched on first and last name alone),{" "}
 							<strong>Email</strong> and <strong>Phone</strong> (optional—leave blank if unknown),{" "}
 							<strong>IPPIS Number</strong> and <strong>FRSC PIN</strong> (optional—either may be present),
 							plus any fields your admin marked <em>Mandatory</em> for bulk upload in settings. Those

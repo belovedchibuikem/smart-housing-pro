@@ -26,6 +26,7 @@ export default function AdminProfilePage() {
 	const [changingPassword, setChangingPassword] = useState(false)
 	const [form, setForm] = useState({
 		first_name: "",
+		middle_name: "",
 		last_name: "",
 		email: "",
 		phone: "",
@@ -54,6 +55,7 @@ export default function AdminProfilePage() {
 			setUser(res.user)
 			setForm({
 				first_name: res.user.first_name || "",
+				middle_name: res.user.middle_name || "",
 				last_name: res.user.last_name || "",
 				email: res.user.email || "",
 				phone: res.user.phone || "",
@@ -82,6 +84,7 @@ export default function AdminProfilePage() {
 		try {
 			const res = await updateAdminProfile({
 				first_name: form.first_name.trim(),
+				middle_name: form.middle_name.trim() || null,
 				last_name: form.last_name.trim(),
 				phone: form.phone.trim(),
 			})
@@ -178,6 +181,14 @@ export default function AdminProfilePage() {
 								id="first_name"
 								value={form.first_name}
 								onChange={(e) => setForm((f) => ({ ...f, first_name: e.target.value }))}
+							/>
+						</div>
+						<div className="space-y-1">
+							<Label htmlFor="middle_name">Middle name</Label>
+							<Input
+								id="middle_name"
+								value={form.middle_name}
+								onChange={(e) => setForm((f) => ({ ...f, middle_name: e.target.value }))}
 							/>
 						</div>
 						<div className="space-y-1">

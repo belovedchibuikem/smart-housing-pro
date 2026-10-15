@@ -180,7 +180,8 @@ export default function BulkLandSubscriptionsPage() {
         <CardHeader>
           <CardTitle>Template</CardTitle>
           <CardDescription>
-            Use any member identifier: member_id, staff_id, ippis_number, or frsc_pin. Optional: first_name, last_name, email, phone.
+            Use any member identifier: member_id, staff_id, ippis_number, or frsc_pin. Optional: first_name, middle_name, last_name, email, phone.
+            A name matches an existing member only when first name, middle name, and last name all match.
             Land columns: land_title, land_id, land_size, amount_paid, payment_description.
           </CardDescription>
         </CardHeader>
