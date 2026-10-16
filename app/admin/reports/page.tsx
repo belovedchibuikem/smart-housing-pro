@@ -67,14 +67,14 @@ export default function AdminReportsPage() {
       ],
     },
     {
-      title: "Building portfolio reports",
-      description: "Houses & structured inventory (excludes bare land parcels)",
+      title: "House reports",
+      description: "Subscriber balances for houses, grouped by estate",
       icon: Home,
       link: "/admin/reports/properties",
       reports: [
-        "Portfolio roll-up",
-        "Allocation coverage",
-        "Unit mix snapshots",
+        "Full amount due and amount received",
+        "Who has paid, who still owes",
+        "Merged estate export",
       ],
     },
     {

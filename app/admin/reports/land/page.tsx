@@ -96,9 +96,9 @@ function money(value: number) {
 }
 
 function standingVariant(standing: string): "default" | "secondary" | "destructive" | "outline" {
-  if (standing === "Completed") return "default"
-  if (standing === "Low payment" || standing === "No payment") return "destructive"
-  if (standing === "Owing") return "secondary"
+  if (standing === "Fully paid") return "default"
+  if (standing === "Paid less than 40%" || standing === "Nothing paid yet") return "destructive"
+  if (standing === "Still owing") return "secondary"
   return "outline"
 }
 
@@ -187,15 +187,15 @@ export default function LandReportsPage() {
   }
 
   const cards = [
-    { label: "Land parcels", value: String(stats.parcels), icon: MapPinned, color: "text-emerald-600" },
+    { label: "Lands", value: String(stats.parcels), icon: MapPinned, color: "text-emerald-600" },
     { label: "Subscribers", value: String(stats.subscribers), icon: Users, color: "text-blue-600" },
-    { label: "Total cost", value: money(stats.total_cost), icon: TrendingUp, color: "text-orange-600" },
-    { label: "Amount paid", value: money(stats.amount_paid), icon: Wallet, color: "text-emerald-700" },
-    { label: "Outstanding", value: money(stats.outstanding), icon: AlertTriangle, color: "text-red-600" },
-    { label: "Completion rate", value: `${stats.completion_rate.toFixed(2)}%`, icon: CheckCircle2, color: "text-blue-700" },
-    { label: "Completed", value: String(stats.completed), icon: CheckCircle2, color: "text-emerald-600" },
-    { label: "Low payment", value: String(stats.low_payment), icon: AlertTriangle, color: "text-amber-600" },
-    { label: "Owing", value: String(stats.owing), icon: AlertTriangle, color: "text-red-600" },
+    { label: "Full amount due", value: money(stats.total_cost), icon: TrendingUp, color: "text-orange-600" },
+    { label: "Amount received", value: money(stats.amount_paid), icon: Wallet, color: "text-emerald-700" },
+    { label: "Balance left", value: money(stats.outstanding), icon: AlertTriangle, color: "text-red-600" },
+    { label: "Percentage paid", value: `${stats.completion_rate.toFixed(2)}%`, icon: CheckCircle2, color: "text-blue-700" },
+    { label: "Fully paid", value: String(stats.completed), icon: CheckCircle2, color: "text-emerald-600" },
+    { label: "Paid less than 40%", value: String(stats.low_payment), icon: AlertTriangle, color: "text-amber-600" },
+    { label: "Still owing", value: String(stats.owing), icon: AlertTriangle, color: "text-red-600" },
   ]
 
   return (
@@ -204,7 +204,7 @@ export default function LandReportsPage() {
         <div>
           <h1 className="text-2xl font-bold md:text-3xl">Land reports</h1>
           <p className="mt-1 text-muted-foreground">
-            Subscriber balances for the land register. Lands that share an estate name, such as every parcel at FRSC HOMES KUBWA, can be selected together and exported as one merged report.
+            Subscriber balances for the land register. Lands that share an estate name, such as the plots at FRSC HOMES KUBWA, can be selected together and exported as one merged report.
           </p>
         </div>
         <Button onClick={handleExport} disabled={exporting || loading}>
@@ -234,7 +234,7 @@ export default function LandReportsPage() {
         <CardHeader>
           <CardTitle>Related lands</CardTitle>
           <CardDescription>
-            Parcels whose title ends with the same estate, for example 250sqm, 180sqm and 350sqm at FRSC HOMES KUBWA, sit in one group. Tick the parcels to merge, then export.
+            Lands whose title ends with the same estate, for example 250sqm, 180sqm and 350sqm at FRSC HOMES KUBWA, sit in one group. Tick the lands to merge, then export.
             {selectedLands.length > 0
               ? ` Selected: ${selectedLands.map((land) => land.title).join("; ")}.`
               : " Nothing is ticked, so the table and export cover every land."}
@@ -261,7 +261,7 @@ export default function LandReportsPage() {
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-semibold">{group.name}</p>
-                          {group.merged ? <Badge>Merged group · {group.parcels} parcels</Badge> : <Badge variant="outline">Single parcel</Badge>}
+                          {group.merged ? <Badge>Merged group · {group.parcels} lands</Badge> : <Badge variant="outline">Single land</Badge>}
                         </div>
                         <p className="mt-1 text-sm text-muted-foreground">
                           {group.subscribers} subscribers · {money(group.amount_paid)} paid · {money(group.balance)} outstanding · {group.completion_rate.toFixed(2)}% complete
@@ -300,7 +300,7 @@ export default function LandReportsPage() {
           <CardTitle>Subscriber balances</CardTitle>
           <CardDescription>
             {selected.length > 1
-              ? `Merged view of ${selected.length} parcels. The export states the lands that were combined.`
+              ? `Merged view of ${selected.length} lands. The export states the lands that were combined.`
               : "Owner, identifiers, cost, charges, amount paid, balance, and completion."}
           </CardDescription>
         </CardHeader>
@@ -319,13 +319,13 @@ export default function LandReportsPage() {
                     <TableHead>Owner</TableHead>
                     <TableHead>IPPIS</TableHead>
                     <TableHead>FRSC PIN</TableHead>
-                    <TableHead className="text-right">Land cost</TableHead>
-                    <TableHead className="text-right">Admin charge</TableHead>
-                    <TableHead className="text-right">Total cost</TableHead>
-                    <TableHead className="text-right">Amount paid</TableHead>
-                    <TableHead className="text-right">Balance</TableHead>
-                    <TableHead className="text-right">Completion</TableHead>
-                    <TableHead>Standing</TableHead>
+                    <TableHead className="text-right">Full amount due</TableHead>
+                    <TableHead className="text-right">Extra charges</TableHead>
+                    <TableHead className="text-right">Total amount due</TableHead>
+                    <TableHead className="text-right">Amount received</TableHead>
+                    <TableHead className="text-right">Balance left</TableHead>
+                    <TableHead className="text-right">Percentage paid</TableHead>
+                    <TableHead>Payment status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

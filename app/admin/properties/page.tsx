@@ -529,7 +529,7 @@ export default function AdminPropertiesPage() {
                 <Link href="/admin/property-management/allottees">House allottees</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/admin/reports/properties">Building reports</Link>
+                <Link href="/admin/reports/properties">House reports</Link>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

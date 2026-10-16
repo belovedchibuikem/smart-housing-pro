@@ -256,7 +256,7 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
       { href: "/admin/property-management/allottees/new", label: "Assign House to Member", icon: UserCheck, cluster: "Allocation" },
       { href: "/admin/property-management/allottees", label: "Manage House Allottees", icon: UserCheck, cluster: "Allocation" },
       { href: "/admin/property-management/allottees/mass-allocate", label: "Mass Allocate Houses", icon: Users, cluster: "Allocation" },
-      { href: "/admin/reports/properties", label: "Building Reports", icon: FileBarChart, cluster: "Records" },
+      { href: "/admin/reports/properties", label: "House Reports", icon: FileBarChart, cluster: "Records" },
       { href: "/admin/valuations", label: "Property Valuations", icon: Calculator, cluster: "Records" },
       { href: "/admin/change-requests", label: "Change Request Center", icon: ClipboardList, cluster: "Records" },
       { href: "/admin/property-improvements", label: "Property Improvements", icon: Wrench, cluster: "Records" },
