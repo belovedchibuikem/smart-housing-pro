@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { apiFetch } from "@/lib/api/client"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 import { toast } from "sonner"
 
 export default function PendingApprovalsPage() {
@@ -165,7 +166,7 @@ export default function PendingApprovalsPage() {
                         </div>
                         <div>
                           <p className="text-muted-foreground">Date</p>
-                          <p className="font-medium">{transaction.date}</p>
+                          <p className="font-medium">{formatDisplayDate(transaction.date)}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground">Reference</p>

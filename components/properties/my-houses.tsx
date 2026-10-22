@@ -13,6 +13,7 @@ import { MapPin, Calendar, Home, Clock, CheckCircle2, TrendingUp } from "lucide-
 import type { MemberHouse } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { useToast } from "@/hooks/use-toast"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 
 type MyHousesProps = {
 	houses: MemberHouse[]
@@ -196,7 +197,7 @@ export function MyHouses({ houses, loading }: MyHousesProps) {
 										{house.interest_created_at && (
 											<span className="flex items-center gap-2">
 												<Calendar className="h-4 w-4" />
-												Interest submitted: {new Date(house.interest_created_at).toLocaleDateString()}
+												Interest submitted: {formatDisplayDate(house.interest_created_at)}
 											</span>
 										)}
 										{house.allocation_date && (

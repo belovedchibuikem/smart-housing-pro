@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, Download, ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react"
 import { apiFetch } from "@/lib/api/client"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 import { toast } from "sonner"
 
 export default function AdminWalletTransactionsPage() {
@@ -178,7 +179,7 @@ export default function AdminWalletTransactionsPage() {
                           {transaction.status}
                         </Badge>
                       </td>
-                      <td className="p-4 text-sm text-muted-foreground">{transaction.date}</td>
+                      <td className="p-4 text-sm text-muted-foreground">{formatDisplayDate(transaction.date)}</td>
                       <td className="p-4 text-sm font-mono">{transaction.reference}</td>
                     </tr>
                   ))}

@@ -22,6 +22,7 @@ import {
 import { Search, Download, Eye, Upload, FileText, ImageIcon, File, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { getDocuments, uploadDocument, viewDocument, downloadDocument, approveDocument, rejectDocument, deleteDocument, apiFetch } from "@/lib/api/client"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 import Link from "next/link"
 import {
   DropdownMenu,
@@ -590,7 +591,7 @@ export default function AdminDocumentsPage() {
                           <div className="text-sm text-muted-foreground">{doc.member_id}</div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{doc.upload_date}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{formatDisplayDate(doc.upload_date)}</TableCell>
                       <TableCell className="text-sm">{doc.size}</TableCell>
                       <TableCell>
                         <Badge variant={getStatusBadgeVariant(doc.status)}>

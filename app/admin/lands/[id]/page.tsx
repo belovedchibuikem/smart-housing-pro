@@ -22,6 +22,7 @@ import { useToast } from "@/hooks/use-toast"
 import { apiFetch } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { formatNaira } from "@/lib/properties/pricing"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 
 interface LandDetail {
   id: string
@@ -66,6 +67,7 @@ interface LandSubscriber {
   member_name: string
   member_number?: string | null
   staff_id?: string | null
+  ippis_number?: string | null
   email?: string | null
   allocated_land_size?: string | null
   total_cost: number
@@ -142,8 +144,9 @@ export default function AdminLandDetailPage() {
     return subscribers.filter((subscriber) => {
       const name = subscriber.member_name.toLowerCase()
       const staff = staffLabel(subscriber).toLowerCase()
+      const ippis = subscriber.ippis_number?.toLowerCase() ?? ""
       const email = subscriber.email?.toLowerCase() ?? ""
-      return name.includes(q) || staff.includes(q) || email.includes(q)
+      return name.includes(q) || staff.includes(q) || ippis.includes(q) || email.includes(q)
     })
   }, [subscribers, subscriberSearch])
 
@@ -165,6 +168,7 @@ export default function AdminLandDetailPage() {
       "Land ID",
       "Member Name",
       "Staff ID",
+      "IPPIS Number",
       "Land Size",
       "Total Cost",
       "Amount Paid",
@@ -176,12 +180,13 @@ export default function AdminLandDetailPage() {
       land.land_code || land.id,
       subscriber.member_name,
       staffLabel(subscriber),
+      subscriber.ippis_number?.trim() || "",
       subscriber.allocated_land_size || "",
       String(subscriber.total_cost ?? 0),
       String(subscriber.amount_paid ?? 0),
       String(subscriber.outstanding ?? 0),
       subscriber.tenure_status ?? "",
-      subscriber.created_at ? new Date(subscriber.created_at).toISOString().slice(0, 10) : "",
+      formatDisplayDate(subscriber.created_at, { fallback: "" }),
     ])
     const csv = [headers, ...rows].map((row) => row.map(escapeCsv).join(",")).join("\n")
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" })
@@ -391,7 +396,7 @@ export default function AdminLandDetailPage() {
                   <div className="relative w-full sm:w-64">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
-                      placeholder="Search name or staff ID…"
+                      placeholder="Search name, staff ID, or IPPIS…"
                       value={subscriberSearch}
                       onChange={(e) => setSubscriberSearch(e.target.value)}
                       className="pl-9"
@@ -415,6 +420,7 @@ export default function AdminLandDetailPage() {
                     <TableRow>
                       <TableHead>Member</TableHead>
                       <TableHead>Staff ID</TableHead>
+                      <TableHead>IPPIS Number</TableHead>
                       <TableHead>Size</TableHead>
                       <TableHead className="text-right">Total cost</TableHead>
                       <TableHead className="text-right">Amount paid</TableHead>
@@ -437,6 +443,7 @@ export default function AdminLandDetailPage() {
                           {subscriber.email ? <div className="text-xs text-muted-foreground">{subscriber.email}</div> : null}
                         </TableCell>
                         <TableCell>{staffLabel(subscriber)}</TableCell>
+                        <TableCell>{subscriber.ippis_number?.trim() || "—"}</TableCell>
                         <TableCell>{subscriber.allocated_land_size || "—"}</TableCell>
                         <TableCell className="text-right tabular-nums">{formatNaira(subscriber.total_cost)}</TableCell>
                         <TableCell className="text-right tabular-nums text-green-600">{formatNaira(subscriber.amount_paid)}</TableCell>
@@ -446,9 +453,7 @@ export default function AdminLandDetailPage() {
                             {(subscriber.tenure_status || "allocation").replace(/_/g, " ")}
                           </Badge>
                         </TableCell>
-                        <TableCell>
-                          {subscriber.created_at ? new Date(subscriber.created_at).toLocaleDateString() : "—"}
-                        </TableCell>
+                        <TableCell>{formatDisplayDate(subscriber.created_at)}</TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
 import { getMemberRaReceipts } from "@/lib/api/resident-association"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 
 export default function MemberRaReceiptsPage() {
 	const { toast } = useToast()
@@ -73,7 +74,7 @@ export default function MemberRaReceiptsPage() {
 											<TableCell className="font-medium">{row.title || row.subject || "—"}</TableCell>
 											<TableCell>{row.document_type || "—"}</TableCell>
 											<TableCell>{row.reference_number || row.document_number || "—"}</TableCell>
-											<TableCell>{row.created_at ? String(row.created_at).slice(0, 10) : "—"}</TableCell>
+											<TableCell>{formatDisplayDate(row.created_at)}</TableCell>
 										</TableRow>
 									))
 								)}

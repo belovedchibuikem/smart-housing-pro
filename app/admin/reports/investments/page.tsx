@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { getInvestmentReports, exportReport } from "@/lib/api/client"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 import { useToast } from "@/hooks/use-toast"
 
 export default function InvestmentReportsPage() {
@@ -185,8 +186,8 @@ export default function InvestmentReportsPage() {
                       <TableCell>{investment.plan}</TableCell>
                       <TableCell className="text-right font-semibold">{investment.amount}</TableCell>
                       <TableCell className="text-right text-green-600 font-semibold">{investment.roi}</TableCell>
-                      <TableCell>{investment.start_date}</TableCell>
-                      <TableCell>{investment.maturity_date}</TableCell>
+                      <TableCell>{formatDisplayDate(investment.start_date)}</TableCell>
+                      <TableCell>{formatDisplayDate(investment.maturity_date)}</TableCell>
                       <TableCell>
                         <Badge variant={investment.status === "Active" ? "default" : "secondary"}>
                           {investment.status}

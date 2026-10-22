@@ -17,6 +17,7 @@ import {
 	getMemberRaHouses,
 	getMemberRaPayments,
 } from "@/lib/api/resident-association"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 
 function formatCurrency(amount: number) {
 	return new Intl.NumberFormat("en-NG", {
@@ -303,13 +304,7 @@ export default function MemberRaPaymentsPage() {
 									) : (
 										payments.map((row) => (
 											<TableRow key={row.id}>
-												<TableCell>
-													{row.payment_date
-														? String(row.payment_date).slice(0, 10)
-														: row.created_at
-															? String(row.created_at).slice(0, 10)
-															: "—"}
-												</TableCell>
+												<TableCell>{formatDisplayDate(row.payment_date || row.created_at)}</TableCell>
 												<TableCell>{row.estate?.name || "—"}</TableCell>
 												<TableCell>{formatCurrency(row.amount)}</TableCell>
 												<TableCell>{row.bank_reference || "—"}</TableCell>

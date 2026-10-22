@@ -23,6 +23,7 @@ import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
 import { resolveStorageUrl } from "@/lib/api/config"
 import type { MemberHouse } from "@/lib/api/client"
 import { useToast } from "@/hooks/use-toast"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 import { cn } from "@/lib/utils"
 
 type MyPropertiesProps = {
@@ -380,14 +381,13 @@ export function MyProperties({ properties, loading, propertyType = "house" }: My
 												{property.interest_created_at ? (
 													<span className="inline-flex items-center gap-1.5">
 														<Calendar className="h-3.5 w-3.5" />
-														Interest{" "}
-														{new Date(property.interest_created_at).toLocaleDateString()}
+														Interest {formatDisplayDate(property.interest_created_at)}
 													</span>
 												) : null}
 												{property.allocation_date ? (
 													<span className="inline-flex items-center gap-1.5">
 														<PropertyIcon className="h-3.5 w-3.5" />
-														Allocated {property.allocation_date}
+														Allocated {formatDisplayDate(property.allocation_date)}
 													</span>
 												) : null}
 												{property.tenure_status ? (

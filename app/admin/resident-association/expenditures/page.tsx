@@ -16,6 +16,7 @@ import {
 	listRaEstates,
 	listRaExpenditures,
 } from "@/lib/api/resident-association"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 
 function formatCurrency(amount: number) {
 	return new Intl.NumberFormat("en-NG", {
@@ -218,7 +219,7 @@ export default function AdminRaExpendituresPage() {
 								) : (
 									rows.map((row) => (
 										<TableRow key={row.id}>
-											<TableCell>{String(row.expense_date || "").slice(0, 10) || "—"}</TableCell>
+											<TableCell>{formatDisplayDate(row.expense_date)}</TableCell>
 											<TableCell className="font-medium">{row.description}</TableCell>
 											<TableCell>{row.estate?.name || "—"}</TableCell>
 											<TableCell>{row.payee || "—"}</TableCell>

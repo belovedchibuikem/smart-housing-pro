@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { getFinancialReports, exportReport } from "@/lib/api/client"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 import { useToast } from "@/hooks/use-toast"
 
 export default function FinancialReportsPage() {
@@ -177,7 +178,7 @@ export default function FinancialReportsPage() {
                   {transactions.map((txn) => (
                     <TableRow key={txn.id}>
                       <TableCell className="font-medium">{txn.id}</TableCell>
-                      <TableCell>{txn.date}</TableCell>
+                      <TableCell>{formatDisplayDate(txn.date)}</TableCell>
                       <TableCell>{txn.type}</TableCell>
                       <TableCell>
                         <Badge

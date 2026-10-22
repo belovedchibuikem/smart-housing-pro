@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
 import { getContributionReports, exportReport } from "@/lib/api/client"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import {
@@ -282,7 +283,7 @@ export default function ContributionReportsPage() {
                       <TableCell>{contribution.member_id}</TableCell>
                       <TableCell className="text-right font-semibold">{contribution.amount}</TableCell>
                       <TableCell className="text-right">{contribution.member_balance || "—"}</TableCell>
-                      <TableCell>{contribution.due_date}</TableCell>
+                      <TableCell>{formatDisplayDate(contribution.due_date)}</TableCell>
                       <TableCell>{contribution.paid_date || "-"}</TableCell>
                       <TableCell>
                         <Badge

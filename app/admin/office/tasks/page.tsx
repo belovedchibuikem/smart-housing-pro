@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { completeMinuteAction, getOfficeMyTasks } from "@/lib/api/office"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 import { Loader2 } from "lucide-react"
 
 type TaskItem = {
@@ -158,7 +159,7 @@ export default function OfficeTasksPage() {
                 <div className="text-muted-foreground">{c.subject}</div>
                 <div className="text-xs mt-1">
                   {c.status}
-                  {c.due_at ? ` · due ${String(c.due_at).slice(0, 10)}` : ""}
+                  {c.due_at ? ` · due ${formatDisplayDate(c.due_at)}` : ""}
                 </div>
               </Link>
             ))}

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { getMemberReports, exportReport } from "@/lib/api/client"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 
@@ -211,7 +212,7 @@ export default function MemberReportsPage() {
                           {member.status}
                         </Badge>
                       </TableCell>
-                      <TableCell>{member.join_date}</TableCell>
+                      <TableCell>{formatDisplayDate(member.join_date)}</TableCell>
                       <TableCell className="text-right font-semibold">{member.contributions}</TableCell>
                     </TableRow>
                   ))}

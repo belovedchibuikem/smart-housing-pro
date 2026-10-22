@@ -8,17 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Loader2 } from "lucide-react"
 import { closeAccountingPeriod, closeFinancialYear, ensureFinancialYear, getFinancialYears, reopenAccountingPeriod } from "@/lib/api/accounting"
 import { useToast } from "@/hooks/use-toast"
-
-function formatDate(value?: string | null): string {
-  if (!value) return "—"
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return String(value).slice(0, 10)
-  return d.toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  })
-}
+import { formatDisplayDate as formatDate } from "@/lib/utils/format-date"
 
 function formatDateRange(start?: string | null, end?: string | null): string {
   return `${formatDate(start)} – ${formatDate(end)}`

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Wallet, Plus, ArrowUpRight, ArrowDownRight, History, TrendingUp, Eye, EyeOff, Download } from "lucide-react"
 import { getWallet, getWalletTransactions } from "@/lib/api/client"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 
 export default function WalletPage() {
   const [showBalance, setShowBalance] = useState(true)
@@ -223,7 +224,7 @@ export default function WalletPage() {
                   <div>
                     <p className="font-medium">{transaction.description}</p>
                     <p className="text-sm text-muted-foreground">
-                      {transaction.date}{transaction.time ? ` • ${transaction.time}` : ''}
+                      {formatDisplayDate(transaction.date)}{transaction.time ? ` • ${transaction.time}` : ''}
                     </p>
                   </div>
                 </div>

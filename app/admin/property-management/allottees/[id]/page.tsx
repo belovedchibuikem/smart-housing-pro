@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { apiFetch, getPropertyAllottee } from "@/lib/api/client"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 import { Can } from "@/components/admin/can-permission"
 import { AdminAssetRepaymentForm } from "@/components/admin/admin-asset-repayment-form"
 
@@ -323,7 +324,7 @@ export default function AllotteeTenurePage() {
                     ₦{Number(p.amount).toLocaleString()} · {p.source ?? "cash"}
                     {p.reference ? ` · ${p.reference}` : ""}
                   </span>
-                  <span className="text-muted-foreground">{p.paid_at?.slice(0, 10) ?? "—"}</span>
+                  <span className="text-muted-foreground">{formatDisplayDate(p.paid_at)}</span>
                 </li>
               ))}
             </ul>

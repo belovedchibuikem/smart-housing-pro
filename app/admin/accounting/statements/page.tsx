@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/searchable-select"
 import { Download, ExternalLink, FileSpreadsheet, FileText, Loader2 } from "lucide-react"
 import { downloadMemberStatementPdf, exportMemberStatementCsv, generateMemberStatement } from "@/lib/api/accounting"
+import { StatementGroupedView } from "@/components/financial/statement-grouped-view"
 import { apiFetch } from "@/lib/api/client"
 import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
 import { useToast } from "@/hooks/use-toast"
@@ -245,6 +246,11 @@ export default function MemberStatementsAdminPage() {
                 downloadBlob(blob, `${result.statement.statement_number}.pdf`)
               }}>Download PDF</Button>
             )}
+            <StatementGroupedView
+              groupedSummary={result.grouped_summary || result.summary?.grouped_summary}
+              groups={result.groups}
+              closingBalance={result.summary?.closing_balance}
+            />
           </CardContent>
         </Card>
       )}

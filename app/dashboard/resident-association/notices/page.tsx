@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { getMemberRaNotices } from "@/lib/api/resident-association"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 
 export default function MemberRaNoticesPage() {
 	const { toast } = useToast()
@@ -61,11 +62,7 @@ export default function MemberRaNoticesPage() {
 										<div className="flex items-center gap-2">
 											{row.estate?.name ? <Badge variant="secondary">{row.estate.name}</Badge> : null}
 											<span className="text-xs text-muted-foreground">
-												{row.publish_at
-													? String(row.publish_at).slice(0, 10)
-													: row.created_at
-														? String(row.created_at).slice(0, 10)
-														: ""}
+												{formatDisplayDate(row.publish_at || row.created_at, { fallback: "" })}
 											</span>
 										</div>
 									</div>

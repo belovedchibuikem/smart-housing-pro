@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { getMailServiceReports, exportReport } from "@/lib/api/client"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 
@@ -184,7 +185,7 @@ export default function MailServiceReportsPage() {
                         <Badge variant="outline">{mail.category}</Badge>
                       </TableCell>
                       <TableCell>{mail.recipient_type}</TableCell>
-                      <TableCell>{mail.sent_at || mail.created_at}</TableCell>
+                      <TableCell>{formatDisplayDate(mail.sent_at || mail.created_at)}</TableCell>
                       <TableCell>
                         <Badge variant={mail.status === "Delivered" ? "default" : "secondary"}>
                           {mail.status}

@@ -17,7 +17,9 @@ import {
   getMemberPropertyFinancialLedger,
   getMemberStatements,
 } from "@/lib/api/accounting"
+import { StatementGroupedView } from "@/components/financial/statement-grouped-view"
 import { toast } from "sonner"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 
 function money(n: number | undefined) {
   return `₦${Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -32,6 +34,7 @@ export default function MemberFinancialPage() {
   const [from, setFrom] = useState(() => new Date(new Date().getFullYear(), 0, 1).toISOString().slice(0, 10))
   const [to, setTo] = useState(() => new Date().toISOString().slice(0, 10))
   const [generating, setGenerating] = useState(false)
+  const [statementPreview, setStatementPreview] = useState<any>(null)
   const [propType, setPropType] = useState("house")
   const [propId, setPropId] = useState("")
   const [propLoading, setPropLoading] = useState(false)
@@ -121,6 +124,7 @@ export default function MemberFinancialPage() {
                 try {
                   setGenerating(true)
                   const res = await generateOwnStatement({ from, to })
+                  setStatementPreview(res.data || null)
                   toast.success(`Statement ${res.data?.statement?.statement_number} ready`)
                   if (res.data?.statement?.verification_token) {
                     toast.message("Verify anytime", {
@@ -146,6 +150,15 @@ export default function MemberFinancialPage() {
                   <ExternalLink className="h-4 w-4 mr-2" /> Verify document
                 </Link>
               </Button>
+              {statementPreview && (
+                <div className="w-full basis-full pt-2">
+                  <StatementGroupedView
+                    groupedSummary={statementPreview.grouped_summary || statementPreview.summary?.grouped_summary}
+                    groups={statementPreview.groups}
+                    closingBalance={statementPreview.summary?.closing_balance}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -186,7 +199,7 @@ export default function MemberFinancialPage() {
                   <TableBody>
                     {propertyLedger.map((row: any) => (
                       <TableRow key={row.id}>
-                        <TableCell>{row.entry_date}</TableCell>
+                        <TableCell>{formatDisplayDate(row.entry_date)}</TableCell>
                         <TableCell>{row.description}</TableCell>
                         <TableCell className="text-right">{Number(row.debit) > 0 ? money(row.debit) : "—"}</TableCell>
                         <TableCell className="text-right">{Number(row.credit) > 0 ? money(row.credit) : "—"}</TableCell>
@@ -215,7 +228,7 @@ export default function MemberFinancialPage() {
                 <TableBody>
                   {ledger.map((row: any) => (
                     <TableRow key={row.id}>
-                      <TableCell>{row.entry_date}</TableCell>
+                      <TableCell>{formatDisplayDate(row.entry_date)}</TableCell>
                       <TableCell>{row.description}</TableCell>
                       <TableCell className="text-right">{Number(row.debit) > 0 ? money(row.debit) : "—"}</TableCell>
                       <TableCell className="text-right">{Number(row.credit) > 0 ? money(row.credit) : "—"}</TableCell>
@@ -235,7 +248,7 @@ export default function MemberFinancialPage() {
                   <div key={s.id} className="flex items-center justify-between border-b py-2 text-sm gap-2">
                     <div>
                       <div className="font-medium">{s.statement_number}</div>
-                      <div className="text-muted-foreground">{s.period_start} → {s.period_end}</div>
+                      <div className="text-muted-foreground">{formatDisplayDate(s.period_start)} → {formatDisplayDate(s.period_end)}</div>
                       {s.verification_token && (
                         <Link className="text-xs text-primary underline" href={`/verify?code=${encodeURIComponent(s.verification_token)}`} target="_blank">
                           Verify

@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
 import { listRaPayments, rejectRaPayment, verifyRaPayment } from "@/lib/api/resident-association"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 
 function formatCurrency(amount: number) {
 	return new Intl.NumberFormat("en-NG", {
@@ -160,13 +161,7 @@ export default function AdminRaPaymentsPage() {
 												<TableCell>{row.estate?.name || "—"}</TableCell>
 												<TableCell>{formatCurrency(row.amount)}</TableCell>
 												<TableCell>{row.bank_reference || "—"}</TableCell>
-												<TableCell>
-													{row.payment_date
-														? String(row.payment_date).slice(0, 10)
-														: row.created_at
-															? String(row.created_at).slice(0, 10)
-															: "—"}
-												</TableCell>
+												<TableCell>{formatDisplayDate(row.payment_date || row.created_at)}</TableCell>
 												<TableCell>
 													<Badge variant={pending ? "secondary" : row.status === "rejected" ? "destructive" : "default"}>
 														{row.status || "—"}

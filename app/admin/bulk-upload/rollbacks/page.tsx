@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { AlertCircle, Loader2, RefreshCw, Search, Undo2 } from "lucide-react"
 import { useBulkUploadPermission } from "@/lib/admin/bulk-upload-permissions"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -355,7 +356,7 @@ export default function FinancialRollbacksPage() {
                     <TableCell>
                       <Badge variant="outline">{b.status}</Badge>
                     </TableCell>
-                    <TableCell className="text-sm">{b.created_at?.slice(0, 10)}</TableCell>
+                    <TableCell className="text-sm">{formatDisplayDate(b.created_at)}</TableCell>
                     <TableCell className="text-right space-x-2">
                       <Button
                         size="sm"
@@ -521,7 +522,7 @@ export default function FinancialRollbacksPage() {
                       </TableCell>
                       <TableCell>{money(r.amount)}</TableCell>
                       <TableCell className="max-w-[160px] truncate text-xs">{r.reference || r.target_id}</TableCell>
-                      <TableCell className="text-sm">{r.occurred_at?.slice(0, 10) || "—"}</TableCell>
+                      <TableCell className="text-sm">{formatDisplayDate(r.occurred_at)}</TableCell>
                       <TableCell>
                         {r.is_reversed ? (
                           <Badge variant="secondary">reversed</Badge>

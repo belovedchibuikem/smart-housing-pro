@@ -48,6 +48,7 @@ import {
 	approveInternalMortgageSchedule,
 } from "@/lib/api/client"
 import { useToast } from "@/hooks/use-toast"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 import { GlPropertyLedgerPanel } from "@/components/financial/gl-property-ledger-panel"
 
 type PropertyPaymentTabProps = {
@@ -134,16 +135,7 @@ function sourceLabel(source: string) {
 	return sourceLabels[source] ?? source.replace(/_/g, " ")
 }
 
-const formatDate = (value?: string | null) => {
-	if (!value) return "—"
-	const date = new Date(value)
-	if (Number.isNaN(date.getTime())) return value
-	return date.toLocaleDateString(undefined, {
-		year: "numeric",
-		month: "short",
-		day: "numeric",
-	})
-}
+const formatDate = (value?: string | null) => formatDisplayDate(value, { fallback: value || "—" })
 
 export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProps) {
 	const [setup, setSetup] = useState<PropertyPaymentSetup | null>(null)
@@ -557,7 +549,7 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 							}`}
 						>
 							<div>{entry.installment ?? entry.month ?? entry.period}</div>
-							<div>{new Date(entry.due_date).toLocaleDateString()}</div>
+							<div>{formatDisplayDate(entry.due_date)}</div>
 							<div>{formatCurrency(entry.principal)}</div>
 							<div>{formatCurrency(entry.interest)}</div>
 							<div className="font-semibold">{formatCurrency(entry.total)}</div>
@@ -1826,11 +1818,9 @@ export function PropertyPaymentTab({ propertyId, house }: PropertyPaymentTabProp
 										</p>
 									)}
 									<div className="mt-2 text-xs text-muted-foreground">
-										{entry.paid_at
-											? new Date(entry.paid_at).toLocaleString()
-											: entry.created_at
-												? new Date(entry.created_at).toLocaleString()
-												: "Date not available"}
+										{entry.paid_at || entry.created_at
+											? formatDisplayDate(entry.paid_at || entry.created_at)
+											: "Date not available"}
 										{entry.reference ? ` · ${entry.reference}` : ""}
 									</div>
 									{reversed && entry.void_reason ? (

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 import {
 	deletePropertyDocument,
 	getPropertyDocuments,
@@ -352,7 +353,7 @@ export function PropertyDocuments({
 												<span>{(document.file_size / 1024).toFixed(1)} KB</span>
 											)}
 											{document.created_at && (
-												<span>{new Date(document.created_at).toLocaleString()}</span>
+												<span>{formatDisplayDate(document.created_at)}</span>
 											)}
 										</div>
 										<div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">

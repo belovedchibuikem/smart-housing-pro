@@ -35,6 +35,7 @@ import { PropertyAnalyticsPanel } from "@/components/admin/property-analytics-pa
 import { PropertyOwnershipPanel } from "@/components/admin/property-ownership-panel"
 import { formatNaira } from "@/lib/properties/pricing"
 import { formatCompactNaira } from "@/lib/utils/currency"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 import { getPropertyTypeLabel } from "@/lib/properties/property-type-label"
 
 interface PropertyAllocation {
@@ -48,6 +49,7 @@ interface PropertyAllocation {
     id: string
     member_number?: string | null
     staff_id?: string | null
+    ippis_number?: string | null
     user?: {
       first_name?: string | null
       last_name?: string | null
@@ -163,6 +165,9 @@ export default function PropertyDetailPage() {
     allocation.member?.staff_id?.trim() ||
     "—"
 
+  const getMemberIppis = (allocation: PropertyAllocation) =>
+    allocation.member?.ippis_number?.trim() || "—"
+
   const getMemberName = (allocation: PropertyAllocation) =>
     `${allocation.member?.user?.first_name ?? ""} ${allocation.member?.user?.last_name ?? ""}`.trim() ||
     "Unknown Member"
@@ -173,8 +178,9 @@ export default function PropertyDetailPage() {
     return allocations.filter((allocation) => {
       const name = getMemberName(allocation).toLowerCase()
       const staffId = getMemberStaffId(allocation).toLowerCase()
+      const ippis = allocation.member?.ippis_number?.trim().toLowerCase() ?? ""
       const email = allocation.member?.user?.email?.toLowerCase() ?? ""
-      return name.includes(q) || staffId.includes(q) || email.includes(q)
+      return name.includes(q) || staffId.includes(q) || ippis.includes(q) || email.includes(q)
     })
   }, [allocations, subscriberSearch])
 
@@ -193,6 +199,7 @@ export default function PropertyDetailPage() {
       "Property ID",
       "Member Name",
       "Staff ID",
+      "IPPIS Number",
       "Slots",
       "Total Cost",
       "Amount Paid",
@@ -205,12 +212,13 @@ export default function PropertyDetailPage() {
       property.id,
       getMemberName(allocation),
       getMemberStaffId(allocation),
+      getMemberIppis(allocation) === "—" ? "" : getMemberIppis(allocation),
       String(allocation.slots_assigned ?? 1),
       String(allocation.subscription_cost ?? 0),
       String(allocation.amount_paid ?? 0),
       String(allocation.outstanding ?? 0),
       allocation.status ?? "",
-      allocation.created_at ? new Date(allocation.created_at).toISOString().slice(0, 10) : "",
+      formatDisplayDate(allocation.created_at, { fallback: "" }),
     ])
 
     const csv = [headers, ...rows].map((row) => row.map(escapeCsv).join(",")).join("\n")
@@ -491,7 +499,7 @@ export default function PropertyDetailPage() {
                       <div className="relative w-full sm:w-64">
                         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                         <Input
-                          placeholder="Search name or staff ID…"
+                          placeholder="Search name, staff ID, or IPPIS…"
                           value={subscriberSearch}
                           onChange={(e) => setSubscriberSearch(e.target.value)}
                           className="pl-9"
@@ -520,6 +528,7 @@ export default function PropertyDetailPage() {
                       <TableRow>
                         <TableHead>Member</TableHead>
                           <TableHead>Staff ID</TableHead>
+                          <TableHead>IPPIS Number</TableHead>
                           <TableHead className="text-right">Slots</TableHead>
                           <TableHead className="text-right">Total cost</TableHead>
                           <TableHead className="text-right">Amount Paid</TableHead>
@@ -533,6 +542,7 @@ export default function PropertyDetailPage() {
                             <TableRow key={allocation.id}>
                               <TableCell className="font-medium">{getMemberName(allocation)}</TableCell>
                               <TableCell className="font-mono text-sm">{getMemberStaffId(allocation)}</TableCell>
+                              <TableCell className="font-mono text-sm">{getMemberIppis(allocation)}</TableCell>
                               <TableCell className="text-right">{allocation.slots_assigned ?? 1}</TableCell>
                               <TableCell className="text-right tabular-nums">
                                 {formatNaira(Number(allocation.subscription_cost ?? 0))}
@@ -548,11 +558,7 @@ export default function PropertyDetailPage() {
                                   {allocation.status ?? "pending"}
                                 </Badge>
                           </TableCell>
-                          <TableCell>
-                                {allocation.created_at
-                                  ? new Date(allocation.created_at).toLocaleDateString()
-                                  : "—"}
-                          </TableCell>
+                          <TableCell>{formatDisplayDate(allocation.created_at)}</TableCell>
                         </TableRow>
                         ))}
                     </TableBody>

@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
 import { apiFetch, exportReport } from "@/lib/api/client"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 import { toast as sonnerToast } from "sonner"
 import {
   DropdownMenu,
@@ -330,7 +331,7 @@ export default function EquityContributionReportsPage() {
                           {contribution.status}
                         </Badge>
                       </TableCell>
-                      <TableCell>{contribution.created_at}</TableCell>
+                      <TableCell>{formatDisplayDate(contribution.created_at)}</TableCell>
                     </TableRow>
                   ))
                 )}

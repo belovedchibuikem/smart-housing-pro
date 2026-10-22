@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Send, Mail, FileText, History } from "lucide-react"
 import { apiFetch } from "@/lib/api/client"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 import { usePageLoading } from "@/hooks/use-loading"
 import { toast } from "sonner"
 
@@ -359,7 +360,7 @@ export default function SuperAdminMailPage() {
                             To: {mail.recipient_type.replace("_", " ")}
                           </span>
                           <span className="text-sm text-muted-foreground">Sent to {mail.sent_count} recipients</span>
-                          <span className="text-sm text-muted-foreground">{mail.sent_at}</span>
+                          <span className="text-sm text-muted-foreground">{formatDisplayDate(mail.sent_at)}</span>
                         </div>
                       </div>
                     </div>

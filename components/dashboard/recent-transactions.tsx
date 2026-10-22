@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowUpRight, ArrowDownLeft } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useMemo } from "react"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 
 interface DashboardData {
   recent_activity: {
@@ -37,12 +38,7 @@ interface RecentTransactionsProps {
 }
 
 function formatDate(dateString: string): string {
-  try {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  } catch {
-    return dateString
-  }
+  return formatDisplayDate(dateString, { fallback: dateString })
 }
 
 export function RecentTransactions({ data, loading }: RecentTransactionsProps) {

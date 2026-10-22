@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Loader2, Scale } from "lucide-react"
 import { getMemberPropertyFinancialLedger } from "@/lib/api/accounting"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 
 function money(n: number | undefined) {
   return new Intl.NumberFormat("en-NG", {
@@ -106,7 +107,7 @@ export function GlPropertyLedgerPanel({
                     <Badge variant="outline" className="capitalize">
                       {String(row.transaction_type || "").replace(/_/g, " ")}
                     </Badge>
-                    <span className="text-muted-foreground">{row.entry_date}</span>
+                    <span className="text-muted-foreground">{formatDisplayDate(row.entry_date)}</span>
                   </div>
                   <p className="mt-1 text-sm font-medium">{row.description}</p>
                   {row.receipt_number && (

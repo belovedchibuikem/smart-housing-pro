@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
 import { getAuditReports, exportReport } from "@/lib/api/client"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 import { useToast } from "@/hooks/use-toast"
 
 export default function AuditReportsPage() {
@@ -189,7 +190,7 @@ export default function AuditReportsPage() {
                   {logs.map((log) => (
                     <TableRow key={log.raw_id || log.id}>
                       <TableCell className="font-medium font-mono text-xs">{log.id}</TableCell>
-                      <TableCell className="text-xs whitespace-nowrap">{log.created_at}</TableCell>
+                      <TableCell className="text-xs whitespace-nowrap">{formatDisplayDate(log.created_at)}</TableCell>
                       <TableCell>{log.user}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{log.action}</Badge>

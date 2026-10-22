@@ -10,16 +10,10 @@ import { Badge } from "@/components/ui/badge"
 import { Loader2 } from "lucide-react"
 import { getJournalEntries, getJournalEntry, postManualJournal, reverseJournal } from "@/lib/api/accounting"
 import { useToast } from "@/hooks/use-toast"
+import { formatDisplayDate as formatDate } from "@/lib/utils/format-date"
 
 function money(n: number) {
   return Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
-function formatDate(value?: string | null): string {
-  if (!value) return "—"
-  const d = new Date(value)
-  if (Number.isNaN(d.getTime())) return String(value).slice(0, 10)
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
 }
 
 export default function JournalsPage() {

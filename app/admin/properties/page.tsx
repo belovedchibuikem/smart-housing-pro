@@ -49,6 +49,7 @@ import {
   type AdminPropertyStatistics,
 } from "@/lib/api/client"
 import { downloadAndSaveAdminIssuedDocument } from "@/lib/api/issued-documents"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 import { openSubscriptionCertificate } from "@/lib/properties/subscription-certificate"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { Can, useTenantPermissions } from "@/components/admin/can-permission"
@@ -961,7 +962,7 @@ export default function AdminPropertiesPage() {
                           ₦{payment.amount.toLocaleString()}
                         </TableCell>
                         <TableCell>{payment.paymentMethod}</TableCell>
-                        <TableCell>{payment.date}</TableCell>
+                        <TableCell>{formatDisplayDate(payment.date)}</TableCell>
                         <TableCell>
                           <Button variant="link" size="sm" className="h-auto p-0">
                             View evidence

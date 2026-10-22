@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 import { deleteLandDocument, getLandDocuments, type LandDocument, uploadLandDocument } from "@/lib/api/client"
 import { FileText, Loader2, Trash2, Upload } from "lucide-react"
 
@@ -174,7 +175,7 @@ export function LandDocuments({ landId }: { landId: string }) {
                     {document.description ? <p className="text-muted-foreground">{document.description}</p> : null}
                     <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                       {document.file_size ? <span>{(document.file_size / 1024).toFixed(1)} KB</span> : null}
-                      {document.created_at ? <span>{new Date(document.created_at).toLocaleString()}</span> : null}
+                      {document.created_at ? <span>{formatDisplayDate(document.created_at)}</span> : null}
                     </div>
                     {document.file_url ? (
                       <a href={document.file_url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-primary hover:underline">

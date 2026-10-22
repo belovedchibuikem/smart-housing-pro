@@ -18,6 +18,7 @@ import {
 	listRaNotices,
 	publishRaNotice,
 } from "@/lib/api/resident-association"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 
 export default function AdminRaNoticesPage() {
 	const { toast } = useToast()
@@ -215,7 +216,7 @@ export default function AdminRaNoticesPage() {
 													{row.status || "—"}
 												</Badge>
 											</TableCell>
-											<TableCell>{row.created_at ? String(row.created_at).slice(0, 10) : "—"}</TableCell>
+											<TableCell>{formatDisplayDate(row.created_at)}</TableCell>
 											<TableCell className="text-right">
 												{row.status !== "published" ? (
 													<Button size="sm" variant="outline" onClick={() => void publish(row.id)}>

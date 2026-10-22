@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search, Download, Eye, Wallet, TrendingUp, TrendingDown, DollarSign } from "lucide-react"
 import { apiFetch, exportReport } from "@/lib/api/client"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 import { toast as sonnerToast } from "sonner"
 import { TablePagination } from "@/components/admin/table-pagination"
 
@@ -202,7 +203,7 @@ export default function AdminWalletsPage() {
                       <td className="p-4">
                         <Badge variant={wallet.status === "active" ? "default" : "destructive"}>{wallet.status}</Badge>
                       </td>
-                      <td className="p-4 text-sm text-muted-foreground">{wallet.lastTransaction ? new Date(wallet.lastTransaction).toISOString().slice(0,10) : '—'}</td>
+                      <td className="p-4 text-sm text-muted-foreground">{formatDisplayDate(wallet.lastTransaction)}</td>
                       <td className="p-4">
                         <Button variant="ghost" size="sm">
                           <Eye className="h-4 w-4" />

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { listEcpmAudit } from "@/lib/api/ecpm"
+import { formatDisplayDate } from "@/lib/utils/format-date"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2 } from "lucide-react"
 
@@ -44,7 +45,7 @@ export default function EcpmAuditPage() {
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} className="border-b">
-                  <td className="p-3 whitespace-nowrap text-xs">{r.created_at}</td>
+                  <td className="p-3 whitespace-nowrap text-xs">{formatDisplayDate(r.created_at)}</td>
                   <td className="p-3">{r.action}</td>
                   <td className="p-3 text-xs">{r.previous_status || "—"} → {r.new_status || "—"}</td>
                   <td className="p-3 text-xs">{r.ip_address || "—"}</td>
