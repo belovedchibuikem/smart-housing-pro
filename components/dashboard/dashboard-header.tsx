@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { useWhiteLabelSettings } from "@/lib/hooks/use-white-label"
 import { UserNotificationBell } from "./user-notification-bell"
+import { MailBell } from "@/components/mail/mail-bell"
 import { SubscriptionAlertBanner } from "./subscription-alert-banner"
 import { resolveStorageUrl } from "@/lib/api/config"
 import { MemberAccountMenu } from "./member-account-menu"
@@ -48,6 +49,10 @@ export function DashboardHeader({ mobileMenuOpen, setMobileMenuOpen }: Dashboard
         <div className="flex items-center gap-2">
           <InstallAppButton className="inline-flex" />
           {/* Notifications */}
+          <MailBell
+            inboxHref="/dashboard/mail-service/inbox"
+            messageHref={(id) => `/dashboard/mail-service/${id}`}
+          />
           <UserNotificationBell />
 
           {/* User Menu */}

@@ -15,6 +15,7 @@ import Image from "next/image"
 import { useWhiteLabelSettings } from "@/lib/hooks/use-white-label"
 import { useTenantSettings } from "@/lib/context/tenant-settings-context"
 import { AdminNotificationBell } from "./admin-notification-bell"
+import { MailBell } from "@/components/mail/mail-bell"
 import { handleLogout, getUserData } from "@/lib/auth/auth-utils"
 import { AdminSubscriptionAlertBanner } from "./subscription-alert-banner"
 import { resolveStorageUrl } from "@/lib/api/config"
@@ -115,6 +116,10 @@ export function AdminHeader({
               triggerClassName="w-9 px-0 justify-center max-w-none [&>span]:hidden [&>kbd]:hidden"
             />
           </div>
+          <MailBell
+            inboxHref="/admin/mail-service/inbox"
+            messageHref={(id) => `/admin/mail-service/${id}`}
+          />
           <AdminNotificationBell />
 
           <DropdownMenu>

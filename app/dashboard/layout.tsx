@@ -15,6 +15,7 @@ import { IdleSessionGuard } from "@/lib/auth/idle-session"
 import { meRequest } from "@/lib/api/client"
 import { persistSessionTimeout } from "@/lib/auth/session-timeout"
 import { WebPushRegistrar } from "@/components/push/web-push-registrar"
+import { MailArrivalNotice } from "@/components/mail/mail-arrival-notice"
 
 export default function DashboardLayout({
   children,
@@ -64,6 +65,7 @@ export default function DashboardLayout({
     <AuthGuard requireMemberDashboard redirectTo="/login">
       <IdleSessionGuard />
       <WebPushRegistrar />
+      <MailArrivalNotice hrefFor={(mailId) => `/dashboard/mail-service/${mailId}`} />
       <div className="min-h-screen bg-background">
         <DashboardHeader mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
         <div className="flex">

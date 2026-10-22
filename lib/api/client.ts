@@ -5573,6 +5573,8 @@ export interface MailListResponse {
 
 export interface ComposeMailPayload {
 	recipient_id?: string
+	recipient_ids?: string[]
+	recipients?: string
 	subject?: string
 	body?: string
 	type?: "internal" | "system" | "notification"
@@ -5632,6 +5634,10 @@ export async function getMailMessage(mailId: string) {
 export async function composeMail(payload: ComposeMailPayload) {
 	const formData = new FormData()
 	if (payload.recipient_id) formData.append("recipient_id", payload.recipient_id)
+	if (payload.recipients) formData.append("recipients", payload.recipients)
+	if (payload.recipient_ids) {
+		payload.recipient_ids.forEach((id) => formData.append("recipient_ids[]", id))
+	}
 	if (payload.subject) formData.append("subject", payload.subject)
 	if (payload.body) formData.append("body", payload.body)
 	if (payload.type) formData.append("type", payload.type)
@@ -5698,13 +5704,38 @@ export async function replyToMail(mailId: string, payload: { subject: string; bo
 }
 
 // Get available recipients (users/admins for dropdown)
-export async function getAvailableRecipients(search?: string) {
+export async function getAvailableRecipients(search?: string, audience?: string) {
 	const query = new URLSearchParams()
 	if (search) query.set("search", search)
-	return apiFetch<{ success: boolean; users: Array<{ id: string; name: string; email: string; role: string }> }>(
+	if (audience) query.set("audience", audience)
+	return apiFetch<{ success: boolean; users: Array<{ id: string; name: string; email: string; audience?: string; role?: string }> }>(
 		`/communication/mail/recipients?${query.toString()}`,
 		{ method: "GET" }
 	)
+}
+
+export async function getAdminMailRecipients(params?: { search?: string; audience?: string }) {
+	const query = new URLSearchParams()
+	if (params?.search) query.set("search", params.search)
+	if (params?.audience) query.set("audience", params.audience)
+	return apiFetch<{ success: boolean; users: Array<{ id: string; name: string; email: string; audience?: string }> }>(
+		`/admin/mail-service/recipients?${query.toString()}`,
+		{ method: "GET" }
+	)
+}
+
+export async function treatAdminMail(id: string, comment: string) {
+	return apiFetch<{ success: boolean; message: string; data: any }>(`/admin/mail-service/${id}/treat`, {
+		method: "POST",
+		body: { comment },
+	})
+}
+
+export async function treatMail(id: string, comment: string) {
+	return apiFetch<{ success: boolean; message: string; mail: any }>(`/communication/mail/${id}/treat`, {
+		method: "POST",
+		body: { comment },
+	})
 }
 
 // Member Reports API

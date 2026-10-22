@@ -22,6 +22,7 @@ import { IdleSessionGuard } from "@/lib/auth/idle-session"
 import { persistSessionTimeout } from "@/lib/auth/session-timeout"
 import { Loader2 } from "lucide-react"
 import { WebPushRegistrar } from "@/components/push/web-push-registrar"
+import { MailArrivalNotice } from "@/components/mail/mail-arrival-notice"
 
 function ImpersonationBanner() {
   const [label, setLabel] = useState("")
@@ -133,6 +134,7 @@ export default function AdminLayout({
     <AuthGuard requireStaffDashboardAccess>
       <IdleSessionGuard />
       <WebPushRegistrar />
+      <MailArrivalNotice hrefFor={(mailId) => `/admin/mail-service/${mailId}`} />
       <div className="min-h-screen bg-background lg:flex lg:h-dvh lg:min-h-0 lg:flex-col lg:overflow-hidden">
         <div className="shrink-0">
           <ImpersonationBanner />

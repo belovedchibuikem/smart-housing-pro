@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -11,11 +11,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { ArrowLeft, Send, Save, Paperclip, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Bold, Italic, Underline, List, LinkIcon, X } from "lucide-react"
-import { composeMail, getMailMessage, getAvailableRecipients, MailMessage } from "@/lib/api/client"
+import { composeMail, getMailMessage, getAvailableRecipients } from "@/lib/api/client"
+import { RecipientPicker, recipientSendLabel, type MailPerson } from "@/components/mail/recipient-picker"
 import { toast } from "sonner"
-import { Badge } from "@/components/ui/badge"
 
 export default function ComposeMailPage() {
   const router = useRouter()
@@ -23,38 +22,20 @@ export default function ComposeMailPage() {
   const draftId = searchParams.get("draftId")
 
   const [formData, setFormData] = useState({
-    to: "",
+    audience: "specific",
     cc: [] as string[],
     bcc: [] as string[],
     subject: "",
     message: "",
   })
-  const [showCc, setShowCc] = useState(false)
-  const [showBcc, setShowBcc] = useState(false)
+  const [selectedPeople, setSelectedPeople] = useState<MailPerson[]>([])
   const [attachments, setAttachments] = useState<File[]>([])
   const [isSaving, setIsSaving] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [recipients, setRecipients] = useState<Array<{ id: string; name: string; email: string }>>([])
-  const [loadingRecipients, setLoadingRecipients] = useState(false)
-
-  // Load recipients
-  useEffect(() => {
-    const loadRecipients = async () => {
-      setLoadingRecipients(true)
-      try {
-        const response = await getAvailableRecipients()
-        if (response.success && response.users) {
-          setRecipients(response.users)
-        }
-      } catch (error: any) {
-        console.error("Failed to load recipients:", error)
-        toast.error("Failed to load recipients")
-      } finally {
-        setLoadingRecipients(false)
-      }
-    }
-    loadRecipients()
+  const loadPeople = useCallback(async (search: string, audience?: string) => {
+    const response = await getAvailableRecipients(search, audience)
+    return response.users || []
   }, [])
 
   // Load draft if draftId is provided
@@ -71,14 +52,19 @@ export default function ComposeMailPage() {
       if (response.success && response.mail) {
         const mail = response.mail
         setFormData({
-          to: mail.recipient_id || "",
+          audience: mail.recipient_type || "specific",
           cc: Array.isArray(mail.cc) ? mail.cc : [],
           bcc: Array.isArray(mail.bcc) ? mail.bcc : [],
           subject: mail.subject || "",
           message: mail.body || "",
         })
-        if (mail.cc && mail.cc.length > 0) setShowCc(true)
-        if (mail.bcc && mail.bcc.length > 0) setShowBcc(true)
+        if (mail.recipient_id) {
+          setSelectedPeople([{
+            id: mail.recipient_id,
+            name: mail.recipient?.name || mail.to || "Recipient",
+            email: mail.recipient?.email,
+          }])
+        }
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to load draft")
@@ -88,15 +74,21 @@ export default function ComposeMailPage() {
   }
 
   const handleSend = async () => {
-    if (!formData.to || !formData.message) {
-      toast.error("Please fill in recipient and message")
+    if (formData.audience === "specific" && selectedPeople.length === 0) {
+      toast.error("Select at least one recipient")
+      return
+    }
+    if (!formData.message) {
+      toast.error("Please enter a message")
       return
     }
 
     setIsSending(true)
     try {
       await composeMail({
-        recipient_id: formData.to,
+        recipient_id: selectedPeople[0]?.id,
+        recipient_ids: formData.audience === "specific" ? selectedPeople.map((person) => person.id) : undefined,
+        recipients: formData.audience,
         subject: formData.subject,
         body: formData.message,
         cc: formData.cc.length > 0 ? formData.cc : undefined,
@@ -133,7 +125,9 @@ export default function ComposeMailPage() {
     setIsSaving(true)
     try {
       await composeMail({
-        recipient_id: formData.to || undefined,
+        recipient_id: selectedPeople[0]?.id,
+        recipient_ids: formData.audience === "specific" ? selectedPeople.map((person) => person.id) : undefined,
+        recipients: formData.audience,
         subject: formData.subject,
         body: formData.message,
         save_as_draft: true,
@@ -167,135 +161,22 @@ export default function ComposeMailPage() {
         </Link>
         <div>
           <h1 className="text-3xl font-bold">Compose Mail</h1>
-          <p className="text-muted-foreground mt-1">Send a message to Housing Admin</p>
+          <p className="text-muted-foreground mt-1">Send to one or more admins, managers, or members</p>
         </div>
       </div>
 
       <Card className="p-6">
         <div className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="to">To *</Label>
-            <Select
-              value={formData.to}
-              onValueChange={(value) => setFormData({ ...formData, to: value })}
-              disabled={loadingRecipients}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder={loadingRecipients ? "Loading recipients..." : "Select recipient"} />
-              </SelectTrigger>
-              <SelectContent>
-                {recipients.map((recipient) => (
-                  <SelectItem key={recipient.id} value={recipient.id}>
-                    {recipient.name} ({recipient.email})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="flex gap-2 mt-2">
-              {!showCc && (
-                <Button type="button" variant="ghost" size="sm" onClick={() => setShowCc(true)}>
-                  + Cc
-                </Button>
-              )}
-              {!showBcc && (
-                <Button type="button" variant="ghost" size="sm" onClick={() => setShowBcc(true)}>
-                  + Bcc
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {showCc && (
-            <div className="space-y-2">
-              <Label htmlFor="cc">Cc</Label>
-              <Select
-                value=""
-                onValueChange={(value) => {
-                  if (value && !formData.cc.includes(value)) {
-                    setFormData({ ...formData, cc: [...formData.cc, value] })
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select recipient to add to Cc" />
-                </SelectTrigger>
-                <SelectContent>
-                  {recipients
-                    .filter((r) => r.id !== formData.to && !formData.cc.includes(r.id) && !formData.bcc.includes(r.id))
-                    .map((recipient) => (
-                      <SelectItem key={recipient.id} value={recipient.id}>
-                        {recipient.name} ({recipient.email})
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-              {formData.cc.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {formData.cc.map((id) => {
-                    const recipient = recipients.find((r) => r.id === id)
-                    return recipient ? (
-                      <Badge key={id} variant="secondary" className="flex items-center gap-1">
-                        {recipient.name}
-                        <button
-                          type="button"
-                          onClick={() => setFormData({ ...formData, cc: formData.cc.filter((i) => i !== id) })}
-                          className="ml-1 hover:text-destructive"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ) : null
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {showBcc && (
-            <div className="space-y-2">
-              <Label htmlFor="bcc">Bcc</Label>
-              <Select
-                value=""
-                onValueChange={(value) => {
-                  if (value && !formData.bcc.includes(value)) {
-                    setFormData({ ...formData, bcc: [...formData.bcc, value] })
-                  }
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select recipient to add to Bcc" />
-                </SelectTrigger>
-                <SelectContent>
-                  {recipients
-                    .filter((r) => r.id !== formData.to && !formData.cc.includes(r.id) && !formData.bcc.includes(r.id))
-                    .map((recipient) => (
-                      <SelectItem key={recipient.id} value={recipient.id}>
-                        {recipient.name} ({recipient.email})
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-              {formData.bcc.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {formData.bcc.map((id) => {
-                    const recipient = recipients.find((r) => r.id === id)
-                    return recipient ? (
-                      <Badge key={id} variant="secondary" className="flex items-center gap-1">
-                        {recipient.name}
-                        <button
-                          type="button"
-                          onClick={() => setFormData({ ...formData, bcc: formData.bcc.filter((i) => i !== id) })}
-                          className="ml-1 hover:text-destructive"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ) : null
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+          <RecipientPicker
+            audience={formData.audience}
+            onAudienceChange={(value) => {
+              setFormData({ ...formData, audience: value })
+              if (value !== "specific") setSelectedPeople([])
+            }}
+            selected={selectedPeople}
+            onSelectedChange={setSelectedPeople}
+            loadPeople={loadPeople}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="subject">Subject</Label>
@@ -377,7 +258,7 @@ export default function ComposeMailPage() {
           </div>
 
           <div className="flex items-center gap-3 pt-4 border-t">
-            <Button onClick={handleSend} disabled={!formData.to || !formData.message || isSending || isSaving}>
+            <Button onClick={handleSend} disabled={(formData.audience === "specific" && selectedPeople.length === 0) || !formData.message || isSending || isSaving}>
               {isSending ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -386,7 +267,7 @@ export default function ComposeMailPage() {
               ) : (
                 <>
                   <Send className="h-4 w-4 mr-2" />
-                  Send Message
+                  {`Send to ${recipientSendLabel(formData.audience, selectedPeople.length)}`}
                 </>
               )}
             </Button>

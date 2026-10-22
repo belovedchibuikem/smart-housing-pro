@@ -13,10 +13,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Send, Paperclip, Save } from "lucide-react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { composeMessage, getMessage, getUsers } from "@/lib/api/client"
+import { composeMessage, getAdminMailRecipients, getMessage } from "@/lib/api/client"
+import { RecipientPicker, recipientSendLabel, type MailPerson } from "@/components/mail/recipient-picker"
 import { useToast } from "@/hooks/use-toast"
-import { Badge } from "@/components/ui/badge"
-import { X } from "lucide-react"
 import { Can } from "@/components/admin/can-permission"
 
 export default function AdminComposeMailPage() {
@@ -26,7 +25,7 @@ export default function AdminComposeMailPage() {
   const draftId = searchParams.get('draft')
   
   const [formData, setFormData] = useState({
-    recipients: "all",
+    recipients: "specific",
     subject: "",
     message: "",
     category: "general",
@@ -34,11 +33,7 @@ export default function AdminComposeMailPage() {
     bcc: "",
     is_urgent: false,
   })
-  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([])
-  const [members, setMembers] = useState<any[]>([])
-  const [loadingMembers, setLoadingMembers] = useState(false)
-  const [memberSearch, setMemberSearch] = useState("")
-  const [showMemberSelector, setShowMemberSelector] = useState(false)
+  const [selectedPeople, setSelectedPeople] = useState<MailPerson[]>([])
   const [attachments, setAttachments] = useState<File[]>([])
   const [showCcBcc, setShowCcBcc] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -62,12 +57,10 @@ export default function AdminComposeMailPage() {
     }
   }, [formData.subject, formData.message, formData.recipients])
 
-  // Load members when specific is selected
-  useEffect(() => {
-    if (formData.recipients === 'specific' && memberSearch.length >= 2) {
-      loadMembers()
-    }
-  }, [memberSearch, formData.recipients])
+  const loadPeople = useCallback(async (search: string, audience?: string) => {
+    const response = await getAdminMailRecipients({ search, audience })
+    return response.users || []
+  }, [])
 
   const loadDraft = async (id: string) => {
     try {
@@ -85,7 +78,12 @@ export default function AdminComposeMailPage() {
           is_urgent: draft.is_urgent || false,
         })
         if (draft.recipient_type === 'specific' && draft.recipients) {
-          setSelectedMemberIds(draft.recipients.map((r: any) => r.id || r.recipient_id))
+          setSelectedPeople(draft.recipients.map((person: any) => ({
+            id: person.id || person.recipient_id,
+            name: person.name || person.email || "Recipient",
+            email: person.email,
+            audience: person.audience,
+          })))
         }
       }
     } catch (error: any) {
@@ -99,24 +97,6 @@ export default function AdminComposeMailPage() {
     }
   }
 
-  const loadMembers = useCallback(async () => {
-    try {
-      setLoadingMembers(true)
-      const response = await getUsers({
-        search: memberSearch,
-        status: 'active',
-        per_page: 20,
-      })
-      if (response.success) {
-        setMembers(response.data || [])
-      }
-    } catch (error: any) {
-      console.error('Failed to load members:', error)
-    } finally {
-      setLoadingMembers(false)
-    }
-  }, [memberSearch])
-
   const handleAutoSave = async () => {
     if (!formData.subject && !formData.message) return
     
@@ -124,7 +104,7 @@ export default function AdminComposeMailPage() {
       setIsSaving(true)
       await composeMessage({
         ...formData,
-        recipient_ids: formData.recipients === 'specific' ? selectedMemberIds : undefined,
+        recipient_ids: formData.recipients === 'specific' ? selectedPeople.map((person) => person.id) : undefined,
         save_as_draft: true,
         attachments: [],
       })
@@ -156,10 +136,10 @@ export default function AdminComposeMailPage() {
       return
     }
 
-    if (formData.recipients === 'specific' && selectedMemberIds.length === 0) {
+    if (formData.recipients === 'specific' && selectedPeople.length === 0) {
       toast({
         title: "Error",
-        description: "Please select at least one member",
+        description: "Select at least one admin, manager, or member",
         variant: "destructive",
       })
       return
@@ -169,7 +149,7 @@ export default function AdminComposeMailPage() {
       setIsSending(true)
       const response = await composeMessage({
         ...formData,
-        recipient_ids: formData.recipients === 'specific' ? selectedMemberIds : undefined,
+        recipient_ids: formData.recipients === 'specific' ? selectedPeople.map((person) => person.id) : undefined,
         attachments: attachments,
         save_as_draft: false,
       })
@@ -196,7 +176,7 @@ export default function AdminComposeMailPage() {
       setIsSaving(true)
       const response = await composeMessage({
         ...formData,
-        recipient_ids: formData.recipients === 'specific' ? selectedMemberIds : undefined,
+        recipient_ids: formData.recipients === 'specific' ? selectedPeople.map((person) => person.id) : undefined,
         attachments: attachments,
         save_as_draft: true,
       })
@@ -214,23 +194,6 @@ export default function AdminComposeMailPage() {
     } finally {
       setIsSaving(false)
     }
-  }
-
-  const addMember = (member: any) => {
-    if (!selectedMemberIds.includes(member.id)) {
-      setSelectedMemberIds([...selectedMemberIds, member.id])
-    }
-    setMemberSearch("")
-    setShowMemberSelector(false)
-  }
-
-  const removeMember = (memberId: string) => {
-    setSelectedMemberIds(selectedMemberIds.filter(id => id !== memberId))
-  }
-
-  const getSelectedMemberName = (id: string) => {
-    const member = members.find(m => m.id === id)
-    return member ? `${member.first_name} ${member.last_name}` : id
   }
 
   if (loading) {
@@ -252,95 +215,23 @@ export default function AdminComposeMailPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">Send Announcement</h1>
-          <p className="text-muted-foreground mt-1">Send messages to members</p>
+          <h1 className="text-3xl font-bold">Send email</h1>
+          <p className="text-muted-foreground mt-1">Choose admins, managers, members, or specific people</p>
         </div>
       </div>
 
       <Card className="p-6">
         <div className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="recipients">Recipients</Label>
-            <Select
-              value={formData.recipients}
-              onValueChange={(value) => {
-                setFormData({ ...formData, recipients: value })
-                if (value !== 'specific') {
-                  setSelectedMemberIds([])
-                }
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Members</SelectItem>
-                <SelectItem value="active">Active Members Only</SelectItem>
-                <SelectItem value="specific">Specific Member(s)</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            {formData.recipients === 'specific' && (
-              <div className="space-y-2">
-                <div className="relative">
-                  <Input
-                    placeholder="Search members by name or email..."
-                    value={memberSearch}
-                    onChange={(e) => {
-                      setMemberSearch(e.target.value)
-                      if (e.target.value.length >= 2) {
-                        setShowMemberSelector(true)
-                      } else {
-                        setShowMemberSelector(false)
-                      }
-                    }}
-                    onFocus={() => {
-                      if (memberSearch.length >= 2) {
-                        setShowMemberSelector(true)
-                      }
-                    }}
-                  />
-                  {showMemberSelector && memberSearch.length >= 2 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-60 overflow-auto">
-                      {loadingMembers ? (
-                        <div className="p-4 text-center text-sm text-muted-foreground">Loading...</div>
-                      ) : members.length === 0 ? (
-                        <div className="p-4 text-center text-sm text-muted-foreground">No members found</div>
-                      ) : (
-                        members.map((member) => (
-                          <div
-                            key={member.id}
-                            className="p-2 hover:bg-accent cursor-pointer border-b last:border-b-0"
-                            onClick={() => addMember(member)}
-                          >
-                            <div className="font-medium">{member.first_name} {member.last_name}</div>
-                            <div className="text-sm text-muted-foreground">{member.email}</div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </div>
-                
-                {selectedMemberIds.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {selectedMemberIds.map((id) => (
-                      <Badge key={id} variant="secondary" className="flex items-center gap-1">
-                        {getSelectedMemberName(id)}
-                        <button
-                          type="button"
-                          onClick={() => removeMember(id)}
-                          className="ml-1 hover:text-destructive"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <RecipientPicker
+            audience={formData.recipients}
+            onAudienceChange={(value) => {
+              setFormData({ ...formData, recipients: value })
+              if (value !== "specific") setSelectedPeople([])
+            }}
+            selected={selectedPeople}
+            onSelectedChange={setSelectedPeople}
+            loadPeople={loadPeople}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="category">Category</Label>
@@ -478,7 +369,7 @@ export default function AdminComposeMailPage() {
             <Can permission="compose_mail|bulk_mail">
               <Button onClick={handleSend} disabled={isSending || isSaving}>
                 <Send className="h-4 w-4 mr-2" />
-                {isSending ? "Sending..." : `Send to ${formData.recipients === "all" ? "All Members" : formData.recipients === "active" ? "Active Members" : "Selected Recipients"}`}
+                {isSending ? "Sending..." : `Send to ${recipientSendLabel(formData.recipients, selectedPeople.length)}`}
               </Button>
             </Can>
             <Can permission="compose_mail">

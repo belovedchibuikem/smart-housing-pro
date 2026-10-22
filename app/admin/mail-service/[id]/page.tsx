@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { ArrowLeft, Reply, Forward, Loader2, Briefcase } from "lucide-react"
 import { Can } from "@/components/admin/can-permission"
-import { getMessage } from "@/lib/api/client"
+import { getMessage, treatAdminMail } from "@/lib/api/client"
+import { MailTreatment } from "@/components/mail/mail-treatment"
 import { convertMailToOfficeCase } from "@/lib/api/office"
 import { useToast } from "@/hooks/use-toast"
 
@@ -125,13 +126,32 @@ export default function AdminMessageDetailPage() {
           {(message.attachments || []).length > 0 ? (
             <div className="mt-6 space-y-2">
               <p className="text-sm font-medium">Attachments</p>
-              <ul className="text-sm text-muted-foreground">
+              <ul className="space-y-1 text-sm">
                 {(message.attachments || []).map((a: any) => (
-                  <li key={a.id || a.name}>{a.name || a.original_name || "File"}</li>
+                  <li key={a.id || a.name}>
+                    {a.url || a.download_url ? (
+                      <a className="text-emerald-800 underline" href={a.url || a.download_url} target="_blank" rel="noreferrer">
+                        {a.name || a.file_name || "File"}
+                      </a>
+                    ) : (
+                      <span>{a.name || a.file_name || "File"}</span>
+                    )}
+                  </li>
                 ))}
               </ul>
             </div>
           ) : null}
+          <div className="mt-6">
+            <MailTreatment
+              viewer={message.viewer}
+              recipients={message.recipients}
+              onTreat={async (comment) => {
+                const res = await treatAdminMail(id, comment)
+                setMessage(res.data || message)
+                toast({ title: "Marked as treated" })
+              }}
+            />
+          </div>
         </CardContent>
       </Card>
 

@@ -8,7 +8,8 @@ import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { ArrowLeft, Reply, Forward, Download, Loader2 } from "lucide-react"
-import { getMailMessage } from "@/lib/api/client"
+import { getMailMessage, treatMail } from "@/lib/api/client"
+import { MailTreatment } from "@/components/mail/mail-treatment"
 import { toast } from "sonner"
 
 export default function MessageDetailPage() {
@@ -92,16 +93,35 @@ export default function MessageDetailPage() {
           {attachments.length > 0 ? (
             <div className="space-y-2 pt-2">
               <p className="text-sm font-medium">Attachments</p>
-              {attachments.map((a: any) => (
-                <div key={a.id || a.name} className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Download className="h-4 w-4" />
-                  {a.name || a.original_name || "Attachment"}
-                </div>
-              ))}
+              {attachments.map((a: any) => {
+                const href = a.url || a.download_url
+                const label = a.name || a.file_name || a.original_name || "Attachment"
+                return href ? (
+                  <a key={a.id || label} href={href} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-emerald-800 underline">
+                    <Download className="h-4 w-4" />
+                    {label}
+                  </a>
+                ) : (
+                  <div key={a.id || label} className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Download className="h-4 w-4" />
+                    {label}
+                  </div>
+                )
+              })}
             </div>
           ) : null}
         </div>
       </Card>
+
+      <MailTreatment
+        viewer={message.viewer}
+        recipients={message.recipients}
+        onTreat={async (comment) => {
+          const res = await treatMail(id, comment)
+          setMessage((res as any).mail || message)
+          toast.success("Marked as treated")
+        }}
+      />
 
       <div className="flex gap-2">
         <Button asChild>
