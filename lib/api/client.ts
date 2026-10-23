@@ -5708,7 +5708,7 @@ export async function getAvailableRecipients(search?: string, audience?: string)
 	const query = new URLSearchParams()
 	if (search) query.set("search", search)
 	if (audience) query.set("audience", audience)
-	return apiFetch<{ success: boolean; users: Array<{ id: string; name: string; email: string; audience?: string; role?: string }> }>(
+	return apiFetch<{ success: boolean; users: Array<{ id: string; name: string; email: string; ippis_number?: string | null; audience?: string; role?: string }> }>(
 		`/communication/mail/recipients?${query.toString()}`,
 		{ method: "GET" }
 	)
@@ -5718,7 +5718,7 @@ export async function getAdminMailRecipients(params?: { search?: string; audienc
 	const query = new URLSearchParams()
 	if (params?.search) query.set("search", params.search)
 	if (params?.audience) query.set("audience", params.audience)
-	return apiFetch<{ success: boolean; users: Array<{ id: string; name: string; email: string; audience?: string }> }>(
+	return apiFetch<{ success: boolean; users: Array<{ id: string; name: string; email: string; ippis_number?: string | null; audience?: string }> }>(
 		`/admin/mail-service/recipients?${query.toString()}`,
 		{ method: "GET" }
 	)

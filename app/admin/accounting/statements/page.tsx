@@ -20,10 +20,6 @@ import { apiFetch } from "@/lib/api/client"
 import { normalizeAdminMembersList } from "@/lib/api/normalize-admin-members"
 import { useToast } from "@/hooks/use-toast"
 
-function money(n: number) {
-  return Number(n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}
-
 function landsToSearchableOptions(
   lands: Array<{ id: string; title?: string; name?: string; location?: string; price?: number | string }>
 ): SearchableSelectOption[] {
@@ -227,14 +223,6 @@ export default function MemberStatementsAdminPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">{result.statement?.statement_number}</CardTitle></CardHeader>
           <CardContent className="space-y-2 text-sm">
-            <div className="rounded-md border border-border/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground space-y-1">
-              <p className="uppercase tracking-wide text-[10px]">Financial Summary</p>
-              <p>Opening: ₦{money(result.summary?.opening_balance)}</p>
-              <p>Debits: ₦{money(result.summary?.total_debits)} · Credits: ₦{money(result.summary?.total_credits)}</p>
-              <p>Closing: ₦{money(result.summary?.closing_balance)}</p>
-              <p>Contribution: ₦{money(result.summary?.contribution_balance)} · Equity: ₦{money(result.summary?.equity_balance)}</p>
-              <p>Loan: ₦{money(result.summary?.outstanding_loan)} · House: ₦{money(result.summary?.outstanding_house)} · Land: ₦{money(result.summary?.outstanding_land)}</p>
-            </div>
             {result.statement?.verification_token && (
               <p className="text-muted-foreground break-all">
                 Verification token: {result.statement.verification_token}{" "}
