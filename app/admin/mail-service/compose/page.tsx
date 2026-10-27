@@ -15,6 +15,8 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { composeMessage, getAdminMailRecipients, getMessage } from "@/lib/api/client"
 import { RecipientPicker, recipientSendLabel, type MailPerson } from "@/components/mail/recipient-picker"
+import { replyAudience, threadQuote, threadSubject } from "@/lib/mail/thread"
+import { getUserData } from "@/lib/auth/auth-utils"
 import { toast } from "sonner"
 import { Can } from "@/components/admin/can-permission"
 
@@ -22,6 +24,9 @@ export default function AdminComposeMailPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const draftId = searchParams.get('draft')
+  const replyId = searchParams.get('reply')
+  const forwardId = searchParams.get('forward')
+  const mode = replyId ? "reply" : forwardId ? "forward" : "new"
   
   const [formData, setFormData] = useState({
     recipients: "specific",
@@ -37,9 +42,10 @@ export default function AdminComposeMailPage() {
   const [showCcBcc, setShowCcBcc] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isSending, setIsSending] = useState(false)
-  const [loading, setLoading] = useState(!!draftId)
+  const [loading, setLoading] = useState(!!draftId || !!replyId || !!forwardId)
   const [notice, setNotice] = useState<{ tone: "error" | "success"; text: string } | null>(null)
   const draftIdRef = useRef<string | null>(draftId)
+  const parentIdRef = useRef<string | null>(replyId)
   const sendingRef = useRef(false)
   const saveLock = useRef(false)
 
@@ -49,12 +55,16 @@ export default function AdminComposeMailPage() {
     else toast.success(text)
   }
 
-  // Load draft if editing
+  // Load draft, reply, or forward
   useEffect(() => {
     if (draftId) {
       loadDraft(draftId)
+    } else if (replyId) {
+      loadThread(replyId, "reply")
+    } else if (forwardId) {
+      loadThread(forwardId, "forward")
     }
-  }, [draftId])
+  }, [draftId, replyId, forwardId])
 
   // Auto-save draft into the same row so typing does not create a new draft each time.
   useEffect(() => {
@@ -70,6 +80,32 @@ export default function AdminComposeMailPage() {
     const response = await getAdminMailRecipients({ search, audience })
     return response.users || []
   }, [])
+
+  const loadThread = async (id: string, threadMode: "reply" | "forward") => {
+    try {
+      setLoading(true)
+      const response = await getMessage(id)
+      const mail = response.data
+      if (!mail) return
+      const me = (getUserData() as { id?: string | number } | null)?.id
+      const body = mail.content || mail.body || mail.preview || ""
+      setFormData({
+        recipients: "specific",
+        subject: threadSubject(mail.subject, threadMode),
+        message: threadQuote(mail.from, body),
+        category: mail.category || "general",
+        cc: "",
+        bcc: "",
+        is_urgent: false,
+      })
+      setSelectedPeople(threadMode === "reply" ? replyAudience(mail, me == null ? null : String(me)) : [])
+      parentIdRef.current = threadMode === "reply" ? id : null
+    } catch (error: any) {
+      report("error", error.message || "Failed to open the original email")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const loadDraft = async (id: string) => {
     try {
@@ -120,6 +156,7 @@ export default function AdminComposeMailPage() {
         recipient_ids: formData.recipients === 'specific' ? selectedPeople.map((person) => person.id) : undefined,
         save_as_draft: true,
         draft_id: draftIdRef.current || undefined,
+        parent_id: parentIdRef.current || undefined,
         attachments: [],
       })
       rememberDraft(response.data?.id)
@@ -162,6 +199,7 @@ export default function AdminComposeMailPage() {
         attachments: attachments,
         save_as_draft: false,
         draft_id: draftIdRef.current || undefined,
+        parent_id: parentIdRef.current || undefined,
       })
 
       const text = response.message || "Email sent."
@@ -193,6 +231,7 @@ export default function AdminComposeMailPage() {
         attachments: attachments,
         save_as_draft: true,
         draft_id: draftIdRef.current || undefined,
+        parent_id: parentIdRef.current || undefined,
       })
       rememberDraft(response.data?.id)
       report("success", response.message || "Draft saved.")
@@ -222,8 +261,14 @@ export default function AdminComposeMailPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold">Send email</h1>
-          <p className="text-muted-foreground mt-1">Choose admins, managers, members, or specific people</p>
+          <h1 className="text-3xl font-bold">{mode === "reply" ? "Reply" : mode === "forward" ? "Forward" : "Send email"}</h1>
+          <p className="text-muted-foreground mt-1">
+            {mode === "reply"
+              ? "This reply goes to the original sender and everyone selected on that email."
+              : mode === "forward"
+                ? "The original message is included. Choose who should receive it."
+                : "Choose admins, managers, members, or specific people"}
+          </p>
         </div>
       </div>
 

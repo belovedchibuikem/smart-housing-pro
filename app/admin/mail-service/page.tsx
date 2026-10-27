@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -8,42 +9,81 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Mail, Send, Users, Search, Plus } from "lucide-react"
 import Link from "next/link"
 import { Can } from "@/components/admin/can-permission"
+import { getAdminMailMessages, getMailServiceStats } from "@/lib/api/client"
+import { toast } from "sonner"
+
+type MailStats = {
+  total_messages: number
+  sent_today: number
+  active_users: number
+}
+
+type MailRow = {
+  id: string
+  from: string
+  to: string
+  subject: string
+  date: string
+  status: string
+  category: string
+}
 
 export default function AdminMailServicePage() {
-  const stats = [
-    { label: "Total Messages", value: 1247, icon: Mail },
-    { label: "Sent Today", value: 23, icon: Send },
-    { label: "Active Users", value: 456, icon: Users },
-  ]
+  const [stats, setStats] = useState<MailStats | null>(null)
+  const [messages, setMessages] = useState<MailRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState("")
+  const [status, setStatus] = useState("all")
+  const [category, setCategory] = useState("all-categories")
 
-  const recentMessages = [
-    {
-      id: 1,
-      from: "John Doe (FRSC/HMS/2024/001)",
-      to: "Housing Admin",
-      subject: "Inquiry about Investment Plan",
-      date: "2024-01-15 03:30 PM",
-      status: "Pending",
-      category: "Investment",
-    },
-    {
-      id: 2,
-      from: "Jane Smith (FRSC/HMS/2024/045)",
-      to: "Accounts Department",
-      subject: "Contribution Payment Confirmation",
-      date: "2024-01-15 11:20 AM",
-      status: "Replied",
-      category: "Contribution",
-    },
-    {
-      id: 3,
-      from: "Mike Johnson (FRSC/HMS/2024/089)",
-      to: "Loan Department",
-      subject: "Loan Repayment Schedule Request",
-      date: "2024-01-14 09:15 AM",
-      status: "Replied",
-      category: "Loan",
-    },
+  useEffect(() => {
+    let cancelled = false
+    getMailServiceStats()
+      .then((response) => {
+        if (!cancelled && response.success) setStats(response.data)
+      })
+      .catch((error: Error) => {
+        if (!cancelled) toast.error(error.message || "Failed to load mail totals")
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    const timer = setTimeout(() => {
+      setLoading(true)
+      getAdminMailMessages({
+        search: search.trim() || undefined,
+        status: status !== "all" ? status : undefined,
+        category: category !== "all-categories" ? category : undefined,
+        per_page: 20,
+      })
+        .then((response) => {
+          if (!cancelled && response.success) setMessages(response.data || [])
+        })
+        .catch((error: Error) => {
+          if (!cancelled) {
+            setMessages([])
+            toast.error(error.message || "Failed to load messages")
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setLoading(false)
+        })
+    }, 250)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [search, status, category])
+
+  const cards = [
+    { label: "Total Messages", value: stats?.total_messages, icon: Mail },
+    { label: "Sent Today", value: stats?.sent_today, icon: Send },
+    { label: "Active Users", value: stats?.active_users, icon: Users },
   ]
 
   return (
@@ -64,12 +104,14 @@ export default function AdminMailServicePage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
-        {stats.map((stat) => (
+        {cards.map((stat) => (
           <Card key={stat.label} className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
-                <p className="text-2xl font-bold mt-2">{stat.value}</p>
+                <p className="text-2xl font-bold mt-2">
+                  {stat.value === undefined ? "—" : stat.value.toLocaleString()}
+                </p>
               </div>
               <stat.icon className="h-8 w-8 text-muted-foreground" />
             </div>
@@ -81,9 +123,14 @@ export default function AdminMailServicePage() {
         <div className="flex items-center gap-3 mb-6">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search messages..." className="pl-9" />
+            <Input
+              placeholder="Search messages..."
+              className="pl-9"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
           </div>
-          <Select defaultValue="all">
+          <Select value={status} onValueChange={setStatus}>
             <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>
@@ -93,12 +140,13 @@ export default function AdminMailServicePage() {
               <SelectItem value="replied">Replied</SelectItem>
             </SelectContent>
           </Select>
-          <Select defaultValue="all-categories">
+          <Select value={category} onValueChange={setCategory}>
             <SelectTrigger className="w-40">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all-categories">All Categories</SelectItem>
+              <SelectItem value="general">General</SelectItem>
               <SelectItem value="investment">Investment</SelectItem>
               <SelectItem value="contribution">Contribution</SelectItem>
               <SelectItem value="loan">Loan</SelectItem>
@@ -108,32 +156,38 @@ export default function AdminMailServicePage() {
         </div>
 
         <div className="space-y-2">
-          {recentMessages.map((message) => (
-            <div key={message.id} className="p-4 rounded-lg border hover:bg-accent transition-colors">
-              <div className="flex items-start gap-3">
-                <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <p className="font-semibold">{message.from}</p>
-                    <Badge variant={message.status === "Pending" ? "default" : "secondary"} className="text-xs">
-                      {message.status}
-                    </Badge>
-                    <Badge variant="outline" className="text-xs">
-                      {message.category}
-                    </Badge>
+          {loading ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">Loading messages...</p>
+          ) : messages.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">No messages match this view.</p>
+          ) : (
+            messages.map((message) => (
+              <div key={message.id} className="p-4 rounded-lg border hover:bg-accent transition-colors">
+                <div className="flex items-start gap-3">
+                  <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-semibold">{message.from}</p>
+                      <Badge variant={message.status === "Pending" ? "default" : "secondary"} className="text-xs">
+                        {message.status}
+                      </Badge>
+                      <Badge variant="outline" className="text-xs">
+                        {message.category}
+                      </Badge>
+                    </div>
+                    <p className="text-sm mb-1">To: {message.to}</p>
+                    <p className="text-sm font-medium">{message.subject}</p>
                   </div>
-                  <p className="text-sm mb-1">To: {message.to}</p>
-                  <p className="text-sm font-medium">{message.subject}</p>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">{message.date}</span>
-                  <Button variant="outline" size="sm">
-                    View & Reply
-                  </Button>
+                  <div className="flex flex-col items-end gap-2">
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">{message.date}</span>
+                    <Button variant="outline" size="sm" asChild>
+                      <Link href={`/admin/mail-service/${message.id}`}>View & Reply</Link>
+                    </Button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </Card>
     </div>

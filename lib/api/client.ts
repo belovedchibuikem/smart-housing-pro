@@ -3724,7 +3724,21 @@ export async function syncWalletBalance(id: string) {
 
 // Mail Service API
 export async function getMailServiceStats() {
-	return apiFetch<{ success: boolean; data: any }>("/admin/mail-service/stats", { method: "GET" })
+	return apiFetch<{ success: boolean; data: { total_messages: number; sent_today: number; active_users: number } }>("/admin/mail-service/stats", { method: "GET" })
+}
+
+export async function getAdminMailMessages(params?: { search?: string; category?: string; status?: string; page?: number; per_page?: number }) {
+	const query = new URLSearchParams()
+	if (params?.search) query.set("search", params.search)
+	if (params?.category) query.set("category", params.category)
+	if (params?.status) query.set("status", params.status)
+	if (params?.page) query.set("page", String(params.page))
+	if (params?.per_page) query.set("per_page", String(params.per_page))
+	return apiFetch<{
+		success: boolean
+		data: Array<{ id: string; from: string; to: string; subject: string; date: string; status: string; category: string }>
+		pagination: { current_page: number; last_page: number; per_page: number; total: number }
+	}>(`/admin/mail-service/messages?${query.toString()}`, { method: "GET" })
 }
 
 export async function getInboxMessages(params?: { search?: string; category?: string; unread_only?: boolean; page?: number; per_page?: number }) {
@@ -3778,6 +3792,7 @@ export async function composeMessage(data: {
 	is_urgent?: boolean
 	save_as_draft?: boolean
 	draft_id?: string
+	parent_id?: string
 	attachments?: File[]
 }) {
 	const formData = new FormData()
@@ -3791,6 +3806,7 @@ export async function composeMessage(data: {
 	if (data.cc) formData.append("cc", data.cc)
 	if (data.bcc) formData.append("bcc", data.bcc)
 	if (data.draft_id) formData.append("draft_id", data.draft_id)
+	if (data.parent_id) formData.append("parent_id", data.parent_id)
 	if (data.is_urgent !== undefined) formData.append("is_urgent", data.is_urgent ? "1" : "0")
 	if (data.save_as_draft !== undefined) formData.append("save_as_draft", data.save_as_draft ? "1" : "0")
 	if (data.attachments) {
@@ -5569,6 +5585,7 @@ export interface ComposeMailPayload {
 	cc?: string[]
 	bcc?: string[]
 	category?: string
+	parent_id?: string
 	attachments?: File[]
 }
 
@@ -5629,6 +5646,7 @@ export async function composeMail(payload: ComposeMailPayload) {
 	if (payload.type) formData.append("type", payload.type)
 	if (payload.status) formData.append("status", payload.status)
 	if (payload.save_as_draft) formData.append("save_as_draft", "1")
+	if (payload.parent_id) formData.append("parent_id", payload.parent_id)
 	if (payload.category) formData.append("category", payload.category)
 	if (payload.cc && payload.cc.length > 0) {
 		payload.cc.forEach((id) => formData.append("cc[]", id))

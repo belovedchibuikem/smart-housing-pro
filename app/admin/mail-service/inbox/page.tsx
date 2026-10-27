@@ -9,12 +9,11 @@ import Link from "next/link"
 import { useState, useEffect } from "react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { getInboxMessages, bulkMailOperation, updateMessage, deleteMessage } from "@/lib/api/client"
-import { useToast } from "@/hooks/use-toast"
-import { Can, useTenantPermissions } from "@/components/admin/can-permission"
+import { toast } from "sonner"
+import { useTenantPermissions } from "@/components/admin/can-permission"
 
 export default function AdminInboxPage() {
   const { can } = useTenantPermissions()
-  const { toast } = useToast()
   const [messages, setMessages] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedMessages, setSelectedMessages] = useState<string[]>([])
@@ -37,11 +36,7 @@ export default function AdminInboxPage() {
         setMessages(response.data || [])
       }
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to load messages",
-        variant: "destructive",
-      })
+      toast.error(error.message || "Failed to load messages")
     } finally {
       setLoading(false)
     }
@@ -61,18 +56,11 @@ export default function AdminInboxPage() {
         action: 'mark_read',
         message_ids: selectedMessages,
       })
-      toast({
-        title: "Success",
-        description: "Messages marked as read",
-      })
+      toast.success("Messages marked as read")
       setSelectedMessages([])
       fetchMessages()
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to mark messages as read",
-        variant: "destructive",
-      })
+      toast.error(error.message || "Failed to mark messages as read")
     }
   }
 
@@ -82,18 +70,11 @@ export default function AdminInboxPage() {
         action: 'mark_unread',
         message_ids: selectedMessages,
       })
-      toast({
-        title: "Success",
-        description: "Messages marked as unread",
-      })
+      toast.success("Messages marked as unread")
       setSelectedMessages([])
       fetchMessages()
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to mark messages as unread",
-        variant: "destructive",
-      })
+      toast.error(error.message || "Failed to mark messages as unread")
     }
   }
 
@@ -103,65 +84,48 @@ export default function AdminInboxPage() {
         action: 'delete',
         message_ids: selectedMessages,
       })
-      toast({
-        title: "Success",
-        description: "Messages deleted",
-      })
+      toast.success("Messages deleted")
       setSelectedMessages([])
       fetchMessages()
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete messages",
-        variant: "destructive",
-      })
+      toast.error(error.message || "Failed to delete messages")
     }
   }
 
   const handleStar = async (messageId: string, isStarred: boolean) => {
+    const next = !isStarred
+    setMessages((current) => current.map((message) => message.id === messageId ? { ...message, is_starred: next } : message))
     try {
-      await updateMessage(messageId, { is_starred: !isStarred })
-      fetchMessages()
+      await updateMessage(messageId, { is_starred: next })
+      toast.success(next ? "Message starred" : "Star removed")
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update message",
-        variant: "destructive",
-      })
+      setMessages((current) => current.map((message) => message.id === messageId ? { ...message, is_starred: isStarred } : message))
+      toast.error(error.message || "Failed to update message")
     }
   }
 
   const handleArchive = async (messageId: string) => {
+    const previous = messages
+    setMessages((current) => current.filter((message) => message.id !== messageId))
     try {
       await updateMessage(messageId, { is_archived: true })
-      toast({
-        title: "Success",
-        description: "Message archived",
-      })
-      fetchMessages()
+      toast.success("Message archived")
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to archive message",
-        variant: "destructive",
-      })
+      setMessages(previous)
+      toast.error(error.message || "Failed to archive message")
     }
   }
 
   const handleDelete = async (messageId: string) => {
+    const previous = messages
+    setMessages((current) => current.filter((message) => message.id !== messageId))
+    setSelectedMessages((current) => current.filter((id) => id !== messageId))
     try {
       await deleteMessage(messageId)
-      toast({
-        title: "Success",
-        description: "Message deleted",
-      })
-      fetchMessages()
+      toast.success("Message deleted")
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete message",
-        variant: "destructive",
-      })
+      setMessages(previous)
+      toast.error(error.message || "Failed to delete message")
     }
   }
 
@@ -286,22 +250,28 @@ export default function AdminInboxPage() {
                         </span>
                         <div className="flex gap-1">
                           <Button
+                            type="button"
                             size="icon"
                             variant="ghost"
                             className="h-8 w-8"
+                            aria-label={message.is_starred ? "Remove star" : "Star message"}
                             onClick={(e) => {
                               e.preventDefault()
+                              e.stopPropagation()
                               handleStar(message.id, message.is_starred)
                             }}
                           >
                             <Star className={`h-4 w-4 ${message.is_starred ? "fill-yellow-400 text-yellow-400" : ""}`} />
                           </Button>
                           <Button
+                            type="button"
                             size="icon"
                             variant="ghost"
                             className="h-8 w-8"
+                            aria-label="Archive message"
                             onClick={(e) => {
                               e.preventDefault()
+                              e.stopPropagation()
                               handleArchive(message.id)
                             }}
                           >
@@ -309,11 +279,14 @@ export default function AdminInboxPage() {
                           </Button>
                           {can("delete_mail") && (
                             <Button
+                              type="button"
                               size="icon"
                               variant="ghost"
                               className="h-8 w-8"
+                              aria-label="Delete message"
                               onClick={(e) => {
                                 e.preventDefault()
+                                e.stopPropagation()
                                 handleDelete(message.id)
                               }}
                             >

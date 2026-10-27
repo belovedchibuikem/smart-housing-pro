@@ -12,13 +12,12 @@ import { Can } from "@/components/admin/can-permission"
 import { getMessage, treatAdminMail } from "@/lib/api/client"
 import { MailTreatment } from "@/components/mail/mail-treatment"
 import { convertMailToOfficeCase } from "@/lib/api/office"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 
 export default function AdminMessageDetailPage() {
   const params = useParams()
   const id = typeof params?.id === "string" ? params.id : ""
   const router = useRouter()
-  const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<any>(null)
@@ -31,7 +30,7 @@ export default function AdminMessageDetailPage() {
         const res = await getMessage(id)
         setMessage(res.data)
       } catch (e: any) {
-        toast({ title: "Failed to load message", description: e.message, variant: "destructive" })
+        toast.error(e.message || "Failed to load message")
       } finally {
         setLoading(false)
       }
@@ -43,14 +42,11 @@ export default function AdminMessageDetailPage() {
     setBusy(true)
     try {
       const res = await convertMailToOfficeCase(id)
-      toast({
-        title: "Converted to case",
-        description: res.data?.case_number || res.message,
-      })
+      toast.success(res.data?.case_number || res.message || "Converted to case")
       const caseId = res.data?.case_id
       if (caseId) router.push(`/admin/office/cases/${caseId}`)
     } catch (e: any) {
-      toast({ title: "Convert failed", description: e.message, variant: "destructive" })
+      toast.error(e.message || "Convert failed")
     } finally {
       setBusy(false)
     }
@@ -91,6 +87,22 @@ export default function AdminMessageDetailPage() {
           <h1 className="text-2xl font-bold">{message.subject || "(No subject)"}</h1>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Can permission="reply_mail|compose_mail">
+            <Button asChild>
+              <Link href={`/admin/mail-service/compose?reply=${message.id}`}>
+                <Reply className="h-4 w-4 mr-2" />
+                Reply
+              </Link>
+            </Button>
+          </Can>
+          <Can permission="compose_mail">
+            <Button variant="outline" asChild>
+              <Link href={`/admin/mail-service/compose?forward=${message.id}`}>
+                <Forward className="h-4 w-4 mr-2" />
+                Forward
+              </Link>
+            </Button>
+          </Can>
           <Can permission="view_office_cases|manage_office_cases|create_office_cases">
             <Button variant="secondary" disabled={busy} onClick={convertToCase}>
               {busy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Briefcase className="mr-2 h-4 w-4" />}
@@ -141,38 +153,18 @@ export default function AdminMessageDetailPage() {
               </ul>
             </div>
           ) : null}
-          <div className="mt-6">
-            <MailTreatment
-              viewer={message.viewer}
-              recipients={message.recipients}
-              onTreat={async (comment) => {
-                const res = await treatAdminMail(id, comment)
-                setMessage(res.data || message)
-                toast({ title: "Marked as treated" })
-              }}
-            />
-          </div>
         </CardContent>
       </Card>
 
-      <div className="flex gap-2">
-        <Can permission="reply_mail|compose_mail">
-          <Button asChild>
-            <Link href={`/admin/mail-service/compose?reply=${message.id}`}>
-              <Reply className="h-4 w-4 mr-2" />
-              Reply
-            </Link>
-          </Button>
-        </Can>
-        <Can permission="compose_mail">
-          <Button variant="outline" asChild>
-            <Link href={`/admin/mail-service/compose?forward=${message.id}`}>
-              <Forward className="h-4 w-4 mr-2" />
-              Forward
-            </Link>
-          </Button>
-        </Can>
-      </div>
+      <MailTreatment
+        viewer={message.viewer}
+        recipients={message.recipients}
+        onTreat={async (comment) => {
+          const res = await treatAdminMail(id, comment)
+          if (res?.data) setMessage(res.data)
+          toast.success(res?.message || "Email marked as treated")
+        }}
+      />
     </div>
   )
 }

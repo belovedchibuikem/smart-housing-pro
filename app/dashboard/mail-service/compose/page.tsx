@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -14,12 +14,17 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Bold, Italic, Underline, List, LinkIcon, X } from "lucide-react"
 import { composeMail, getMailMessage, getAvailableRecipients } from "@/lib/api/client"
 import { RecipientPicker, recipientSendLabel, type MailPerson } from "@/components/mail/recipient-picker"
+import { replyAudience, threadQuote, threadSubject } from "@/lib/mail/thread"
+import { getUserData } from "@/lib/auth/auth-utils"
 import { toast } from "sonner"
 
 export default function ComposeMailPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const draftId = searchParams.get("draftId")
+  const replyId = searchParams.get("reply")
+  const forwardId = searchParams.get("forward")
+  const parentIdRef = useRef<string | null>(replyId)
 
   const [formData, setFormData] = useState({
     audience: "specific",
@@ -42,8 +47,33 @@ export default function ComposeMailPage() {
   useEffect(() => {
     if (draftId) {
       loadDraft(draftId)
+      return
     }
-  }, [draftId])
+    const sourceId = replyId || forwardId
+    if (!sourceId) return
+    const mode = replyId ? "reply" : "forward"
+    ;(async () => {
+      setLoading(true)
+      try {
+        const response = await getMailMessage(sourceId)
+        const mail = response.mail as any
+        const me = (getUserData() as { id?: string | number } | null)?.id
+        setFormData({
+          audience: "specific",
+          cc: [],
+          bcc: [],
+          subject: threadSubject(mail?.subject, mode),
+          message: threadQuote(mail?.sender?.name || mail?.from, mail?.body || ""),
+        })
+        setSelectedPeople(mode === "reply" ? replyAudience(mail || {}, me == null ? null : String(me)) : [])
+        parentIdRef.current = mode === "reply" ? sourceId : null
+      } catch (error: any) {
+        toast.error(error.message || "Failed to open the original email")
+      } finally {
+        setLoading(false)
+      }
+    })()
+  }, [draftId, replyId, forwardId])
 
   const loadDraft = async (id: string) => {
     setLoading(true)
@@ -95,6 +125,7 @@ export default function ComposeMailPage() {
         bcc: formData.bcc.length > 0 ? formData.bcc : undefined,
         attachments: attachments.length > 0 ? attachments : undefined,
         status: "sent",
+        parent_id: parentIdRef.current || undefined,
       })
 
       toast.success("Mail sent successfully!")
