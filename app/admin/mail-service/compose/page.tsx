@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -15,13 +15,12 @@ import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { composeMessage, getAdminMailRecipients, getMessage } from "@/lib/api/client"
 import { RecipientPicker, recipientSendLabel, type MailPerson } from "@/components/mail/recipient-picker"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { Can } from "@/components/admin/can-permission"
 
 export default function AdminComposeMailPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { toast } = useToast()
   const draftId = searchParams.get('draft')
   
   const [formData, setFormData] = useState({
@@ -39,6 +38,16 @@ export default function AdminComposeMailPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [loading, setLoading] = useState(!!draftId)
+  const [notice, setNotice] = useState<{ tone: "error" | "success"; text: string } | null>(null)
+  const draftIdRef = useRef<string | null>(draftId)
+  const sendingRef = useRef(false)
+  const saveLock = useRef(false)
+
+  const report = (tone: "error" | "success", text: string) => {
+    setNotice({ tone, text })
+    if (tone === "error") toast.error(text)
+    else toast.success(text)
+  }
 
   // Load draft if editing
   useEffect(() => {
@@ -47,15 +56,15 @@ export default function AdminComposeMailPage() {
     }
   }, [draftId])
 
-  // Auto-save draft
+  // Auto-save draft into the same row so typing does not create a new draft each time.
   useEffect(() => {
-    if (!draftId && (formData.subject || formData.message)) {
-      const timer = setTimeout(() => {
-        handleAutoSave()
-      }, 2000)
-      return () => clearTimeout(timer)
-    }
-  }, [formData.subject, formData.message, formData.recipients])
+    if (isSending || (!formData.subject && !formData.message)) return
+    if (formData.recipients === "specific" && selectedPeople.length === 0) return
+    const timer = setTimeout(() => {
+      void handleAutoSave()
+    }, 2000)
+    return () => clearTimeout(timer)
+  }, [formData.subject, formData.message, formData.recipients, selectedPeople.length])
 
   const loadPeople = useCallback(async (search: string, audience?: string) => {
     const response = await getAdminMailRecipients({ search, audience })
@@ -87,31 +96,37 @@ export default function AdminComposeMailPage() {
         }
       }
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to load draft",
-        variant: "destructive",
-      })
+      report("error", error.message || "Failed to load draft")
     } finally {
       setLoading(false)
     }
   }
 
+  const rememberDraft = (id?: string) => {
+    if (!id) return
+    draftIdRef.current = id
+  }
+
   const handleAutoSave = async () => {
+    if (sendingRef.current || saveLock.current) return
     if (!formData.subject && !formData.message) return
+    if (formData.recipients === "specific" && selectedPeople.length === 0) return
     
+    saveLock.current = true
     try {
       setIsSaving(true)
-      await composeMessage({
+      const response = await composeMessage({
         ...formData,
         recipient_ids: formData.recipients === 'specific' ? selectedPeople.map((person) => person.id) : undefined,
         save_as_draft: true,
+        draft_id: draftIdRef.current || undefined,
         attachments: [],
       })
-      // Don't show toast for auto-save to avoid spam
-    } catch (error) {
-      // Silently fail auto-save
+      rememberDraft(response.data?.id)
+    } catch {
+      // Keep typing uninterrupted. Send and Save Draft still report errors.
     } finally {
+      saveLock.current = false
       setIsSaving(false)
     }
   }
@@ -128,50 +143,48 @@ export default function AdminComposeMailPage() {
 
   const handleSend = async () => {
     if (!formData.subject && !formData.message) {
-      toast({
-        title: "Error",
-        description: "Please enter a subject or message",
-        variant: "destructive",
-      })
+      report("error", "Enter a subject or a message before sending.")
       return
     }
 
     if (formData.recipients === 'specific' && selectedPeople.length === 0) {
-      toast({
-        title: "Error",
-        description: "Select at least one admin, manager, or member",
-        variant: "destructive",
-      })
+      report("error", "Select at least one admin, manager, or member.")
       return
     }
 
     try {
+      sendingRef.current = true
       setIsSending(true)
+      setNotice(null)
       const response = await composeMessage({
         ...formData,
         recipient_ids: formData.recipients === 'specific' ? selectedPeople.map((person) => person.id) : undefined,
         attachments: attachments,
         save_as_draft: false,
+        draft_id: draftIdRef.current || undefined,
       })
-      
-      toast({
-        title: "Success",
-        description: response.message || "Message sent successfully",
-      })
-      
+
+      const text = response.message || "Email sent."
+      toast.success(text)
       router.push("/admin/mail-service/sent")
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to send message",
-        variant: "destructive",
-      })
+      report("error", error.message || "Failed to send the email.")
     } finally {
+      sendingRef.current = false
       setIsSending(false)
     }
   }
 
   const handleSaveDraft = async () => {
+    if (!formData.subject && !formData.message) {
+      report("error", "Enter a subject or a message before saving a draft.")
+      return
+    }
+    if (formData.recipients === "specific" && selectedPeople.length === 0) {
+      report("error", "Select at least one person before saving a draft.")
+      return
+    }
+
     try {
       setIsSaving(true)
       const response = await composeMessage({
@@ -179,18 +192,12 @@ export default function AdminComposeMailPage() {
         recipient_ids: formData.recipients === 'specific' ? selectedPeople.map((person) => person.id) : undefined,
         attachments: attachments,
         save_as_draft: true,
+        draft_id: draftIdRef.current || undefined,
       })
-      
-      toast({
-        title: "Success",
-        description: response.message || "Draft saved successfully",
-      })
+      rememberDraft(response.data?.id)
+      report("success", response.message || "Draft saved.")
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to save draft",
-        variant: "destructive",
-      })
+      report("error", error.message || "Failed to save the draft.")
     } finally {
       setIsSaving(false)
     }
@@ -364,6 +371,19 @@ export default function AdminComposeMailPage() {
               Mark as urgent
             </label>
           </div>
+
+          {notice && (
+            <div
+              role="status"
+              className={`rounded-md border px-3 py-2 text-sm ${
+                notice.tone === "error"
+                  ? "border-red-200 bg-red-50 text-red-800"
+                  : "border-emerald-200 bg-emerald-50 text-emerald-800"
+              }`}
+            >
+              {notice.text}
+            </div>
+          )}
 
           <div className="flex items-center gap-3 pt-4 border-t">
             <Can permission="compose_mail|bulk_mail">

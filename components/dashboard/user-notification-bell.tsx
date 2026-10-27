@@ -160,7 +160,31 @@ export function UserNotificationBell() {
 						</div>
 					) : (
 						<div className="py-1">
-							{displayNotifications.map((notification) => (
+							{displayNotifications.map((notification) => {
+								const mailId = typeof notification.data?.mail_id === "string" ? notification.data.mail_id : ""
+								const summary = (
+									<>
+										<p
+											className={cn(
+												"text-sm font-medium truncate",
+												notification.is_unread && "font-semibold",
+												getNotificationColor(notification.type)
+											)}
+										>
+											{notification.title}
+										</p>
+										<p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+											{notification.message}
+										</p>
+										{notification.time_ago && (
+											<p className="text-xs text-muted-foreground mt-1">
+												{notification.time_ago}
+											</p>
+										)}
+									</>
+								)
+
+								return (
 								<div
 									key={notification.id}
 									className={cn(
@@ -177,23 +201,11 @@ export function UserNotificationBell() {
 										<div className="flex-1 min-w-0">
 											<div className="flex items-start justify-between gap-2">
 												<div className="flex-1 min-w-0">
-													<p
-														className={cn(
-															"text-sm font-medium truncate",
-															notification.is_unread && "font-semibold",
-															getNotificationColor(notification.type)
-														)}
-													>
-														{notification.title}
-													</p>
-													<p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
-														{notification.message}
-													</p>
-													{notification.time_ago && (
-														<p className="text-xs text-muted-foreground mt-1">
-															{notification.time_ago}
-														</p>
-													)}
+													{mailId ? (
+														<Link href={`/dashboard/mail-service/${mailId}`} onClick={() => { setOpen(false); void markAsRead(notification.id) }}>
+															{summary}
+														</Link>
+													) : summary}
 												</div>
 												{notification.is_unread && (
 													<div className="flex-shrink-0 w-2 h-2 rounded-full bg-blue-500 mt-1" />
@@ -224,7 +236,8 @@ export function UserNotificationBell() {
 										</div>
 									</div>
 								</div>
-							))}
+								)
+							})}
 						</div>
 					)}
 				</ScrollArea>

@@ -2,6 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { apiFetch } from "@/lib/api/client"
+import { getUserData } from "@/lib/auth/auth-utils"
+
+function currentUserId(): string | undefined {
+  const id = (getUserData() as { id?: string | number } | null)?.id
+  return id === undefined || id === null || id === "" ? undefined : String(id)
+}
 
 export interface Notification {
   id: string
@@ -81,7 +87,8 @@ export function useAdminNotifications(): UseAdminNotificationsReturn {
       setError(null)
 
       const queryParams = new URLSearchParams()
-      if (params?.user_id) queryParams.set("user_id", params.user_id)
+      const userId = params?.user_id || currentUserId()
+      if (userId) queryParams.set("user_id", userId)
       if (params?.type) queryParams.set("type", params.type)
       if (params?.read !== undefined) queryParams.set("read", String(params.read))
       if (params?.from_date) queryParams.set("from_date", params.from_date)
@@ -114,10 +121,13 @@ export function useAdminNotifications(): UseAdminNotificationsReturn {
 
   const fetchUnreadCount = useCallback(async () => {
     try {
+      const query = new URLSearchParams()
+      const userId = currentUserId()
+      if (userId) query.set("user_id", userId)
       const response = await apiFetch<{
         success: boolean
         unread_count: number
-      }>("/admin/notifications/unread-count")
+      }>(`/admin/notifications/unread-count?${query.toString()}`)
 
       if (response.success) {
         setUnreadCount(response.unread_count)

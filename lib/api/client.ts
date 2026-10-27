@@ -3777,6 +3777,7 @@ export async function composeMessage(data: {
 	bcc?: string
 	is_urgent?: boolean
 	save_as_draft?: boolean
+	draft_id?: string
 	attachments?: File[]
 }) {
 	const formData = new FormData()
@@ -3789,32 +3790,17 @@ export async function composeMessage(data: {
 	}
 	if (data.cc) formData.append("cc", data.cc)
 	if (data.bcc) formData.append("bcc", data.bcc)
-	if (data.is_urgent !== undefined) formData.append("is_urgent", String(data.is_urgent))
-	if (data.save_as_draft !== undefined) formData.append("save_as_draft", String(data.save_as_draft))
+	if (data.draft_id) formData.append("draft_id", data.draft_id)
+	if (data.is_urgent !== undefined) formData.append("is_urgent", data.is_urgent ? "1" : "0")
+	if (data.save_as_draft !== undefined) formData.append("save_as_draft", data.save_as_draft ? "1" : "0")
 	if (data.attachments) {
 		data.attachments.forEach(file => formData.append("attachments[]", file))
 	}
-	
-	const token = getAuthToken()
-	const headers: Record<string, string> = {}
-	if (token) {
-		headers["Authorization"] = `Bearer ${token}`
-	}
-	
-	// Don't set Content-Type, browser will set it with boundary for FormData
-	
-	const response = await fetch(`${getApiBaseUrl()}/admin/mail-service/compose`, {
+
+	return apiFetch<{ success: boolean; message: string; data: any }>("/admin/mail-service/compose", {
 		method: "POST",
-		headers,
 		body: formData,
 	})
-	
-	if (!response.ok) {
-		const error = await response.json().catch(() => ({ message: "Request failed" }))
-		throw new Error(error.message || "Failed to send message")
-	}
-	
-	return response.json() as Promise<{ success: boolean; message: string; data: any }>
 }
 
 export async function updateMessage(id: string, data: { is_starred?: boolean; is_archived?: boolean; is_read?: boolean; subject?: string; message?: string; category?: string }) {
@@ -5642,7 +5628,7 @@ export async function composeMail(payload: ComposeMailPayload) {
 	if (payload.body) formData.append("body", payload.body)
 	if (payload.type) formData.append("type", payload.type)
 	if (payload.status) formData.append("status", payload.status)
-	if (payload.save_as_draft) formData.append("save_as_draft", "true")
+	if (payload.save_as_draft) formData.append("save_as_draft", "1")
 	if (payload.category) formData.append("category", payload.category)
 	if (payload.cc && payload.cc.length > 0) {
 		payload.cc.forEach((id) => formData.append("cc[]", id))
