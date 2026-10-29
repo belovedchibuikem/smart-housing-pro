@@ -20,6 +20,7 @@ import {
   GATEWAY_PAYMENT_MESSAGE,
   gatewayPaymentUrl,
   launchGatewayCheckout,
+  openDashboardAfterGatewaySuccess,
   rememberPendingGatewayPayment,
 } from "@/lib/payment/gateway-checkout"
 
@@ -227,16 +228,28 @@ export default function SubscriptionCheckoutPage() {
           const launched = launchGatewayCheckout(payUrl)
           if (launched !== "redirect") {
             const popup = launched
+            let handled = false
             const onMessage = (event: MessageEvent) => {
               if (event.origin !== window.location.origin) return
               if (event.data?.type !== GATEWAY_PAYMENT_MESSAGE) return
+              handled = true
               cleanup()
+              if (event.data?.success) {
+                openDashboardAfterGatewaySuccess(
+                  typeof event.data.dashboard_path === "string" && event.data.dashboard_path
+                    ? event.data.dashboard_path
+                    : "/dashboard"
+                )
+                return
+              }
               router.push(successPath)
             }
             const poll = window.setInterval(() => {
               if (popup.closed) {
                 cleanup()
-                router.push(successPath)
+                if (!handled) {
+                  router.push(successPath)
+                }
               }
             }, 800)
             const cleanup = () => {

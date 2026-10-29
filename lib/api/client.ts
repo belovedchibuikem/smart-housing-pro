@@ -4595,6 +4595,10 @@ export async function verifySubscription(provider: string, reference: string) {
 	return apiFetch<{
 		success: boolean
 		message: string
+		activated?: boolean
+		dashboard_path?: string | null
+		subscription_id?: string | null
+		reference?: string
 	}>(`/subscriptions/verify?${query.toString()}`, {
 		method: "GET",
 	})
@@ -5096,6 +5100,10 @@ export async function verifyMemberSubscription(provider: string, reference: stri
 	return apiFetch<{
 		success: boolean
 		message: string
+		activated?: boolean
+		dashboard_path?: string | null
+		subscription_id?: string | null
+		reference?: string
 	}>("/user/member-subscriptions/verify", {
 		method: "POST",
 		body: { provider, reference },

@@ -73,16 +73,22 @@ export function launchGatewayCheckout(paymentUrl: string): Window | "redirect" {
 	return "redirect"
 }
 
-export async function verifyWithRetries<T extends { success?: boolean }>(
+export async function verifyWithRetries<T extends { success?: boolean; activated?: boolean }>(
 	verify: () => Promise<T>,
-	attempts = 5,
+	attempts = 6,
 	delayMs = 2000
 ): Promise<T> {
 	let last: T | null = null
 	for (let i = 0; i < attempts; i += 1) {
 		try {
 			last = await verify()
-			if (last?.success) return last
+			// Prefer a fully activated subscription when the gateway confirms payment.
+			if (last?.success && (last.activated === undefined || last.activated === true)) {
+				return last
+			}
+			if (last?.success && i === attempts - 1) {
+				return last
+			}
 		} catch (error) {
 			if (i === attempts - 1) throw error
 		}
@@ -91,4 +97,15 @@ export async function verifyWithRetries<T extends { success?: boolean }>(
 		}
 	}
 	return last as T
+}
+
+/** Hard navigate after gateway success so subscription guards re-check access. */
+export function openDashboardAfterGatewaySuccess(path: string): void {
+	if (typeof window === "undefined") return
+	try {
+		window.sessionStorage.setItem("subscription_just_activated", "1")
+	} catch {
+		// ignore
+	}
+	window.location.assign(path)
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { CheckCircle, AlertCircle, Loader2 } from "lucide-react"
@@ -12,21 +12,22 @@ import { ReceiptDownloadButton } from "@/components/payments/receipt-download-bu
 import {
   GATEWAY_PAYMENT_MESSAGE,
   clearPendingGatewayPayment,
+  openDashboardAfterGatewaySuccess,
   readPendingGatewayPayment,
   verifyWithRetries,
 } from "@/lib/payment/gateway-checkout"
 
 export default function AdminSubscriptionSuccessPage() {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const pending = typeof window !== "undefined" ? readPendingGatewayPayment() : null
-  const reference = searchParams.get('reference') || searchParams.get('trxref') || pending?.reference || null
-  const provider = searchParams.get('provider') || pending?.provider || 'paystack'
+  const reference = searchParams.get("reference") || searchParams.get("trxref") || pending?.reference || null
+  const provider = searchParams.get("provider") || pending?.provider || "paystack"
   const plan = searchParams.get("plan") ?? "Subscription Plan"
   const amountParam = searchParams.get("amount")
   const amount = amountParam ? Number(amountParam) : undefined
   const issuedAt = useMemo(() => new Date(), [])
-  
+  const isManualOrWallet = provider === "wallet" || provider === "manual"
+
   const [isVerifying, setIsVerifying] = useState(true)
   const [isSuccess, setIsSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -40,7 +41,8 @@ export default function AdminSubscriptionSuccessPage() {
     }
 
     const verify = async () => {
-      if (provider === 'wallet' || provider === 'manual') {
+      // Manual stays pending approval — do not treat as activated gateway payment.
+      if (isManualOrWallet) {
         setIsSuccess(true)
         setIsVerifying(false)
         clearPendingGatewayPayment()
@@ -52,12 +54,19 @@ export default function AdminSubscriptionSuccessPage() {
         if (response.success) {
           setIsSuccess(true)
           clearPendingGatewayPayment()
-          if (typeof window !== "undefined" && window.opener && !window.opener.closed) {
+          const unlocked = response.activated !== false
+          const dashboardPath = response.dashboard_path || "/admin"
+          if (unlocked && typeof window !== "undefined" && window.opener && !window.opener.closed) {
             window.opener.postMessage(
-              { type: GATEWAY_PAYMENT_MESSAGE, success: true, reference },
+              { type: GATEWAY_PAYMENT_MESSAGE, success: true, reference, dashboard_path: dashboardPath },
               window.location.origin
             )
-            window.setTimeout(() => window.close(), 1200)
+            window.setTimeout(() => window.close(), 800)
+            return
+          }
+          // Automatic gateway: unlock dashboard once payment is verified and access is granted.
+          if (unlocked) {
+            window.setTimeout(() => openDashboardAfterGatewaySuccess(dashboardPath), 900)
           }
         } else {
           setError(response.message || "Payment is not confirmed yet. If you were charged, tap confirm payment.")
@@ -70,8 +79,8 @@ export default function AdminSubscriptionSuccessPage() {
       }
     }
 
-    verify()
-  }, [reference, provider, retryNonce])
+    void verify()
+  }, [reference, provider, retryNonce, isManualOrWallet])
 
   return (
     <div className="space-y-6 max-w-2xl mx-auto">
@@ -91,7 +100,9 @@ export default function AdminSubscriptionSuccessPage() {
               <CheckCircle className="h-16 w-16 text-green-600 mb-4" />
               <h2 className="text-2xl font-bold mb-2">Payment Successful!</h2>
               <p className="text-muted-foreground text-center mb-6">
-                Your cooperative subscription has been activated successfully. You now have access to all features.
+                {isManualOrWallet
+                  ? "Your payment request was received. Access unlocks after approval when required."
+                  : "Your cooperative subscription is active. Opening your dashboard…"}
               </p>
               <div className="w-full mb-6">
                 <ReceiptDownloadButton
@@ -103,7 +114,7 @@ export default function AdminSubscriptionSuccessPage() {
                     subtitle: plan,
                     amount,
                     currency: "NGN",
-                    status: "Successful",
+                    status: isManualOrWallet ? "Submitted" : "Successful",
                     paymentMethod: provider.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase()),
                     reference: reference ?? "Pending",
                     date: issuedAt.toISOString(),
@@ -117,11 +128,9 @@ export default function AdminSubscriptionSuccessPage() {
                 />
               </div>
               <div className="flex gap-4">
+                <Button onClick={() => openDashboardAfterGatewaySuccess("/admin")}>Go to Dashboard</Button>
                 <Link href="/admin/subscriptions">
-                  <Button>View My Subscription</Button>
-                </Link>
-                <Link href="/admin">
-                  <Button variant="outline">Go to Dashboard</Button>
+                  <Button variant="outline">View My Subscription</Button>
                 </Link>
               </div>
             </div>
@@ -160,4 +169,3 @@ export default function AdminSubscriptionSuccessPage() {
     </div>
   )
 }
-

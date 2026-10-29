@@ -234,11 +234,24 @@ export function useSubscriptionGuard(isAdmin: boolean = false) {
       return
     }
 
-    if (!subscription.hasActiveSubscription && !isSubscriptionPage && !isAuthPage) {
+    // Just after a successful gateway payment the verify response unlocks access;
+    // allow one navigation to the dashboard while the status refetch settles.
+    let justActivated = false
+    try {
+      justActivated = window.sessionStorage.getItem("subscription_just_activated") === "1"
+      if (justActivated) {
+        window.sessionStorage.removeItem("subscription_just_activated")
+        void subscription.refetch()
+      }
+    } catch {
+      // ignore storage failures
+    }
+
+    if (!subscription.hasActiveSubscription && !isSubscriptionPage && !isAuthPage && !justActivated) {
       console.log(`[Subscription Guard] No active ${isAdmin ? 'cooperative' : 'member'} subscription, redirecting to ${subscriptionPath}`)
       router.push(subscriptionPath)
     }
-  }, [subscription.hasActiveSubscription, subscription.isLoading, pathname, router, subscriptionPath, isAdmin, impersonating])
+  }, [subscription.hasActiveSubscription, subscription.isLoading, pathname, router, subscriptionPath, isAdmin, impersonating, subscription.refetch])
 
   if (impersonating) {
     return {
