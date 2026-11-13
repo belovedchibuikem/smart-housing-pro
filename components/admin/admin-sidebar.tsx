@@ -204,6 +204,7 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
     icon: TrendingUp,
     subItems: [
       { href: "/admin/loans", label: "All Loans", icon: TrendingUp, cluster: "Lending" },
+      { href: "/admin/loans/administration", label: "Loan Administration", icon: ClipboardList, cluster: "Lending" },
       { href: "/admin/loans/apply", label: "Apply for Member", icon: FileEdit, cluster: "Lending" },
       { href: "/admin/loans/stoppage", label: "Loan Stoppage", icon: CalendarRange, cluster: "Lending" },
       { href: "/admin/loans/housing-finance-ai", label: "Housing Finance AI", icon: Sparkles, cluster: "Lending" },

@@ -79,6 +79,11 @@ interface Settings {
   sms_notifications?: boolean
   admin_alerts?: boolean
   notification_email?: string
+  loan_administration_enabled?: boolean
+  loan_admin_grace_days?: number
+  loan_admin_shortfall_percent?: number
+  loan_admin_min_shortfall?: number
+  loan_admin_consecutive_irregular?: number
 
   head_of_housing_name?: string
   head_of_housing_title?: string
@@ -887,6 +892,36 @@ export default function AdminSettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              <div className="rounded-lg border p-4 space-y-4">
+                <div>
+                  <Label>Loan administration</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Off by default. When this cooperative turns it on, officers use the loan administration workspace. Existing loan applications, approvals, and repayments keep working either way.
+                  </p>
+                </div>
+                <Switch
+                  checked={Boolean(settings.loan_administration_enabled ?? false)}
+                  onCheckedChange={(v) => updateSetting("loan_administration_enabled", v)}
+                />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Grace days before a missing deduction</Label>
+                    <Input type="number" min={0} value={settings.loan_admin_grace_days ?? 3} onChange={(e) => updateSetting("loan_admin_grace_days", parseInt(e.target.value) || 0)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Shortfall percent</Label>
+                    <Input type="number" min={0} value={settings.loan_admin_shortfall_percent ?? 10} onChange={(e) => updateSetting("loan_admin_shortfall_percent", parseInt(e.target.value) || 0)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Minimum shortfall (NGN)</Label>
+                    <Input type="number" min={0} value={settings.loan_admin_min_shortfall ?? 1000} onChange={(e) => updateSetting("loan_admin_min_shortfall", parseInt(e.target.value) || 0)} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Consecutive irregular periods</Label>
+                    <Input type="number" min={2} value={settings.loan_admin_consecutive_irregular ?? 2} onChange={(e) => updateSetting("loan_admin_consecutive_irregular", parseInt(e.target.value) || 2)} />
+                  </div>
+                </div>
+              </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>AI valuation enabled</Label>

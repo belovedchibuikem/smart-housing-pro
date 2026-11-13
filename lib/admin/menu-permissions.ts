@@ -38,6 +38,7 @@ export const ADMIN_MENU_EXACT: Record<string, string> = {
   "/admin/loans": "view_loans",
   "/admin/loans/stoppage": "manage_loan_stoppage",
   "/admin/loans/housing-finance-ai": "view_loans",
+  "/admin/loans/administration": "view_loans",
   "/admin/loan-repayments": "manage_loan_repayments",
   "/admin/loan-products": "view_loan_products",
   "/admin/bulk-upload/loans": "bulk_upload_loans",
