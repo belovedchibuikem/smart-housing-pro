@@ -206,6 +206,7 @@ export const ADMIN_NAV_ITEMS: NavItem[] = [
       { href: "/admin/loans", label: "All Loans", icon: TrendingUp, cluster: "Lending" },
       { href: "/admin/loans/apply", label: "Apply for Member", icon: FileEdit, cluster: "Lending" },
       { href: "/admin/loans/stoppage", label: "Loan Stoppage", icon: CalendarRange, cluster: "Lending" },
+      { href: "/admin/loans/housing-finance-ai", label: "Housing Finance AI", icon: Sparkles, cluster: "Lending" },
       { href: "/admin/loan-repayments", label: "Individual Repayment", icon: Receipt, cluster: "Lending" },
       { href: "/admin/loan-products", label: "Loan Products", icon: Package, cluster: "Lending" },
       { href: "/admin/bulk-upload/loans", label: "Bulk Loan Applications", icon: Upload, cluster: "Bulk" },

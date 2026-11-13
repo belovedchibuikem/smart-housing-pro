@@ -6040,6 +6040,133 @@ export async function getAIRecommendations() {
 	return apiFetch<AIRecommendationsResponse>("/ai/recommendations", { method: "GET" })
 }
 
+export interface HousingGuidance {
+	summary: string
+	source: string
+	requires_staff_decision?: boolean
+	affordability: {
+		monthly_contribution: number
+		available_savings: number
+		wallet_balance: number
+		open_loan_balance: number
+		suggested_monthly_repayment: number
+	}
+	completeness: { ready: boolean; gaps: string[] }
+	payment_plans: Array<{ id: string; remaining_balance: number; suggested_monthly: number; fit: string }>
+	next_steps: string[]
+}
+
+export async function getHousingGuidance() {
+	return apiFetch<{ success: boolean; data: HousingGuidance }>("/ai/housing-guidance", { method: "GET" })
+}
+
+export interface HousingFinanceArrears {
+	source: string
+	requires_staff_review: boolean
+	drafts: Array<{
+		loan_id: string
+		member_id: string
+		member_name: string
+		status: string
+		due_date: string | null
+		amount: number
+		draft: string
+	}>
+}
+
+export async function getHousingFinanceArrears() {
+	return apiFetch<{ success: boolean; data: HousingFinanceArrears }>("/admin/loans/housing-finance-ai", { method: "GET" })
+}
+
+export async function getMemberHousingBrief(memberId: string) {
+	return apiFetch<{ success: boolean; data: { member: { id: string; name: string; member_number?: string }; guidance: HousingGuidance } }>(
+		`/admin/loans/housing-finance-ai/members/${memberId}`,
+		{ method: "GET" },
+	)
+}
+
+export interface MaintenanceTriage {
+	issue_type: string
+	priority: string
+	summary: string
+	source: string
+	requires_staff_review: boolean
+}
+
+export async function triageMaintenance(description: string) {
+	return apiFetch<{ success: boolean; data: MaintenanceTriage }>("/admin/loans/housing-finance-ai/maintenance-triage", {
+		method: "POST",
+		body: { description },
+	})
+}
+
+export interface KycAssist {
+	ready: boolean
+	kyc_status: string | null
+	document_count: number
+	gaps: string[]
+	requires_staff_review: boolean
+}
+
+export async function getMemberKycAssist(memberId: string) {
+	return apiFetch<{ success: boolean; data: KycAssist }>(`/admin/members/${memberId}/kyc-assist`, { method: "GET" })
+}
+
+export interface FileReview {
+	stance: "recommend" | "defer" | "decline" | string
+	note: string
+	reasons: string[]
+	requested_amount: number
+	proposed_installment: number
+	suggested_monthly_repayment: number
+	source: string
+	requires_staff_decision: boolean
+}
+
+export async function reviewHousingFile(payload: { member_id: string; requested_amount: number; proposed_installment?: number }) {
+	return apiFetch<{ success: boolean; data: FileReview }>("/admin/loans/housing-finance-ai/file-review", {
+		method: "POST",
+		body: payload,
+	})
+}
+
+export interface EarlyWarning {
+	kind: string
+	member_name: string
+	due_date: string | null
+	amount: number
+	message: string
+}
+
+export async function getEarlyArrearsWarnings() {
+	return apiFetch<{ success: boolean; data: { items: EarlyWarning[]; requires_staff_review: boolean } }>("/admin/loans/housing-finance-ai/early-warnings", { method: "GET" })
+}
+
+export async function getPaymentAnomalies() {
+	return apiFetch<{ success: boolean; data: { notes: Array<{ member_name: string; message: string }>; requires_staff_review: boolean } }>("/admin/loans/housing-finance-ai/anomalies", { method: "GET" })
+}
+
+export async function draftHousingDocument(payload: {
+	kind: "property_description" | "allocation_letter" | "demand_notice"
+	member_name?: string
+	property_title?: string
+	location?: string
+	amount?: number
+	due_date?: string
+}) {
+	return apiFetch<{ success: boolean; data: { kind: string; body: string; source: string; requires_staff_review: boolean } }>("/admin/loans/housing-finance-ai/document-draft", {
+		method: "POST",
+		body: payload,
+	})
+}
+
+export async function draftValuationNarrative(valuationId?: string) {
+	return apiFetch<{ success: boolean; data: { body: string; source: string; requires_staff_review: boolean; saved: boolean } }>("/admin/valuations/narrative-draft", {
+		method: "POST",
+		body: valuationId ? { valuation_id: valuationId } : {},
+	})
+}
+
 export interface BlockchainTransaction {
 	id: string
 	hash: string

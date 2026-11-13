@@ -267,19 +267,18 @@ function OnboardingPageContent() {
       })
 
       if (response.success) {
-        // Handle payment flow
+        if (response.payment_method && response.payment_method !== "manual" && !response.payment_url) {
+          throw new Error(response.message || "Payment could not be started. The workspace was not created.")
+        }
         if (response.payment_url) {
-          // Redirect to payment gateway
           window.location.href = response.payment_url
         } else {
-          // Manual payment - show success message with instructions
           alert(
-            `Cooperative created successfully!\n\n` +
+            `${response.message || "Registration submitted."}\n\n` +
             `Payment Reference: ${response.payment_reference}\n` +
             `Amount: ₦${response.amount?.toLocaleString()}\n\n` +
-            `Please complete payment and wait for admin approval.`
+            `${response.next_steps || "The workspace is created after this payment is confirmed."}`
           )
-          // Redirect to a success page or back to home
           window.location.href = "/saas?onboarding=success"
         }
       } else {
@@ -362,7 +361,7 @@ function OnboardingPageContent() {
             <span>Smart Housing</span>
           </Link>
           <h1 className="text-3xl font-bold mt-4">Create Your Real-Estate Account</h1>
-          <p className="text-muted-foreground mt-2">Get started with your 14-day free trial</p>
+          <p className="text-muted-foreground mt-2">Your workspace is created after the first payment is confirmed</p>
         </div>
 
         {/* Progress Steps */}
@@ -734,8 +733,8 @@ function OnboardingPageContent() {
                           </Select>
                           <p className="text-xs text-muted-foreground">
                             {formData.paymentMethod === "manual"
-                              ? "You'll upload payment evidence after submission and wait for admin approval"
-                              : "You'll be redirected to complete payment securely"}
+                              ? "Submit the form, pay with the reference you receive, and wait for approval. The database is created after that payment is confirmed."
+                              : "You'll be redirected to complete payment. The database is created only after payment succeeds."}
                           </p>
                         </div>
                       </div>
@@ -747,8 +746,7 @@ function OnboardingPageContent() {
                     })() && (
                       <div className="bg-muted/50 p-4 rounded-lg">
                         <p className="text-sm text-muted-foreground">
-                          <strong>{packages.find((p) => p.id === formData.selectedPackage)?.trial_days || 14}-day free trial</strong>{" "}
-                          • No credit card required • Cancel anytime
+                          The workspace is created after the first payment is confirmed. Cancel anytime before that payment.
                         </p>
                       </div>
                     )}
@@ -830,10 +828,8 @@ function OnboardingPageContent() {
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Trial:</span>
-                        <span className="font-medium">
-                          {packages.find((p) => p.id === formData.selectedPackage)?.trial_days || 14} days free
-                        </span>
+                        <span className="text-muted-foreground">Workspace:</span>
+                        <span className="font-medium">Created after first payment</span>
                       </div>
                     </div>
                   </Card>

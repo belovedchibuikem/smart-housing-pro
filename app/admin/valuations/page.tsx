@@ -16,6 +16,7 @@ import {
 	type ValuationRow,
 } from "@/lib/api/valuations"
 import { Can } from "@/components/admin/can-permission"
+import { draftValuationNarrative } from "@/lib/api/client"
 
 function money(n?: number | null) {
 	if (n == null || Number.isNaN(Number(n))) return "—"
@@ -28,6 +29,7 @@ export default function ValuationsAdminPage() {
 	const [rows, setRows] = useState<ValuationRow[]>([])
 	const [search, setSearch] = useState("")
 	const [propertyId, setPropertyId] = useState("")
+	const [narrative, setNarrative] = useState<string | null>(null)
 	const [running, setRunning] = useState(false)
 
 	const load = useCallback(async () => {
@@ -77,6 +79,15 @@ export default function ValuationsAdminPage() {
 		}
 	}
 
+	const writeNarrative = async (id: string) => {
+		try {
+			const response = await draftValuationNarrative(id)
+			setNarrative(response.data.body)
+		} catch (e) {
+			toast({ title: "Could not draft the valuation note", description: String(e), variant: "destructive" })
+		}
+	}
+
 	return (
 		<div className="space-y-6">
 			<div className="flex flex-wrap items-center justify-between gap-3">
@@ -91,6 +102,18 @@ export default function ValuationsAdminPage() {
 					<span className="ml-2">Refresh</span>
 				</Button>
 			</div>
+
+			{narrative ? (
+				<Card>
+					<CardHeader>
+						<CardTitle className="text-base">Valuation note</CardTitle>
+						<CardDescription>Draft only. The saved value and report stay as they are.</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<p className="whitespace-pre-wrap text-sm">{narrative}</p>
+					</CardContent>
+				</Card>
+			) : null}
 
 			<Can permission="run_valuation|view_valuations">
 				<Card>
@@ -182,6 +205,9 @@ export default function ValuationsAdminPage() {
 												{row.valuation_date ? new Date(row.valuation_date).toLocaleDateString() : "—"}
 											</TableCell>
 											<TableCell className="text-right">
+												<Button size="sm" variant="ghost" onClick={() => void writeNarrative(row.id)}>
+													Note
+												</Button>
 												<Button size="sm" variant="ghost" onClick={() => void downloadReport(row.id)}>
 													<Download className="h-4 w-4" />
 												</Button>

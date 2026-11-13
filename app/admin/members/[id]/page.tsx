@@ -28,7 +28,7 @@ import {
   MemberStats,
   mergeContributionWalletIntoStats,
 } from "@/lib/api/member-service"
-import { getAdminRefundMemberSummary } from "@/lib/api/client"
+import { getAdminRefundMemberSummary, getMemberKycAssist } from "@/lib/api/client"
 import { toastWorkflowError, toastWorkflowOrSuccess } from "@/lib/admin/workflow-redirect"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useTenantPermissions } from "@/components/admin/can-permission"
@@ -70,6 +70,7 @@ export default function MemberDetailPage() {
   const [showResetPassword, setShowResetPassword] = useState(false)
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null)
   const [openingKycIndex, setOpeningKycIndex] = useState<number | null>(null)
+  const [kycGaps, setKycGaps] = useState<string[] | null>(null)
   
   // Form states
   const [rejectionReason, setRejectionReason] = useState("")
@@ -84,6 +85,9 @@ export default function MemberDetailPage() {
   useEffect(() => {
     if (!id) return
     loadMemberData()
+    getMemberKycAssist(id)
+      .then((response) => setKycGaps(response.data.gaps))
+      .catch(() => setKycGaps(null))
   }, [id])
 
   const loadMemberData = async () => {
@@ -413,6 +417,20 @@ export default function MemberDetailPage() {
                 )}
               </div>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {kycGaps && kycGaps.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>File check</CardTitle>
+            <CardDescription>Missing items before a loan or mortgage review. This does not approve or reject KYC.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-1 text-sm">
+            {kycGaps.map((gap) => (
+              <p key={gap}>{gap}</p>
+            ))}
           </CardContent>
         </Card>
       )}

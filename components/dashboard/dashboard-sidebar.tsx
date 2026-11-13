@@ -46,6 +46,7 @@ import {
   Store,
   Briefcase,
   AlertCircle,
+  Calculator,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useState, useEffect, useMemo } from "react"
@@ -119,6 +120,7 @@ const navItems: NavItem[] = [
           { href: "/dashboard/loans", label: "View Loans", displayKey: "nav.viewLoans", icon: Eye },
           { href: "/dashboard/loans/apply", label: "Request Loan", displayKey: "nav.requestLoan", icon: PlusCircle },
           { href: "/dashboard/loans/plans", label: "Loan Plans", displayKey: "nav.loanPlans", icon: ListChecks },
+          { href: "/dashboard/mortgage-calculator", label: "Mortgage Calculator", displayKey: "nav.mortgageCalculator", icon: Calculator },
         ],
       },
       {
@@ -222,6 +224,7 @@ const navItems: NavItem[] = [
     ],
   },
   { href: "/dashboard/ai-recommendations", label: "AI", displayKey: "nav.ai", icon: Sparkles },
+  { href: "/dashboard/housing-guidance", label: "Housing Guide", displayKey: "nav.housingGuide", icon: Sparkles },
   { href: "/dashboard/blockchain-ledger", label: "Block Chain Ledger", icon: Shield },
   {
     label: "Refunds & Requests",

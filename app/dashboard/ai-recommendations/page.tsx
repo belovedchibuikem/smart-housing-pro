@@ -130,6 +130,15 @@ export default function AIRecommendationsPage() {
 						Personalized investment suggestions powered by AI
 						{data?.note && <span className="text-xs text-muted-foreground ml-2">({data.note})</span>}
 					</p>
+					<p className="mt-2 text-sm">
+						<Link href="/dashboard/housing-guidance" className="text-primary underline">Housing finance guide</Link>
+						{" · "}
+						<Link href="/dashboard/mortgage-calculator" className="text-primary underline">Mortgage calculator</Link>
+					</p>
+					<div className="mt-3 flex gap-4 text-sm">
+						<Link href="/dashboard/housing-guidance" className="text-primary underline">Housing finance guide</Link>
+						<Link href="/dashboard/mortgage-calculator" className="text-primary underline">Mortgage calculator</Link>
+					</div>
 				</div>
 				<Button onClick={handleRefresh} disabled={refreshing}>
 					{refreshing ? (
