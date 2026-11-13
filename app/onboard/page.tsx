@@ -45,6 +45,70 @@ function isCustomPackage(pkg: Package): boolean {
   return Boolean(pkg.custom_pricing || pkg.limits?.custom_pricing)
 }
 
+const JOINING_AS_OPTIONS = [
+  { value: "cooperative", label: "Housing Cooperative" },
+  { value: "real_estate_owner", label: "Real-Estate Owner" },
+  { value: "developer", label: "Real Estate Developers" },
+  { value: "landlord", label: "Landlords" },
+  { value: "agent", label: "Agents" },
+] as const
+
+type VendorType = (typeof JOINING_AS_OPTIONS)[number]["value"]
+
+function parseVendorType(value: string | null): VendorType {
+  const match = JOINING_AS_OPTIONS.find((option) => option.value === value)
+  return match?.value ?? "cooperative"
+}
+
+function isMarketplaceVendor(vendorType: VendorType): boolean {
+  return vendorType !== "cooperative"
+}
+
+function businessNameLabel(vendorType: VendorType): string {
+  switch (vendorType) {
+    case "real_estate_owner":
+      return "Owner / business name"
+    case "developer":
+      return "Developer / company name"
+    case "landlord":
+      return "Business / landlord name"
+    case "agent":
+      return "Agency / agent name"
+    default:
+      return "Cooperative Name"
+  }
+}
+
+function businessNamePlaceholder(vendorType: VendorType): string {
+  switch (vendorType) {
+    case "real_estate_owner":
+      return "e.g., Adeyemi Properties"
+    case "developer":
+      return "e.g., Horizon Estates"
+    case "landlord":
+      return "e.g., Adeyemi Properties"
+    case "agent":
+      return "e.g., Adeyemi Realty"
+    default:
+      return "e.g., FRSC Housing Cooperative"
+  }
+}
+
+function joiningAsHint(vendorType: VendorType): string {
+  switch (vendorType) {
+    case "real_estate_owner":
+      return "Real-estate owners get a vendor profile and can list properties they own on Smart Housing Marketplace."
+    case "developer":
+      return "Developers get a vendor profile and can publish estate projects on Smart Housing Marketplace."
+    case "landlord":
+      return "Landlords get a vendor profile and can publish verified houses and land on Smart Housing Marketplace."
+    case "agent":
+      return "Agents get a vendor profile and can list properties for clients on Smart Housing Marketplace."
+    default:
+      return "Housing cooperatives manage members, savings, allocations, and housing projects."
+  }
+}
+
 function OnboardingPageContent() {
   const searchParams = useSearchParams()
   const { branding } = useSaasBranding()
@@ -98,9 +162,7 @@ function OnboardingPageContent() {
     contactEmail: "",
     contactPhone: "",
     address: "",
-    vendorType: (searchParams.get("vendor_type") === "landlord" ? "landlord" : "cooperative") as
-      | "cooperative"
-      | "landlord",
+    vendorType: parseVendorType(searchParams.get("vendor_type")),
     marketplaceTagline: "",
     // Step 2: Admin Account
     adminFirstName: "",
@@ -123,7 +185,7 @@ function OnboardingPageContent() {
           setPackages(response.packages)
           const landlordPreferred = response.packages.find((p) => p.slug === "landlord-starter")
           const firstSelfServe =
-            (searchParams.get("vendor_type") === "landlord" && landlordPreferred) ||
+            (parseVendorType(searchParams.get("vendor_type")) === "landlord" && landlordPreferred) ||
             response.packages.find((p) => !isCustomPackage(p))
           if (firstSelfServe) {
             setFormData((prev) =>
@@ -395,7 +457,11 @@ function OnboardingPageContent() {
               <div className="space-y-6">
                 <div>
                   <h2 className="text-2xl font-bold mb-2">Business Information</h2>
-                  <p className="text-muted-foreground">Tell us about your cooperative</p>
+                  <p className="text-muted-foreground">
+                    {formData.vendorType === "cooperative"
+                      ? "Tell us about your cooperative"
+                      : "Tell us about your business"}
+                  </p>
                 </div>
 
                 <div className="space-y-4">
@@ -415,33 +481,28 @@ function OnboardingPageContent() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="cooperative">Housing cooperative / organization</SelectItem>
-                        <SelectItem value="landlord">Independent landlord (list on marketplace)</SelectItem>
+                        {JOINING_AS_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-sm text-muted-foreground">
-                      Landlords get a vendor profile and can publish verified houses & land on Smart Housing Marketplace.
-                    </p>
+                    <p className="text-sm text-muted-foreground">{joiningAsHint(formData.vendorType)}</p>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="businessName">
-                      {formData.vendorType === "landlord" ? "Business / landlord name" : "Cooperative Name"}
-                    </Label>
+                    <Label htmlFor="businessName">{businessNameLabel(formData.vendorType)}</Label>
                     <Input
                       id="businessName"
-                      placeholder={
-                        formData.vendorType === "landlord"
-                          ? "e.g., Adeyemi Properties"
-                          : "e.g., FRSC Housing Cooperative"
-                      }
+                      placeholder={businessNamePlaceholder(formData.vendorType)}
                       value={formData.businessName}
                       onChange={(e) => updateFormData("businessName", e.target.value)}
                       required
                     />
                   </div>
 
-                  {formData.vendorType === "landlord" && (
+                  {isMarketplaceVendor(formData.vendorType) && (
                     <div className="space-y-2">
                       <Label htmlFor="marketplaceTagline">Marketplace tagline (optional)</Label>
                       <Input
@@ -471,7 +532,11 @@ function OnboardingPageContent() {
                       {slugAvailable === true && <Check className="h-4 w-4 text-green-500" />}
                       {slugAvailable === false && <AlertCircle className="h-4 w-4 text-destructive" />}
                     </div>
-                    <p className="text-sm text-muted-foreground">This will be your cooperative's web address</p>
+                    <p className="text-sm text-muted-foreground">
+                      {formData.vendorType === "cooperative"
+                        ? "This will be your cooperative's web address"
+                        : "This will be your workspace web address"}
+                    </p>
                     {slugAvailable === false && (
                       <p className="text-sm text-destructive">This subdomain is already taken. Please choose another.</p>
                     )}
@@ -510,7 +575,11 @@ function OnboardingPageContent() {
                     <Label htmlFor="address">Address</Label>
                     <Textarea
                       id="address"
-                      placeholder="Enter your cooperative's address"
+                      placeholder={
+                        formData.vendorType === "cooperative"
+                          ? "Enter your cooperative's address"
+                          : "Enter your business address"
+                      }
                       value={formData.address}
                       onChange={(e) => updateFormData("address", e.target.value)}
                       rows={3}
