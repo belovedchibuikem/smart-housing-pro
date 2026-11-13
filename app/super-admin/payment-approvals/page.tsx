@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { 
   CheckCircle, 
@@ -28,7 +28,7 @@ import {
   User,
   Banknote
 } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
 import { apiFetch } from "@/lib/api/client"
 
 interface BulkBreakdownLine {
@@ -121,10 +121,12 @@ interface ReconciliationData {
 }
 
 export default function PaymentApprovalsPage() {
-  const { toast } = useToast()
   const [transactions, setTransactions] = useState<PaymentTransaction[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedTransaction, setSelectedTransaction] = useState<PaymentTransaction | null>(null)
+  const [detailsOpen, setDetailsOpen] = useState(false)
+  const [isProcessing, setIsProcessing] = useState<"approve" | "reject" | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
   const [approvalNotes, setApprovalNotes] = useState("")
   const [rejectionReason, setRejectionReason] = useState("")
   const [filters, setFilters] = useState({
@@ -151,11 +153,7 @@ export default function PaymentApprovalsPage() {
       setPendingTotal(response.pagination?.total ?? response.transactions?.total ?? 0)
     } catch (error) {
       console.error("Error loading pending approvals:", error)
-      toast({
-        title: "Error",
-        description: "Failed to load pending approvals",
-        variant: "destructive",
-      })
+      toast.error(error instanceof Error ? error.message : "Failed to load pending approvals")
     } finally {
       setLoading(false)
     }
@@ -170,53 +168,59 @@ export default function PaymentApprovalsPage() {
     }
   }
 
+  const openTransaction = (transaction: PaymentTransaction) => {
+    setSelectedTransaction(transaction)
+    setActionError(null)
+    setDetailsOpen(true)
+  }
+
   const approvePayment = async (transactionId: string) => {
+    if (!transactionId || isProcessing) return
+    setIsProcessing("approve")
+    setActionError(null)
     try {
       await apiFetch(`/super-admin/payment-approvals/${transactionId}/approve`, {
         method: "POST",
         body: { approval_notes: approvalNotes }
       })
 
-      toast({
-        title: "Success",
-        description: "Payment approved successfully",
-      })
-
+      toast.success("Payment approved. The business is now active.")
+      setDetailsOpen(false)
       setSelectedTransaction(null)
       setApprovalNotes("")
-      loadPendingApprovals()
+      await loadPendingApprovals()
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to approve payment"
       console.error("Error approving payment:", error)
-      toast({
-        title: "Error",
-        description: "Failed to approve payment",
-        variant: "destructive",
-      })
+      setActionError(message)
+      toast.error(message)
+    } finally {
+      setIsProcessing(null)
     }
   }
 
   const rejectPayment = async (transactionId: string) => {
+    if (!transactionId || isProcessing) return
+    setIsProcessing("reject")
+    setActionError(null)
     try {
       await apiFetch(`/super-admin/payment-approvals/${transactionId}/reject`, {
         method: "POST",
-        body: { rejection_reason: rejectionReason }
+        body: { rejection_reason: rejectionReason.trim() || "Rejected by super admin" }
       })
 
-      toast({
-        title: "Success",
-        description: "Payment rejected successfully",
-      })
-
+      toast.success("Payment rejected.")
+      setDetailsOpen(false)
       setSelectedTransaction(null)
       setRejectionReason("")
-      loadPendingApprovals()
+      await loadPendingApprovals()
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to reject payment"
       console.error("Error rejecting payment:", error)
-      toast({
-        title: "Error",
-        description: "Failed to reject payment",
-        variant: "destructive",
-      })
+      setActionError(message)
+      toast.error(message)
+    } finally {
+      setIsProcessing(null)
     }
   }
 
@@ -336,7 +340,8 @@ export default function PaymentApprovalsPage() {
                       <div>
                         <h3 className="font-semibold">Transaction #{transaction.reference}</h3>
                         <p className="text-sm text-muted-foreground">
-                          {transaction.tenant.name} ({transaction.tenant.domain})
+                          {transaction.tenant?.name || "Business"}
+                          {transaction.tenant?.domain ? ` (${transaction.tenant.domain})` : ""}
                         </p>
                       </div>
                     </div>
@@ -436,117 +441,15 @@ export default function PaymentApprovalsPage() {
                       <span>{new Date(transaction.created_at).toLocaleDateString()}</span>
                     </div>
                     <div className="flex space-x-2">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => setSelectedTransaction(transaction)}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View Details
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl">
-                          <DialogHeader>
-                            <DialogTitle>Transaction Details</DialogTitle>
-                            <DialogDescription>
-                              Review payment details before approval
-                            </DialogDescription>
-                          </DialogHeader>
-                          {selectedTransaction && (
-                            <div className="space-y-4">
-                              <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                  <Label>Reference</Label>
-                                  <p className="text-sm">{selectedTransaction.reference}</p>
-                                </div>
-                                <div>
-                                  <Label>Amount</Label>
-                                  <p className="text-sm font-semibold">
-                                    {formatCurrency(selectedTransaction.amount, selectedTransaction.currency)}
-                                  </p>
-                                </div>
-                                <div>
-                                  <Label>Cooperative</Label>
-                                  <p className="text-sm">{selectedTransaction.tenant.name}</p>
-                                </div>
-                                <div>
-                                  <Label>Gateway</Label>
-                                  <p className="text-sm">{selectedTransaction.payment_gateway}</p>
-                                </div>
-                              </div>
-
-                              {selectedTransaction.metadata?.is_bulk_member_subscription &&
-                                selectedTransaction.metadata.breakdown &&
-                                selectedTransaction.metadata.breakdown.length > 0 && (
-                                  <div className="rounded-lg border p-3">
-                                    <p className="font-medium mb-2 flex items-center gap-2">
-                                      <Badge variant="secondary">Bulk</Badge> Per-member breakdown
-                                    </p>
-                                    <div className="max-h-48 overflow-y-auto text-sm space-y-1">
-                                      {selectedTransaction.metadata.breakdown.map((row, i) => (
-                                        <div key={i} className="flex justify-between gap-2 border-b border-muted pb-1">
-                                          <span>
-                                            {row.member_name || row.member_email || row.member_number || "Member"}
-                                            {row.package_name ? ` · ${row.package_name}` : ""}
-                                          </span>
-                                          <span>{formatCurrency(Number(row.amount || 0), selectedTransaction.currency)}</span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                              {(selectedTransaction.isManualPayment ||
-                                selectedTransaction.payment_gateway?.toLowerCase() === "manual") && (
-                                <div className="p-4 bg-muted rounded-lg">
-                                  <h4 className="font-medium mb-2">Bank Transfer Details</h4>
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <Label className="text-sm">Bank Name</Label>
-                                      <p className="text-sm">{selectedTransaction.bank_name || 'N/A'}</p>
-                                    </div>
-                                    <div>
-                                      <Label className="text-sm">Account Number</Label>
-                                      <p className="text-sm">{selectedTransaction.account_number || 'N/A'}</p>
-                                    </div>
-                                    <div>
-                                      <Label className="text-sm">Account Name</Label>
-                                      <p className="text-sm">{selectedTransaction.account_name || 'N/A'}</p>
-                                    </div>
-                                    <div>
-                                      <Label className="text-sm">Payment Date</Label>
-                                      <p className="text-sm">
-                                        {selectedTransaction.payment_date ? 
-                                          new Date(selectedTransaction.payment_date).toLocaleDateString() : 'N/A'}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-
-                              <div className="flex space-x-2">
-                                <Button 
-                                  onClick={() => approvePayment(selectedTransaction.id)}
-                                  className="flex-1"
-                                >
-                                  <CheckCircle className="h-4 w-4 mr-2" />
-                                  Approve Payment
-                                </Button>
-                                <Button 
-                                  variant="destructive" 
-                                  onClick={() => rejectPayment(selectedTransaction.id)}
-                                  className="flex-1"
-                                >
-                                  <XCircle className="h-4 w-4 mr-2" />
-                                  Reject Payment
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                        </DialogContent>
-                      </Dialog>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openTransaction(transaction)}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        View Details
+                      </Button>
                     </div>
                   </div>
                 </Card>
@@ -643,6 +546,147 @@ export default function PaymentApprovalsPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      <Dialog
+        open={detailsOpen}
+        onOpenChange={(open) => {
+          if (isProcessing) return
+          setDetailsOpen(open)
+          if (!open) setActionError(null)
+        }}
+      >
+        <DialogContent className="z-[80] max-w-2xl pointer-events-auto">
+          <DialogHeader>
+            <DialogTitle>Transaction Details</DialogTitle>
+            <DialogDescription>
+              Review payment details before approval
+            </DialogDescription>
+          </DialogHeader>
+          {selectedTransaction && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Reference</Label>
+                  <p className="text-sm">{selectedTransaction.reference}</p>
+                </div>
+                <div>
+                  <Label>Amount</Label>
+                  <p className="text-sm font-semibold">
+                    {formatCurrency(selectedTransaction.amount, selectedTransaction.currency)}
+                  </p>
+                </div>
+                <div>
+                  <Label>Business</Label>
+                  <p className="text-sm">{selectedTransaction.tenant?.name || "Business"}</p>
+                </div>
+                <div>
+                  <Label>Gateway</Label>
+                  <p className="text-sm">{selectedTransaction.payment_gateway}</p>
+                </div>
+              </div>
+
+              {selectedTransaction.metadata?.is_bulk_member_subscription &&
+                selectedTransaction.metadata.breakdown &&
+                selectedTransaction.metadata.breakdown.length > 0 && (
+                  <div className="rounded-lg border p-3">
+                    <p className="font-medium mb-2 flex items-center gap-2">
+                      <Badge variant="secondary">Bulk</Badge> Per-member breakdown
+                    </p>
+                    <div className="max-h-48 overflow-y-auto text-sm space-y-1">
+                      {selectedTransaction.metadata.breakdown.map((row, i) => (
+                        <div key={i} className="flex justify-between gap-2 border-b border-muted pb-1">
+                          <span>
+                            {row.member_name || row.member_email || row.member_number || "Member"}
+                            {row.package_name ? ` · ${row.package_name}` : ""}
+                          </span>
+                          <span>{formatCurrency(Number(row.amount || 0), selectedTransaction.currency)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              {(selectedTransaction.isManualPayment ||
+                selectedTransaction.payment_gateway?.toLowerCase() === "manual") && (
+                <div className="p-4 bg-muted rounded-lg">
+                  <h4 className="font-medium mb-2">Bank Transfer Details</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm">Bank Name</Label>
+                      <p className="text-sm">{selectedTransaction.bank_name || "N/A"}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm">Account Number</Label>
+                      <p className="text-sm">{selectedTransaction.account_number || "N/A"}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm">Account Name</Label>
+                      <p className="text-sm">{selectedTransaction.account_name || "N/A"}</p>
+                    </div>
+                    <div>
+                      <Label className="text-sm">Payment Date</Label>
+                      <p className="text-sm">
+                        {selectedTransaction.payment_date
+                          ? new Date(selectedTransaction.payment_date).toLocaleDateString()
+                          : "N/A"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="approval-notes">Approval notes (optional)</Label>
+                <Textarea
+                  id="approval-notes"
+                  value={approvalNotes}
+                  onChange={(e) => setApprovalNotes(e.target.value)}
+                  rows={2}
+                  placeholder="Note for this approval"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="rejection-reason">Rejection reason (optional)</Label>
+                <Textarea
+                  id="rejection-reason"
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  rows={2}
+                  placeholder="Used only if you reject this payment"
+                />
+              </div>
+
+              {actionError && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                  {actionError}
+                </div>
+              )}
+
+              <div className="flex space-x-2">
+                <Button
+                  type="button"
+                  onClick={() => approvePayment(selectedTransaction.id)}
+                  className="flex-1"
+                  disabled={isProcessing !== null}
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  {isProcessing === "approve" ? "Approving..." : "Approve Payment"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={() => rejectPayment(selectedTransaction.id)}
+                  className="flex-1"
+                  disabled={isProcessing !== null}
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  {isProcessing === "reject" ? "Rejecting..." : "Reject Payment"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

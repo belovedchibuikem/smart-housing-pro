@@ -3,7 +3,7 @@
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Building2, Search, Users, Calendar, CheckCircle, AlertCircle, XCircle, ExternalLink } from "lucide-react"
+import { Building2, Search, Users, Calendar, CheckCircle, AlertCircle, XCircle, ExternalLink, Clock } from "lucide-react"
 import Link from "next/link"
 import { useState, useEffect, useCallback } from "react"
 import { apiFetch } from "@/lib/api/client"
@@ -109,6 +109,14 @@ export default function BusinessesPage() {
   const businesses = normalizeBusinesses(data)
 
   const getStatusBadge = (status: string, subscriptionStatus: string) => {
+    if (status === "pending" || status === "pending_approval" || subscriptionStatus === "pending") {
+      return (
+        <div className="flex items-center gap-1 text-amber-600 text-sm">
+          <Clock className="h-4 w-4" />
+          Pending payment
+        </div>
+      )
+    }
     if (status === "suspended") {
       return (
         <div className="flex items-center gap-1 text-red-600 text-sm">

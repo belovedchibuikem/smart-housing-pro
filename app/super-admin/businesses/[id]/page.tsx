@@ -15,6 +15,7 @@ import {
   TrendingUp,
   AlertCircle,
   CheckCircle,
+  Clock,
   ExternalLink,
   Edit,
   Ban,
@@ -142,7 +143,12 @@ export default function BusinessDetailPage({ params }: { params: Promise<{ id: s
             <h1 className="text-3xl font-bold">{business.name}</h1>
             <p className="text-muted-foreground mt-1">{business.slug}</p>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
-              {business.status === "suspended" ? (
+              {business.status === "pending" || business.status === "pending_approval" || subStatus === "pending" ? (
+                <div className="flex items-center gap-1 text-amber-600 text-sm">
+                  <Clock className="h-4 w-4" />
+                  Pending payment
+                </div>
+              ) : business.status === "suspended" ? (
                 <div className="flex items-center gap-1 text-red-600 text-sm">
                   <Ban className="h-4 w-4" />
                   Suspended
