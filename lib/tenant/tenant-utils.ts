@@ -1,6 +1,21 @@
-// Tenant Utility Functions
-
 import type { Tenant, PackageLimits, TenantUsage } from "@/lib/types/tenant"
+
+const KNOWN_PLATFORM_DOMAINS = ["smarthousing.com.ng", "frschousing.com"]
+
+function platformDomains(): string[] {
+  const fromEnv = (process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || "").replace(/^www\./, "").trim()
+  return Array.from(new Set([fromEnv, ...KNOWN_PLATFORM_DOMAINS].filter(Boolean)))
+}
+
+function matchingPlatformDomain(hostname: string): string | null {
+  const host = hostname.replace(/:\d+$/, "").toLowerCase()
+  for (const domain of platformDomains()) {
+    if (host === domain || host === `www.${domain}` || host.endsWith(`.${domain}`)) {
+      return domain
+    }
+  }
+  return null
+}
 
 /**
  * Extract tenant slug from hostname
@@ -21,27 +36,15 @@ export function getTenantSlugFromHost(hostname: string): string | null {
     return null
   }
 
-  // Get platform domain from environment or use default
-  const platformDomain = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || "frschousing.com"
-
-  // Check if hostname ends with the platform domain first
-  // This allows subdomains of the platform domain (including vercel.app subdomains)
-  if (hostname.endsWith(`.${platformDomain}`) || hostname === platformDomain) {
-    // If it's the main platform domain (no subdomain), return null
-    if (hostname === platformDomain) {
+  const host = hostname.replace(/:\d+$/, "").toLowerCase()
+  const platformDomain = matchingPlatformDomain(host)
+  if (platformDomain) {
+    if (host === platformDomain || host === `www.${platformDomain}`) {
       return null
     }
 
-    // Extract the subdomain (tenant slug)
-    const subdomain = hostname.replace(`.${platformDomain}`, "")
-
-    // Exclude "www" subdomain - it should be treated as main platform domain
-    if (subdomain === "www") {
-      return null
-    }
-
-    // If the subdomain contains dots, it's not a valid tenant slug
-    if (subdomain.includes(".")) {
+    const subdomain = host.slice(0, -(platformDomain.length + 1))
+    if (subdomain === "www" || subdomain.includes(".")) {
       return null
     }
 
@@ -49,14 +52,7 @@ export function getTenantSlugFromHost(hostname: string): string | null {
   }
 
   // v0 preview domains like preview.v0.dev should not be treated as tenant subdomains
-  // Only block these if they're NOT part of the platform domain
-  if (hostname.includes("v0.dev") || hostname.includes("vusercontent.net")) {
-    return null
-  }
-
-  // If hostname includes vercel.app but is not part of platform domain, block it
-  // (This prevents random vercel.app preview deployments from being treated as tenants)
-  if (hostname.includes("vercel.app") && !hostname.endsWith(`.${platformDomain}`) && hostname !== platformDomain) {
+  if (host.includes("v0.dev") || host.includes("vusercontent.net") || host.includes("vercel.app")) {
     return null
   }
 
@@ -73,21 +69,12 @@ export function isCustomDomain(hostname: string): boolean {
     return false
   }
 
-  // Get platform domain from environment or use default
-  const platformDomain = process.env.NEXT_PUBLIC_PLATFORM_DOMAIN || "frschousing.com"
-
-  // If hostname is a subdomain of the platform domain, it's not a custom domain
-  if (hostname.endsWith(`.${platformDomain}`) || hostname === platformDomain) {
+  const host = hostname.replace(/:\d+$/, "").toLowerCase()
+  if (matchingPlatformDomain(host)) {
     return false
   }
 
-  // v0 preview domains and vercel.app preview deployments are not custom domains
-  if (hostname.includes("v0.dev") || hostname.includes("vusercontent.net")) {
-    return false
-  }
-
-  // If hostname includes vercel.app but is not part of platform domain, it's not a custom domain
-  if (hostname.includes("vercel.app") && !hostname.endsWith(`.${platformDomain}`) && hostname !== platformDomain) {
+  if (host.includes("v0.dev") || host.includes("vusercontent.net") || host.includes("vercel.app")) {
     return false
   }
 
