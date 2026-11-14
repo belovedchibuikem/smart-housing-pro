@@ -1,4 +1,5 @@
 import { resolveStorageUrl } from "@/lib/api/config"
+import { applyBrandColorVariables } from "@/lib/branding/brand-colors"
 import type { WhiteLabelSettings } from "@/lib/context/white-label-context"
 import { applyPwaMetaTags } from "@/lib/pwa/apply-pwa-meta"
 
@@ -8,11 +9,13 @@ export function applyPublicBranding(settings: WhiteLabelSettings) {
   const root = document.documentElement
 
   if (settings.is_active) {
-    root.style.setProperty("--primary-color", settings.primary_color)
-    root.style.setProperty("--secondary-color", settings.secondary_color)
-    root.style.setProperty("--accent-color", settings.accent_color)
-    root.style.setProperty("--background-color", settings.background_color)
-    root.style.setProperty("--text-color", settings.text_color)
+    applyBrandColorVariables(root, {
+      primary: settings.primary_color,
+      secondary: settings.secondary_color,
+      accent: settings.accent_color,
+      background: settings.background_color,
+      text: settings.text_color,
+    })
     root.style.setProperty("--heading-font", settings.heading_font)
     root.style.setProperty("--body-font", settings.body_font)
 

@@ -17,6 +17,8 @@ import { useRouter } from "next/navigation"
 import { toast as sonnerToast } from "sonner"
 import { apiFetch } from "@/lib/api/client"
 import { useTenant } from "@/lib/tenant/tenant-context"
+import { applyBrandColorVariables } from "@/lib/branding/brand-colors"
+import { useWhiteLabel } from "@/lib/hooks/use-white-label"
 import {
   Dialog,
   DialogContent,
@@ -82,6 +84,7 @@ const SECTION_TYPES = [
 
 export default function LandingPageBuilderPage() {
   const { tenant } = useTenant()
+  const { settings: whiteLabelSettings } = useWhiteLabel()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [pageData, setPageData] = useState<LandingPageData>({
@@ -794,15 +797,17 @@ export default function LandingPageBuilderPage() {
     const secondaryColor = pageData.theme.secondary_color || "#276254"
     const accentColor = pageData.theme.accent_color || "#10b981"
     const fontFamily = pageData.theme.font_family || "Inter"
-    
-    // Set CSS custom properties for immediate preview in page builder
-    root.style.setProperty("--primary", primaryColor)
-    root.style.setProperty("--secondary", secondaryColor)
-    root.style.setProperty("--accent", accentColor)
+
+    applyBrandColorVariables(root, {
+      primary: primaryColor,
+      secondary: secondaryColor,
+      accent: accentColor,
+      text: whiteLabelSettings?.text_color,
+    })
     root.style.setProperty("--font-sans", `"${fontFamily}", system-ui, -apple-system, sans-serif`)
     document.body.style.fontFamily = `"${fontFamily}", system-ui, -apple-system, sans-serif`
     root.style.fontFamily = `"${fontFamily}", system-ui, -apple-system, sans-serif`
-  }, [pageData?.theme])
+  }, [pageData?.theme, whiteLabelSettings?.text_color])
 
   const handleDragStart = (id: string) => {
     setDraggedSection(id)

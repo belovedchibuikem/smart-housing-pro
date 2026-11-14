@@ -14,6 +14,7 @@ import { AppDownloadSection } from "@/components/landing/app-download-section"
 import { DocumentUploadSection } from "@/components/landing/document-upload-section"
 import { TenantBrandLogo } from "@/components/branding/tenant-brand-logo"
 import { useWhiteLabel } from "@/lib/hooks/use-white-label"
+import { applyBrandColorVariables, brandColorCss } from "@/lib/branding/brand-colors"
 import { resolveTenantCopyDeep } from "@/lib/landing/tenant-copy"
 import type { TenantLandingStats } from "@/lib/api/public-properties"
 
@@ -112,96 +113,35 @@ export function DynamicLandingPage({ isTenantPage = true }: DynamicLandingPagePr
     }
     
     const root = document.documentElement
-    
-    // Landing page theme takes priority over white label settings for the landing page
-    if (pageData?.theme) {
-      // Apply landing page theme
-      const primaryColor = pageData.theme.primary_color || "#FDB11E"
-      const secondaryColor = pageData.theme.secondary_color || "#276254"
-      const accentColor = pageData.theme.accent_color || "#10b981"
-      const fontFamily = pageData.theme.font_family || "Inter"
-      
-      console.log("[Landing Page] Applying theme from pageData:", {
-        primaryColor,
-        secondaryColor,
-        accentColor,
-        fontFamily,
-        themeObject: pageData.theme,
-      })
-      
-      // Inject CSS with :root selector in style tag - this will override default CSS due to cascade order
-      // Also update related theme variables that Tailwind uses
+    const fontFamily = (pageData?.theme?.font_family || "Inter").replace(/[^a-zA-Z0-9 ,-]/g, "") || "Inter"
+    const colors = pageData?.theme
+      ? {
+          primary: pageData.theme.primary_color || "#FDB11E",
+          secondary: pageData.theme.secondary_color || "#276254",
+          accent: pageData.theme.accent_color || "#10b981",
+          text: whiteLabelSettings?.text_color,
+        }
+      : whiteLabelSettings?.is_active
+        ? {
+            primary: whiteLabelSettings.primary_color,
+            secondary: whiteLabelSettings.secondary_color,
+            accent: whiteLabelSettings.accent_color,
+            background: whiteLabelSettings.background_color,
+            text: whiteLabelSettings.text_color,
+          }
+        : null
+
+    if (colors) {
       styleElement.textContent = `
         :root {
-          --primary: ${primaryColor};
-          --secondary: ${secondaryColor};
-          --accent: ${accentColor};
-          --ring: ${primaryColor};
-          --chart-1: ${primaryColor};
-          --chart-2: ${secondaryColor};
-          --sidebar-primary: ${primaryColor};
-          --sidebar-ring: ${primaryColor};
+          ${brandColorCss(colors)}
           --font-sans: "${fontFamily}", system-ui, -apple-system, sans-serif;
         }
         body {
           font-family: "${fontFamily}", system-ui, -apple-system, sans-serif;
         }
       `
-      
-      // Also set directly on root for immediate effect (backup)
-      root.style.setProperty("--primary", primaryColor)
-      root.style.setProperty("--secondary", secondaryColor)
-      root.style.setProperty("--accent", accentColor)
-      root.style.setProperty("--ring", primaryColor)
-      root.style.setProperty("--chart-1", primaryColor)
-      root.style.setProperty("--chart-2", secondaryColor)
-      root.style.setProperty("--sidebar-primary", primaryColor)
-      root.style.setProperty("--sidebar-ring", primaryColor)
-      root.style.setProperty("--font-sans", `"${fontFamily}", system-ui, -apple-system, sans-serif`)
-      document.body.style.fontFamily = `"${fontFamily}", system-ui, -apple-system, sans-serif`
-      
-      // Force a repaint to ensure styles are applied
-      requestAnimationFrame(() => {
-        // Trigger a reflow to ensure CSS updates are applied
-        void root.offsetHeight
-      })
-    } else if (whiteLabelSettings?.is_active) {
-      // Fallback to white label theme if landing page theme is not available
-      const primaryColor = whiteLabelSettings.primary_color || "#FDB11E"
-      const secondaryColor = whiteLabelSettings.secondary_color || "#276254"
-      const accentColor = whiteLabelSettings.accent_color || "#10b981"
-      const fontFamily = ("font_family" in whiteLabelSettings ? (whiteLabelSettings as any).font_family : undefined) || "Inter"
-      
-      console.log("[Landing Page] Applying white label theme (fallback):", { primaryColor, secondaryColor, accentColor, fontFamily })
-      
-      // Inject CSS with :root selector in style tag - this will override default CSS due to cascade order
-      // Also update related theme variables that Tailwind uses
-      styleElement.textContent = `
-        :root {
-          --primary: ${primaryColor};
-          --secondary: ${secondaryColor};
-          --accent: ${accentColor};
-          --ring: ${primaryColor};
-          --chart-1: ${primaryColor};
-          --chart-2: ${secondaryColor};
-          --sidebar-primary: ${primaryColor};
-          --sidebar-ring: ${primaryColor};
-          --font-sans: "${fontFamily}", system-ui, -apple-system, sans-serif;
-        }
-        body {
-          font-family: "${fontFamily}", system-ui, -apple-system, sans-serif;
-        }
-      `
-      
-      // Also set directly on root for immediate effect (backup)
-      root.style.setProperty("--primary", primaryColor)
-      root.style.setProperty("--secondary", secondaryColor)
-      root.style.setProperty("--accent", accentColor)
-      root.style.setProperty("--ring", primaryColor)
-      root.style.setProperty("--chart-1", primaryColor)
-      root.style.setProperty("--chart-2", secondaryColor)
-      root.style.setProperty("--sidebar-primary", primaryColor)
-      root.style.setProperty("--sidebar-ring", primaryColor)
+      applyBrandColorVariables(root, colors)
       root.style.setProperty("--font-sans", `"${fontFamily}", system-ui, -apple-system, sans-serif`)
       document.body.style.fontFamily = `"${fontFamily}", system-ui, -apple-system, sans-serif`
     } else {
