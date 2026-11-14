@@ -20,6 +20,15 @@ import { getCurrentSubscription } from "@/lib/api/client"
 let cachedEnabledModules: string[] | null = null
 let modulesFetchPromise: Promise<string[]> | null = null
 
+function slugsFromSubscription(res: {
+  enabled_modules?: string[]
+  modules?: Array<{ slug: string }>
+}): string[] {
+  const fromList = (res.modules ?? []).map((module) => module.slug).filter(Boolean)
+  const fromEnabled = res.enabled_modules ?? []
+  return Array.from(new Set([...fromList, ...fromEnabled]))
+}
+
 async function loadEnabledModules(): Promise<string[]> {
   if (cachedEnabledModules !== null) {
     return cachedEnabledModules
@@ -27,13 +36,13 @@ async function loadEnabledModules(): Promise<string[]> {
   if (!modulesFetchPromise) {
     modulesFetchPromise = getCurrentSubscription()
       .then((res) => {
-        cachedEnabledModules = res.enabled_modules ?? []
-        return cachedEnabledModules
+        const slugs = slugsFromSubscription(res)
+        if (slugs.length > 0) {
+          cachedEnabledModules = slugs
+        }
+        return slugs
       })
-      .catch(() => {
-        cachedEnabledModules = []
-        return cachedEnabledModules
-      })
+      .catch(() => [])
       .finally(() => {
         modulesFetchPromise = null
       })

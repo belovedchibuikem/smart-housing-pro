@@ -153,7 +153,7 @@ export default function AdminSubscriptionsPage() {
         </Link>
       </div>
 
-      {upgradeModule ? (
+      {upgradeModule && !planModules.some((module) => module.slug === upgradeModule) ? (
         <Alert className="border-amber-500/50 bg-amber-500/5">
           <AlertCircle className="h-4 w-4 text-amber-600" />
           <AlertTitle>Upgrade required</AlertTitle>
