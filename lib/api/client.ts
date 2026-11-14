@@ -6060,8 +6060,30 @@ export async function getHousingGuidance() {
 	return apiFetch<{ success: boolean; data: HousingGuidance }>("/ai/housing-guidance", { method: "GET" })
 }
 
+export interface HousingFinanceContext {
+	members: Array<{ id: string; name: string; member_number?: string | null; email?: string | null }>
+	loans: Array<{
+		id: string
+		member_id: string
+		member_name: string
+		member_number?: string | null
+		loan_number?: string | null
+		status: string
+		amount: number
+		monthly_payment: number
+		property_id?: string | null
+	}>
+	properties: Array<{ id: string; title: string; location?: string | null; price: number }>
+}
+
+export async function getHousingFinanceContext(query = "") {
+	const suffix = query.trim() === "" ? "" : `?q=${encodeURIComponent(query.trim())}`
+	return apiFetch<{ success: boolean; data: HousingFinanceContext }>(`/admin/loans/housing-finance-ai/context${suffix}`, { method: "GET" })
+}
+
 export interface HousingFinanceArrears {
 	source: string
+	briefing?: string
 	requires_staff_review: boolean
 	drafts: Array<{
 		loan_id: string

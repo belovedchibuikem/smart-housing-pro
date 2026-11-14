@@ -1,8 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { Loader2 } from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
+import { Loader2, Sparkles } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -10,6 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import {
 	getHousingFinanceArrears,
+	getHousingFinanceContext,
 	getMemberHousingBrief,
 	getEarlyArrearsWarnings,
 	getPaymentAnomalies,
@@ -17,6 +19,7 @@ import {
 	draftHousingDocument,
 	triageMaintenance,
 	type HousingFinanceArrears,
+	type HousingFinanceContext,
 	type HousingGuidance,
 	type MaintenanceTriage,
 	type EarlyWarning,
@@ -27,11 +30,19 @@ function money(value: number) {
 	return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(value || 0)
 }
 
+function sourceLabel(source?: string) {
+	return source === "openai" ? "AI wrote this from the records" : "Read from the cooperative records"
+}
+
 export default function HousingFinanceAiPage() {
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
 	const [arrears, setArrears] = useState<HousingFinanceArrears | null>(null)
+	const [context, setContext] = useState<HousingFinanceContext>({ members: [], loans: [], properties: [] })
+	const [filter, setFilter] = useState("")
 	const [memberId, setMemberId] = useState("")
+	const [loanId, setLoanId] = useState("")
+	const [propertyId, setPropertyId] = useState("")
 	const [brief, setBrief] = useState<HousingGuidance | null>(null)
 	const [briefName, setBriefName] = useState("")
 	const [briefError, setBriefError] = useState<string | null>(null)
@@ -39,40 +50,100 @@ export default function HousingFinanceAiPage() {
 	const [triage, setTriage] = useState<MaintenanceTriage | null>(null)
 	const [warnings, setWarnings] = useState<EarlyWarning[]>([])
 	const [anomalies, setAnomalies] = useState<Array<{ member_name: string; message: string }>>([])
-	const [reviewAmount, setReviewAmount] = useState("")
-	const [reviewInstallment, setReviewInstallment] = useState("")
 	const [fileReview, setFileReview] = useState<FileReview | null>(null)
 	const [draftKind, setDraftKind] = useState<"property_description" | "allocation_letter" | "demand_notice">("demand_notice")
-	const [draftMember, setDraftMember] = useState("")
-	const [draftProperty, setDraftProperty] = useState("")
-	const [draftAmount, setDraftAmount] = useState("")
 	const [draftBody, setDraftBody] = useState("")
 	const [busy, setBusy] = useState<"brief" | "triage" | "review" | "draft" | null>(null)
 
 	useEffect(() => {
-		Promise.allSettled([getHousingFinanceArrears(), getEarlyArrearsWarnings(), getPaymentAnomalies()])
-			.then(([arrearsResult, warningResult, anomalyResult]) => {
+		Promise.allSettled([
+			getHousingFinanceArrears(),
+			getEarlyArrearsWarnings(),
+			getPaymentAnomalies(),
+			getHousingFinanceContext(),
+		])
+			.then(([arrearsResult, warningResult, anomalyResult, contextResult]) => {
 				if (arrearsResult.status === "fulfilled") setArrears(arrearsResult.value.data)
-				else setError("Unable to load arrears drafts")
+				else setError("Unable to load the finance review")
 				if (warningResult.status === "fulfilled") setWarnings(warningResult.value.data.items)
 				if (anomalyResult.status === "fulfilled") setAnomalies(anomalyResult.value.data.notes)
+				if (contextResult.status === "fulfilled") setContext(contextResult.value.data)
 			})
 			.finally(() => setLoading(false))
 	}, [])
 
-	async function loadBrief() {
+	useEffect(() => {
+		const handle = window.setTimeout(() => {
+			getHousingFinanceContext(filter)
+				.then((response) => setContext(response.data))
+				.catch(() => undefined)
+		}, 300)
+		return () => window.clearTimeout(handle)
+	}, [filter])
+
+	const selectedLoan = context.loans.find((loan) => loan.id === loanId) ?? null
+	const selectedProperty = context.properties.find((property) => property.id === propertyId) ?? null
+	const selectedMember = context.members.find((member) => member.id === memberId) ?? null
+	const memberLoans = useMemo(
+		() => context.loans.filter((loan) => (memberId === "" ? true : loan.member_id === memberId)),
+		[context.loans, memberId],
+	)
+
+	useEffect(() => {
+		if (memberId === "") {
+			setBrief(null)
+			setFileReview(null)
+			return
+		}
+		const loan = context.loans.find((item) => item.id === loanId && item.member_id === memberId)
+		const amount = loan?.amount || selectedProperty?.price || 0
+		const installment = loan?.monthly_payment || 0
+		let cancelled = false
 		setBusy("brief")
 		setBriefError(null)
-		setBrief(null)
-		try {
-			const response = await getMemberHousingBrief(memberId.trim())
-			setBrief(response.data.guidance)
-			setBriefName(response.data.member.name || response.data.member.member_number || "Member")
-		} catch (err: unknown) {
-			setBriefError(err instanceof Error ? err.message : "Member brief failed")
-		} finally {
-			setBusy(null)
+		Promise.allSettled([
+			getMemberHousingBrief(memberId),
+			amount > 0
+				? reviewHousingFile({
+					member_id: memberId,
+					requested_amount: amount,
+					proposed_installment: installment > 0 ? installment : undefined,
+				})
+				: Promise.resolve(null),
+		]).then(([briefResult, reviewResult]) => {
+			if (cancelled) return
+			if (briefResult.status === "fulfilled") {
+				setBrief(briefResult.value.data.guidance)
+				setBriefName(briefResult.value.data.member.name || briefResult.value.data.member.member_number || "Member")
+			} else {
+				setBrief(null)
+				setBriefError("The assistant could not read this member")
+			}
+			if (reviewResult.status === "fulfilled" && reviewResult.value) {
+				setFileReview(reviewResult.value.data)
+			} else if (amount <= 0) {
+				setFileReview(null)
+			}
+		}).finally(() => {
+			if (!cancelled) setBusy(null)
+		})
+		return () => {
+			cancelled = true
 		}
+	}, [memberId, loanId, propertyId, context.loans, selectedProperty?.price])
+
+	function chooseMember(nextId: string) {
+		setMemberId(nextId)
+		const stillFits = context.loans.some((loan) => loan.id === loanId && loan.member_id === nextId)
+		if (!stillFits) setLoanId("")
+	}
+
+	function chooseLoan(nextId: string) {
+		setLoanId(nextId)
+		const loan = context.loans.find((item) => item.id === nextId)
+		if (!loan) return
+		setMemberId(loan.member_id)
+		if (loan.property_id) setPropertyId(loan.property_id)
 	}
 
 	async function runTriage() {
@@ -94,32 +165,15 @@ export default function HousingFinanceAiPage() {
 		}
 	}
 
-	async function runFileReview() {
-		setBusy("review")
-		setFileReview(null)
-		try {
-			const response = await reviewHousingFile({
-				member_id: memberId.trim(),
-				requested_amount: Number(reviewAmount),
-				proposed_installment: reviewInstallment.trim() === "" ? undefined : Number(reviewInstallment),
-			})
-			setFileReview(response.data)
-		} catch (err: unknown) {
-			setBriefError(err instanceof Error ? err.message : "File review failed")
-		} finally {
-			setBusy(null)
-		}
-	}
-
 	async function runDraft() {
 		setBusy("draft")
 		setDraftBody("")
 		try {
 			const response = await draftHousingDocument({
 				kind: draftKind,
-				member_name: draftMember,
-				property_title: draftProperty,
-				amount: draftAmount.trim() === "" ? undefined : Number(draftAmount),
+				member_name: selectedMember?.name || selectedLoan?.member_name || "",
+				property_title: selectedProperty ? `${selectedProperty.title}${selectedProperty.location ? `, ${selectedProperty.location}` : ""}` : "",
+				amount: selectedLoan?.amount || selectedProperty?.price || undefined,
 			})
 			setDraftBody(response.data.body)
 		} catch (err: unknown) {
@@ -133,37 +187,127 @@ export default function HousingFinanceAiPage() {
 		<div className="space-y-6">
 			<div>
 				<h1 className="text-3xl font-bold">Housing finance assistant</h1>
-				<p className="text-muted-foreground">Drafts for affordability, arrears follow-up, and maintenance triage. Staff still approve every decision.</p>
+				<p className="text-muted-foreground">The assistant reads members, loans, and properties already in this cooperative, then writes a staff note. Nothing is approved from this page.</p>
 			</div>
-			<Alert>
-				<AlertDescription>Nothing here changes a loan, mortgage, letter, or work order until a staff member acts on it.</AlertDescription>
-			</Alert>
+
+			<Card className="border-primary/40">
+				<CardHeader>
+					<div className="flex items-center justify-between gap-3">
+						<div>
+							<CardTitle className="flex items-center gap-2">
+								<Sparkles className="h-5 w-5" />
+								Assistant review
+							</CardTitle>
+							<CardDescription>Checked the loan book as soon as this page opened.</CardDescription>
+						</div>
+						{arrears ? <Badge variant="secondary">{sourceLabel(arrears.source)}</Badge> : null}
+					</div>
+				</CardHeader>
+				<CardContent className="space-y-3 text-sm">
+					{loading ? (
+						<p className="flex items-center gap-2 text-muted-foreground">
+							<Loader2 className="h-4 w-4 animate-spin" />
+							Reading loans, repayments, and wallet activity…
+						</p>
+					) : null}
+					{error ? <p className="text-destructive">{error}</p> : null}
+					{arrears?.briefing ? <p>{arrears.briefing}</p> : null}
+					<p className="text-muted-foreground">
+						{warnings.length} payment{warnings.length === 1 ? "" : "s"} due in 14 days · {anomalies.length} wallet note{anomalies.length === 1 ? "" : "s"} · {arrears?.drafts.length ?? 0} overdue draft{arrears?.drafts.length === 1 ? "" : "s"}
+					</p>
+				</CardContent>
+			</Card>
 
 			<Card>
 				<CardHeader>
-					<CardTitle>Loan or mortgage file note</CardTitle>
-					<CardDescription>Uses the member id in the affordability section below. The stance is a draft only.</CardDescription>
+					<CardTitle>Choose a record</CardTitle>
+					<CardDescription>Filter the lists, then pick a member, loan, or property. The assistant runs from that record.</CardDescription>
 				</CardHeader>
-				<CardContent className="space-y-3">
-					<div className="grid gap-3 md:grid-cols-2">
+				<CardContent className="space-y-4">
+					<div>
+						<Label htmlFor="record-filter">Filter</Label>
+						<Input id="record-filter" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Name, member number, loan number, or property" />
+					</div>
+					<div className="grid gap-3 md:grid-cols-3">
 						<div>
-							<Label htmlFor="requested-amount">Requested amount</Label>
-							<Input id="requested-amount" type="number" min="1" value={reviewAmount} onChange={(event) => setReviewAmount(event.target.value)} />
+							<Label htmlFor="member-select">Member</Label>
+							<select id="member-select" className="flex h-10 w-full rounded-md border bg-background px-3 text-sm" value={memberId} onChange={(event) => chooseMember(event.target.value)}>
+								<option value="">Select a member</option>
+								{context.members.map((member) => (
+									<option key={member.id} value={member.id}>
+										{member.name}{member.member_number ? ` · ${member.member_number}` : ""}
+									</option>
+								))}
+							</select>
 						</div>
 						<div>
-							<Label htmlFor="proposed-installment">Proposed monthly installment</Label>
-							<Input id="proposed-installment" type="number" min="0" value={reviewInstallment} onChange={(event) => setReviewInstallment(event.target.value)} />
+							<Label htmlFor="loan-select">Loan</Label>
+							<select id="loan-select" className="flex h-10 w-full rounded-md border bg-background px-3 text-sm" value={loanId} onChange={(event) => chooseLoan(event.target.value)}>
+								<option value="">Select a loan</option>
+								{memberLoans.map((loan) => (
+									<option key={loan.id} value={loan.id}>
+										{loan.loan_number || "Loan"} · {loan.member_name} · {money(loan.amount)} · {loan.status}
+									</option>
+								))}
+							</select>
+						</div>
+						<div>
+							<Label htmlFor="property-select">Property</Label>
+							<select id="property-select" className="flex h-10 w-full rounded-md border bg-background px-3 text-sm" value={propertyId} onChange={(event) => setPropertyId(event.target.value)}>
+								<option value="">Select a property</option>
+								{context.properties.map((property) => (
+									<option key={property.id} value={property.id}>
+										{property.title}{property.location ? ` · ${property.location}` : ""} · {money(property.price)}
+									</option>
+								))}
+							</select>
 						</div>
 					</div>
-					<Button type="button" disabled={busy === "review" || memberId.trim() === "" || Number(reviewAmount) <= 0} onClick={runFileReview}>
-						{busy === "review" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Draft file note"}
-					</Button>
+					{selectedLoan ? (
+						<p className="text-sm text-muted-foreground">
+							Using {money(selectedLoan.amount)} and a monthly installment of {money(selectedLoan.monthly_payment)} from the selected loan.
+						</p>
+					) : null}
+				</CardContent>
+			</Card>
+
+			<Card>
+				<CardHeader>
+					<div className="flex items-center justify-between gap-3">
+						<div>
+							<CardTitle>What the assistant found</CardTitle>
+							<CardDescription>{briefName || "Select a member to start the review."}</CardDescription>
+						</div>
+						{brief ? <Badge variant="secondary">{sourceLabel(brief.source)}</Badge> : null}
+					</div>
+				</CardHeader>
+				<CardContent className="space-y-3 text-sm">
+					{busy === "brief" ? (
+						<p className="flex items-center gap-2 text-muted-foreground">
+							<Loader2 className="h-4 w-4 animate-spin" />
+							Reading contributions, open loans, and wallet balance…
+						</p>
+					) : null}
+					{briefError ? <p className="text-destructive">{briefError}</p> : null}
+					{brief ? (
+						<div className="space-y-2">
+							<p>{brief.summary}</p>
+							<p>Suggested repayment: {money(brief.affordability.suggested_monthly_repayment)}</p>
+							<p>Open loan balance: {money(brief.affordability.open_loan_balance)} · Savings: {money(brief.affordability.available_savings)}</p>
+							{brief.next_steps.map((step) => (
+								<p key={step}>{step}</p>
+							))}
+						</div>
+					) : null}
 					{fileReview ? (
-						<div className="space-y-2 text-sm">
-							<p className="font-medium capitalize">{fileReview.stance}</p>
+						<div className="rounded-md border p-3">
+							<div className="mb-2 flex items-center justify-between gap-2">
+								<p className="font-medium capitalize">File note: {fileReview.stance}</p>
+								<Badge variant="secondary">{sourceLabel(fileReview.source)}</Badge>
+							</div>
 							<p>{fileReview.note}</p>
 							{fileReview.reasons.map((reason) => (
-								<p key={reason}>{reason}</p>
+								<p key={reason} className="mt-1 text-muted-foreground">{reason}</p>
 							))}
 						</div>
 					) : null}
@@ -202,62 +346,21 @@ export default function HousingFinanceAiPage() {
 			<Card>
 				<CardHeader>
 					<CardTitle>Letters and listing text</CardTitle>
-					<CardDescription>Copy the draft into the property or letter. Nothing is saved or sent from here.</CardDescription>
+					<CardDescription>Uses the member, loan, and property selected above. Copy the draft. Nothing is saved or sent.</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-3">
-					<div className="grid gap-3 md:grid-cols-2">
-						<div>
-							<Label htmlFor="draft-kind">Draft</Label>
-							<select id="draft-kind" className="flex h-10 w-full rounded-md border bg-background px-3 text-sm" value={draftKind} onChange={(event) => setDraftKind(event.target.value as typeof draftKind)}>
-								<option value="property_description">Property description</option>
-								<option value="allocation_letter">Allocation letter</option>
-								<option value="demand_notice">Demand notice</option>
-							</select>
-						</div>
-						<div>
-							<Label htmlFor="draft-member">Member name</Label>
-							<Input id="draft-member" value={draftMember} onChange={(event) => setDraftMember(event.target.value)} />
-						</div>
-						<div>
-							<Label htmlFor="draft-property">Property</Label>
-							<Input id="draft-property" value={draftProperty} onChange={(event) => setDraftProperty(event.target.value)} />
-						</div>
-						<div>
-							<Label htmlFor="draft-amount">Amount</Label>
-							<Input id="draft-amount" type="number" min="0" value={draftAmount} onChange={(event) => setDraftAmount(event.target.value)} />
-						</div>
+					<div>
+						<Label htmlFor="draft-kind">Draft</Label>
+						<select id="draft-kind" className="flex h-10 w-full rounded-md border bg-background px-3 text-sm" value={draftKind} onChange={(event) => setDraftKind(event.target.value as typeof draftKind)}>
+							<option value="property_description">Property description</option>
+							<option value="allocation_letter">Allocation letter</option>
+							<option value="demand_notice">Demand notice</option>
+						</select>
 					</div>
-					<Button type="button" disabled={busy === "draft"} onClick={runDraft}>
+					<Button type="button" disabled={busy === "draft" || (memberId === "" && propertyId === "")} onClick={runDraft}>
 						{busy === "draft" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Write draft"}
 					</Button>
 					{draftBody ? <p className="whitespace-pre-wrap text-sm">{draftBody}</p> : null}
-				</CardContent>
-			</Card>
-
-			<Card>
-				<CardHeader>
-					<CardTitle>Member affordability brief</CardTitle>
-					<CardDescription>Paste a member id to see contribution capacity, profile gaps, and payment-plan fit.</CardDescription>
-				</CardHeader>
-				<CardContent className="space-y-3">
-					<Label htmlFor="member-id">Member ID</Label>
-					<div className="flex gap-2">
-						<Input id="member-id" value={memberId} onChange={(event) => setMemberId(event.target.value)} placeholder="Member UUID" />
-						<Button type="button" disabled={busy === "brief" || memberId.trim() === ""} onClick={loadBrief}>
-							{busy === "brief" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Review"}
-						</Button>
-					</div>
-					{briefError ? <p className="text-sm text-destructive">{briefError}</p> : null}
-					{brief ? (
-						<div className="space-y-2 text-sm">
-							<p className="font-medium">{briefName}</p>
-							<p>{brief.summary}</p>
-							<p>Suggested repayment: {money(brief.affordability.suggested_monthly_repayment)}</p>
-							{brief.next_steps.map((step) => (
-								<p key={step}>{step}</p>
-							))}
-						</div>
-					) : null}
 				</CardContent>
 			</Card>
 
@@ -267,16 +370,14 @@ export default function HousingFinanceAiPage() {
 					<CardDescription>Reminders you can edit before sending. No message is sent from this page.</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
-					{loading ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-					{error ? <p className="text-sm text-destructive">{error}</p> : null}
 					{arrears && arrears.drafts.length === 0 ? <p className="text-sm text-muted-foreground">No overdue loans were found.</p> : null}
 					{arrears?.drafts.map((draft) => (
-						<div key={draft.loan_id} className="rounded-md border p-3 text-sm">
+						<button key={draft.loan_id} type="button" className="block w-full rounded-md border p-3 text-left text-sm" onClick={() => chooseLoan(draft.loan_id)}>
 							<p className="font-medium">
 								{draft.member_name} · {money(draft.amount)} · {draft.status}
 							</p>
 							<p className="mt-2 text-muted-foreground">{draft.draft}</p>
-						</div>
+						</button>
 					))}
 				</CardContent>
 			</Card>
@@ -284,7 +385,7 @@ export default function HousingFinanceAiPage() {
 			<Card>
 				<CardHeader>
 					<CardTitle>Maintenance triage</CardTitle>
-					<CardDescription>Suggest a trade and priority. Assign the request yourself after you agree.</CardDescription>
+					<CardDescription>Describe the fault. The assistant suggests a trade and priority. Assign the request yourself after you agree.</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-3">
 					<Textarea value={description} onChange={(event) => setDescription(event.target.value)} placeholder="Describe the maintenance issue" rows={4} />
@@ -293,11 +394,15 @@ export default function HousingFinanceAiPage() {
 					</Button>
 					{triage ? (
 						<p className="text-sm">
-							{triage.issue_type} · {triage.priority} · {triage.summary}
+							{sourceLabel(triage.source)}. {triage.issue_type} · {triage.priority} · {triage.summary}
 						</p>
 					) : null}
 				</CardContent>
 			</Card>
+
+			<Alert>
+				<AlertDescription>Nothing here changes a loan, mortgage, letter, or work order until a staff member acts on it.</AlertDescription>
+			</Alert>
 		</div>
 	)
 }
