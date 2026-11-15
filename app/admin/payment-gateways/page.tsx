@@ -148,11 +148,47 @@ export default function TenantPaymentGatewaysPage() {
     },
   ]
 
+  const gatewayName = (gateway: Partial<PaymentGateway> & { gateway_type?: string }) =>
+    String(gateway.name || gateway.gateway_type || "").trim().toLowerCase()
+
+  const normalizeGateway = (gateway: Partial<PaymentGateway> & { gateway_type?: string; is_enabled?: boolean; credentials?: Record<string, any> }): PaymentGateway | null => {
+    const name = gatewayName(gateway)
+    if (!name) return null
+    return {
+      id: String(gateway.id || `default-${name}`),
+      name,
+      display_name: gateway.display_name || name.charAt(0).toUpperCase() + name.slice(1),
+      description: gateway.description || "",
+      is_active: Boolean(gateway.is_active ?? gateway.is_enabled),
+      settings: gateway.settings || gateway.credentials || {},
+      configuration: gateway.configuration || {},
+      supported_currencies: gateway.supported_currencies,
+      supported_countries: gateway.supported_countries,
+      transaction_fee_percentage: gateway.transaction_fee_percentage,
+      transaction_fee_fixed: gateway.transaction_fee_fixed,
+      minimum_amount: gateway.minimum_amount,
+      maximum_amount: gateway.maximum_amount,
+      platform_fee_percentage: gateway.platform_fee_percentage,
+      platform_fee_fixed: gateway.platform_fee_fixed,
+      created_at: gateway.created_at,
+      updated_at: gateway.updated_at,
+    }
+  }
+
   const loadGateways = async () => {
     try {
       setLoading(true)
-      const response = await apiFetch<{ gateways: PaymentGateway[] }>("/admin/payment-gateways")
-      const gatewaysList = response.gateways || []
+      const response = await apiFetch<{ gateways?: PaymentGateway[] | { data?: PaymentGateway[] }; data?: PaymentGateway[] }>("/admin/payment-gateways")
+      const rawGateways = Array.isArray(response.gateways)
+        ? response.gateways
+        : Array.isArray(response.gateways?.data)
+          ? response.gateways.data
+          : Array.isArray(response.data)
+            ? response.data
+            : []
+      const gatewaysList = rawGateways
+        .map((gateway) => normalizeGateway(gateway))
+        .filter((gateway): gateway is PaymentGateway => gateway !== null)
       
       const defaultGateways = createDefaultGateways()
       const existingByName = new Map<string, PaymentGateway>()
@@ -170,12 +206,13 @@ export default function TenantPaymentGatewaysPage() {
           ...template,
           ...existing,
           id: existing.id,
+          name: template.name,
           display_name: existing.display_name || template.display_name,
           description: existing.description || template.description,
-          settings: existing.settings || existing.credentials || {},
+          settings: existing.settings || {},
           configuration:
-            existing.name === "manual"
-              ? prepareGatewayConfig(existing)
+            template.name === "manual"
+              ? prepareGatewayConfig({ ...existing, name: template.name })
               : existing.configuration || template.configuration || {},
           is_active: existing.is_active,
         }
@@ -437,8 +474,8 @@ export default function TenantPaymentGatewaysPage() {
     return gateway?.configuration?.[key] ?? defaultValue
   }
 
-  const getGatewayIcon = (name: string) => {
-    switch (name.toLowerCase()) {
+  const getGatewayIcon = (name?: string) => {
+    switch ((name || "").toLowerCase()) {
       case 'paystack':
         return <CreditCard className="h-5 w-5" />
       case 'remita':
