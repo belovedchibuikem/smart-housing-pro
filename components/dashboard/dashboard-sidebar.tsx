@@ -225,6 +225,8 @@ const navItems: NavItem[] = [
   },
   { href: "/dashboard/ai-recommendations", label: "AI", displayKey: "nav.ai", icon: Sparkles },
   { href: "/dashboard/housing-guidance", label: "Housing Guide", displayKey: "nav.housingGuide", icon: Sparkles },
+  { href: "/dashboard/housing-ai", label: "Housing AI", icon: Sparkles },
+  { href: "/dashboard/housing-roundup", label: "Yearly roundup", icon: Sparkles },
   { href: "/dashboard/blockchain-ledger", label: "Block Chain Ledger", icon: Shield },
   {
     label: "Refunds & Requests",

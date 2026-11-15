@@ -29,7 +29,7 @@ export const ADMIN_NAV_SECTIONS: AdminNavSection[] = [
     label: "Home",
     short: "Home",
     description: "Dashboard, plan, and reports",
-    labels: ["Dashboard", "Subscription", "Reports"],
+    labels: ["Dashboard", "Housing AI", "Subscription", "Reports"],
   },
   {
     id: "people",

@@ -140,6 +140,7 @@ const SECTION_ICONS: Record<AdminNavSectionId, LucideIcon> = {
 
 export const ADMIN_NAV_ITEMS: NavItem[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/housing-ai", label: "Housing AI", icon: Sparkles },
   { href: "/admin/subscriptions", label: "Subscription", icon: Package },
   {
     label: "Members",

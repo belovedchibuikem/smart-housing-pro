@@ -10,6 +10,7 @@ import { filterNavForRaOfficer, isResidentAssociationOfficerOnly } from "@/lib/a
 
 export const TENANT_ADMIN_ROUTE_PERMISSIONS: Record<string, string> = {
   dashboard: "view_dashboard",
+  "housing-ai": "view_dashboard|view_loans|view_members|view_properties",
   "pending-badges":
     "view_analytics|view_reports|view_financial_reports|view_members|view_contributions|view_loans|view_properties|view_equity_contributions|view_wallets|view_investments|manage_payments",
 

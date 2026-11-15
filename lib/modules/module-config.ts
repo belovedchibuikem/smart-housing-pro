@@ -17,6 +17,7 @@ export const ALWAYS_VISIBLE_ADMIN_HREFS = new Set([
   "/admin/landing-page/templates",
   "/admin/white-label",
   "/admin/custom-domains",
+  "/admin/housing-ai",
 ])
 
 /** Always shown in tenant admin sidebar/API — not gated by business package modules. */
@@ -183,6 +184,8 @@ export const MEMBER_HREF_MODULE_MAP: Record<string, string> = {
   reports: "reports",
   "ai-recommendations": "ai",
   "housing-guidance": "ai",
+  "housing-ai": "ai",
+  "housing-roundup": "ai",
   "blockchain-ledger": "blockchain",
   refunds: "refunds",
   "withdraw-membership": "withdraw_membership",

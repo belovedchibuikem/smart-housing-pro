@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react"
 import { Loader2, Sparkles } from "lucide-react"
+import { toast as sonnerToast } from "sonner"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -18,6 +19,7 @@ import {
 	reviewHousingFile,
 	draftHousingDocument,
 	triageMaintenance,
+	recordHousingDecision,
 	type HousingFinanceArrears,
 	type HousingFinanceContext,
 	type HousingGuidance,
@@ -144,6 +146,20 @@ export default function HousingFinanceAiPage() {
 		if (!loan) return
 		setMemberId(loan.member_id)
 		if (loan.property_id) setPropertyId(loan.property_id)
+	}
+
+	async function keepDecision(subject: "file_note" | "letter" | "maintenance" | "arrears", action: "accepted" | "rejected", summary: string, forMember?: string) {
+		try {
+			const response = await recordHousingDecision({
+				action,
+				subject,
+				summary: summary.slice(0, 500),
+				member_id: forMember || undefined,
+			})
+			sonnerToast.success(response.message || response.data.message)
+		} catch (err: unknown) {
+			sonnerToast.error(err instanceof Error ? err.message : "The choice was not saved")
+		}
 	}
 
 	async function runTriage() {
@@ -309,6 +325,10 @@ export default function HousingFinanceAiPage() {
 							{fileReview.reasons.map((reason) => (
 								<p key={reason} className="mt-1 text-muted-foreground">{reason}</p>
 							))}
+							<div className="mt-3 flex gap-2">
+								<Button type="button" size="sm" variant="outline" onClick={() => void keepDecision("file_note", "accepted", fileReview.note, memberId)}>Accept note</Button>
+								<Button type="button" size="sm" variant="ghost" onClick={() => void keepDecision("file_note", "rejected", fileReview.note, memberId)}>Set aside</Button>
+							</div>
 						</div>
 					) : null}
 				</CardContent>
@@ -360,7 +380,15 @@ export default function HousingFinanceAiPage() {
 					<Button type="button" disabled={busy === "draft" || (memberId === "" && propertyId === "")} onClick={runDraft}>
 						{busy === "draft" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Write draft"}
 					</Button>
-					{draftBody ? <p className="whitespace-pre-wrap text-sm">{draftBody}</p> : null}
+					{draftBody ? (
+						<div className="space-y-2">
+							<p className="whitespace-pre-wrap text-sm">{draftBody}</p>
+							<div className="flex gap-2">
+								<Button type="button" size="sm" variant="outline" onClick={() => void keepDecision("letter", "accepted", draftBody, memberId)}>Accept draft</Button>
+								<Button type="button" size="sm" variant="ghost" onClick={() => void keepDecision("letter", "rejected", draftBody, memberId)}>Set aside</Button>
+							</div>
+						</div>
+					) : null}
 				</CardContent>
 			</Card>
 
@@ -372,12 +400,18 @@ export default function HousingFinanceAiPage() {
 				<CardContent className="space-y-4">
 					{arrears && arrears.drafts.length === 0 ? <p className="text-sm text-muted-foreground">No overdue loans were found.</p> : null}
 					{arrears?.drafts.map((draft) => (
-						<button key={draft.loan_id} type="button" className="block w-full rounded-md border p-3 text-left text-sm" onClick={() => chooseLoan(draft.loan_id)}>
-							<p className="font-medium">
-								{draft.member_name} · {money(draft.amount)} · {draft.status}
-							</p>
-							<p className="mt-2 text-muted-foreground">{draft.draft}</p>
-						</button>
+						<div key={draft.loan_id} className="rounded-md border p-3 text-sm">
+							<button type="button" className="block w-full text-left" onClick={() => chooseLoan(draft.loan_id)}>
+								<p className="font-medium">
+									{draft.member_name} · {money(draft.amount)} · {draft.status}
+								</p>
+								<p className="mt-2 text-muted-foreground">{draft.draft}</p>
+							</button>
+							<div className="mt-3 flex gap-2">
+								<Button type="button" size="sm" variant="outline" onClick={() => void keepDecision("arrears", "accepted", draft.draft, draft.member_id)}>Accept draft</Button>
+								<Button type="button" size="sm" variant="ghost" onClick={() => void keepDecision("arrears", "rejected", draft.draft, draft.member_id)}>Set aside</Button>
+							</div>
+						</div>
 					))}
 				</CardContent>
 			</Card>
@@ -393,9 +427,15 @@ export default function HousingFinanceAiPage() {
 						{busy === "triage" ? <Loader2 className="h-4 w-4 animate-spin" /> : "Suggest priority"}
 					</Button>
 					{triage ? (
-						<p className="text-sm">
-							{sourceLabel(triage.source)}. {triage.issue_type} · {triage.priority} · {triage.summary}
-						</p>
+						<div className="space-y-2">
+							<p className="text-sm">
+								{sourceLabel(triage.source)}. {triage.issue_type} · {triage.priority} · {triage.summary}
+							</p>
+							<div className="flex gap-2">
+								<Button type="button" size="sm" variant="outline" onClick={() => void keepDecision("maintenance", "accepted", `${triage.issue_type} · ${triage.priority} · ${triage.summary}`)}>Accept suggestion</Button>
+								<Button type="button" size="sm" variant="ghost" onClick={() => void keepDecision("maintenance", "rejected", `${triage.issue_type} · ${triage.priority} · ${triage.summary}`)}>Set aside</Button>
+							</div>
+						</div>
 					) : null}
 				</CardContent>
 			</Card>

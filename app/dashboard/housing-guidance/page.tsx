@@ -89,9 +89,14 @@ export default function HousingGuidancePage() {
 					{data.next_steps.map((step) => (
 						<p key={step}>{step}</p>
 					))}
-					<Button asChild className="mt-3">
-						<Link href="/dashboard/mortgage-calculator">Open mortgage calculator</Link>
-					</Button>
+					<div className="mt-3 flex flex-wrap gap-2">
+						<Button asChild>
+							<Link href="/dashboard/housing-roundup">Open yearly payment roundup</Link>
+						</Button>
+						<Button asChild variant="outline">
+							<Link href="/dashboard/mortgage-calculator">Open mortgage calculator</Link>
+						</Button>
+					</div>
 				</CardContent>
 			</Card>
 

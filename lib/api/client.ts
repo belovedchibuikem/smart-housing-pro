@@ -6060,6 +6060,102 @@ export async function getHousingGuidance() {
 	return apiFetch<{ success: boolean; data: HousingGuidance }>("/ai/housing-guidance", { method: "GET" })
 }
 
+export interface HousingLeaderItem {
+	member_id?: string | null
+	member_name?: string
+	property?: string
+	status?: string
+	amount?: number
+	due_date?: string | null
+	kind?: string
+	times?: number
+	latest_issue?: string
+}
+
+export interface HousingStaffDecision {
+	action: string
+	subject: string
+	summary: string
+	member_id?: string | null
+	at?: string | null
+}
+
+export interface HousingLeaderBrief {
+	source: string
+	briefing: string
+	requires_staff_decision: boolean
+	behind: HousingLeaderItem[]
+	ready: HousingLeaderItem[]
+	repairs: HousingLeaderItem[]
+	exits: HousingLeaderItem[]
+	decisions: HousingStaffDecision[]
+}
+
+export async function getHousingLeaderBrief() {
+	return apiFetch<{ success: boolean; data: HousingLeaderBrief }>("/admin/housing-ai", { method: "GET" })
+}
+
+export interface HousingMemberReply {
+	answer: string
+	source: string
+	requires_staff_decision: boolean
+	position: {
+		monthly_contribution: number
+		available_savings: number
+		wallet_balance: number
+		open_loan_balance: number
+		gaps: string[]
+	}
+	staff_decisions?: HousingStaffDecision[]
+}
+
+export async function askHousingAssistant(message: string) {
+	return apiFetch<{ success: boolean; data: HousingMemberReply }>("/ai/housing-assistant", {
+		method: "POST",
+		body: { message },
+	})
+}
+
+export interface HousingYearlyItem {
+	kind: string
+	title: string
+	plan_years: number
+	year_number: number
+	expected: number
+	paid: number
+	shortfall: number
+	next_year_target: number
+	rating: string
+	encouragement: string
+}
+
+export interface HousingYearlyRoundup {
+	year: number
+	rating: string
+	expected: number
+	paid: number
+	shortfall: number
+	summary: string
+	source: string
+	items: HousingYearlyItem[]
+}
+
+export async function getHousingYearlyRoundup(year: number) {
+	return apiFetch<{ success: boolean; data: HousingYearlyRoundup }>(`/ai/housing-roundup?year=${year}`, { method: "GET" })
+}
+
+export async function recordHousingDecision(body: {
+	action: "accepted" | "rejected"
+	subject: "behind" | "ready" | "repair" | "exit" | "file_note" | "letter" | "maintenance" | "arrears"
+	summary: string
+	member_id?: string
+}) {
+	return apiFetch<{ success: boolean; message?: string; data: { saved: boolean; message: string } }>("/admin/housing-ai/decisions", {
+		method: "POST",
+		body,
+	})
+}
+
 export interface HousingFinanceContext {
 	members: Array<{ id: string; name: string; member_number?: string | null; email?: string | null }>
 	loans: Array<{

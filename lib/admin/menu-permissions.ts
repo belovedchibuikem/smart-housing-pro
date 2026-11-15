@@ -6,6 +6,7 @@
 
 export const ADMIN_MENU_EXACT: Record<string, string> = {
   "/admin": "view_dashboard",
+  "/admin/housing-ai": "view_dashboard|view_loans|view_members|view_properties",
   "/admin/subscriptions": "view_tenant_subscription",
   "/admin/subscription": "view_tenant_subscription",
 
