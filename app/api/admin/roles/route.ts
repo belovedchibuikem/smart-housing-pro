@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { getApiBaseUrl } from "@/lib/api/config"
+import { buildTenantForwardHeaders } from "@/lib/api/tenant-forward-headers"
 
 const API_BASE_URL = getApiBaseUrl()
+
+function proxyHeaders(request: NextRequest): Record<string, string> {
+  return {
+    ...buildTenantForwardHeaders(request),
+    'Content-Type': 'application/json',
+    Authorization: request.headers.get('Authorization') || '',
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,10 +20,7 @@ export async function GET(request: NextRequest) {
     
     const response = await fetch(`${API_BASE_URL}/admin/roles?${queryString}`, {
       method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': request.headers.get('Authorization') || '',
-      },
+      headers: proxyHeaders(request),
     });
 
     if (!response.ok) {
@@ -39,10 +45,7 @@ export async function POST(request: NextRequest) {
     
     const response = await fetch(`${API_BASE_URL}/admin/roles`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': request.headers.get('Authorization') || '',
-      },
+      headers: proxyHeaders(request),
       body: JSON.stringify(body),
     });
 

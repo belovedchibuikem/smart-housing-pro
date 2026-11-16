@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { getApiBaseUrl } from "@/lib/api/config"
+import { buildTenantForwardHeaders } from "@/lib/api/tenant-forward-headers"
 
 const API_BASE_URL = getApiBaseUrl()
 
@@ -9,8 +10,9 @@ export async function GET(request: NextRequest) {
     const response = await fetch(`${API_BASE_URL}/admin/roles/stats`, {
       method: 'GET',
       headers: {
+        ...buildTenantForwardHeaders(request),
         'Content-Type': 'application/json',
-        'Authorization': request.headers.get('Authorization') || '',
+        Authorization: request.headers.get('Authorization') || '',
       },
     });
 
