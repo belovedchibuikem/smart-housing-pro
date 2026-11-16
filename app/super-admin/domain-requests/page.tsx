@@ -56,6 +56,7 @@ export default function DomainRequestsPage() {
   const [reviewAction, setReviewAction] = useState<"approve" | "reject" | null>(null)
   const [adminNotes, setAdminNotes] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [checkingId, setCheckingId] = useState<string | null>(null)
   const { isLoading, data, error, loadData } = usePageLoading<DomainRequestsResponse>()
 
   const debouncedSearch = useCallback(() => {
@@ -86,6 +87,21 @@ export default function DomainRequestsPage() {
       return response
     })
   }, [searchQuery, statusFilter, loadData])
+
+  const handleCheckConnection = async (request: DomainRequest) => {
+    setCheckingId(request.id)
+    try {
+      const res = await apiFetch<{ message?: string }>(`/super-admin/domain-requests/${request.id}/verify`, {
+        method: "POST",
+      })
+      toast.success(res.message || `${request.full_domain} is active`)
+      await reloadRequests()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "The domain could not be confirmed")
+    } finally {
+      setCheckingId(null)
+    }
+  }
 
   const handleReview = (request: DomainRequest, action: "approve" | "reject") => {
     setSelectedRequest(request)
@@ -355,6 +371,21 @@ export default function DomainRequestsPage() {
                               View
                             </Link>
                           </Button>
+                          {request.status !== "pending" && request.status !== "active" && request.status !== "rejected" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={checkingId === request.id}
+                              onClick={() => handleCheckConnection(request)}
+                            >
+                              {checkingId === request.id ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                              )}
+                              Check connection
+                            </Button>
+                          )}
                           {request.status === "pending" && (
                             <>
                               <Button

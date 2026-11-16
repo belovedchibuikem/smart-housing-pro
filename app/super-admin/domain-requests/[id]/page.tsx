@@ -30,7 +30,29 @@ export default function DomainRequestDetailPage({ params }: { params: Promise<{ 
 	const { id } = use(params)
 	const router = useRouter()
 	const [loading, setLoading] = useState(true)
+	const [checking, setChecking] = useState(false)
 	const [req, setReq] = useState<DomainRequestDetail | null>(null)
+
+	async function reload() {
+		const res = await apiFetch<{ request: DomainRequestDetail }>(`/super-admin/domain-requests/${id}`)
+		if (res.request) setReq(res.request)
+	}
+
+	async function checkConnection() {
+		setChecking(true)
+		try {
+			const res = await apiFetch<{ message?: string }>(`/super-admin/domain-requests/${id}/verify`, {
+				method: "POST",
+			})
+			sonnerToast.success(res.message || "Domain is active")
+			await reload()
+		} catch (e: unknown) {
+			const msg = e instanceof Error ? e.message : "The domain could not be confirmed"
+			sonnerToast.error("Still verifying", { description: msg })
+		} finally {
+			setChecking(false)
+		}
+	}
 
 	useEffect(() => {
 		let c = false
@@ -88,6 +110,17 @@ export default function DomainRequestDetailPage({ params }: { params: Promise<{ 
 				<Badge className="mt-2" variant="outline">
 					{req.status}
 				</Badge>
+				{req.status !== "active" && req.status !== "rejected" ? (
+					<div className="mt-4">
+						<Button onClick={checkConnection} disabled={checking}>
+							{checking ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+							{checking ? "Checking..." : "Check connection"}
+						</Button>
+						<p className="text-sm text-muted-foreground mt-2">
+							Approval only starts verification. This check reads the live domain and marks it active when it is already connected.
+						</p>
+					</div>
+				) : null}
 			</div>
 
 			<Card>
@@ -146,7 +179,8 @@ export default function DomainRequestDetailPage({ params }: { params: Promise<{ 
 			{req.dns_records?.length ? (
 				<Card>
 					<CardHeader>
-						<CardTitle>DNS records</CardTitle>
+						<CardTitle>DNS records to add</CardTitle>
+						<CardDescription>These are the instructions saved at approval. They are not a live reading of the domain.</CardDescription>
 					</CardHeader>
 					<CardContent className="space-y-3">
 						{req.dns_records.map((r, i) => (
