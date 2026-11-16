@@ -27,7 +27,7 @@ export function TenantBrandLogo({
   const logoSrc = settings?.logo_url ? resolveStorageUrl(settings.logo_url) : ""
 
   return (
-    <div className="flex items-center gap-2 min-w-0">
+    <div className="flex items-center gap-3 min-w-0">
       {logoSrc ? (
         <Image
           src={logoSrc}
