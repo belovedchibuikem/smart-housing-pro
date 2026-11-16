@@ -11,6 +11,7 @@ interface TenantBrandLogoProps {
   titleClassName?: string
   taglineClassName?: string
   showTagline?: boolean
+  wrapName?: boolean
 }
 
 export function TenantBrandLogo({
@@ -19,6 +20,7 @@ export function TenantBrandLogo({
   titleClassName = "font-bold text-xl",
   taglineClassName = "text-xs text-muted-foreground",
   showTagline = true,
+  wrapName = false,
 }: TenantBrandLogoProps) {
   const logoSrc = settings?.logo_url ? resolveStorageUrl(settings.logo_url) : ""
 
@@ -36,12 +38,14 @@ export function TenantBrandLogo({
         <Building2 className={`${iconClassName} text-primary shrink-0`} />
       )}
       <div className="min-w-0">
-        <h1 className={`${titleClassName} truncate`}>{settings?.company_name || "Housing Cooperative"}</h1>
-        {showTagline && (
-          <p className={`${taglineClassName} truncate`}>
-            {settings?.company_tagline || "Housing Management System"}
+        <h1 className={`${titleClassName} ${wrapName ? "whitespace-normal leading-tight" : "truncate"}`}>
+          {settings?.company_name || "Housing Cooperative"}
+        </h1>
+        {showTagline && settings?.company_tagline ? (
+          <p className={`${taglineClassName} ${wrapName ? "whitespace-normal" : "truncate"}`}>
+            {settings.company_tagline}
           </p>
-        )}
+        ) : null}
       </div>
     </div>
   )

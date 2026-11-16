@@ -11,45 +11,35 @@ interface LandingHeaderProps {
   isTenantPage?: boolean
 }
 
+const NAV_LINKS = [
+  { href: "#properties", label: "Properties" },
+  { href: "#investments", label: "Investments" },
+  { href: "#loans", label: "Loans" },
+  { href: "#features", label: "Features" },
+  { href: "#download-app", label: "Get the App" },
+  { href: "#upload-docs", label: "Upload Docs" },
+  { href: "/verify", label: "Verify Document" },
+]
+
 export function LandingHeader({ isTenantPage = true }: LandingHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { settings } = useWhiteLabel()
 
   return (
-    <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 min-w-0">
-            <TenantBrandLogo settings={settings} />
+    <header className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-50">
+      <div className="container mx-auto px-4">
+        <div className="flex items-center justify-between gap-4 py-3">
+          <Link href="/" className="flex min-w-0 max-w-[16rem] items-center sm:max-w-xs lg:max-w-sm">
+            <TenantBrandLogo
+              settings={settings}
+              wrapName
+              iconClassName="h-10 w-10"
+              titleClassName="font-bold text-base sm:text-lg"
+              taglineClassName="text-xs text-muted-foreground"
+            />
           </Link>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-6">
-            <Link href="#properties" className="text-sm font-medium hover:text-primary transition-colors">
-              Properties
-            </Link>
-            <Link href="#investments" className="text-sm font-medium hover:text-primary transition-colors">
-              Investments
-            </Link>
-            <Link href="#loans" className="text-sm font-medium hover:text-primary transition-colors">
-              Loans
-            </Link>
-            <Link href="#features" className="text-sm font-medium hover:text-primary transition-colors">
-              Features
-            </Link>
-            <Link href="#download-app" className="text-sm font-medium hover:text-primary transition-colors">
-              Get the App
-            </Link>
-            <Link href="#upload-docs" className="text-sm font-medium hover:text-primary transition-colors">
-              Upload Docs
-            </Link>
-            <Link href="/verify" className="text-sm font-medium hover:text-primary transition-colors">
-              Verify Document
-            </Link>
-          </nav>
-
-          {/* Desktop Auth Buttons */}
-          <div className="hidden md:flex items-center gap-3">
+          <div className="hidden shrink-0 items-center gap-2 lg:flex">
             <Link href="/login">
               <Button variant="ghost" size="sm">
                 Login
@@ -60,71 +50,42 @@ export function LandingHeader({ isTenantPage = true }: LandingHeaderProps) {
             </Link>
           </div>
 
-          {/* Mobile Menu Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-2 hover:bg-accent rounded-lg transition-colors"
+            className="rounded-lg p-2 transition-colors hover:bg-accent lg:hidden"
             aria-label="Toggle menu"
           >
             {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
         </div>
 
-        {/* Mobile Navigation Menu */}
+        <nav className="hidden items-center gap-1 overflow-x-auto pb-3 lg:flex">
+          {NAV_LINKS.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-primary"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+
         {mobileMenuOpen && (
-          <div className="md:hidden mt-4 pb-4 space-y-4 animate-in slide-in-from-top-2 duration-200">
-            <nav className="flex flex-col space-y-3">
-              <Link
-                href="#properties"
-                className="text-sm font-medium hover:text-primary transition-colors py-2 px-3 hover:bg-accent rounded-lg"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Properties
-              </Link>
-              <Link
-                href="#investments"
-                className="text-sm font-medium hover:text-primary transition-colors py-2 px-3 hover:bg-accent rounded-lg"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Investments
-              </Link>
-              <Link
-                href="#loans"
-                className="text-sm font-medium hover:text-primary transition-colors py-2 px-3 hover:bg-accent rounded-lg"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Loans
-              </Link>
-              <Link
-                href="#features"
-                className="text-sm font-medium hover:text-primary transition-colors py-2 px-3 hover:bg-accent rounded-lg"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Features
-              </Link>
-              <Link
-                href="#download-app"
-                className="text-sm font-medium hover:text-primary transition-colors py-2 px-3 hover:bg-accent rounded-lg"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Get the App
-              </Link>
-              <Link
-                href="#upload-docs"
-                className="text-sm font-medium hover:text-primary transition-colors py-2 px-3 hover:bg-accent rounded-lg"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Upload Docs
-              </Link>
-              <Link
-                href="/verify"
-                className="text-sm font-medium hover:text-primary transition-colors py-2 px-3 hover:bg-accent rounded-lg"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Verify Document
-              </Link>
+          <div className="space-y-4 pb-4 lg:hidden">
+            <nav className="flex flex-col space-y-1">
+              {NAV_LINKS.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className="rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-primary"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {item.label}
+                </Link>
+              ))}
             </nav>
-            <div className="flex flex-col gap-2 pt-2 border-t">
+            <div className="flex flex-col gap-2 border-t pt-2">
               <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
                 <Button variant="ghost" size="sm" className="w-full">
                   Login
