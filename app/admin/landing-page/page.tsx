@@ -176,14 +176,15 @@ export default function LandingPageBuilderPage() {
     {
       id: "default",
       name: "Default",
-      description: "Original FRSC Housing Management landing page design",
+      description: "Standard housing cooperative landing page",
       sections: [
         {
           type: "hero",
           name: "Hero Section",
           config: {
             title: "Your Path to Homeownership Made Simple",
-            subtitle: "Join the FRSC Housing Cooperative and start your journey to owning your dream home.",
+            badge: "Trusted by {cooperative_name} members",
+            subtitle: "Join {cooperative_name} and start your journey to owning your dream home.",
             cta_text: "Become a Member",
             cta_link: "/register",
             show_stats: true,
@@ -1066,6 +1067,14 @@ export default function LandingPageBuilderPage() {
                   </p>
                   {activeSecData.type === "hero" && (
                     <>
+                      <div className="space-y-2">
+                        <Label>Trust badge</Label>
+                        <Input
+                          value={activeSecData.config.badge || ""}
+                          onChange={(e) => updateSectionConfig(activeSecData.id, { badge: e.target.value })}
+                          placeholder="Trusted by {cooperative_name} members"
+                        />
+                      </div>
                       <div className="space-y-2">
                         <Label>Title</Label>
                         <Input

@@ -13,6 +13,11 @@ export function resolveTenantCopy(
     .replaceAll("{cooperative_name}", name)
     .replaceAll("{tenant_name}", name)
     .replaceAll("{company_name}", name)
+    .replaceAll("FRSC Housing Management System", name)
+    .replaceAll("FRSC Housing Management", name)
+    .replaceAll("FRSC Housing Cooperative", name)
+    .replaceAll("FRSC Personnel", `${name} members`)
+    .replaceAll("FRSC personnel", `${name} members`)
 }
 
 export function resolveTenantCopyDeep<T>(value: T, cooperativeName: string): T {

@@ -225,6 +225,7 @@ export function DynamicLandingPage({ isTenantPage = true }: DynamicLandingPagePr
             key={section.id}
             config={{ ...config, live_stats: tenantStats?.hero }}
             templateId={templateId}
+            cooperativeName={cooperativeName}
           />
         )
       case "properties":
@@ -250,7 +251,7 @@ export function DynamicLandingPage({ isTenantPage = true }: DynamicLandingPagePr
       case "how-it-works":
         return <HowItWorksSection key={section.id} config={config} templateId={templateId} />
       case "cta":
-        return <CTASection key={section.id} config={config} templateId={templateId} />
+        return <CTASection key={section.id} config={config} templateId={templateId} cooperativeName={cooperativeName} />
       case "stats":
         return (
           <StatsSection
@@ -323,7 +324,23 @@ function getHeroStats(config: Record<string, any>, templateId = "default") {
   return live
 }
 
-function HeroSection({ config, templateId = "default" }: { config: Record<string, any>; templateId?: string }) {
+function trustBadge(config: Record<string, any>, cooperativeName?: string): string {
+  const custom = String(config.badge || config.eyebrow || "").trim()
+  if (custom) return custom
+  const name = (cooperativeName || "").trim()
+  if (!name || name.toLowerCase() === "our cooperative") return "Trusted by our members"
+  return `Trusted by ${name} members`
+}
+
+function HeroSection({
+  config,
+  templateId = "default",
+  cooperativeName,
+}: {
+  config: Record<string, any>
+  templateId?: string
+  cooperativeName?: string
+}) {
   const heroStats = getHeroStats(config, templateId)
   if (templateId === "modern") {
     return (
@@ -433,13 +450,16 @@ function HeroSection({ config, templateId = "default" }: { config: Record<string
       <div className="max-w-4xl mx-auto text-center space-y-6">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-4">
           <Shield className="h-4 w-4" />
-          Trusted by FRSC Personnel
+          {trustBadge(config, cooperativeName)}
         </div>
         <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-balance">
           {config.title || "Your Path to Homeownership Made Simple"}
         </h1>
         <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto text-balance">
-          {config.subtitle || "Join the FRSC Housing Cooperative"}
+          {config.subtitle ||
+            (cooperativeName && cooperativeName.toLowerCase() !== "our cooperative"
+              ? `Join ${cooperativeName}`
+              : "Join your housing cooperative")}
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
           <Link href={config.cta_link || "/register"}>
@@ -735,7 +755,15 @@ function HowItWorksSection({ config, templateId = "default" }: { config: Record<
   )
 }
 
-function CTASection({ config, templateId = "default" }: { config: Record<string, any>; templateId?: string }) {
+function CTASection({
+  config,
+  templateId = "default",
+  cooperativeName,
+}: {
+  config: Record<string, any>
+  templateId?: string
+  cooperativeName?: string
+}) {
   if (templateId === "modern") {
     return (
       <section className="relative overflow-hidden bg-gradient-to-br from-primary via-secondary to-accent py-24">
@@ -794,7 +822,10 @@ function CTASection({ config, templateId = "default" }: { config: Record<string,
           {config.title || "Ready to Start Your Homeownership Journey?"}
         </h2>
         <p className="text-lg mb-8 max-w-2xl mx-auto opacity-90 text-balance">
-          {config.description || "Join thousands of FRSC personnel building their future"}
+          {config.description ||
+            (cooperativeName && cooperativeName.toLowerCase() !== "our cooperative"
+              ? `Join members of ${cooperativeName} building their future`
+              : "Join members building their future")}
         </p>
         <Link href={config.cta_link || "/register"}>
           <Button size="lg" variant="secondary">
@@ -1155,7 +1186,7 @@ function Footer({ isTenantPage = true }: { isTenantPage?: boolean }) {
           </div>
         </div>
         <div className="border-t mt-8 pt-8 text-center text-sm text-muted-foreground">
-          <p>{settings?.footer_text || `© ${new Date().getFullYear()} ${settings?.company_name || "FRSC Housing Management System"}. All rights reserved.`}</p>
+          <p>{settings?.footer_text || `© ${new Date().getFullYear()} ${settings?.company_name || "Housing Management"}. All rights reserved.`}</p>
         </div>
       </div>
     </footer>
@@ -1190,6 +1221,7 @@ function DefaultLandingPage() {
       </div>
       <LandingHeader isTenantPage={true} />
       <HeroSection
+        cooperativeName={coop}
         config={{
           title: "Your Path to Homeownership Made Simple",
           subtitle: resolveTenantCopyDeep(
@@ -1268,6 +1300,7 @@ function DefaultLandingPage() {
         }}
       />
       <CTASection
+        cooperativeName={coop}
         config={{
           title: resolveTenantCopyDeep(
             "Ready to start your homeownership journey with {cooperative_name}?",

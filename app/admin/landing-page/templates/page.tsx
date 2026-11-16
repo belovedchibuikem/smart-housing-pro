@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation"
 import { toast as sonnerToast } from "sonner"
 import { apiFetch } from "@/lib/api/client"
 import { resolveStorageUrl } from "@/lib/api/config"
+import { useWhiteLabel } from "@/lib/hooks/use-white-label"
 
 export default function LandingPageTemplatesPage() {
   const router = useRouter()
@@ -16,12 +17,14 @@ export default function LandingPageTemplatesPage() {
   const [applying, setApplying] = useState(false)
   const [currentTemplate, setCurrentTemplate] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const { settings } = useWhiteLabel()
+  const cooperativeName = settings?.company_name?.trim() || "our cooperative"
 
   const templates = [
     {
       id: "default",
       name: "Default",
-      description: "Original FRSC Housing Management landing page design",
+      description: "Standard housing cooperative landing page",
       thumbnail: "/professional-housing-cooperative-website-with-hero.jpg",
       sections: [
         {
@@ -29,7 +32,8 @@ export default function LandingPageTemplatesPage() {
           name: "Hero Section",
           config: {
             title: "Your Path to Homeownership Made Simple",
-            subtitle: "Join the FRSC Housing Cooperative and start your journey to owning your dream home.",
+            badge: "Trusted by {cooperative_name} members",
+            subtitle: "Join {cooperative_name} and start your journey to owning your dream home.",
             cta_text: "Become a Member",
             cta_link: "/register",
             show_stats: true,
@@ -420,9 +424,9 @@ export default function LandingPageTemplatesPage() {
           sections,
           theme: template.theme,
           seo: {
-            title: "FRSC Housing Management System",
-            description: "Your trusted partner in housing solutions",
-            keywords: "housing, cooperative, FRSC, properties, investments, loans",
+            title: `${cooperativeName} — Housing Cooperative Portal`,
+            description: `Join ${cooperativeName}. Your trusted partner in housing solutions`,
+            keywords: "housing, cooperative, properties, investments, loans",
           },
           is_published: false,
         },
