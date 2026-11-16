@@ -411,10 +411,7 @@ export default function LandingPageBuilderPage() {
           config: {
             title: "What Our Members Say",
             subtitle: "Real stories from satisfied members",
-            testimonials: [
-              { name: "John Doe", role: "Member since 2020", content: "The best decision I made was joining this cooperative.", rating: 5 },
-              { name: "Jane Smith", role: "Member since 2019", content: "Professional service and excellent support throughout.", rating: 5 },
-            ],
+            testimonials: [],
           },
         },
         {

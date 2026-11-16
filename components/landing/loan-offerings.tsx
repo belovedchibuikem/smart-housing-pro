@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Search, TrendingUp, Home, Zap, Building2, Shield, ArrowRight, Info } from "lucide-react"
+import { Search, TrendingUp, ArrowRight, Info } from "lucide-react"
 import Link from "next/link"
 
 interface LoanProduct {
@@ -36,87 +36,24 @@ export function LoanOfferings({ products = [], config }: LoanOfferingsProps) {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<"all" | "member" | "non-member">("all")
 
-  // Map API products to display format
-  const mappedProducts = products.map((product) => ({
+  const loanProducts = products.map((product) => ({
     id: product.id,
     name: product.name,
-    icon: TrendingUp, // Default icon
-    maxAmount: `₦${parseFloat(product.max_amount?.toString() || '0').toLocaleString('en-NG')}`,
+    icon: TrendingUp,
+    maxAmount: `₦${parseFloat(product.max_amount?.toString() || "0").toLocaleString("en-NG")}`,
     memberRate: `${product.interest_rate || 0}%`,
-    nonMemberRate: `${(product.interest_rate || 0) + 2}%`, // Estimate non-member rate
+    nonMemberRate: `${(product.interest_rate || 0) + 2}%`,
     tenure: product.tenure_range || `${product.min_tenure_months || 0}-${product.max_tenure_months || 0} months`,
     description: product.description || "",
     eligibility: "both",
-    features: Array.isArray(product.eligibility_criteria) 
-      ? product.eligibility_criteria 
-      : (product.eligibility_criteria ? [product.eligibility_criteria] : []),
+    features: Array.isArray(product.eligibility_criteria)
+      ? product.eligibility_criteria
+      : product.eligibility_criteria
+        ? [product.eligibility_criteria]
+        : [],
   }))
 
-  // Only use mock data if products array is explicitly empty (not undefined/null)
-  // This means if products is provided but empty, show empty state instead of mock data
-  const hasProducts = products && products.length > 0
-  const loanProducts = hasProducts ? mappedProducts : [
-    {
-      id: 1,
-      name: "Personal Loan",
-      icon: TrendingUp,
-      maxAmount: "₦5,000,000",
-      memberRate: "5%",
-      nonMemberRate: "8%",
-      tenure: "12-60 months",
-      description: "Quick personal loans for immediate needs with flexible repayment terms",
-      eligibility: "both",
-      features: ["Fast approval", "Flexible tenure", "No collateral required"],
-    },
-    {
-      id: 2,
-      name: "Housing Loan",
-      icon: Home,
-      maxAmount: "₦20,000,000",
-      memberRate: "7%",
-      nonMemberRate: "10%",
-      tenure: "60-240 months",
-      description: "Long-term housing finance for property purchase or construction",
-      eligibility: "both",
-      features: ["Up to 20 years", "Competitive rates", "Property as collateral"],
-    },
-    {
-      id: 3,
-      name: "Emergency Loan",
-      icon: Zap,
-      maxAmount: "₦1,000,000",
-      memberRate: "3%",
-      nonMemberRate: "6%",
-      tenure: "6-12 months",
-      description: "Fast emergency funding for urgent financial needs",
-      eligibility: "both",
-      features: ["Same-day approval", "Minimal documentation", "Quick disbursement"],
-    },
-    {
-      id: 4,
-      name: "Development Loan",
-      icon: Building2,
-      maxAmount: "₦10,000,000",
-      memberRate: "6%",
-      nonMemberRate: "9%",
-      tenure: "24-120 months",
-      description: "Property development financing for construction projects",
-      eligibility: "both",
-      features: ["Staged disbursement", "Long tenure", "Development support"],
-    },
-    {
-      id: 5,
-      name: "Member Exclusive Loan",
-      icon: Shield,
-      maxAmount: "₦15,000,000",
-      memberRate: "4%",
-      nonMemberRate: "N/A",
-      tenure: "12-180 months",
-      description: "Special rates and terms exclusively for FRSC cooperative members",
-      eligibility: "member-only",
-      features: ["Lowest rates", "Exclusive benefits", "Priority processing"],
-    },
-  ]
+  const hasProducts = loanProducts.length > 0
 
   const filteredLoans = loanProducts
     .filter((loan) => {
@@ -144,7 +81,7 @@ export function LoanOfferings({ products = [], config }: LoanOfferingsProps) {
           </div>
           <h2 className="text-3xl md:text-4xl font-bold mb-4">{config?.title || "Affordable Loan Products"}</h2>
           <p className="text-lg text-muted-foreground text-balance">
-            {config?.subtitle || "Access competitive loan products with flexible terms designed for FRSC personnel and the general public"}
+            {config?.subtitle || "Loan products published by this cooperative."}
           </p>
         </div>
 
@@ -193,7 +130,7 @@ export function LoanOfferings({ products = [], config }: LoanOfferingsProps) {
             <div className="text-sm">
               <p className="font-medium text-foreground">Member Benefits</p>
               <p className="text-muted-foreground mt-1">
-                FRSC Cooperative members enjoy significantly lower interest rates and access to exclusive loan products.
+                Members of this cooperative can apply for the loan products listed here.
                 <Link href="/register" className="text-primary hover:underline ml-1">
                   Become a member today
                 </Link>

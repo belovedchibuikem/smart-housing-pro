@@ -209,11 +209,7 @@ export default function LandingPageTemplatesPage() {
           config: {
             title: "Success Stories",
             subtitle: "Hear from members who achieved their housing dreams",
-            testimonials: [
-              { name: "Adebayo Johnson", role: "Property Owner", content: "This platform made my dream of owning a home a reality. The process was smooth and transparent.", rating: 5 },
-              { name: "Chinwe Okafor", role: "Member since 2021", content: "Excellent service and support. I've never experienced anything like this before.", rating: 5 },
-              { name: "Emeka Nwosu", role: "Investor", content: "The investment opportunities here have helped me build substantial wealth. Highly recommended!", rating: 5 },
-            ],
+            testimonials: [],
           },
         },
         {
@@ -331,12 +327,7 @@ export default function LandingPageTemplatesPage() {
           config: {
             title: "Member Testimonials",
             subtitle: "Stories of success from our valued members",
-            testimonials: [
-              { name: "Oluwaseun Adeyemi", role: "Member since 2018", content: "The cooperative has been instrumental in helping me secure my first home. Their professionalism and support throughout the process was exceptional.", rating: 5 },
-              { name: "Ngozi Okafor", role: "Property Owner", content: "I've been a member for five years and the returns on my investments have been outstanding. Highly trustworthy organization.", rating: 5 },
-              { name: "Ibrahim Mohammed", role: "Member since 2019", content: "The loan facility helped me expand my business. Simple application process and quick approval. Highly recommended!", rating: 5 },
-              { name: "Amina Hassan", role: "Member since 2020", content: "What I love most is the transparency. Every transaction is clear, and the customer service is always helpful and responsive.", rating: 5 },
-            ],
+            testimonials: [],
           },
         },
         {

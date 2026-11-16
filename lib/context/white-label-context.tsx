@@ -38,8 +38,8 @@ export interface WhiteLabelContextType {
 const WhiteLabelContext = createContext<WhiteLabelContextType | undefined>(undefined)
 
 const defaultSettings: WhiteLabelSettings = {
-  company_name: "FRSC Housing Management",
-  company_tagline: "Building Dreams Together",
+  company_name: "",
+  company_tagline: "",
   company_description: "",
   logo_url: "",
   logo_dark_url: "",

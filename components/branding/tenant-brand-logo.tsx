@@ -36,7 +36,7 @@ export function TenantBrandLogo({
         <Building2 className={`${iconClassName} text-primary shrink-0`} />
       )}
       <div className="min-w-0">
-        <h1 className={`${titleClassName} truncate`}>{settings?.company_name || "FRSC HMS"}</h1>
+        <h1 className={`${titleClassName} truncate`}>{settings?.company_name || "Housing Cooperative"}</h1>
         {showTagline && (
           <p className={`${taglineClassName} truncate`}>
             {settings?.company_tagline || "Housing Management System"}

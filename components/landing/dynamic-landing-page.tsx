@@ -71,7 +71,7 @@ export function DynamicLandingPage({ isTenantPage = true }: DynamicLandingPagePr
   const [propertiesData, setPropertiesData] = useState<any[]>([])
   const [tenantStats, setTenantStats] = useState<TenantLandingStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const { settings: whiteLabelSettings } = useWhiteLabel()
+  const { settings: whiteLabelSettings, loading: brandingLoading } = useWhiteLabel()
 
   useEffect(() => {
     fetchPageData()
@@ -273,7 +273,7 @@ export function DynamicLandingPage({ isTenantPage = true }: DynamicLandingPagePr
     }
   }
 
-  if (loading) {
+  if (loading || brandingLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -307,17 +307,12 @@ export function DynamicLandingPage({ isTenantPage = true }: DynamicLandingPagePr
 }
 
 function getHeroStats(config: Record<string, any>, templateId = "default") {
-  const fallback = [
-    { label: "Active Members", value: "0" },
-    { label: "Total Contributions", value: "₦0" },
-    { label: "Properties Allocated", value: "0" },
-  ]
-  const live = (config.live_stats as Array<{ label: string; value: string }> | undefined) ?? fallback
+  const live = (config.live_stats as Array<{ label: string; value: string }> | undefined) ?? []
 
-  if (templateId === "classic") {
+  if (templateId === "classic" && config.satisfaction_rate) {
     return [
       ...live,
-      { label: "Member Satisfaction", value: config.satisfaction_rate ?? "98%" },
+      { label: "Member Satisfaction", value: config.satisfaction_rate },
     ]
   }
 
@@ -371,7 +366,7 @@ function HeroSection({
                 </Button>
               </Link>
             </div>
-            {config.show_stats && (
+            {config.show_stats && heroStats.length > 0 && (
               <div className="grid grid-cols-3 gap-8 pt-16 max-w-3xl mx-auto">
                 {heroStats.slice(0, 3).map((stat, index) => (
                   <div
@@ -426,7 +421,7 @@ function HeroSection({
                 </Button>
               </Link>
             </div>
-            {config.show_stats && (
+            {config.show_stats && heroStats.length > 0 && (
               <div className="grid grid-cols-4 gap-6 pt-16 max-w-4xl mx-auto border-t border-border">
                 {heroStats.map((stat) => (
                   <div key={stat.label} className="text-center py-4">
@@ -473,7 +468,7 @@ function HeroSection({
             </Button>
           </Link>
         </div>
-        {config.show_stats && (
+        {config.show_stats && heroStats.length > 0 && (
           <div className="grid grid-cols-3 gap-8 pt-12 max-w-2xl mx-auto">
             {heroStats.slice(0, 3).map((stat) => (
               <div key={stat.label}>
@@ -837,8 +832,30 @@ function CTASection({
   )
 }
 
+const PLACEHOLDER_TESTIMONIALS = new Set([
+  "john doe",
+  "jane smith",
+  "michael brown",
+  "adebayo johnson",
+  "chinwe okafor",
+  "emeka nwosu",
+  "oluwaseun adeyemi",
+  "ngozi okafor",
+  "ibrahim mohammed",
+  "amina hassan",
+])
+
+function cooperativeTestimonials(items: any[]): any[] {
+  return items.filter((item) => {
+    const name = String(item?.name || "").trim().toLowerCase()
+    return name !== "" && !PLACEHOLDER_TESTIMONIALS.has(name)
+  })
+}
+
 function TestimonialsSection({ config, templateId = "default" }: { config: Record<string, any>; templateId?: string }) {
-  const testimonials = config.testimonials || []
+  const testimonials = cooperativeTestimonials(config.testimonials || [])
+
+  if (testimonials.length === 0) return null
 
   if (templateId === "modern") {
     return (
@@ -932,26 +949,7 @@ function TestimonialsSection({ config, templateId = "default" }: { config: Recor
           </p>
         </div>
         <div className="grid md:grid-cols-3 gap-6">
-          {(testimonials.length > 0 ? testimonials : [
-            {
-              name: "John Doe",
-              role: "Member since 2020",
-              content: "The best decision I made was joining this cooperative. Professional service and excellent support throughout.",
-              rating: 5,
-            },
-            {
-              name: "Jane Smith",
-              role: "Member since 2019",
-              content: "I've been able to secure my dream home thanks to the flexible loan options and supportive team.",
-              rating: 5,
-            },
-            {
-              name: "Michael Brown",
-              role: "Member since 2021",
-              content: "The investment opportunities have helped me build wealth while contributing to the cooperative's growth.",
-              rating: 5,
-            },
-          ]).map((testimonial: any, index: number) => (
+          {testimonials.map((testimonial: any, index: number) => (
             <Card key={index} className="p-6 space-y-4 hover:shadow-lg transition-shadow">
               <div className="flex items-center gap-1 text-yellow-400">
                 {Array.from({ length: testimonial.rating || 5 }).map((_, i) => (
@@ -972,22 +970,11 @@ function TestimonialsSection({ config, templateId = "default" }: { config: Recor
 }
 
 function getImpactStats(config: Record<string, any>) {
-  const fallback = [
-    { label: "Active Members", value: "0", icon: "Users" },
-    { label: "Houses Available", value: "0", icon: "Building2" },
-    { label: "Land Parcels Available", value: "0", icon: "MapPin" },
-    { label: "Total Loans Disbursed", value: "₦0", icon: "TrendingUp" },
-  ]
-
-  if (config.live_stats?.length) {
+  if (Array.isArray(config.live_stats) && config.live_stats.length > 0) {
     return config.live_stats
   }
 
-  if (config.stats?.length) {
-    return config.stats
-  }
-
-  return fallback
+  return []
 }
 
 function StatsSection({ config, templateId = "default" }: { config: Record<string, any>; templateId?: string }) {
@@ -995,6 +982,8 @@ function StatsSection({ config, templateId = "default" }: { config: Record<strin
   const iconMap: Record<string, any> = {
     Users, Building2, TrendingUp, Shield, BarChart3, Award, MapPin
   }
+
+  if (stats.length === 0) return null
 
   if (templateId === "modern") {
     return (
@@ -1196,22 +1185,43 @@ function Footer({ isTenantPage = true }: { isTenantPage?: boolean }) {
 function DefaultLandingPage() {
   const [propertiesData, setPropertiesData] = useState<any[]>([])
   const [tenantStats, setTenantStats] = useState<TenantLandingStats | null>(null)
-  const { settings } = useWhiteLabel()
-  const coop = settings?.company_name || "our cooperative"
+  const [ready, setReady] = useState(false)
+  const { settings, loading: brandingLoading } = useWhiteLabel()
+  const coop = settings?.company_name?.trim() || "our cooperative"
 
   useEffect(() => {
+    let cancelled = false
     Promise.all([
       fetch("/api/public/properties", { cache: "no-store" }).then((res) => (res.ok ? res.json() : null)),
       fetch("/api/public/tenant-stats", { cache: "no-store" }).then((res) => (res.ok ? res.json() : null)),
-    ]).then(([propertiesResponse, statsResponse]) => {
-      if (propertiesResponse?.properties) {
-        setPropertiesData(propertiesResponse.properties)
-      }
-      if (statsResponse?.stats) {
-        setTenantStats(statsResponse.stats)
-      }
-    })
+    ])
+      .then(([propertiesResponse, statsResponse]) => {
+        if (cancelled) return
+        if (propertiesResponse?.properties) {
+          setPropertiesData(propertiesResponse.properties)
+        }
+        if (statsResponse?.stats) {
+          setTenantStats(statsResponse.stats)
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setReady(true)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
+
+  if (!ready || brandingLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background relative">
