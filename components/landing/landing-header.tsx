@@ -21,27 +21,27 @@ const NAV_LINKS = [
   { href: "/verify", label: "Verify Document" },
 ]
 
-export function LandingHeader({ isTenantPage = true }: LandingHeaderProps) {
+export function LandingHeader(_props: LandingHeaderProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const { settings } = useWhiteLabel()
 
   return (
-    <header className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-50">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between gap-4 py-3">
-          <Link href="/" className="flex min-w-0 max-w-[16rem] items-center sm:max-w-xs lg:max-w-sm">
+    <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur-sm">
+      <div className="container mx-auto px-4 lg:px-6">
+        <div className="flex h-16 items-center justify-between gap-6">
+          <Link href="/" className="flex min-w-0 flex-1 items-center sm:flex-none sm:shrink-0">
             <TenantBrandLogo
               settings={settings}
-              wrapName
+              fullName
               iconClassName="h-10 w-10"
-              titleClassName="font-bold text-base sm:text-lg"
-              taglineClassName="text-xs text-muted-foreground"
+              titleClassName="font-semibold text-[15px] tracking-tight text-foreground sm:text-base"
+              taglineClassName="text-[11px] leading-4 text-muted-foreground"
             />
           </Link>
 
-          <div className="hidden shrink-0 items-center gap-2 lg:flex">
+          <div className="hidden shrink-0 items-center gap-2 xl:flex">
             <Link href="/login">
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" className="text-foreground">
                 Login
               </Button>
             </Link>
@@ -51,43 +51,44 @@ export function LandingHeader({ isTenantPage = true }: LandingHeaderProps) {
           </div>
 
           <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="rounded-lg p-2 transition-colors hover:bg-accent lg:hidden"
-            aria-label="Toggle menu"
+            onClick={() => setMobileMenuOpen((open) => !open)}
+            className="rounded-md p-2 text-foreground transition-colors hover:bg-muted xl:hidden"
+            aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+            aria-expanded={mobileMenuOpen}
           >
-            {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
 
-        <nav className="hidden items-center gap-1 overflow-x-auto pb-3 lg:flex">
+        <nav className="hidden h-11 items-center justify-between border-t xl:flex" aria-label="Primary">
           {NAV_LINKS.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-primary"
+              className="whitespace-nowrap text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               {item.label}
             </Link>
           ))}
         </nav>
+      </div>
 
-        {mobileMenuOpen && (
-          <div className="space-y-4 pb-4 lg:hidden">
-            <nav className="flex flex-col space-y-1">
-              {NAV_LINKS.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="rounded-lg px-3 py-2 text-sm font-medium transition-colors hover:bg-accent hover:text-primary"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
-            <div className="flex flex-col gap-2 border-t pt-2">
+      {mobileMenuOpen && (
+        <div className="border-t bg-background xl:hidden">
+          <nav className="container mx-auto flex flex-col px-4 py-2" aria-label="Primary">
+            {NAV_LINKS.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="rounded-md px-2 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {item.label}
+              </Link>
+            ))}
+            <div className="mt-2 flex flex-col gap-2 border-t py-3">
               <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
-                <Button variant="ghost" size="sm" className="w-full">
+                <Button variant="outline" size="sm" className="w-full">
                   Login
                 </Button>
               </Link>
@@ -97,9 +98,9 @@ export function LandingHeader({ isTenantPage = true }: LandingHeaderProps) {
                 </Button>
               </Link>
             </div>
-          </div>
-        )}
-      </div>
+          </nav>
+        </div>
+      )}
     </header>
   )
 }

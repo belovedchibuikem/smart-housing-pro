@@ -293,12 +293,6 @@ export function DynamicLandingPage({ isTenantPage = true }: DynamicLandingPagePr
 
   return (
     <div className="min-h-screen bg-background relative">
-      {/* Cooperative portal indicator */}
-      {isTenantPage && (
-        <div className="absolute top-4 right-4 z-50 bg-primary/90 text-primary-foreground px-3 py-1 rounded-full text-xs font-medium shadow-lg backdrop-blur-sm">
-          Cooperative Portal
-        </div>
-      )}
       <LandingHeader isTenantPage={isTenantPage} />
       {sortedSections.map((section) => renderSection(section))}
       <Footer isTenantPage={isTenantPage} />
@@ -1225,10 +1219,6 @@ function DefaultLandingPage() {
 
   return (
     <div className="min-h-screen bg-background relative">
-      {/* Cooperative portal indicator */}
-      <div className="absolute top-4 right-4 z-50 bg-primary/90 text-primary-foreground px-3 py-1 rounded-full text-xs font-medium shadow-lg backdrop-blur-sm">
-        Cooperative Portal
-      </div>
       <LandingHeader isTenantPage={true} />
       <HeroSection
         cooperativeName={coop}
