@@ -19,7 +19,10 @@ import { getUserData } from "@/lib/auth/auth-utils"
 
 const ContributionChart = dynamic(
   () => import("@/components/dashboard/contribution-chart").then((mod) => mod.ContributionChart),
-  { ssr: false },
+  {
+    ssr: false,
+    loading: () => <div className="py-8 text-sm text-muted-foreground">Loading chart…</div>,
+  },
 )
 
 interface DashboardData {

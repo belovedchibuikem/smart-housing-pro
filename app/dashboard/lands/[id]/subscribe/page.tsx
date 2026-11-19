@@ -1,5 +1,5 @@
 import { Suspense } from "react"
-import { ExpressionOfInterestForm } from "@/components/properties/expression-of-interest-form"
+import { ExpressionOfInterestFormLoader } from "@/components/properties/expression-of-interest-form-loader"
 
 type PageParams = Promise<{ id: string }> | { id: string }
 
@@ -16,7 +16,7 @@ export default async function LandSubscribePage({ params }: { params: PageParams
   return (
     <div className="container mx-auto py-8">
       <Suspense fallback={<div>Loading…</div>}>
-        <ExpressionOfInterestForm landId={id} />
+        <ExpressionOfInterestFormLoader landId={id} />
       </Suspense>
     </div>
   )

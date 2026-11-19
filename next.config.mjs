@@ -11,6 +11,24 @@ if (process.env.NODE_ENV === 'development') {
 const nextConfig = {
   output: 'standalone',
   transpilePackages: ['react-day-picker', 'date-fns'],
+  experimental: {
+    optimizePackageImports: ['lucide-react', 'date-fns', 'recharts', 'framer-motion'],
+  },
+  outputFileTracingExcludes: {
+    '*': [
+      '**/*.map',
+      '**/*.md',
+      'node_modules/sharp/**',
+      'node_modules/@img/**',
+      'node_modules/@esbuild/**',
+      'node_modules/esbuild/**',
+      'node_modules/webpack/**',
+      'node_modules/typescript/**',
+      'node_modules/caniuse-lite/**',
+      'node_modules/terser/**',
+      'node_modules/@swc/core/**',
+    ],
+  },
   webpack: (config) => {
     config.resolve.alias['date-fns/locale/en-US'] = path.join(
       __dirname,

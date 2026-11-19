@@ -1,6 +1,7 @@
 "use client"
 
 import React from "react"
+import dynamic from "next/dynamic"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -15,7 +16,14 @@ import {
   type MarketplaceListing,
 } from "@/lib/api/marketplace"
 import { MarketplaceListingCard } from "@/components/marketplace/listing-card"
-import { HousingOsLandingSections } from "@/components/saas/housing-os-landing-sections"
+
+const HousingOsLandingSections = dynamic(
+  () => import("@/components/saas/housing-os-landing-sections").then((mod) => mod.HousingOsLandingSections),
+  {
+    ssr: false,
+    loading: () => <div className="py-16 text-center text-sm text-muted-foreground">Loading…</div>,
+  },
+)
 
 /** Central business subscription package (from GET /onboarding/packages) */
 interface OnboardingPackage {

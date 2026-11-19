@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server"
-import * as XLSX from "xlsx"
 import { getApiBaseUrl } from "@/lib/api/config"
 
 const SAMPLE_BY_HEADER: Record<string, string> = {
@@ -108,6 +107,7 @@ export async function GET(request: NextRequest) {
 
 		const sampleData = [sampleRow(headers)]
 
+		const XLSX = await import("xlsx")
 		const workbook = XLSX.utils.book_new()
 		const worksheet = XLSX.utils.json_to_sheet(sampleData)
 		worksheet["!cols"] = Array(headers.length).fill({ wch: 16 })

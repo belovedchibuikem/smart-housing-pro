@@ -19,7 +19,10 @@ import {
 
 const DocumentBodyEditor = dynamic(
 	() => import("@/components/documents/document-body-editor").then((mod) => mod.DocumentBodyEditor),
-	{ ssr: false },
+	{
+		ssr: false,
+		loading: () => <div className="py-8 text-sm text-muted-foreground">Loading editor…</div>,
+	},
 )
 
 interface TemplateRow {

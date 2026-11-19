@@ -24,9 +24,12 @@ if ((result.status ?? 1) !== 0) {
   process.exit(result.status ?? 1)
 }
 
-// OpenNext minifies whitespace but not identifiers, so the server bundle
-// lands just over the Workers 64 MiB uncompressed limit. Shrink it after
-// the patches have already been applied.
+// `wrangler deploy` detects this OpenNext app and bundles `.open-next/worker.js`
+// again. That second bundle does not minify unless wrangler.jsonc sets
+// `"minify": true`, so it pretty-prints handler.mjs and the uploaded module
+// is larger than the file this script writes (about 51 MiB on disk vs
+// ~66,223 KiB in the Wrangler size report). Keep names intact: OpenNext
+// refuses identifier mangling because Next's server runtime depends on them.
 await minifyWorkerBundles()
 
 async function minifyWorkerBundles() {
@@ -47,7 +50,9 @@ async function minifyWorkerBundles() {
     }
     const source = await readFile(file, "utf8")
     const transformed = await esbuild.transform(source, {
-      minify: true,
+      minifyWhitespace: true,
+      minifySyntax: true,
+      minifyIdentifiers: false,
       legalComments: "none",
       target: "esnext",
     })
