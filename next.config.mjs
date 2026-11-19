@@ -9,6 +9,7 @@ if (process.env.NODE_ENV === 'development') {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
   transpilePackages: ['react-day-picker', 'date-fns'],
   webpack: (config) => {
     config.resolve.alias['date-fns/locale/en-US'] = path.join(
