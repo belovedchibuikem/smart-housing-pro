@@ -11,6 +11,16 @@ if (process.env.WORKERS_CI !== "1") {
   process.exit(0)
 }
 
+// Each page manifest repeats the same ~76 KiB clientModules map. OpenNext
+// inlines those copies into the Worker, and the resulting ~52 MiB script
+// exceeds the 128 MiB isolate memory limit at runtime (Error 1102).
+const dedupe = spawnSync(process.execPath, ["./scripts/dedupe-rsc-manifests.mjs"], {
+  stdio: "inherit",
+})
+if ((dedupe.status ?? 1) !== 0) {
+  process.exit(dedupe.status ?? 1)
+}
+
 const result = spawnSync(
   "pnpm",
   ["exec", "opennextjs-cloudflare", "build", "--skipNextBuild"],
