@@ -1,4 +1,7 @@
 import { spawnSync } from "node:child_process"
+import { createRequire } from "node:module"
+import { readFile, stat, writeFile } from "node:fs/promises"
+import path from "node:path"
 
 // Workers Builds runs `pnpm run build`, then `npx wrangler deploy`.
 // Package the Next.js output for OpenNext here so deploy does not run
@@ -17,4 +20,41 @@ const result = spawnSync(
   },
 )
 
-process.exit(result.status ?? 1)
+if ((result.status ?? 1) !== 0) {
+  process.exit(result.status ?? 1)
+}
+
+// OpenNext minifies whitespace but not identifiers, so the server bundle
+// lands just over the Workers 64 MiB uncompressed limit. Shrink it after
+// the patches have already been applied.
+await minifyWorkerBundles()
+
+async function minifyWorkerBundles() {
+  const require = createRequire(import.meta.url)
+  const wranglerDir = path.dirname(require.resolve("wrangler/package.json"))
+  const esbuild = require(require.resolve("esbuild", { paths: [wranglerDir] }))
+  const files = [
+    ".open-next/server-functions/default/handler.mjs",
+    ".open-next/middleware/handler.mjs",
+  ]
+
+  for (const file of files) {
+    let before = 0
+    try {
+      before = (await stat(file)).size
+    } catch {
+      continue
+    }
+    const source = await readFile(file, "utf8")
+    const transformed = await esbuild.transform(source, {
+      minify: true,
+      legalComments: "none",
+      target: "esnext",
+    })
+    await writeFile(file, transformed.code)
+    const after = (await stat(file)).size
+    console.log(
+      `Minified ${file}: ${(before / 1024 / 1024).toFixed(1)} MiB -> ${(after / 1024 / 1024).toFixed(1)} MiB`,
+    )
+  }
+}

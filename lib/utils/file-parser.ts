@@ -1,5 +1,3 @@
-import * as XLSX from 'xlsx'
-
 export interface ParseResult {
   data: any[]
   errors: string[]
@@ -100,7 +98,9 @@ function parseExcelFile(file: File): Promise<ParseResult> {
     const errors: string[] = []
     
     reader.onload = (e) => {
+      void (async () => {
       try {
+        const XLSX = await import('xlsx')
         const fileData = new Uint8Array(e.target?.result as ArrayBuffer)
         const workbook = XLSX.read(fileData, { type: 'array' })
         
@@ -171,6 +171,7 @@ function parseExcelFile(file: File): Promise<ParseResult> {
         errors.push(`Error parsing Excel file: ${error instanceof Error ? error.message : 'Unknown error'}`)
         resolve({ data: [], errors })
       }
+      })()
     }
     
     reader.onerror = () => {
@@ -271,7 +272,8 @@ export function arrayToCSV(data: any[], headers?: string[]): string {
 /**
  * Convert array of objects to Excel buffer
  */
-export function arrayToExcel(data: any[], headers?: string[], sheetName: string = 'Sheet1'): ArrayBuffer {
+export async function arrayToExcel(data: any[], headers?: string[], sheetName: string = 'Sheet1'): Promise<ArrayBuffer> {
+  const XLSX = await import('xlsx')
   const workbook = XLSX.utils.book_new()
   
   if (data.length === 0) {

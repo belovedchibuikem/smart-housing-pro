@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { DocumentBodyEditor } from "@/components/documents/document-body-editor"
+import dynamic from "next/dynamic"
 import { useToast } from "@/hooks/use-toast"
 import {
 	DOCUMENT_TYPE_LABELS,
@@ -16,6 +16,11 @@ import {
 	resetDocumentTemplate,
 	updateDocumentTemplate,
 } from "@/lib/api/issued-documents"
+
+const DocumentBodyEditor = dynamic(
+	() => import("@/components/documents/document-body-editor").then((mod) => mod.DocumentBodyEditor),
+	{ ssr: false },
+)
 
 interface TemplateRow {
 	id: string

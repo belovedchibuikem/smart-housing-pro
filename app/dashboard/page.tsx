@@ -1,12 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import dynamic from "next/dynamic"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 
 import { StatsCards } from "@/components/dashboard/stats-cards"
 import { SavingsRefundsPanel } from "@/components/dashboard/savings-refunds-panel"
-import { ContributionChart } from "@/components/dashboard/contribution-chart"
 import { RecentTransactions } from "@/components/dashboard/recent-transactions"
 import { QuickActions } from "@/components/dashboard/quick-actions"
 import { HousingDiscoveryPanel } from "@/components/dashboard/housing-discovery-panel"
@@ -16,6 +16,11 @@ import { ArrowRight, AlertCircle } from "lucide-react"
 import { usePageLoading } from "@/hooks/use-loading"
 import { getUserDashboardStats, getWalletTransactions } from "@/lib/api/client"
 import { getUserData } from "@/lib/auth/auth-utils"
+
+const ContributionChart = dynamic(
+  () => import("@/components/dashboard/contribution-chart").then((mod) => mod.ContributionChart),
+  { ssr: false },
+)
 
 interface DashboardData {
   wallet_balance: number
