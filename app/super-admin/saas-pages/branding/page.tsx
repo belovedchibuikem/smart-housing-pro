@@ -13,6 +13,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
+import { applyBrandColorVariables } from "@/lib/branding/brand-colors"
+import { DEFAULT_SAAS_BRANDING } from "@/hooks/use-saas-branding"
 
 type BrandingData = {
   site_name: string
@@ -20,8 +22,33 @@ type BrandingData = {
   icon_url: string | null
   footer_tagline: string | null
   cta_button_text: string
+  primary_color: string
+  secondary_color: string
+  accent_color: string
+  background_color: string
+  text_color: string
   is_published: boolean
   is_active: boolean
+}
+
+type ColorKey = "primary_color" | "secondary_color" | "accent_color" | "background_color" | "text_color"
+
+const COLOR_FIELDS: Array<{ key: ColorKey; label: string }> = [
+  { key: "primary_color", label: "Primary Color" },
+  { key: "secondary_color", label: "Secondary Color" },
+  { key: "accent_color", label: "Accent Color" },
+  { key: "background_color", label: "Background Color" },
+  { key: "text_color", label: "Text Color" },
+]
+
+function colorInputValue(value: string): string {
+  const match = value.trim().match(/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$/)
+  if (!match) return "#000000"
+  const hex = match[1]
+  if (hex.length === 3) {
+    return `#${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}`
+  }
+  return `#${hex}`
 }
 
 export default function SaasBrandingPage() {
@@ -38,6 +65,11 @@ export default function SaasBrandingPage() {
     icon_url: null,
     footer_tagline: "",
     cta_button_text: "Start Free Trial",
+    primary_color: DEFAULT_SAAS_BRANDING.primary_color,
+    secondary_color: DEFAULT_SAAS_BRANDING.secondary_color,
+    accent_color: DEFAULT_SAAS_BRANDING.accent_color,
+    background_color: DEFAULT_SAAS_BRANDING.background_color,
+    text_color: DEFAULT_SAAS_BRANDING.text_color,
     is_published: true,
     is_active: true,
   })
@@ -56,6 +88,11 @@ export default function SaasBrandingPage() {
           icon_url: res.branding.icon_url ?? null,
           footer_tagline: res.branding.footer_tagline ?? "",
           cta_button_text: res.branding.cta_button_text ?? "Start Free Trial",
+          primary_color: res.branding.primary_color ?? DEFAULT_SAAS_BRANDING.primary_color,
+          secondary_color: res.branding.secondary_color ?? DEFAULT_SAAS_BRANDING.secondary_color,
+          accent_color: res.branding.accent_color ?? DEFAULT_SAAS_BRANDING.accent_color,
+          background_color: res.branding.background_color ?? DEFAULT_SAAS_BRANDING.background_color,
+          text_color: res.branding.text_color ?? DEFAULT_SAAS_BRANDING.text_color,
           is_published: res.branding.is_published ?? true,
           is_active: res.branding.is_active ?? true,
         })
@@ -140,10 +177,23 @@ export default function SaasBrandingPage() {
           site_name: form.site_name.trim(),
           footer_tagline: form.footer_tagline?.trim() || null,
           cta_button_text: form.cta_button_text.trim(),
+          primary_color: form.primary_color,
+          secondary_color: form.secondary_color,
+          accent_color: form.accent_color,
+          background_color: form.background_color,
+          text_color: form.text_color,
           is_published: form.is_published,
           is_active: form.is_active,
         },
       })
+      applyBrandColorVariables(document.documentElement, {
+        primary: form.primary_color,
+        secondary: form.secondary_color,
+        accent: form.accent_color,
+        background: form.background_color,
+        text: form.text_color,
+      })
+      window.dispatchEvent(new Event("saas-branding-updated"))
       toast.success("Branding saved")
     } catch (e: unknown) {
       toast.error("Save failed", { description: e instanceof Error ? e.message : "Error" })
@@ -174,7 +224,7 @@ export default function SaasBrandingPage() {
         <div>
           <h1 className="text-3xl font-bold">SaaS branding</h1>
           <p className="text-muted-foreground mt-2">
-            Logo and icon appear on the SaaS landing navbar and footer. Icon is also used as the browser favicon.
+            Logo, icon, and colors theme the SaaS landing pages and this super-admin dashboard.
           </p>
         </div>
       </div>
@@ -255,6 +305,48 @@ export default function SaasBrandingPage() {
               Upload icon
             </Button>
           </div>
+        </div>
+      </Card>
+
+      <Card className="p-6 space-y-4">
+        <div>
+          <h2 className="text-xl font-semibold">Color scheme</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            These colors theme the public SaaS pages and the super-admin dashboard. Cooperative sites keep their own white-label colors.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {COLOR_FIELDS.map((field) => {
+            const value = String(form[field.key] ?? "")
+            return (
+              <div key={field.key} className="space-y-2">
+                <Label htmlFor={field.key}>{field.label}</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id={field.key}
+                    type="color"
+                    value={colorInputValue(value)}
+                    onChange={(e) => setForm((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                    className="h-10 w-20"
+                  />
+                  <Input
+                    value={value}
+                    onChange={(e) => setForm((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                  />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+        <div className="flex gap-2 border-t pt-4">
+          {COLOR_FIELDS.map((field) => (
+            <div
+              key={field.key}
+              className="h-12 w-12 rounded-lg border"
+              style={{ backgroundColor: colorInputValue(String(form[field.key] ?? "")) }}
+              title={field.label}
+            />
+          ))}
         </div>
       </Card>
 

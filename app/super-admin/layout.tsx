@@ -24,11 +24,13 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
     <AuthGuard requiredRole="super-admin" redirectTo="/login">
       <IdleSessionGuard />
       <WebPushRegistrar />
-      <div className="min-h-screen bg-background">
-        <SuperAdminHeader onMenuClick={() => setMobileMenuOpen(!mobileMenuOpen)} />
-        <div className="flex">
+      <div className="min-h-screen bg-background lg:flex lg:h-dvh lg:min-h-0 lg:flex-col lg:overflow-hidden">
+        <div className="shrink-0">
+          <SuperAdminHeader onMenuClick={() => setMobileMenuOpen(!mobileMenuOpen)} />
+        </div>
+        <div className="flex lg:min-h-0 lg:flex-1 lg:overflow-hidden">
           <SuperAdminSidebar mobileMenuOpen={mobileMenuOpen} setMobileMenuOpen={setMobileMenuOpen} />
-          <main className="flex-1 p-6 lg:p-8">
+          <main className="min-w-0 flex-1 overflow-x-hidden p-4 sm:p-6 lg:overflow-y-auto lg:p-8">
             <SuperAdminLoadingProvider>
               {children}
             </SuperAdminLoadingProvider>

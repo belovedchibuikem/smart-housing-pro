@@ -57,15 +57,10 @@ const defaultSettings: WhiteLabelSettings = {
 }
 
 async function fetchPublicWhiteLabelSettings(): Promise<WhiteLabelSettings | null> {
-  // On the SaaS apex, use platform defaults — do not proxy cooperative white-label.
+  // Platform colors come from SaaS branding. Do not paint cooperative white-label here.
   const { isPlatformApexHost } = await import("@/lib/auth/platform-host")
   if (isPlatformApexHost()) {
-    return {
-      ...defaultSettings,
-      company_name: "Smart Housing",
-      company_tagline: "Housing cooperatives, managed better",
-      is_active: true,
-    }
+    return null
   }
 
   const response = await fetch("/api/public/white-label", {

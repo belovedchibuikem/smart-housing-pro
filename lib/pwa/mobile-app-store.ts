@@ -1,12 +1,16 @@
+import { isPlatformApexHost } from "@/lib/auth/platform-host"
+
 /** Default Google Play listing for the Smart Housing member app. */
 export const DEFAULT_ANDROID_PLAY_STORE_URL =
   "https://play.google.com/store/apps/details?id=com.smartlogix.smarthousing&pcampaignid=web_share"
 
-/** Routes where install prompts are disabled (platform admin / marketing). */
+/** Install prompts belong on a cooperative site, including its landing page. */
 export function isInstallPromptRoute(pathname: string | null | undefined): boolean {
-  if (!pathname) return true
+  if (typeof window !== "undefined" && isPlatformApexHost()) return false
+  if (!pathname) return false
   if (pathname.startsWith("/super-admin")) return false
   if (pathname.startsWith("/saas")) return false
+  if (pathname.startsWith("/onboard")) return false
   return true
 }
 

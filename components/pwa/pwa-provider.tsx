@@ -12,6 +12,7 @@ import {
 import { useServiceWorker } from "@/lib/pwa/register-service-worker"
 import { InstallAppBanner } from "@/components/pwa/install-app-banner"
 import { isAndroidDevice, isDesktopBrowser } from "@/lib/pwa/mobile-app-store"
+import { isPlatformApexHost } from "@/lib/auth/platform-host"
 
 initInstallPromptCapture()
 
@@ -47,6 +48,13 @@ export function PwaProvider({ children }: { children: ReactNode }) {
   useServiceWorker()
 
   useEffect(() => {
+    if (isPlatformApexHost()) {
+      document.querySelectorAll('link[rel="manifest"]').forEach((el) => el.remove())
+      document.querySelector('meta[name="apple-mobile-web-app-capable"]')?.remove()
+      document.querySelector('meta[name="mobile-web-app-capable"]')?.remove()
+      return
+    }
+
     applyPwaMetaTags(settings)
     setIsStandalone(isStandaloneDisplayMode())
     setIsInstalled(isStandaloneDisplayMode())
