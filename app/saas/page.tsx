@@ -73,25 +73,6 @@ function apiPackageToPlan(pkg: OnboardingPackage): PricingPlanDisplay {
   }
 }
 
-function fallbackPlanToDisplay(plan: (typeof FALLBACK_PLAN_MARKETING)[number]): PricingPlanDisplay {
-  const price = parseInt(plan.priceLabel.replace(/,/g, ""), 10)
-  return {
-    name: plan.name,
-    tagline: plan.tagline,
-    description: plan.description,
-    priceNgn: plan.customPricing ? null : price,
-    priceLabel: plan.customPricing ? undefined : `₦${plan.priceLabel}`,
-    usdHint: plan.usdHint,
-    billingCycle: "yearly",
-    customPricing: plan.customPricing,
-    isFeatured: plan.is_featured,
-    features: plan.features,
-    ctaHref: plan.customPricing ? "/saas/contact" : "/onboard",
-    ctaLabel: plan.customPricing ? "Contact sales" : "Get started",
-    ctaVariant: plan.is_featured ? "default" : "outline",
-  }
-}
-
 interface PageSection {
   id: string
   section_type: string
@@ -108,6 +89,7 @@ export default function SaaSLandingPage() {
   const [testimonials, setTestimonials] = useState<any[]>([])
   const [businessPackages, setBusinessPackages] = useState<OnboardingPackage[]>([])
   const [marketplaceListings, setMarketplaceListings] = useState<MarketplaceListing[]>([])
+  const [ready, setReady] = useState(false)
   useEffect(() => {
     Promise.all([
       apiFetch<{ success: boolean; sections: PageSection[] }>("/public/saas/pages/home").catch(() => ({
@@ -137,8 +119,22 @@ export default function SaaSLandingPage() {
         setBusinessPackages(packagesRes.packages)
       }
       setMarketplaceListings(listingsRes.data || [])
-    })
+    }).finally(() => setReady(true))
   }, [])
+
+  if (!ready) {
+    return (
+      <div className="min-h-screen bg-background">
+        <SaaSHeader />
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="text-center">
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-primary" />
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background relative">
@@ -165,97 +161,6 @@ const WHY_CHOOSE_SMART_HOUSING = [
   { title: "Secure & Transparent", description: "system" },
 ] as const
 
-/**
- * Shown if central packages API is empty (offline or no seed).
- * Mirrors the SmartHousing product template; amounts are NGN / year.
- */
-const FALLBACK_PLAN_MARKETING: {
-  name: string
-  tagline?: string
-  priceLabel: string
-  usdHint?: string
-  period: string
-  customPricing?: boolean
-  description: string
-  features: string[]
-  is_featured: boolean
-}[] = [
-  {
-    name: "Starter",
-    tagline: "For Beginners",
-    priceLabel: "120,000",
-    usdHint: "~$80",
-    period: "/ Year",
-    description: "Perfect for small realtors and emerging housing businesses looking to establish a digital presence.",
-    is_featured: false,
-    features: [
-      "Access to SmartHousing Web App",
-      "Basic Vendor Profile",
-      "Limited Property Listings",
-      "Deposit Management Access (Free Tools)",
-      "Standard Support",
-      "Basic Analytics Dashboard",
-    ],
-  },
-  {
-    name: "Growth",
-    tagline: "Most Popular",
-    priceLabel: "300,000",
-    usdHint: "~$200",
-    period: "/ Year",
-    description: "Ideal for growing real estate businesses ready to scale operations and increase visibility.",
-    is_featured: true,
-    features: [
-      "Everything in Starter Plan",
-      "Increased Property Listings",
-      "Investment Management Access",
-      "Advanced Dashboard & Reporting",
-      "In-App Notifications",
-      "Priority Listing Visibility",
-      "Email & In-App Support",
-    ],
-  },
-  {
-    name: "Professional",
-    tagline: "Full Business Access",
-    priceLabel: "500,000",
-    usdHint: "~$330",
-    period: "/ Year",
-    description: "Designed for established real-estate companies, developers, and property organizations.",
-    is_featured: false,
-    features: [
-      "Unlimited Property Listings",
-      "Full Access to All Core Modules",
-      "Investment & Payout Management",
-      "Role & Permission Management",
-      "Referral Programme Access",
-      "Real-Time Analytics Dashboard",
-      "Priority Customer Support",
-      "Custom Branding Options",
-    ],
-  },
-  {
-    name: "Enterprise",
-    tagline: "Custom Solution",
-    customPricing: true,
-    priceLabel: "Custom",
-    period: "Pricing",
-    description:
-      "Built for large real-estate institutions and organizations requiring full customization and advanced control.",
-    is_featured: false,
-    features: [
-      "Everything in Professional Plan",
-      "Dedicated Web Instance (Own Platform)",
-      "Full Customization & Branding",
-      "Optional Administrative Modules",
-      "API Integration",
-      "Dedicated Account Manager",
-      "Onboarding & Staff Training",
-      "Continuous Consultation & Strategy Support",
-    ],
-  },
-]
-
 function SaaSLandingContent({
   sections,
   testimonials,
@@ -274,50 +179,12 @@ function SaaSLandingContent({
   const plansSection = sections.find((s) => s.section_type === "plans")
   const ctaSection = sections.find((s) => s.section_type === "cta")
 
-  // Default fallback data
-  const defaultFeatures = [
-    {
-      icon: Users,
-      title: "Member Management",
-      description: "Complete KYC verification, member profiles, and automated onboarding workflows.",
-    },
-    {
-      icon: Wallet,
-      title: "Contribution Tracking",
-      description: "Automated payment collection, contribution history, and financial reporting.",
-    },
-    {
-      icon: TrendingUp,
-      title: "Loan Management",
-      description: "Flexible loan products, application processing, and repayment tracking.",
-    },
-    {
-      icon: Building2,
-      title: "Property Management",
-      description: "Property listings, allotment tracking, and maintenance management.",
-    },
-    {
-      icon: BarChart3,
-      title: "Analytics & Reports",
-      description: "Real-time dashboards, financial reports, and business intelligence.",
-    },
-    {
-      icon: Shield,
-      title: "Security & Compliance",
-      description: "Bank-level security, role-based access, and audit trails.",
-    },
-  ]
+  const featureItems = featuresSection?.content?.items ?? featuresSection?.content?.features
+  const features = Array.isArray(featureItems) ? featureItems : []
 
-  const features = featuresSection?.content?.items || defaultFeatures
+  const plansIntro = plansSection?.content?.intro || plansSection?.subtitle || ""
 
-  const plansIntro =
-    plansSection?.content?.intro ||
-    "SmartHousing offers flexible subscription plans designed to empower real estate developers, realtors, and housing businesses of all sizes to operate efficiently on a powerful multi-vendor platform."
-
-  const useApiPlans = businessPackages.length > 0
-  const planCards: PricingPlanDisplay[] = useApiPlans
-    ? businessPackages.map(apiPackageToPlan)
-    : FALLBACK_PLAN_MARKETING.map(fallbackPlanToDisplay)
+  const planCards: PricingPlanDisplay[] = businessPackages.map(apiPackageToPlan)
 
   return (
     <React.Fragment>
@@ -433,6 +300,7 @@ function SaaSLandingContent({
               {featuresSection.subtitle || "Powerful features designed specifically for real-estate operators and their unique needs."}
             </p>
           </div>
+          {features.length > 0 && (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature: any, idx: number) => {
               const Icon = feature.icon ? (() => {
@@ -452,6 +320,7 @@ function SaaSLandingContent({
               )
             })}
           </div>
+          )}
         </section>
       )}
 
@@ -466,16 +335,22 @@ function SaaSLandingContent({
             <p className="text-muted-foreground text-lg">
               {plansSection?.subtitle || "Flexible plans for every real estate business"}
             </p>
-            <p className="text-muted-foreground text-base mt-4 leading-relaxed">{plansIntro}</p>
+            {plansIntro ? (
+              <p className="text-muted-foreground text-base mt-4 leading-relaxed">{plansIntro}</p>
+            ) : null}
             <p className="text-xs text-muted-foreground mt-3">
               Prices in Nigerian Naira (NGN). USD amounts are approximate guides for international buyers.
             </p>
           </div>
-          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4 max-w-7xl mx-auto items-stretch">
-            {planCards.map((plan) => (
-              <PricingPlanCard key={plan.id ?? plan.name} plan={plan} />
-            ))}
-          </div>
+          {planCards.length > 0 ? (
+            <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4 max-w-7xl mx-auto items-stretch">
+              {planCards.map((plan) => (
+                <PricingPlanCard key={plan.id ?? plan.name} plan={plan} />
+              ))}
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground">No subscription plans are published yet.</p>
+          )}
 
           <div className="max-w-4xl mx-auto mt-16 text-center">
             <h3 className="text-2xl font-bold flex items-center justify-center gap-2 mb-2">

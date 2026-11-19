@@ -60,6 +60,8 @@ interface DynamicLandingPageProps {
   isTenantPage?: boolean
 }
 
+type LandingLoadPhase = "loading" | "published" | "unpublished" | "error"
+
 interface PlansData {
   loans: any[]
   investments: any[]
@@ -71,6 +73,7 @@ export function DynamicLandingPage({ isTenantPage = true }: DynamicLandingPagePr
   const [propertiesData, setPropertiesData] = useState<any[]>([])
   const [tenantStats, setTenantStats] = useState<TenantLandingStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [phase, setPhase] = useState<LandingLoadPhase>("loading")
   const { settings: whiteLabelSettings, loading: brandingLoading } = useWhiteLabel()
 
   useEffect(() => {
@@ -170,42 +173,34 @@ export function DynamicLandingPage({ isTenantPage = true }: DynamicLandingPagePr
           'Expires': '0',
         },
       })
+
+      if (response.status === 404) {
+        setPhase((current) => (current === "published" ? current : "unpublished"))
+        return
+      }
+
+      if (!response.ok) {
+        throw new Error(`Landing page request failed (${response.status})`)
+      }
+
       const data = await response.json()
-      console.log("[Landing Page] Fetched data:", {
-        hasPage: !!data.page,
-        theme: data.page?.theme,
-        timestamp: new Date().toISOString(),
-      })
-      
-      if (data.page) {
+
+      if (data.page?.is_published) {
         setPageData(data.page)
-        
-        // Log theme data for debugging
-        if (data.page.theme) {
-          console.log("[Landing Page] Theme data:", data.page.theme)
-        }
-      }
-      if (data.plans) {
-        console.log("[Landing Page] Received plans data:", {
-          loans: data.plans.loans?.length || 0,
-          investments: data.plans.investments?.length || 0,
-        })
         setPlansData({
-          loans: data.plans.loans || [],
-          investments: data.plans.investments || [],
+          loans: data.plans?.loans || [],
+          investments: data.plans?.investments || [],
         })
-      } else {
-        // If no plans data, set empty arrays to avoid showing mock data
-        setPlansData({ loans: [], investments: [] })
+        setPropertiesData(Array.isArray(data.properties) ? data.properties : [])
+        setTenantStats(data.stats ?? null)
+        setPhase("published")
+        return
       }
-      if (data.properties) {
-        setPropertiesData(data.properties)
-      }
-      if (data.stats) {
-        setTenantStats(data.stats)
-      }
+
+      setPhase((current) => (current === "published" ? current : "unpublished"))
     } catch (error) {
       console.error("[Landing Page] Error fetching landing page:", error)
+      setPhase((current) => (current === "published" ? current : "error"))
     } finally {
       setLoading(false)
     }
@@ -273,7 +268,7 @@ export function DynamicLandingPage({ isTenantPage = true }: DynamicLandingPagePr
     }
   }
 
-  if (loading || brandingLoading) {
+  if (loading || brandingLoading || phase === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -284,9 +279,18 @@ export function DynamicLandingPage({ isTenantPage = true }: DynamicLandingPagePr
     )
   }
 
-  if (!pageData || !pageData.is_published) {
-    // Fallback to default landing page if not published
-    return <DefaultLandingPage />
+  if (phase === "error" || !pageData) {
+    if (phase === "unpublished") {
+      return <DefaultLandingPage />
+    }
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <p className="text-lg font-medium">The landing page could not be loaded.</p>
+          <p className="text-muted-foreground mt-2">Refresh the page to try again.</p>
+        </div>
+      </div>
+    )
   }
 
   const sortedSections = [...pageData.sections].sort((a, b) => a.position - b.position)
@@ -577,59 +581,30 @@ function FeaturesSection({ config, templateId = "default" }: { config: Record<st
             {config.subtitle || "Comprehensive tools to manage your housing cooperative membership"}
           </p>
         </div>
+        {features.length > 0 && (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {features.length > 0 ? (
-            features.map((feature: any, index: number) => {
-              const Icon = iconMap[feature.icon] || Shield
-              return (
-                <Card key={index} className="p-6 space-y-4 hover:shadow-lg transition-shadow">
-                  <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Icon className="h-6 w-6 text-primary" />
-                  </div>
-                  <h3 className="text-xl font-semibold">{feature.title}</h3>
-                  <p className="text-muted-foreground">{feature.description}</p>
-                </Card>
-              )
-            })
-          ) : (
-            <>
-              <Card className="p-6 space-y-4 hover:shadow-lg transition-shadow">
+          {features.map((feature: any, index: number) => {
+            const Icon = iconMap[feature.icon] || Shield
+            return (
+              <Card key={index} className="p-6 space-y-4 hover:shadow-lg transition-shadow">
                 <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Users className="h-6 w-6 text-primary" />
+                  <Icon className="h-6 w-6 text-primary" />
                 </div>
-                <h3 className="text-xl font-semibold">Membership Management</h3>
-                <p className="text-muted-foreground">
-                  Easy registration with KYC verification. Track your membership status and benefits in real-time.
-                </p>
+                <h3 className="text-xl font-semibold">{feature.title}</h3>
+                <p className="text-muted-foreground">{feature.description}</p>
               </Card>
-              <Card className="p-6 space-y-4 hover:shadow-lg transition-shadow">
-                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <Wallet className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="text-xl font-semibold">Digital Wallet</h3>
-                <p className="text-muted-foreground">
-                  Automated monthly contributions with flexible payment options. View your balance and transaction history.
-                </p>
-              </Card>
-              <Card className="p-6 space-y-4 hover:shadow-lg transition-shadow">
-                <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <TrendingUp className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="text-xl font-semibold">Loan & Mortgage</h3>
-                <p className="text-muted-foreground">
-                  Access affordable housing loans with competitive rates. Flexible repayment schedules tailored to your needs.
-                </p>
-              </Card>
-            </>
-          )}
+            )
+          })}
         </div>
+        )}
       </div>
     </section>
   )
 }
 
 function HowItWorksSection({ config, templateId = "default" }: { config: Record<string, any>; templateId?: string }) {
-  const steps = config.steps || []
+  const steps = Array.isArray(config.steps) ? config.steps : []
+  if (steps.length === 0) return null
 
   if (templateId === "modern") {
     return (
@@ -724,12 +699,7 @@ function HowItWorksSection({ config, templateId = "default" }: { config: Record<
           <p className="text-muted-foreground text-lg">{config.subtitle || "Four simple steps to start your homeownership journey"}</p>
         </div>
         <div className="grid md:grid-cols-4 gap-8 max-w-5xl mx-auto">
-          {(steps.length > 0 ? steps : [
-            { step: 1, title: "Register", description: "Create your account and complete KYC verification" },
-            { step: 2, title: "Contribute", description: "Make monthly contributions to build your equity" },
-            { step: 3, title: "Apply", description: "Apply for loans or select from available properties" },
-            { step: 4, title: "Own", description: "Get your property and start building wealth" },
-          ]).map((step: any, index: number) => (
+          {steps.map((step: any, index: number) => (
             <div key={index} className="text-center space-y-4">
               <div className="h-16 w-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-2xl font-bold mx-auto">
                 {step.step || index + 1}
