@@ -3,6 +3,10 @@ import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
+if (process.env.NODE_ENV === 'development') {
+  import('@opennextjs/cloudflare').then((m) => m.initOpenNextCloudflareForDev())
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   transpilePackages: ['react-day-picker', 'date-fns'],
