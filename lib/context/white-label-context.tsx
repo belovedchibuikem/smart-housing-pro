@@ -11,6 +11,7 @@ export interface WhiteLabelSettings {
   logo_url: string
   logo_dark_url: string
   favicon_url: string
+  login_background_url?: string
   primary_color: string
   secondary_color: string
   accent_color: string

@@ -5,26 +5,25 @@ import { Building2 } from "lucide-react"
 import Link from "next/link"
 import { useI18n } from "@/lib/i18n/i18n-provider"
 import Image from "next/image"
-import { useWhiteLabel } from "@/lib/hooks/use-white-label"
-import { useTenantSettings } from "@/lib/context/tenant-settings-context"
-import { useTenant } from "@/lib/tenant/tenant-context"
 import { resolveStorageUrl } from "@/lib/api/config"
+import { useAuthBrand } from "@/hooks/use-auth-brand"
 
 export default function RegisterPage() {
 	const { t } = useI18n()
-  const { settings: whiteLabelSettings } = useWhiteLabel()
-  const { getSetting } = useTenantSettings()
-  const { tenant } = useTenant()
+  const { ready, siteName, siteTagline, logoUrl, homeHref } = useAuthBrand()
 
-  const siteName = whiteLabelSettings?.company_name || tenant?.name || getSetting("site_name", t("registerPage.brandTitle"))
-  const siteTagline =
-    whiteLabelSettings?.company_tagline || getSetting("site_description", t("registerPage.brandSubtitle"))
-  const logoUrl = whiteLabelSettings?.logo_url || tenant?.logo_url
+  if (!ready) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-primary" />
+      </div>
+    )
+  }
 
 	return (
 		<div className="min-h-screen grid lg:grid-cols-2">
 			<div className="hidden lg:flex flex-col justify-between p-12 bg-primary text-primary-foreground">
-				<Link href="/" className="flex items-center gap-2">
+				<Link href={homeHref} className="flex items-center gap-2">
           {logoUrl ? (
             <Image
               src={resolveStorageUrl(logoUrl)}
@@ -82,7 +81,7 @@ export default function RegisterPage() {
 			<div className="flex items-center justify-center p-8">
 				<div className="w-full max-w-md space-y-8">
 					<div className="text-center lg:text-left">
-						<Link href="/" className="lg:hidden flex items-center justify-center gap-2 mb-8">
+						<Link href={homeHref} className="lg:hidden flex items-center justify-center gap-2 mb-8">
               {logoUrl ? (
                 <Image
                   src={resolveStorageUrl(logoUrl)}
