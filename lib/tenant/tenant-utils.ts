@@ -7,6 +7,18 @@ function platformDomains(): string[] {
   return Array.from(new Set([fromEnv, ...KNOWN_PLATFORM_DOMAINS].filter(Boolean)))
 }
 
+function isPlatformPreviewHost(host: string): boolean {
+  return (
+    host.endsWith(".workers.dev") ||
+    host === "workers.dev" ||
+    host.endsWith(".pages.dev") ||
+    host === "pages.dev" ||
+    host.includes("v0.dev") ||
+    host.includes("vusercontent.net") ||
+    host.includes("vercel.app")
+  )
+}
+
 function matchingPlatformDomain(hostname: string): string | null {
   const host = hostname.replace(/:\d+$/, "").toLowerCase()
   for (const domain of platformDomains()) {
@@ -51,8 +63,8 @@ export function getTenantSlugFromHost(hostname: string): string | null {
     return subdomain
   }
 
-  // v0 preview domains like preview.v0.dev should not be treated as tenant subdomains
-  if (host.includes("v0.dev") || host.includes("vusercontent.net") || host.includes("vercel.app")) {
+  // Preview hosts are the platform site until a custom domain is attached.
+  if (isPlatformPreviewHost(host)) {
     return null
   }
 
@@ -74,7 +86,7 @@ export function isCustomDomain(hostname: string): boolean {
     return false
   }
 
-  if (host.includes("v0.dev") || host.includes("vusercontent.net") || host.includes("vercel.app")) {
+  if (isPlatformPreviewHost(host)) {
     return false
   }
 

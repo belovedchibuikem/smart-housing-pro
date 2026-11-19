@@ -1,48 +1,35 @@
 /**
  * Centralized API Configuration
- * 
- * This file provides a single source of truth for API base URLs.
- * All API requests should use getApiBaseUrl() to ensure consistency
- * across development and production environments.
+ *
+ * The browser calls same-origin /api, which the Cloudflare worker rewrites to Laravel.
+ * Server code and storage URLs use the public Laravel host.
  */
 
+import { resolveLaravelApiBase, resolveLaravelOrigin, resolveStorageBase } from "./public-origin.mjs"
+
 /**
- * Get the API base URL from environment variable
- * Falls back to default development URL if not set
+ * Browser: same-origin /api (Cloudflare rewrite).
+ * Server: absolute Laravel /api URL.
  */
 export function getApiBaseUrl(): string {
-	const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000/api"
-	// Remove trailing slash if present
-	return apiBase.replace(/\/$/, "")
+	if (typeof window !== "undefined") return "/api"
+	return resolveLaravelApiBase()
 }
 
 /**
- * Get the API base URL without the /api suffix
- * Useful for storage URLs and other non-API endpoints
+ * Laravel origin without the /api suffix.
+ * Storage and other public files are loaded from this host.
  */
 export function getApiUrl(): string {
-	const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/api$/, "") || "http://127.0.0.1:8000"
-	// Remove trailing slash if present
-	return apiUrl.replace(/\/$/, "")
+	return resolveLaravelOrigin()
 }
 
 /**
- * Get storage URL (for file access)
- * Supports NEXT_PUBLIC_STORAGE_URL environment variable for explicit storage URL
- * Falls back to API URL + optional NEXT_PUBLIC_PUBLIC_PATH_PREFIX + /storage
+ * Public file base. Uses NEXT_PUBLIC_STORAGE_URL when set,
+ * otherwise the Laravel host plus NEXT_PUBLIC_PUBLIC_PATH (/public) and /storage.
  */
 export function getStorageUrl(): string {
-	// Check for explicit storage URL first
-	if (process.env.NEXT_PUBLIC_STORAGE_URL) {
-		return process.env.NEXT_PUBLIC_STORAGE_URL.replace(/\/$/, "")
-	}
-	const base = getApiUrl()
-	const prefix = (process.env.NEXT_PUBLIC_PUBLIC_PATH_PREFIX || "")
-		.replace(/^\/+|\/+$/g, "")
-	if (prefix) {
-		return `${base}/${prefix}/storage`
-	}
-	return `${base}/storage`
+	return resolveStorageBase()
 }
 
 // Export constants for convenience

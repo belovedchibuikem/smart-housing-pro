@@ -1,5 +1,6 @@
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { resolveLaravelApiBase } from './lib/api/public-origin.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -46,8 +47,9 @@ const nextConfig = {
     unoptimized: true,
   },
   async rewrites() {
-    // Use environment variable for API destination, fallback to localhost for development
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000/api'
+    // Browser calls stay on /api. Cloudflare Workers cannot reach 127.0.0.1,
+    // so production rewrites go to the public Laravel host.
+    const apiBaseUrl = resolveLaravelApiBase()
     return [
       {
         source: '/api/:path*',

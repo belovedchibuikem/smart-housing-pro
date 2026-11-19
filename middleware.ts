@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { resolveLaravelApiBase } from "@/lib/api/public-origin.mjs"
 import { getTenantSlugFromHost, isCustomDomain } from "@/lib/tenant/tenant-utils"
 import { AUTH_COOKIE } from "@/lib/auth/auth-cookies"
 import { isLegacyStaffFallbackPath, userHasPermissionForAdminHref } from "@/lib/admin/nav-permissions"
@@ -91,7 +92,7 @@ export async function middleware(request: NextRequest) {
   // Validate tenant if we have a slug or custom domain (skip in development)
   if ((tenantSlug || isCustomDomainRequest) && !isDevelopment) {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000/api"
+      const apiUrl = resolveLaravelApiBase()
       const validateUrl = `${apiUrl}/tenant/validate?host=${encodeURIComponent(hostname)}${tenantSlug ? `&slug=${tenantSlug}` : ""}`
       
       // Add timeout to prevent hanging requests that can cause SSL handshake failures

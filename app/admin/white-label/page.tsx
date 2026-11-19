@@ -14,7 +14,7 @@ import { Switch } from "@/components/ui/switch"
 import { Palette, Type, ImageIcon, Mail, FileText, Save, Upload, X, Code, LinkIcon, AlertCircle } from "lucide-react"
 import { toast as sonnerToast } from "sonner"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { apiFetch } from "@/lib/api/client"
+import { apiFetch, getApiBaseUrl } from "@/lib/api/client"
 import { useTenantModules } from "@/lib/hooks/use-tenant-modules"
 import Link from "next/link"
 import { resolveStorageUrl } from "@/lib/api/config"
@@ -195,7 +195,7 @@ export default function WhiteLabelPage() {
       
       // Use apiFetch with FormData
       const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
-      const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '/api'
+      const apiUrl = getApiBaseUrl()
       
       const response = await fetch(`${apiUrl}${endpoint}`, {
         method: 'POST',

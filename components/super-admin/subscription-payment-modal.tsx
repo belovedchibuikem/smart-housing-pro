@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card } from "@/components/ui/card"
 import { CreditCard, Building2, Smartphone } from "lucide-react"
+import { getApiBaseUrl } from "@/lib/api/client"
 
 interface Subscription {
   id: string
@@ -37,7 +38,7 @@ export function SubscriptionPaymentModal({ subscriptions, onPaymentInitiated }: 
     setLoading(true)
 
     try {
-      const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "/api"
+      const apiBase = getApiBaseUrl()
       const response = await fetch(`${apiBase}/super-admin/payment-gateways/subscription-payment`, {
         method: "POST",
         headers: {

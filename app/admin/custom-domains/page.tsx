@@ -327,7 +327,7 @@ export default function CustomDomainsPage() {
                   <Alert className="border-green-200 bg-green-50 dark:bg-green-950/20">
                     <CheckCircle2 className="h-4 w-4 text-green-600" />
                     <AlertDescription>
-                      {domain.status_message || "Domain is connected to Vercel and active."}
+                      {domain.status_message || "Domain is connected and active."}
                     </AlertDescription>
                   </Alert>
                 ) : domain.status_message ? (
@@ -340,7 +340,7 @@ export default function CustomDomainsPage() {
                 <div>
                   <h4 className="font-semibold mb-3">DNS Configuration</h4>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Add these DNS records at your registrar, or point nameservers to Vercel (<code className="text-xs">ns1.vercel-dns.com</code>, <code className="text-xs">ns2.vercel-dns.com</code>). Verification checks whether the domain is connected to Vercel — not an exact string match on every record.
+                    Add these DNS records at your registrar. Point the domain at the Smart Housing site, then add that hostname on the Cloudflare worker. Verification checks that the CNAME reaches the site.
                   </p>
 
                   <div className="border rounded-lg overflow-hidden">

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
+import { resolveLaravelOrigin } from "@/lib/api/public-origin.mjs"
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || process.env.API_BASE_URL || "http://localhost:8000"
+const API_ORIGIN = resolveLaravelOrigin()
 
 export async function GET(request: NextRequest) {
   const envKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY?.trim() || ""
@@ -19,7 +20,7 @@ export async function GET(request: NextRequest) {
       headers["X-Tenant-Slug"] = tenantSlug
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/auth/recaptcha-site-key`, {
+    const response = await fetch(`${API_ORIGIN}/api/auth/recaptcha-site-key`, {
       method: "GET",
       headers,
     })

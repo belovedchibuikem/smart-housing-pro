@@ -12,5 +12,21 @@
   },
   "observability": {
     "enabled": true
+  },
+  "vars": {
+    "NEXT_PUBLIC_API_BASE_URL": "https://smarthousing.katakarra.com/public/api",
+    "NEXT_PUBLIC_API_URL": "https://smarthousing.katakarra.com/public/api",
+    "NEXT_PUBLIC_PLATFORM_DOMAIN": "smarthousing.com.ng",
+    "NEXT_PUBLIC_PUBLIC_PATH": "/public",
+    "NEXT_PUBLIC_STORAGE_URL": "https://smarthousing.katakarra.com/public/storage",
+    "NEXT_PUBLIC_SITE_URL": "https://smarthousing.com.ng"
   }
+  // After smarthousing.com.ng is on this Cloudflare account, attach the apex and
+  // cooperative subdomains (Workers dashboard, or routes below). Do not add the
+  // routes until the zone exists, or deploy fails.
+  // "routes": [
+  //   { "pattern": "smarthousing.com.ng/*", "zone_name": "smarthousing.com.ng" },
+  //   { "pattern": "www.smarthousing.com.ng/*", "zone_name": "smarthousing.com.ng" },
+  //   { "pattern": "*.smarthousing.com.ng/*", "zone_name": "smarthousing.com.ng" }
+  // ]
 }

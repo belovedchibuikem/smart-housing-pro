@@ -15,6 +15,7 @@ import {
 	getImpersonationToken,
 	isImpersonatingSession,
 } from "@/lib/auth/impersonation"
+import { resolveLaravelApiBase } from "@/lib/api/public-origin.mjs"
 
 // Lightweight API client for browser-side requests
 
@@ -65,13 +66,10 @@ function clearClientSessionAndRedirect(reason: string = "session"): void {
 	window.location.href = `/login?reason=${encodeURIComponent(reason)}`
 }
 
-/** Browser calls use same-origin /api rewrite; server/SSR uses the configured Laravel URL. */
+/** Browser calls use same-origin /api rewrite; server/SSR uses the public Laravel URL. */
 export function getApiBaseUrl(): string {
-	const base =
-		typeof window !== "undefined"
-			? "/api"
-			: process.env.NEXT_PUBLIC_API_BASE_URL || "/api"
-	return base.replace(/\/$/, "")
+	if (typeof window !== "undefined") return "/api"
+	return resolveLaravelApiBase()
 }
 
 export function getAuthToken(): string | null {
@@ -3952,7 +3950,7 @@ export async function exportReport(type: string, params?: Record<string, any>) {
 	}
 	
 	const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
-	const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '/api'
+	const apiUrl = getApiBaseUrl()
 	const accept =
 		format === "xlsx" || format === "excel"
 			? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -4331,7 +4329,7 @@ export async function exportAuditLogs(params?: {
 	if (params?.sort_order) query.set("sort_order", params.sort_order)
 	
 	const token = typeof window !== 'undefined' ? localStorage.getItem('auth_token') : null
-	const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || '/api'
+	const apiUrl = getApiBaseUrl()
 	
 	try {
 		const response = await fetch(`${apiUrl}/admin/audit-logs/export?${query.toString()}`, {
@@ -5078,7 +5076,7 @@ export async function uploadPaymentEvidence(file: File): Promise<string> {
 		: '/api/user/profile/upload-payment-evidence'
 	
 	const token = localStorage.getItem('auth_token')
-	const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}${endpoint}`, {
+	const response = await fetch(endpoint, {
 		method: "POST",
 		body: formData,
 		headers: {
