@@ -10,14 +10,14 @@ export function generateDNSRecords(
 ): Omit<DomainDNSRecord, "id" | "custom_domain_id" | "is_verified" | "created_at" | "verified_at">[] {
   return [
     {
-      record_type: "A",
+      record_type: "CNAME",
       record_name: "@",
-      record_value: "76.76.21.21", // Your server IP
+      record_value: "smarthousing.com.ng",
     },
     {
       record_type: "CNAME",
       record_name: "www",
-      record_value: "cname.frschousing.com",
+      record_value: "smarthousing.com.ng",
     },
     {
       record_type: "TXT",

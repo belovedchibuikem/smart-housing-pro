@@ -111,7 +111,7 @@ export default function CustomDomainsPage() {
       })
 
       if (data.success) {
-        sonnerToast.success("Domain verified on Vercel", {
+        sonnerToast.success("Domain verified on Cloudflare", {
           description: data.message || "Your custom domain is now active",
         })
         await fetchDomains()
@@ -121,7 +121,7 @@ export default function CustomDomainsPage() {
     } catch (error: any) {
       console.error("Error verifying domain:", error)
       sonnerToast.error("Verification not ready yet", {
-        description: error.message || "Confirm the domain shows Valid in Vercel, wait a few minutes, then try again",
+        description: error.message || "Point DNS at smarthousing.com.ng, wait a few minutes, then try again",
       })
       await fetchDomains() // Refresh to get updated status
     } finally {
@@ -137,12 +137,12 @@ export default function CustomDomainsPage() {
       })
 
       if (data.verified) {
-        sonnerToast.success("Domain verified on Vercel", {
+        sonnerToast.success("Domain verified on Cloudflare", {
           description: data.message || "Your custom domain is active",
         })
       } else {
-        sonnerToast.info("Not verified on Vercel yet", {
-          description: data.message || "Add the domain in Vercel and wait for DNS to propagate",
+        sonnerToast.info("Not verified on Cloudflare yet", {
+          description: data.message || "Point the domain at smarthousing.com.ng and wait for DNS to propagate",
         })
       }
       await fetchDomains()
@@ -282,7 +282,7 @@ export default function CustomDomainsPage() {
       <Alert>
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
-          Add your domain in Vercel first, then configure DNS (nameservers or A/CNAME records). When Vercel shows the domain as Valid, click <strong>Verify Now</strong> here to activate it for your tenant.
+          Point the domain at smarthousing.com.ng (CNAME @ and www). Remove any Vercel A records, CNAME, or nameservers. After DNS updates, click <strong>Verify Now</strong> to activate it for your tenant.
         </AlertDescription>
       </Alert>
 
@@ -340,7 +340,7 @@ export default function CustomDomainsPage() {
                 <div>
                   <h4 className="font-semibold mb-3">DNS Configuration</h4>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Add these DNS records at your registrar. Point the domain at the Smart Housing site, then add that hostname on the Cloudflare worker. Verification checks that the CNAME reaches the site.
+                    Add these DNS records at your registrar. Replace Vercel targets with the Smart Housing Cloudflare site. Verification checks that the CNAME or Cloudflare proxy reaches this app.
                   </p>
 
                   <div className="border rounded-lg overflow-hidden">
@@ -431,7 +431,7 @@ export default function CustomDomainsPage() {
                       disabled={verifying[domain.id] || deleting[domain.id]}
                     >
                       <CheckCircle2 className="h-4 w-4 mr-2" />
-                      Verify on Vercel
+                      Verify on Cloudflare
                     </Button>
                   )}
                   {domain.status === 'active' && (

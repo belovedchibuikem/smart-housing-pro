@@ -34,7 +34,7 @@ function adminPathAllowed(
 }
 
 export async function middleware(request: NextRequest) {
-  const hostname = request.headers.get("host") || ""
+  const hostname = (request.headers.get("host") || "").replace(/:\d+$/, "").toLowerCase()
   const pathname = request.nextUrl.pathname
   
   // Development mode: Check for tenant query parameter or header

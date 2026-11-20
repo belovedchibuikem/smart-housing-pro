@@ -32,8 +32,8 @@ export default function CustomDomainsPage() {
   ]
 
   const dnsRecords = [
-    { type: "A", name: "@", value: "76.76.21.21" },
-    { type: "CNAME", name: "www", value: "cname.frschousing.com" },
+    { type: "CNAME", name: "@", value: "smarthousing.com.ng" },
+    { type: "CNAME", name: "www", value: "smarthousing.com.ng" },
     { type: "TXT", name: "_frsc-verification", value: "frsc-verify-abc123xyz" },
   ]
 
